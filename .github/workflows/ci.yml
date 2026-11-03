@@ -1,0 +1,69 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  node:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: sudo apt-get install -y -qq freeradius-utils
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  shell:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh
+
+  radius:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free ports used by runner images
+        run: sudo systemctl stop postgresql || true
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-pycryptodome bc
+      - name: Install RADIUS (production + staging)
+        run: sudo PG_TLS_HOSTNAME=localhost bash radius/scripts/install.sh all
+      - name: Installer is idempotent
+        run: sudo PG_TLS_HOSTNAME=localhost bash radius/scripts/install.sh all
+      - name: E2E staging
+        run: sudo INSTANCE=staging bash radius/tests/e2e.sh
+      - name: E2E production incl. database outage
+        run: sudo INSTANCE=production DB_OUTAGE_TEST=1 bash radius/tests/e2e.sh
+      - name: Load (regression guard; the real target is proven on the Ubuntu VPS, WP 1.9)
+        run: sudo INSTANCE=staging USERS=20000 PARALLEL=200 TARGET=1000 bash radius/tests/load.sh
+      - name: Logs on failure
+        if: failure()
+        run: |
+          sudo journalctl -u freeradius -u freeradius-staging -u 'postgresql*' --no-pager -n 300 || true
+          sudo tail -n 100 /var/log/postgresql/*.log || true

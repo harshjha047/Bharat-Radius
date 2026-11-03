@@ -1,0 +1,48 @@
+# Prometheus on the Windows VPS. Replace UBUNTU_IP. Alertmanager routes to WhatsApp/Telegram (Step 4, WP 4.9).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['127.0.0.1:9093']
+
+scrape_configs:
+  - job_name: node-ubuntu
+    static_configs:
+      - targets: ['UBUNTU_IP:9100']
+        labels: { host: radius-ubuntu }
+
+  - job_name: postgres-ubuntu
+    static_configs:
+      - targets: ['UBUNTU_IP:9187']
+        labels: { host: radius-ubuntu }
+
+  - job_name: freeradius
+    static_configs:
+      - targets: ['UBUNTU_IP:9812']
+        labels: { instance_name: production }
+      - targets: ['UBUNTU_IP:9813']
+        labels: { instance_name: staging }
+
+  - job_name: windows
+    static_configs:
+      - targets: ['127.0.0.1:9182']
+        labels: { host: app-windows }
+
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params: { module: [http_2xx] }
+    static_configs:
+      - targets: ['http://127.0.0.1:4000/healthz', 'https://new.bharatradius.com/api/healthz']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115

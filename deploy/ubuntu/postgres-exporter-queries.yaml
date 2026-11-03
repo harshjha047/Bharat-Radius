@@ -1,0 +1,55 @@
+isp_radius_auth_last_minute:
+  query: |
+    SELECT t.slug AS tenant, p.reply, coalesce(p.reason, '') AS reason, count(*) AS count
+      FROM radpostauth p LEFT JOIN tenants t ON t.id = p.tenant_id
+     WHERE p.authdate > now() - interval '1 minute'
+     GROUP BY 1, 2, 3
+  metrics:
+    - tenant: { usage: LABEL, description: ISP slug }
+    - reply: { usage: LABEL, description: Access-Accept or Access-Reject }
+    - reason: { usage: LABEL, description: Reject reason or accept note }
+    - count: { usage: GAUGE, description: Auth results in the last minute }
+
+isp_radius_online:
+  query: |
+    SELECT t.slug AS tenant, count(a.*) AS sessions
+      FROM tenants t
+      LEFT JOIN radacct a ON a.tenant_id = t.id AND a.acctstoptime IS NULL
+             AND a.acctupdatetime > now() - make_interval(secs => 3 * t.interim_interval)
+     GROUP BY 1
+  metrics:
+    - tenant: { usage: LABEL, description: ISP slug }
+    - sessions: { usage: GAUGE, description: Online sessions heard from within 3 interim periods }
+
+isp_radius_login_sql:
+  query: |
+    SELECT CASE WHEN query LIKE '%radius_check%' THEN 'check' WHEN query LIKE '%radius_reply%' THEN 'reply'
+                WHEN query LIKE '%radius_acct%' THEN 'acct' ELSE 'postauth' END AS fn,
+           sum(calls) AS calls, sum(total_exec_time) / 1000 AS seconds_total, max(mean_exec_time) AS mean_ms
+      FROM pg_stat_statements
+     WHERE query ~ 'radius_(check|reply|acct|log_auth)\('
+     GROUP BY 1
+  metrics:
+    - fn: { usage: LABEL, description: Login-path function }
+    - calls: { usage: COUNTER, description: Calls }
+    - seconds_total: { usage: COUNTER, description: Total execution time }
+    - mean_ms: { usage: GAUGE, description: Mean execution time in ms }
+
+isp_radius_default_partition:
+  query: |
+    SELECT (SELECT count(*) FROM radacct_default) AS radacct_rows, (SELECT count(*) FROM radpostauth_default) AS radpostauth_rows
+  metrics:
+    - radacct_rows: { usage: GAUGE, description: Rows in radacct default partition (should be 0) }
+    - radpostauth_rows: { usage: GAUGE, description: Rows in radpostauth default partition (should be 0) }
+
+isp_replication:
+  query: |
+    SELECT s.slot_name, s.active::int AS slot_active,
+           coalesce(extract(epoch FROM r.replay_lag), 0) AS replay_lag_seconds,
+           pg_wal_lsn_diff(pg_current_wal_lsn(), s.restart_lsn) AS retained_wal_bytes
+      FROM pg_replication_slots s LEFT JOIN pg_stat_replication r ON r.pid = s.active_pid
+  metrics:
+    - slot_name: { usage: LABEL, description: Replication slot }
+    - slot_active: { usage: GAUGE, description: 1 when the standby is connected }
+    - replay_lag_seconds: { usage: GAUGE, description: Standby replay lag }
+    - retained_wal_bytes: { usage: GAUGE, description: WAL kept for the slot }

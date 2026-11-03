@@ -1,0 +1,20 @@
+# Managed by isp-platform. Status-Server for the Prometheus freeradius_exporter (localhost only).
+server status {
+	listen {
+		type = status
+		ipaddr = 127.0.0.1
+		port = @STATUS_PORT@
+	}
+
+	client admin {
+		ipaddr = 127.0.0.1
+		secret = $ENV{FR_STATUS_SECRET}
+	}
+
+	authorize {
+		ok
+		Autz-Type Status-Server {
+			ok
+		}
+	}
+}

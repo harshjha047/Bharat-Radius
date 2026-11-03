@@ -1,0 +1,2 @@
+# Runtime config files under /etc/isp-radius are sourced by design.
+disable=SC1090

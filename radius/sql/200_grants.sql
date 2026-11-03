@@ -1,0 +1,42 @@
+-- Re-applied on every install. psql variables: fr_role, app_role, repl_role.
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO :"fr_role", :"app_role";
+
+-- FreeRADIUS: read config, write sessions and auth log, nothing else.
+GRANT SELECT ON tenants, nas, plans, plan_attributes, subscribers TO :"fr_role";
+GRANT SELECT, INSERT, UPDATE ON radacct TO :"fr_role";
+GRANT INSERT ON radpostauth TO :"fr_role";
+GRANT USAGE ON SEQUENCE radacct_radacctid_seq, radpostauth_id_seq TO :"fr_role";
+GRANT EXECUTE ON FUNCTION
+  radius_check(inet, text, text, text),
+  radius_reply(inet, text),
+  radius_online_count(inet, text),
+  radius_log_auth(inet, text, text, text, text),
+  radius_acct(text, inet, text, text, text, text, text, text, text, text, text, text, text, text, text, text,
+              text, text, text, text, text, text, text, text, text, text, text)
+  TO :"fr_role";
+GRANT EXECUTE ON FUNCTION pgp_sym_decrypt(bytea, text) TO :"fr_role";
+
+-- Node API (outbox writer): manage config, read sessions/auth log, close sessions, maintain usage_daily.
+GRANT SELECT, INSERT, UPDATE, DELETE ON tenants, nas, plans, plan_attributes, subscribers TO :"app_role";
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO :"app_role";
+GRANT SELECT, UPDATE ON radacct TO :"app_role";
+GRANT SELECT ON radpostauth TO :"app_role";
+GRANT SELECT, INSERT, UPDATE, DELETE ON usage_daily TO :"app_role";
+GRANT EXECUTE ON FUNCTION
+  radius_encrypt_password(text, text),
+  radius_online_count(inet, text),
+  radius_close_stale_sessions(),
+  pgp_sym_encrypt(text, text, text)
+  TO :"app_role";
+
+-- Keys pass through query text: never log statements for these roles.
+ALTER ROLE :"fr_role" SET log_statement = 'none';
+ALTER ROLE :"fr_role" SET log_min_duration_statement = -1;
+ALTER ROLE :"fr_role" SET log_min_error_statement = 'panic';
+ALTER ROLE :"fr_role" SET synchronous_commit = 'off';
+ALTER ROLE :"app_role" SET log_statement = 'none';
+ALTER ROLE :"app_role" SET log_min_duration_statement = -1;
+ALTER ROLE :"app_role" SET log_min_error_statement = 'panic';

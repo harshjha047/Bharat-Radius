@@ -1,0 +1,272 @@
+{
+  "title": "ISP RADIUS",
+  "uid": "isp-radius",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "ds",
+        "type": "datasource",
+        "query": "prometheus"
+      },
+      {
+        "name": "instance",
+        "type": "custom",
+        "query": "production,staging",
+        "current": {
+          "text": "production",
+          "value": "production"
+        }
+      },
+      {
+        "name": "tenant",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds}"
+        },
+        "query": "label_values(isp_radius_online_sessions, tenant)",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Logins per minute (accept / reject)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (reply) (isp_radius_auth_last_minute_count{tenant=~\"$tenant\"})",
+          "legendFormat": "{{reply}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Rejects by reason (per minute)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (reason) (isp_radius_auth_last_minute_count{reply=\"Access-Reject\",tenant=~\"$tenant\"})",
+          "legendFormat": "{{reason}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "FreeRADIUS packets/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(freeradius_total_access_requests{instance_name=\"$instance\"}[1m])",
+          "legendFormat": "auth requests"
+        },
+        {
+          "refId": "B",
+          "expr": "rate(freeradius_total_acct_requests{instance_name=\"$instance\"}[1m])",
+          "legendFormat": "acct requests"
+        },
+        {
+          "refId": "C",
+          "expr": "rate(freeradius_total_auth_dropped_requests{instance_name=\"$instance\"}[1m])",
+          "legendFormat": "auth dropped"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Login SQL time (mean over 5m)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1000 * rate(isp_radius_login_sql_seconds_total[5m]) / clamp_min(rate(isp_radius_login_sql_calls[5m]), 1e-9)",
+          "legendFormat": "{{fn}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Online sessions per ISP",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "isp_radius_online_sessions{tenant=~\"$tenant\"}",
+          "legendFormat": "{{tenant}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Standby replica lag",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "isp_replication_replay_lag_seconds",
+          "legendFormat": "{{slot_name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Ubuntu CPU busy",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - avg(rate(node_cpu_seconds_total{job=\"node-ubuntu\",mode=\"idle\"}[5m]))",
+          "legendFormat": "cpu"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Ubuntu disk used",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - node_filesystem_avail_bytes{job=\"node-ubuntu\",mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"node-ubuntu\",mountpoint=\"/\"}",
+          "legendFormat": "/"
+        }
+      ]
+    }
+  ]
+}

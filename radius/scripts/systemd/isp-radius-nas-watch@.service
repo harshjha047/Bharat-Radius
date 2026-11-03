@@ -1,0 +1,7 @@
+[Unit]
+Description=isp-radius reload routers on nas change (%i)
+After=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/isp-radius/scripts/maint.sh %i nas-watch

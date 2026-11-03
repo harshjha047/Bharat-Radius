@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.next/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+*.dec.*
+secrets.env
+/radius/tests/out/
+.DS_Store
+# customer data must never enter git
+*.pdf
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+uploads/
+kyc/
+*.sql.gz
+*.dump

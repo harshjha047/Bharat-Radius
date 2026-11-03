@@ -1,0 +1,28 @@
+<service>
+  <id>isp-api</id>
+  <name>ISP API (__ENV__)</name>
+  <description>isp-platform Node API. Secrets from __APPROOT__\secrets\__ENV__.env (ACL: Administrators, SYSTEM, LocalService).</description>
+  <executable>C:\Program Files\nodejs\node.exe</executable>
+  <arguments>--env-file=__APPROOT__\secrets\__ENV__.env --enable-source-maps __APPROOT__\current\apps\api\dist\main.js</arguments>
+  <workingdirectory>__APPROOT__\current\apps\api</workingdirectory>
+  <serviceaccount>
+    <username>NT AUTHORITY\LocalService</username>
+  </serviceaccount>
+  <env name="NODE_ENV" value="production"/>
+  <env name="API_HOST" value="127.0.0.1"/>
+  <env name="API_PORT" value="4000"/>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <depend>MongoDB</depend>
+  <onfailure action="restart" delay="5 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>15 sec</stoptimeout>
+  <logpath>__APPROOT__\logs</logpath>
+  <log mode="roll-by-size-time">
+    <sizeThreshold>10240</sizeThreshold>
+    <pattern>yyyyMMdd</pattern>
+    <autoRollAtTime>00:00:00</autoRollAtTime>
+    <zipOlderThanNumDays>7</zipOlderThanNumDays>
+  </log>
+</service>

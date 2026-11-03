@@ -1,0 +1,70 @@
+groups:
+  - name: radius
+    rules:
+      - alert: RadiusDown
+        expr: (freeradius_up{instance_name="production"} == 0) or (up{job="freeradius", instance_name="production"} == 0)
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: FreeRADIUS production not answering Status-Server
+          runbook: docs/runbooks/radius-down.md
+
+      - alert: RadiusDatabaseDown
+        expr: pg_up{job="postgres-ubuntu"} == 0 or up{job="postgres-ubuntu"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: PostgreSQL on the RADIUS VPS is down (logins go silent; routers fall back)
+
+      - alert: RadiusRejectSpike
+        expr: |
+          sum(isp_radius_auth_last_minute_count{reply="Access-Reject", reason!~"Wrong password|User not found"})
+            > 3 * (sum(avg_over_time(isp_radius_auth_last_minute_count{reply="Access-Reject", reason!~"Wrong password|User not found"}[1d])) + 5)
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: Reject rate more than 3x normal
+
+      - alert: RadiusLoginSqlSlow
+        expr: max(isp_radius_login_sql_mean_ms{fn="check"}) > 20
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Mean radius_check() time above 20 ms
+
+      - alert: RadiusDefaultPartitionUsed
+        expr: isp_radius_default_partition_radacct_rows > 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: Sessions are landing in radacct_default; partition timer is not running
+
+      - alert: StandbyReplicaLag
+        expr: max(isp_replication_replay_lag_seconds) > 30 or max(isp_replication_slot_active) < 1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: Windows standby replica lag > 30 s or not connected
+
+  - name: hosts
+    rules:
+      - alert: DiskAlmostFull
+        expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes) > 0.8
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Disk above 80% on {{ $labels.host }} {{ $labels.mountpoint }}
+
+      - alert: SystemdUnitFailed
+        expr: node_systemd_unit_state{state="failed", name=~"freeradius.*|isp-radius.*|postgresql.*"} == 1
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.name }} failed on the RADIUS VPS'
+
+      - alert: AppHealthFailing
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.instance }} health check failing'

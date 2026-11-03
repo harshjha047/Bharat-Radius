@@ -1,0 +1,7 @@
+[Unit]
+Description=isp-radius partition maintenance (%i)
+After=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/isp-radius/scripts/maint.sh %i partitions

@@ -1,0 +1,44 @@
+title = "isp-platform"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "postgres-url-password"
+description = "PostgreSQL/Mongo URL with embedded password"
+regex = '''(?i)(postgres(?:ql)?|mongodb(?:\+srv)?)://[^:\s/]+:([^@\s]{4,})@'''
+secretGroup = 2
+keywords = ["postgres", "mongodb"]
+
+[[rules]]
+id = "radius-shared-secret"
+description = "RADIUS shared secret assignment"
+regex = '''(?i)\bsecret\s*=\s*["']?([A-Za-z0-9!@#$%^&*_+\-]{8,})'''
+secretGroup = 1
+keywords = ["secret"]
+
+[[rules]]
+id = "aadhaar-number"
+description = "Unmasked Aadhaar number"
+regex = '''(?i)aadhaa?r[^\n]{0,40}\b([2-9][0-9]{3}[ -]?[0-9]{4}[ -]?[0-9]{4})\b'''
+secretGroup = 1
+keywords = ["aadhaar", "uid"]
+
+[allowlist]
+description = "Placeholders and test fixtures"
+regexes = [
+  '''CHANGE_ME''',
+  '''\$\{[A-Z_]+\}''',
+  '''%\{[^}]+\}''',
+  '''testing123''',
+  '''e2e-[a-z0-9-]+''',
+  '''secret=\$[A-Za-z]+''',
+  ''':\$[A-Za-z]+@''',
+  ''':<[a-z_-]+>@''',
+]
+paths = [
+  '''node_modules/''',
+  '''(^|/)dist/''',
+  '''pnpm-lock\.yaml''',
+  '''\.env\.example$''',
+]

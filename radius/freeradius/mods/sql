@@ -1,0 +1,35 @@
+# Managed by isp-platform radius/scripts/install.sh — do not edit on the server.
+# Secrets come from the systemd EnvironmentFile: PGPASSWORD (read by libpq, never logged) and RADIUS_PW_KEY.
+sql {
+	dialect = "postgresql"
+	driver = "rlm_sql_postgresql"
+
+	postgresql {
+		send_application_name = yes
+	}
+
+	radius_db = "host=/var/run/postgresql port=5432 dbname=@DB_NAME@ user=@FR_ROLE@ connect_timeout=3"
+
+	auto_escape = yes
+	read_groups = no
+	read_profiles = no
+	delete_stale_sessions = no
+
+	read_clients = yes
+	client_table = "nas"
+
+	pool {
+		# rlm_sql does not queue for a free connection, so the pool must match the thread pool.
+		start = ${thread[pool].start_servers}
+		min = ${thread[pool].min_spare_servers}
+		max = ${thread[pool].max_servers}
+		spare = ${thread[pool].max_spare_servers}
+		uses = 0
+		retry_delay = 1
+		lifetime = 0
+		idle_timeout = 0
+		connect_timeout = 3.0
+	}
+
+	$INCLUDE ${modconfdir}/sql/main/postgresql/isp_queries.conf
+}

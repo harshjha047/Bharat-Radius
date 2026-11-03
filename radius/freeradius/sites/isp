@@ -1,0 +1,104 @@
+# Managed by isp-platform radius/scripts/install.sh — do not edit on the server.
+server isp {
+	listen {
+		type = auth
+		ipaddr = *
+		port = @AUTH_PORT@
+		limit {
+			max_connections = 0
+			lifetime = 0
+			idle_timeout = 0
+		}
+	}
+
+	listen {
+		type = acct
+		ipaddr = *
+		port = @ACCT_PORT@
+	}
+
+	authorize {
+		filter_username
+		preprocess
+		chap
+		mschap
+		sql {
+			fail = 1
+		}
+		if (fail) {
+			# DB unreachable: stay silent so the MikroTik fails over to the fallback RADIUS.
+			do_not_respond
+		}
+		if (notfound) {
+			update control {
+				&Tmp-String-0 := "User not found"
+			}
+			reject
+		}
+		if (&control:Auth-Type == Reject) {
+			reject
+		}
+		pap
+	}
+
+	authenticate {
+		Auth-Type PAP {
+			pap
+		}
+		Auth-Type CHAP {
+			chap
+		}
+		Auth-Type MS-CHAP {
+			mschap
+		}
+	}
+
+	preacct {
+		preprocess
+		acct_unique
+	}
+
+	accounting {
+		sql
+		if (fail || noop) {
+			do_not_respond
+		}
+	}
+
+	post-auth {
+		if (&reply:Reply-Message) {
+			update control {
+				&Tmp-String-0 := "%{reply:Reply-Message}"
+			}
+		}
+		# Auth log must never turn an Accept into a Reject.
+		sql {
+			fail = 1
+		}
+		if (fail) {
+			ok
+		}
+
+		Post-Auth-Type REJECT {
+			if (!&control:Tmp-String-0) {
+				if (&control:Cleartext-Password) {
+					update control {
+						&Tmp-String-0 := "Wrong password"
+					}
+				}
+				else {
+					update control {
+						&Tmp-String-0 := "User not found"
+					}
+				}
+			}
+			update {
+				&reply: !* ANY
+			}
+			update reply {
+				&Reply-Message := "%{control:Tmp-String-0}"
+			}
+			sql
+		}
+	}
+}

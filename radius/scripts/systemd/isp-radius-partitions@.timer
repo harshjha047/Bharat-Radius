@@ -1,0 +1,10 @@
+[Unit]
+Description=Create/drop RADIUS partitions daily (%i)
+
+[Timer]
+OnCalendar=*-*-* 00:10:00
+OnBootSec=2min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

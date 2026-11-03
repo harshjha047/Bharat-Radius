@@ -1,0 +1,10 @@
+[Unit]
+Description=Pick up router changes within 30 seconds (%i)
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

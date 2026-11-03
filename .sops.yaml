@@ -1,0 +1,13 @@
+# Encrypt with age. Public keys only; private keys live in the owner's password manager and on each server.
+# Generate: age-keygen -o ~/.config/sops/age/keys.txt
+creation_rules:
+  - path_regex: secrets/production/.*\.enc\.(env|yaml)$
+    age: >-
+      age1CHANGE_ME_owner_public_key,
+      age1CHANGE_ME_windows_vps_public_key,
+      age1CHANGE_ME_ubuntu_vps_public_key
+  - path_regex: secrets/staging/.*\.enc\.(env|yaml)$
+    age: >-
+      age1CHANGE_ME_owner_public_key,
+      age1CHANGE_ME_windows_vps_public_key,
+      age1CHANGE_ME_ubuntu_vps_public_key
