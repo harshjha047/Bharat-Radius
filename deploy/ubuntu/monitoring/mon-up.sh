@@ -39,12 +39,12 @@ docker exec isp-prometheus wget -qO- --post-data= http://127.0.0.1:9090/-/reload
 
 sleep 20
 targets="$(docker exec isp-prometheus wget -qO- 'http://127.0.0.1:9090/api/v1/targets?state=active')"
-log "targets up: $(grep -o '"health":"up"' <<<"$targets" | wc -l), down: $(grep -o '"health":"down"' <<<"$targets" | wc -l)"
+log "targets up: $(grep -o '"health":"up"' <<<"$targets" | wc -l || true), down: $(grep -o '"health":"down"' <<<"$targets" | wc -l || true)"
 grep -o '"lastError":"[^"]\+"' <<<"$targets" | sed 's/^/  /' || true
 
 if [[ "${1:-}" == --test-alert ]]; then
-  docker exec isp-alertmanager amtool alert add isp_test_alert severity=info \
-    --annotation=summary="Test from isp-platform monitoring: alerts reach this chat" \
+  docker exec isp-alertmanager amtool alert add isp_test_alert 'severity="info"' \
+    --annotation='summary="Test from isp-platform monitoring: alerts reach this chat"' \
     --end="$(date -u -d '+5 minutes' +%Y-%m-%dT%H:%M:%SZ)" --alertmanager.url=http://127.0.0.1:9093
   log "test alert sent: expect a Telegram message within ~30 s"
 fi
