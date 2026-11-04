@@ -6,7 +6,7 @@
 | Verified in | Ubuntu 24.04 sandbox, 2 vCPU / 8 GB, FreeRADIUS 3.2.5, PostgreSQL 16 — same packages as the VPS |
 | Ubuntu VPS | `acs-prod` 154.49.142.251, Ubuntu 24.04.5, 4 vCPU Xeon Gold 6138 (KVM, Meltdown PTI on), 7.8 GB; shares the host with GenieACS (Docker) |
 | App host (staging) | **Ubuntu VPS, Docker Compose project `isp`** (decision 4 Nov 2026; Windows VPS not used; production placement decided at Step 4) |
-| Status | **RADIUS on Ubuntu done (4 Nov 2026). Open: app stack (WP 1.4, `docs/runbooks/app-ubuntu.md`), NetForChoice firewall, monitoring (1.8), lab routers (1.6)** |
+| Status | **RADIUS and app stack on Ubuntu done (4 Nov 2026). Open: HTTPS (DNS propagating), monitoring install (WP 1.8, `docs/runbooks/monitoring.md`), NetForChoice firewall, lab routers (1.6)** |
 
 ## Checklist (PRD §13)
 
@@ -52,6 +52,10 @@ Measured 1,099 logins/s on the Ubuntu VPS, zero rejects or timeouts. Root cause 
 ## Decision: staging app on the Ubuntu VPS (owner, 4 Nov 2026)
 
 The NetForChoice network firewall blocks every port not opened in their panel, which stopped Windows → Ubuntu PostgreSQL. Instead of opening the database to the internet, the staging app stack runs on the RADIUS host in Docker Compose (`isp-mongo`, `isp-api`, `isp-walled-garden`) behind the existing ACS Caddy. CPU caps keep RADIUS first (app ≤ 2.75 cores in total). Upgrade the VPS (≥ 8 vCPU / 16 GB) before Step 2 seeds 100,000 test subscribers. Windows work was removed without touching its services. Still required from NetForChoice: inbound UDP 1812, 1813, 11812, 11813 and TCP 8089.
+
+## Monitoring (WP 1.8, owner chose Prometheus + Grafana + Alertmanager on the VPS, 4 Nov 2026)
+
+FreeRADIUS counters come from its own Status-Server every 15 s (no third-party exporter: its release assets could not be verified). Tested in the sandbox against the real exporters and Prometheus 2.45: `RadiusDown` fired **76 s** after production FreeRADIUS was stopped; critical alerts reach Telegram 10 s later. Rule timing is unit-tested in CI. Also found and fixed: the grants file's `REVOKE … FROM PUBLIC` had removed access to `pg_stat_statements`; it is now handed back to `pg_read_all_stats`.
 
 ## Decisions closed in Step 1
 

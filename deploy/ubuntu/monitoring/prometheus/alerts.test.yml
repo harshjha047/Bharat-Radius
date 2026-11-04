@@ -1,0 +1,28 @@
+rule_files: [alerts.yml]
+evaluation_interval: 15s
+tests:
+  - interval: 15s
+    input_series:
+      - series: 'isp_radius_up{instance_name="production"}'
+        values: '1 1 1 1 0 0 0 0 0 0 0 0'
+      - series: 'node_textfile_mtime_seconds{file="/var/lib/prometheus/node-exporter/isp_radius.prom"}'
+        values: '0+15x11'
+      - series: 'pg_up'
+        values: '1x11'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: RadiusDown
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: RadiusDown
+        exp_alerts:
+          - exp_labels: { severity: critical, instance_name: production }
+            exp_annotations:
+              summary: 'FreeRADIUS production is not answering (Status-Server)'
+              runbook: docs/runbooks/radius-down.md
+      - eval_time: 2m
+        alertname: RadiusDatabaseDown
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: RadiusStatusStale
+        exp_alerts: []

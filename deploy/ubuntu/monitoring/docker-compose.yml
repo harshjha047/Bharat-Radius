@@ -1,0 +1,93 @@
+# Monitoring for the RADIUS host (WP 1.8). Managed by mon-up.sh. Host exporters: deploy/ubuntu/install-exporters.sh.
+name: isp-mon
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: isp-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks: [mon]
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 512M }
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: isp-alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - /etc/isp-app/mon/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - /etc/isp-app/mon/telegram_token:/etc/alertmanager/telegram_token:ro
+      - alertmanager-data:/alertmanager
+    networks: [mon]
+    deploy:
+      resources:
+        limits: { cpus: '0.1', memory: 64M }
+    restart: unless-stopped
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: isp-blackbox
+    command: ['--config.file=/etc/blackbox/blackbox.yml']
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    networks: [mon, isp]
+    deploy:
+      resources:
+        limits: { cpus: '0.1', memory: 32M }
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:11.5.2
+    container_name: isp-grafana
+    environment:
+      GF_SERVER_ROOT_URL: https://new.bharatradius.com/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/isp/grafana_admin_pw
+      GF_SECURITY_COOKIE_SECURE: 'true'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_NEWS_NEWS_FEED_ENABLED: 'false'
+    volumes:
+      - /etc/isp-app/mon/grafana_admin_pw:/run/isp/grafana_admin_pw:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      mon: {}
+      acs:
+        aliases: [isp-grafana]
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 256M }
+    restart: unless-stopped
+
+networks:
+  mon: {}
+  isp:
+    external: true
+    name: isp_internal
+  acs:
+    external: true
+    name: acs_default
+
+volumes:
+  prometheus-data: {}
+  alertmanager-data: {}
+  grafana-data: {}

@@ -1,0 +1,32 @@
+name: monitoring
+
+on:
+  push:
+    branches: [main]
+    paths: ['deploy/ubuntu/monitoring/**', '.github/workflows/monitoring.yml']
+  pull_request:
+    paths: ['deploy/ubuntu/monitoring/**', '.github/workflows/monitoring.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: sudo apt-get install -y -qq prometheus prometheus-alertmanager
+      - name: Prometheus rules and alert timing
+        working-directory: deploy/ubuntu/monitoring/prometheus
+        run: |
+          promtool check rules alerts.yml
+          promtool test rules alerts.test.yml
+      - name: Alertmanager config
+        run: |
+          printf 'dummy' > /tmp/token
+          sed 's/__TELEGRAM_CHAT_ID__/1/; s|/etc/alertmanager/telegram_token|/tmp/token|' \
+            deploy/ubuntu/monitoring/alertmanager/alertmanager.yml.tmpl > /tmp/am.yml
+          amtool check-config /tmp/am.yml
+      - name: Grafana dashboard is valid JSON
+        run: python3 -m json.tool deploy/ubuntu/monitoring/grafana/dashboards/isp-radius.json > /dev/null
+      - run: shellcheck -S warning deploy/ubuntu/monitoring/*.sh deploy/ubuntu/*.sh deploy/ubuntu/app/*.sh

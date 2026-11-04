@@ -11,6 +11,9 @@ new.bharatradius.com {
 	handle /api/* {
 		reverse_proxy isp-api:4100
 	}
+	handle /grafana* {
+		reverse_proxy isp-grafana:3000
+	}
 	handle {
 		respond "isp-platform staging" 200
 	}

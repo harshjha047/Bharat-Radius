@@ -32,6 +32,14 @@ GRANT EXECUTE ON FUNCTION
   pgp_sym_encrypt(text, text, text)
   TO :"app_role";
 
+-- Statistics extension: give back to PostgreSQL's monitoring role what the REVOKEs above took from PUBLIC.
+DO $$ BEGIN
+  IF to_regclass('public.pg_stat_statements') IS NOT NULL THEN
+    GRANT SELECT ON pg_stat_statements, pg_stat_statements_info TO pg_read_all_stats;
+    GRANT EXECUTE ON FUNCTION pg_stat_statements(boolean), pg_stat_statements_info() TO pg_read_all_stats;
+  END IF;
+END $$;
+
 -- Keys pass through query text: never log statements for these roles.
 ALTER ROLE :"fr_role" SET log_statement = 'none';
 ALTER ROLE :"fr_role" SET log_min_duration_statement = -1;

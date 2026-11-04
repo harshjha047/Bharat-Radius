@@ -1,0 +1,100 @@
+groups:
+  - name: radius
+    rules:
+      - alert: RadiusDown
+        expr: isp_radius_up{instance_name="production"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: 'FreeRADIUS production is not answering (Status-Server)'
+          runbook: docs/runbooks/radius-down.md
+
+      - alert: RadiusStagingDown
+        expr: isp_radius_up{instance_name="staging"} == 0
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: 'FreeRADIUS staging is not answering'
+
+      - alert: RadiusStatusStale
+        expr: time() - node_textfile_mtime_seconds{file=~".*isp_radius.prom"} > 120 or absent(node_textfile_mtime_seconds{file=~".*isp_radius.prom"})
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: 'RADIUS status metrics not updated for 2 minutes (isp-radius-status.timer stopped?)'
+
+      - alert: RadiusDatabaseDown
+        expr: pg_up == 0 or up{job="postgres"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: 'PostgreSQL on the RADIUS host is down: logins go silent, routers fall back'
+
+      - alert: RadiusRejectSpike
+        expr: |
+          sum(rate(isp_radius_total_access_rejects{instance_name="production"}[5m]))
+            > 3 * (sum(avg_over_time(rate(isp_radius_total_access_rejects{instance_name="production"}[5m])[1d:5m])) + 1)
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Production reject rate more than 3x the daily average'
+
+      - alert: RadiusDroppedRequests
+        expr: sum by (instance_name) (rate(isp_radius_total_auth_dropped_requests[5m])) > 0
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: 'FreeRADIUS {{ $labels.instance_name }} is dropping auth requests (overloaded)'
+
+      - alert: RadiusLoginSqlSlow
+        expr: max(isp_radius_login_sql_mean_ms{fn="check"}) > 20
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Mean radius_check() time above 20 ms'
+
+      - alert: RadiusDefaultPartitionUsed
+        expr: isp_radius_default_partition_radacct_rows > 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Sessions are landing in radacct_default: the partition timer is not running'
+
+  - name: host
+    rules:
+      - alert: DiskAlmostFull
+        expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes) > 0.8
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Disk {{ $labels.mountpoint }} above 80%'
+
+      - alert: MemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Less than 10% memory available on the RADIUS host'
+
+      - alert: SystemdUnitFailed
+        expr: node_systemd_unit_state{state="failed"} == 1
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.name }} failed'
+
+      - alert: ExporterDown
+        expr: up{job=~"node|postgres"} == 0
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.job }} exporter not reachable'
+
+  - name: app
+    rules:
+      - alert: AppHealthFailing
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.instance }} health check failing'
