@@ -9,6 +9,7 @@ import { CoaSender } from './coa.js';
 import { Scheduler, type JobDoc } from './jobs.js';
 import { OutboxWorker } from './outbox-worker.js';
 import { UsageJob } from './usage.js';
+import { ImportJob } from './imports.js';
 import { RadiusSync } from './radius-sync.js';
 
 const config = z
@@ -47,15 +48,24 @@ pool.on('error', (err) => log.warn({ err }, 'idle PostgreSQL connection failed')
 const coaClient = new RadiusCoaClient(
   config.COA_SOURCE_IP && config.COA_SOURCE_IP !== '0.0.0.0' ? { sourceIp: config.COA_SOURCE_IP } : {},
 );
+const fieldCrypto = new FieldCrypto(config.FIELD_ENCRYPTION_KEY);
 const worker = new OutboxWorker(
   db,
-  new RadiusSync(pool, db, new FieldCrypto(config.FIELD_ENCRYPTION_KEY), config.RADIUS_PW_KEY),
+  new RadiusSync(pool, db, fieldCrypto, config.RADIUS_PW_KEY),
   log,
   new CoaSender(pool, db, coaClient, log),
 );
 
 const usage = new UsageJob(pool, client, db, log);
-const scheduler = new Scheduler(db, [{ name: 'usage', periodMs: 15 * 60_000, run: () => usage.run() }], log);
+const imports = new ImportJob(client, db, fieldCrypto, log);
+const scheduler = new Scheduler(
+  db,
+  [
+    { name: 'usage', periodMs: 15 * 60_000, run: () => usage.run() },
+    { name: 'imports', periodMs: 5_000, run: () => imports.run() },
+  ],
+  log,
+);
 
 async function metrics(): Promise<string> {
   const outbox = db.collection<OutboxDoc>('outbox');

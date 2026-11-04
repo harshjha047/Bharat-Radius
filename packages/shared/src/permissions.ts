@@ -3,6 +3,7 @@ export const PERMISSIONS = [
   'subscribers.write',
   'subscribers.kick',
   'subscribers.password.reveal',
+  'subscribers.export',
   'sessions.read',
   'nas.read',
   'nas.write',

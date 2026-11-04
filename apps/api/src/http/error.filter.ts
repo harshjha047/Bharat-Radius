@@ -53,6 +53,8 @@ export class ErrorFilter implements ExceptionFilter {
     void reply
       .status(status)
       .header('cache-control', 'no-store')
+      .header('content-disposition', 'inline')
+      .type('application/json; charset=utf-8')
       .send({ error: { code, message, ...(details ? { details } : {}), requestId: req.id } });
   }
 }

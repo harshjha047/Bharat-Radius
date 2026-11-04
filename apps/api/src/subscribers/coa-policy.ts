@@ -40,22 +40,4 @@ export function coaFor(
   return undefined;
 }
 
-/** Lower-case prefix tokens for the indexed search (name words, username, phone, customer number). */
-export function searchTokens(s: {
-  name: string;
-  username?: string | undefined;
-  phone: string;
-  altPhone?: string | undefined;
-  customerNo: string;
-}) {
-  const t = new Set<string>();
-  for (const w of s.name.toLowerCase().split(/\s+/)) if (w) t.add(w);
-  if (s.username) t.add(s.username.toLowerCase());
-  for (const p of [s.phone, s.altPhone]) {
-    if (!p) continue;
-    t.add(p.replace(/^\+/, ''));
-    if (p.startsWith('+91')) t.add(p.slice(3));
-  }
-  t.add(s.customerNo.toLowerCase());
-  return [...t];
-}
+export { searchTokens } from '@isp/db-mongo';

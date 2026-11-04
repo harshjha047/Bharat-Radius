@@ -373,4 +373,36 @@ const subscribers: Migration = {
   },
 };
 
-export const MIGRATIONS: readonly Migration[] = [identity, config, subscribers];
+const imports: Migration = {
+  id: '004_imports',
+  async up(db) {
+    await ensureCollection(db, 'import_batches', {
+      bsonType: 'object',
+      required: ['tenantId', 'source', 'fileName', 'status', 'counts', 'errors', 'createdBy', 'createdAt'],
+      properties: {
+        tenantId: oid,
+        source: { enum: ['excel'] },
+        status: { enum: ['queued', 'running', 'done', 'failed'] },
+        errors: { bsonType: 'array', maxItems: 10_000 },
+      },
+    });
+    await ensureIndexes(db, 'import_batches', [
+      { key: { tenantId: 1, createdAt: -1 } },
+      { key: { status: 1, createdAt: 1 } },
+    ]);
+    await ensureCollection(db, 'import_rows');
+    await ensureIndexes(db, 'import_rows', [
+      { key: { batchId: 1, status: 1, row: 1 } },
+      // Queued rows hold encrypted passwords; nothing stays longer than two weeks.
+      { key: { createdAt: 1 }, expireAfterSeconds: 14 * 24 * 3600 },
+    ]);
+    await ensureIndexes(db, 'subscribers', [
+      {
+        key: { importBatchId: 1, username: 1 },
+        partialFilterExpression: { importBatchId: { $exists: true } },
+      },
+    ]);
+  },
+};
+
+export const MIGRATIONS: readonly Migration[] = [identity, config, subscribers, imports];

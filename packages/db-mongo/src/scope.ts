@@ -53,6 +53,7 @@ export const POLICIES: Record<string, CollectionPolicy> = {
   outbox: { tenantField: 'tenantId', branch: 'deny' },
   coa_log: { tenantField: 'tenantId', branch: 'deny' },
   audit_logs: { tenantField: 'tenantId', branch: 'deny' },
+  import_batches: { tenantField: 'tenantId', branch: 'deny' },
 };
 
 export class ScopeViolation extends Error {

@@ -15,7 +15,8 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
 | 2.6 Subscribers | ✅ code + tests | CRUD, suspend/activate, kick, delete (frees username/static IP), PPPoE password encrypted (generated, shown once, reveal needs `subscribers.password.reveal`), customer numbers per ISP, MAC lock/static IP/sim-use, prefix search on name/username/phone/customer no., `syncStatus` per version. Worker syncs to PostgreSQL (`radius_encrypt_password`) and sends CoA: rate change via `radius_reply`, disconnect for state changes, NAK → disconnect, every attempt in `coa_log` (`GET /subscribers/:id/coa-log`). Plan speed edits CoA everyone online on the plan |
 | 2.7 Sessions and logs | ✅ code + tests | `GET /sessions/live` (search username/IP/MAC prefix, filter by router, stale flag), `/sessions/summary` (online per router), `/sessions/lookup?ip=&at=` (who had an IP), `/subscribers/:id/sessions` and `/auth-log` (reject reasons), keyset paging with microsecond-exact cursors, partition-pruned 90-day default window. Kick is `POST /subscribers/:id/kick` (2.6) |
 | 2.8 Usage and FUP | ✅ code + tests | `radius_usage_rollup()` (one statement, advisory lock, `usage_seen` so runs never double count) every 15 min via a lease-based scheduler in `isp-workers`; FUP on/off when cycle usage crosses the plan cap (calendar month or billing cycle), synced with a Disconnect; cap removed → FUP lifted; `GET /subscribers/:id/usage`; job metrics + `UsageJobStale` alert; runbook `docs/runbooks/usage.md` |
-| 2.9–2.13 | ⏳ | Next: 2.9 Excel import/export |
+| 2.9 Excel import/export | ✅ code + tests | Template (`/subscribers/import/template`, with the ISP's plans and column help); upload the `.xlsx` as the request body (≤ 10 MB, ≤ 50,000 rows), every row validated with the same rules as the API (plan by name, duplicates in file and in the ISP), `dryRun`, all-or-nothing unless `skipInvalid`; valid rows queued (passwords encrypted) and created by the `imports` worker job through the shared writer (customer no., RADIUS sync), resumable; progress + error sheet; `/subscribers/export` without passwords (`subscribers.export`) |
+| 2.10–2.13 | ⏳ | Next: 2.10 audit log |
 
 ## Decisions and schema changes (BACKEND_SCHEMA to update)
 
@@ -58,6 +59,11 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
     may land on the next day); per-session totals are exact. No separate `fup-reset` job: every run re-evaluates the
     current cycle, so a new cycle lifts FUP within 15 minutes.
 22. PostgreSQL migration 003 (`usage_seen`) and new grants: **rerun `install.sh all`** before deploying.
+23. One subscriber writer (`insertSubscriber` in `packages/db-mongo`) for the API and the import worker, so imported
+    and typed-in subscribers are identical. Uploads are the raw `.xlsx` body (custom media type → CORS preflight,
+    so no CSRF exposure) instead of multipart. Libraries: `read-excel-file` / `write-excel-file` (one small
+    dependency each) rather than `exceljs` (21 MB, unmaintained transitive deps).
+24. Import is create-only. Updating existing subscribers from a sheet is the BharatRadius importer (Step 4).
 
 ## Tests
 

@@ -13,11 +13,14 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ObjectId, type ClientSession, type Filter } from 'mongodb';
+import { ObjectId, type Filter } from 'mongodb';
 import { z } from 'zod';
 import { FieldCrypto } from '@isp/shared';
 import {
+  insertSubscriber,
+  pppoeAad,
   ScopedDb,
+  type NewSubscriber,
   type CoaLogDoc,
   type MongoHandle,
   type OutboxDoc,
@@ -80,7 +83,7 @@ const network = z.object({
   popName: z.string().trim().max(80).nullable().optional(),
 });
 
-const createBody = z.object({
+export const createBody = z.object({
   username,
   pppoePassword: pppoePassword.optional(),
   name: z.string().trim().min(1).max(120),
@@ -204,13 +207,40 @@ const coaLogView = z.object({
   at: z.string(),
 });
 
+/** Validated create input → the shared writer's input (also used by the Excel import). */
+export function toNewSubscriber(
+  b: z.output<typeof createBody>,
+  password: string,
+  tenantStateCode: string | undefined,
+): NewSubscriber {
+  const net = compact(b.network ?? {});
+  return {
+    username: b.username,
+    pppoePassword: password,
+    name: b.name,
+    phone: b.phone,
+    altPhone: b.altPhone,
+    email: b.email,
+    address: { ...compact(b.address), stateCode: b.address.stateCode ?? tenantStateCode ?? '00' },
+    gstin: b.gstin,
+    billingType: b.billingType,
+    planId: b.planId,
+    expiresAt: b.expiresAt,
+    network: Object.fromEntries(
+      Object.entries(net).filter(([, v]) => v !== null),
+    ) as SubscriberDoc['network'],
+    tags: b.tags,
+    notes: b.notes,
+  };
+}
+
 const PW_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
-const newPassword = () =>
+export const newPassword = () =>
   Array.from({ length: 10 }, () => PW_ALPHABET[randomInt(PW_ALPHABET.length)]).join('');
-const pwAad = (id: ObjectId) => `subscribers.pppoe:${id.toHexString()}`;
+const pwAad = pppoeAad;
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-function duplicate(e: unknown): never {
+export function duplicate(e: unknown): never {
   const key = Object.keys((e as { keyPattern?: object }).keyPattern ?? {});
   if (key.includes('username')) throw conflict('This PPPoE username is already used');
   if (key.includes('network.staticIp'))
@@ -247,17 +277,6 @@ export class SubscribersService {
     }
   }
 
-  private async nextCustomerNo(tenantId: ObjectId, session: ClientSession): Promise<string> {
-    const c = await this.mongo.db
-      .collection<{ _id: string; seq: number }>('counters')
-      .findOneAndUpdate(
-        { _id: `customerNo:${tenantId.toHexString()}` },
-        { $inc: { seq: 1 } },
-        { upsert: true, returnDocument: 'after', session, includeResultMetadata: false },
-      );
-    return `C${String(c!.seq).padStart(6, '0')}`;
-  }
-
   async list(ctx: AuthContext, q: z.output<typeof listQuery>) {
     const now = new Date();
     const f: Filter<SubscriberDoc> = { status: { $ne: 'deleted' } };
@@ -284,59 +303,25 @@ export class SubscribersService {
     const tenant = await this.mongo.db
       .collection<TenantDoc>('tenants')
       .findOne({ _id: ctx.tenantId }, { projection: { stateCode: 1 } });
-    const _id = new ObjectId();
     const plain = b.pppoePassword ?? newPassword();
-    const now = new Date();
-    const actor = ctx.userId.toHexString();
-    const net = compact(b.network ?? {});
-    let doc: SubscriberDoc | undefined;
     try {
-      await this.outbox.tx(async (session) => {
-        const customerNo = await this.nextCustomerNo(ctx.tenantId!, session);
-        doc = {
-          _id,
-          tenantId: ctx.tenantId!,
+      const doc = await insertSubscriber(
+        this.mongo.client,
+        this.mongo.db,
+        this.crypto,
+        {
+          tenantId: ctx.tenantId,
+          actor: ctx.userId.toHexString(),
           resellerId: ctx.resellerId ?? null,
           ancestors: ctx.resellerId ? [ctx.resellerId] : [],
-          customerNo,
-          username: b.username,
-          pppoePassword: this.crypto.encrypt(plain, pwAad(_id)),
-          name: b.name,
-          phone: b.phone,
-          ...(b.altPhone ? { altPhone: b.altPhone } : {}),
-          ...(b.email ? { email: b.email } : {}),
-          address: { ...compact(b.address), stateCode: b.address.stateCode ?? tenant?.stateCode ?? '00' },
-          ...(b.gstin ? { gstin: b.gstin } : {}),
-          billingType: b.billingType,
-          ...(b.planId ? { planId: b.planId } : {}),
-          ...(b.expiresAt ? { expiresAt: b.expiresAt } : {}),
-          status: 'active',
-          network: Object.fromEntries(Object.entries(net).filter(([, v]) => v !== null)),
-          kyc: { status: 'pending' },
-          tags: [...new Set(b.tags)],
-          ...(b.notes ? { notes: b.notes } : {}),
-          search: searchTokens({
-            name: b.name,
-            username: b.username,
-            phone: b.phone,
-            altPhone: b.altPhone,
-            customerNo,
-          }),
-          syncStatus: 'pending',
-          version: 0,
-          createdAt: now,
-          updatedAt: now,
-          createdBy: actor,
-          updatedBy: actor,
-        };
-        await this.col(ctx).insertOne(doc, { session });
-        await this.outbox.enqueue(session, ctx.tenantId!, 'subscriber', _id);
-      });
+        },
+        toNewSubscriber(b, plain, tenant?.stateCode),
+      );
+      return toView(doc, b.pppoePassword ? undefined : plain);
     } catch (e) {
       if ((e as { code?: number }).code === 11000) duplicate(e);
       throw e;
     }
-    return toView(doc!, b.pppoePassword ? undefined : plain);
   }
 
   /** Applies a change in one transaction with its outbox row and the CoA it implies. */

@@ -5,7 +5,10 @@ import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   connectMongo,
+  insertSubscriber,
   migrate,
+  type ImportBatchDoc,
+  type ImportRowDoc,
   type CoaLogDoc,
   type NasDeviceDoc,
   type OutboxDoc,
@@ -18,6 +21,7 @@ import { RadiusCoaClient } from '@isp/radius-client';
 import { startFakeNas } from '@isp/radius-client/testing';
 import { CoaSender } from '../src/coa.js';
 import { UsageJob } from '../src/usage.js';
+import { ImportJob } from '../src/imports.js';
 import { OutboxWorker } from '../src/outbox-worker.js';
 import { RadiusSync } from '../src/radius-sync.js';
 
@@ -408,6 +412,74 @@ describe('outbox → RADIUS', () => {
     } finally {
       await admin.end();
     }
+  });
+
+  it('import job creates queued rows, reports races, and resumes after a crash without false errors', async () => {
+    const t = await tenant();
+    const batchId = new ObjectId();
+    await db.collection<ImportBatchDoc>('import_batches').insertOne({
+      _id: batchId,
+      tenantId: t,
+      source: 'excel',
+      fileName: 'x.xlsx',
+      status: 'queued',
+      counts: { read: 3, valid: 3, created: 0, failed: 0 },
+      errors: [],
+      createdBy: 'tester',
+      createdAt: now(),
+    });
+    const input = (username: string) => ({
+      username,
+      name: 'Imported',
+      phone: '+919800000000',
+      address: { line1: 'x', city: 'Delhi', state: 'Delhi', stateCode: '07', pincode: '110001' },
+      billingType: 'prepaid' as const,
+      network: {},
+      tags: [],
+    });
+    const rows = ['imp-a', 'imp-b', 'imp-c'].map((u, i) => {
+      const _id = new ObjectId();
+      return {
+        _id,
+        batchId,
+        tenantId: t,
+        row: i + 2,
+        input: { ...input(u), pppoePassword: crypto.encrypt(`pw-${u}`, `import_rows:${_id.toHexString()}`) },
+        status: 'pending' as const,
+        createdAt: now(),
+      };
+    });
+    await db.collection<ImportRowDoc>('import_rows').insertMany(rows);
+    // imp-b taken meanwhile by someone else; imp-c already created by this batch before a crash.
+    await insertSubscriber(
+      client,
+      db,
+      crypto,
+      { tenantId: t, actor: 'other' },
+      { ...input('imp-b'), pppoePassword: 'x' },
+    );
+    await insertSubscriber(
+      client,
+      db,
+      crypto,
+      { tenantId: t, actor: 'tester', importBatchId: batchId },
+      { ...input('imp-c'), pppoePassword: 'pw-imp-c' },
+    );
+
+    const job = new ImportJob(client, db, crypto, log);
+    expect(await job.run()).toMatchObject({ batches: 1, created: 2, failed: 1 });
+    const batch = await db.collection<ImportBatchDoc>('import_batches').findOne({ _id: batchId });
+    expect(batch).toMatchObject({ status: 'done', counts: { created: 2, failed: 1 } });
+    expect(batch!.errors).toEqual([
+      { row: 3, column: 'username', message: 'Username was taken by another subscriber meanwhile' },
+    ]);
+    const a = await db.collection<SubscriberDoc>('subscribers').findOne({ tenantId: t, username: 'imp-a' });
+    expect(a).toMatchObject({ importBatchId: batchId, syncStatus: 'pending', createdBy: 'tester' });
+    expect(crypto.decrypt(a!.pppoePassword, `subscribers.pppoe:${a!._id.toHexString()}`)).toBe('pw-imp-a');
+    expect(await db.collection('outbox').countDocuments({ entityId: a!._id })).toBe(1);
+    const left = await db.collection<ImportRowDoc>('import_rows').find({ batchId }).toArray();
+    expect(left.every((r) => r.status !== 'pending' && !('input' in r))).toBe(true);
+    expect((await job.run()).batches).toBe(0);
   });
 
   it('only one worker leads', async () => {
