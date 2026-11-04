@@ -29,16 +29,16 @@ async function readPassword(): Promise<string> {
     for await (const chunk of process.stdin) s += chunk;
     return s.replace(/\r?\n$/, '');
   }
-  let muted = false;
-  const out = new Writable({ write: (c, _e, cb) => (muted ? cb() : process.stdout.write(c, cb)) });
-  const rl = createInterface({ input: process.stdin, output: out, terminal: true });
+  // Prompt on stderr directly; readline echoes into a sink so the password never shows.
+  process.stderr.write('password: ');
+  const sink = new Writable({ write: (_c, _e, cb) => cb() });
+  const rl = createInterface({ input: process.stdin, output: sink, terminal: true });
   return new Promise((resolve) => {
-    rl.question('password: ', (pw) => {
+    rl.question('', (pw) => {
       rl.close();
-      process.stdout.write('\n');
+      process.stderr.write('\n');
       resolve(pw);
     });
-    muted = true;
   });
 }
 

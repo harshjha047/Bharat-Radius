@@ -57,8 +57,11 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
-      - name: API integration (auth, tenant isolation) against MongoDB
-        env: { MONGO_URL: 'mongodb://127.0.0.1:27017/?replicaSet=rs0' }
+      - name: API integration (auth, tenant isolation) against MongoDB and PostgreSQL
+        env:
+          MONGO_URL: 'mongodb://127.0.0.1:27017/?replicaSet=rs0'
+          RADIUS_DB_URL: 'postgres://app_ci:ci-app-pw@127.0.0.1:5433/radius_ci'
+          RADIUS_ADMIN_URL: 'postgres://postgres:ci@127.0.0.1:5433/radius_ci'
         run: pnpm --filter @isp/api test:int
       - name: Outbox worker integration (MongoDB → PostgreSQL)
         env:

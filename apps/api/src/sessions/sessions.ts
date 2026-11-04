@@ -1,0 +1,387 @@
+import { isIP } from 'node:net';
+import { Controller, Get, Inject, Injectable, Param, Query } from '@nestjs/common';
+import { ObjectId } from 'mongodb';
+import type pg from 'pg';
+import { z } from 'zod';
+import { ScopedDb, type MongoHandle, type SubscriberDoc } from '@isp/db-mongo';
+import type { AuthContext } from '../auth/context.js';
+import { AppError, forbidden, notFound } from '../errors.js';
+import { Ctx, Endpoint } from '../http/endpoint.js';
+import { idParams } from '../http/schemas.js';
+import { MONGO, RADIUS_DB } from '../infra/infra.module.js';
+
+const tenantQuery = z.object({
+  /** Super-admin only: which ISP to read. Ignored for staff (always their own). */
+  tenantId: z
+    .string()
+    .regex(/^[0-9a-f]{24}$/)
+    .optional(),
+});
+const keysetCursor = z
+  .string()
+  .regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z_\d+$/, 'invalid cursor')
+  .optional();
+const liveQuery = tenantQuery.extend({
+  q: z.string().trim().min(1).max(64).optional(),
+  nasIp: z
+    .string()
+    .refine((s) => isIP(s) !== 0, 'must be an IP')
+    .optional(),
+  cursor: keysetCursor,
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+const historyQuery = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  cursor: keysetCursor,
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+const lookupQuery = tenantQuery.extend({
+  ip: z.string().refine((s) => isIP(s) !== 0, 'must be an IP'),
+  at: z.coerce.date(),
+});
+
+const sessionView = z.object({
+  id: z.string(),
+  username: z.string(),
+  subscriberId: z.string().nullable(),
+  nasIp: z.string(),
+  nasName: z.string().nullable(),
+  framedIp: z.string().nullable(),
+  mac: z.string().nullable(),
+  startedAt: z.string(),
+  updatedAt: z.string(),
+  stoppedAt: z.string().nullable(),
+  sessionSecs: z.number(),
+  uploadBytes: z.number(),
+  downloadBytes: z.number(),
+  terminateCause: z.string().nullable(),
+  /** Open but not heard from in 3 interim periods: RADIUS no longer counts it (router crash, lost Stop). */
+  stale: z.boolean(),
+});
+const sessionsPage = z.object({ items: z.array(sessionView), nextCursor: z.string().nullable() });
+const authView = z.object({
+  at: z.string(),
+  accepted: z.boolean(),
+  reason: z.string().nullable(),
+  nasIp: z.string(),
+  mac: z.string().nullable(),
+});
+const authPage = z.object({ items: z.array(authView), nextCursor: z.string().nullable() });
+const summaryView = z.object({
+  online: z.number(),
+  stale: z.number(),
+  byNas: z.array(z.object({ nasIp: z.string(), nasName: z.string().nullable(), online: z.number() })),
+});
+
+interface SessionRow {
+  radacctid: string;
+  start_key: string;
+  username: string;
+  subscriber_ext: string | null;
+  nasip: string;
+  shortname: string | null;
+  framedip: string | null;
+  callingstationid: string | null;
+  acctstarttime: Date;
+  acctupdatetime: Date;
+  acctstoptime: Date | null;
+  acctsessiontime: string;
+  acctinputoctets: string;
+  acctoutputoctets: string;
+  acctterminatecause: string | null;
+  stale: boolean;
+}
+
+/** Microsecond-exact UTC text, so a keyset cursor never rounds onto a row it already returned. */
+const PG_ISO = (col: string) => `to_char(${col} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+
+const SESSION_COLUMNS = `
+  a.radacctid, ${PG_ISO('a.acctstarttime')} AS start_key, a.username,
+  s.external_id AS subscriber_ext, host(a.nasipaddress) AS nasip, n.shortname, host(a.framedipaddress) AS framedip,
+  a.callingstationid, a.acctstarttime, a.acctupdatetime, a.acctstoptime, a.acctsessiontime,
+  a.acctinputoctets, a.acctoutputoctets, a.acctterminatecause,
+  (a.acctstoptime IS NULL AND a.acctupdatetime <= now() - make_interval(secs => 3 * $2::int)) AS stale`;
+const SESSION_JOINS = `
+  LEFT JOIN subscribers s ON s.tenant_id = a.tenant_id AND s.username = a.username
+  LEFT JOIN nas n ON n.nasname = a.nasipaddress AND n.tenant_id = a.tenant_id`;
+
+const toSession = (r: SessionRow): z.output<typeof sessionView> => ({
+  id: r.radacctid,
+  username: r.username,
+  subscriberId: r.subscriber_ext,
+  nasIp: r.nasip,
+  nasName: r.shortname,
+  framedIp: r.framedip,
+  mac: r.callingstationid,
+  startedAt: r.acctstarttime.toISOString(),
+  updatedAt: r.acctupdatetime.toISOString(),
+  stoppedAt: r.acctstoptime?.toISOString() ?? null,
+  sessionSecs: Number(r.acctsessiontime),
+  // RADIUS input = what the router received from the customer = their upload.
+  uploadBytes: Number(r.acctinputoctets),
+  downloadBytes: Number(r.acctoutputoctets),
+  terminateCause: r.acctterminatecause,
+  stale: r.stale,
+});
+
+/** Keyset cursor "<start time>_<id>", newest first: stable while sessions are added, no OFFSET scans. */
+function keyset(cursor: string | undefined): [string, string] | null {
+  if (!cursor) return null;
+  const i = cursor.lastIndexOf('_');
+  return [cursor.slice(0, i), cursor.slice(i + 1)];
+}
+const nextCursor = <T extends { start_key: string; radacctid: string }>(rows: T[], limit: number) =>
+  rows.length > limit ? `${rows[limit - 1]!.start_key}_${rows[limit - 1]!.radacctid}` : null;
+
+const HISTORY_DAYS_DEFAULT = 90;
+
+@Injectable()
+export class SessionsService {
+  private readonly tenantCache = new Map<string, { at: number; id: number; interim: number }>();
+
+  constructor(
+    @Inject(MONGO) private readonly mongo: MongoHandle,
+    @Inject(RADIUS_DB) private readonly pool: pg.Pool | null,
+  ) {}
+
+  private db(): pg.Pool {
+    if (!this.pool) throw new AppError(503, 'INTERNAL', 'RADIUS database not configured');
+    return this.pool;
+  }
+
+  private mongoTenant(ctx: AuthContext, requested?: string): ObjectId {
+    if (ctx.scope.kind === 'branch') throw forbidden('Session views for resellers arrive with Step 3');
+    if (ctx.scope.kind === 'tenant') return ctx.scope.tenantId;
+    if (!requested) throw new AppError(400, 'VALIDATION_FAILED', 'tenantId is required for super-admins');
+    return new ObjectId(requested);
+  }
+
+  /** PostgreSQL id and interim interval of the ISP; null until its first sync (then there is nothing to read). */
+  private async pgTenant(tenantId: ObjectId): Promise<{ id: number; interim: number } | null> {
+    const key = tenantId.toHexString();
+    const hit = this.tenantCache.get(key);
+    if (hit && Date.now() - hit.at < 60_000) return hit;
+    const r = await this.db().query<{ id: number; interim_interval: number }>(
+      'SELECT id, interim_interval FROM tenants WHERE external_id = $1',
+      [key],
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+    const v = { at: Date.now(), id: row.id, interim: row.interim_interval };
+    this.tenantCache.set(key, v);
+    return v;
+  }
+
+  private async subscriber(ctx: AuthContext, id: ObjectId) {
+    const s = await new ScopedDb(this.mongo.db, ctx.scope)
+      .collection<SubscriberDoc>('subscribers')
+      .findOne({ _id: id }, { projection: { tenantId: 1, username: 1, deletedUsername: 1 } });
+    const username = s?.username ?? s?.deletedUsername;
+    if (!s || !username) throw notFound('Subscriber');
+    return { tenantId: s.tenantId, username };
+  }
+
+  async live(ctx: AuthContext, q: z.output<typeof liveQuery>) {
+    const t = await this.pgTenant(this.mongoTenant(ctx, q.tenantId));
+    if (!t) return { items: [], nextCursor: null };
+    const params: unknown[] = [t.id, t.interim];
+    const where = ['a.tenant_id = $1', 'a.acctstoptime IS NULL'];
+    if (q.nasIp) where.push(`a.nasipaddress = $${params.push(q.nasIp)}::inet`);
+    if (q.q) {
+      const like = `${q.q.replace(/[\\%_]/g, '\\$&')}%`;
+      const n = params.push(like);
+      where.push(
+        `(a.username ILIKE $${n} OR host(a.framedipaddress) LIKE $${n} OR a.callingstationid ILIKE $${n})`,
+      );
+    }
+    const k = keyset(q.cursor);
+    if (k) {
+      const a = params.push(k[0]);
+      const b = params.push(k[1]);
+      where.push(`(a.acctstarttime, a.radacctid) < ($${a}::timestamptz, $${b}::bigint)`);
+    }
+    const limit = params.push(q.limit + 1);
+    const { rows } = await this.db().query<SessionRow>(
+      `SELECT ${SESSION_COLUMNS} FROM radacct a ${SESSION_JOINS}
+        WHERE ${where.join(' AND ')}
+        ORDER BY a.acctstarttime DESC, a.radacctid DESC LIMIT $${limit}`,
+      params,
+    );
+    return { items: rows.slice(0, q.limit).map(toSession), nextCursor: nextCursor(rows, q.limit) };
+  }
+
+  async summary(ctx: AuthContext, q: z.output<typeof tenantQuery>) {
+    const t = await this.pgTenant(this.mongoTenant(ctx, q.tenantId));
+    if (!t) return { online: 0, stale: 0, byNas: [] };
+    const { rows } = await this.db().query<{
+      nasip: string;
+      shortname: string | null;
+      online: string;
+      stale: string;
+    }>(
+      `SELECT host(a.nasipaddress) AS nasip, n.shortname,
+              count(*) FILTER (WHERE a.acctupdatetime > now() - make_interval(secs => 3 * $2::int)) AS online,
+              count(*) FILTER (WHERE a.acctupdatetime <= now() - make_interval(secs => 3 * $2::int)) AS stale
+         FROM radacct a
+         LEFT JOIN nas n ON n.nasname = a.nasipaddress AND n.tenant_id = a.tenant_id
+        WHERE a.tenant_id = $1 AND a.acctstoptime IS NULL
+        GROUP BY 1, 2 ORDER BY 3 DESC`,
+      [t.id, t.interim],
+    );
+    return {
+      online: rows.reduce((n, r) => n + Number(r.online), 0),
+      stale: rows.reduce((n, r) => n + Number(r.stale), 0),
+      byNas: rows.map((r) => ({ nasIp: r.nasip, nasName: r.shortname, online: Number(r.online) })),
+    };
+  }
+
+  async history(ctx: AuthContext, id: ObjectId, q: z.output<typeof historyQuery>) {
+    const s = await this.subscriber(ctx, id);
+    const t = await this.pgTenant(s.tenantId);
+    if (!t) return { items: [], nextCursor: null };
+    const to = q.to ?? new Date();
+    const from = q.from ?? new Date(to.getTime() - HISTORY_DAYS_DEFAULT * 86_400_000);
+    const params: unknown[] = [t.id, t.interim, s.username, from, to];
+    // acctstarttime bounds let PostgreSQL skip monthly partitions outside the window.
+    const where = ['a.tenant_id = $1', 'a.username = $3', 'a.acctstarttime >= $4', 'a.acctstarttime <= $5'];
+    const k = keyset(q.cursor);
+    if (k) {
+      const a = params.push(k[0]);
+      const b = params.push(k[1]);
+      where.push(`(a.acctstarttime, a.radacctid) < ($${a}::timestamptz, $${b}::bigint)`);
+    }
+    const limit = params.push(q.limit + 1);
+    const { rows } = await this.db().query<SessionRow>(
+      `SELECT ${SESSION_COLUMNS} FROM radacct a ${SESSION_JOINS}
+        WHERE ${where.join(' AND ')}
+        ORDER BY a.acctstarttime DESC, a.radacctid DESC LIMIT $${limit}`,
+      params,
+    );
+    return { items: rows.slice(0, q.limit).map(toSession), nextCursor: nextCursor(rows, q.limit) };
+  }
+
+  async authLog(ctx: AuthContext, id: ObjectId, q: z.output<typeof historyQuery>) {
+    const s = await this.subscriber(ctx, id);
+    const t = await this.pgTenant(s.tenantId);
+    if (!t) return { items: [], nextCursor: null };
+    const to = q.to ?? new Date();
+    const from = q.from ?? new Date(to.getTime() - HISTORY_DAYS_DEFAULT * 86_400_000);
+    const params: unknown[] = [t.id, s.username, from, to];
+    const where = ['tenant_id = $1', 'username = $2', 'authdate >= $3', 'authdate <= $4'];
+    const k = keyset(q.cursor);
+    if (k) {
+      const a = params.push(k[0]);
+      const b = params.push(k[1]);
+      where.push(`(authdate, id) < ($${a}::timestamptz, $${b}::bigint)`);
+    }
+    const limit = params.push(q.limit + 1);
+    const { rows } = await this.db().query<{
+      id: string;
+      start_key: string;
+      radacctid: string;
+      authdate: Date;
+      reply: string;
+      reason: string | null;
+      nasip: string;
+      callingstationid: string | null;
+    }>(
+      `SELECT id, id AS radacctid, ${PG_ISO('authdate')} AS start_key, authdate, reply, reason,
+              host(nasipaddress) AS nasip, callingstationid
+         FROM radpostauth WHERE ${where.join(' AND ')}
+        ORDER BY authdate DESC, id DESC LIMIT $${limit}`,
+      params,
+    );
+    return {
+      items: rows.slice(0, q.limit).map((r) => ({
+        at: r.authdate.toISOString(),
+        accepted: r.reply === 'Access-Accept',
+        reason: r.reason,
+        nasIp: r.nasip,
+        mac: r.callingstationid,
+      })),
+      nextCursor: nextCursor(rows, q.limit),
+    };
+  }
+
+  /** Who had this IP at that moment (law-enforcement requests, abuse reports). */
+  async lookup(ctx: AuthContext, q: z.output<typeof lookupQuery>) {
+    const t = await this.pgTenant(this.mongoTenant(ctx, q.tenantId));
+    if (!t) return [];
+    const { rows } = await this.db().query<SessionRow>(
+      `SELECT ${SESSION_COLUMNS} FROM radacct a ${SESSION_JOINS}
+        WHERE a.tenant_id = $1 AND a.framedipaddress = $3::inet
+          AND a.acctstarttime <= $4 AND (a.acctstoptime IS NULL OR a.acctstoptime >= $4)
+        ORDER BY a.acctstarttime DESC LIMIT 20`,
+      [t.id, t.interim, q.ip, q.at],
+    );
+    return rows.map(toSession);
+  }
+}
+
+@Controller()
+export class SessionsController {
+  constructor(@Inject(SessionsService) private readonly sessions: SessionsService) {}
+
+  @Get('sessions/live')
+  @Endpoint({
+    summary: 'Users online now (search username, IP or MAC prefix; filter by router)',
+    tags: ['sessions'],
+    permission: 'sessions.read',
+    query: liveQuery,
+    response: sessionsPage,
+  })
+  live(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof liveQuery>) {
+    return this.sessions.live(ctx, q);
+  }
+
+  @Get('sessions/summary')
+  @Endpoint({
+    summary: 'Online count, total and per router',
+    tags: ['sessions'],
+    permission: 'sessions.read',
+    query: tenantQuery,
+    response: summaryView,
+  })
+  summary(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof tenantQuery>) {
+    return this.sessions.summary(ctx, q);
+  }
+
+  @Get('sessions/lookup')
+  @Endpoint({
+    summary: 'Who used an IP address at a given time',
+    tags: ['sessions'],
+    permission: 'sessions.read',
+    query: lookupQuery,
+    response: z.array(sessionView),
+  })
+  lookup(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof lookupQuery>) {
+    return this.sessions.lookup(ctx, q);
+  }
+
+  @Get('subscribers/:id/sessions')
+  @Endpoint({
+    summary: 'Session history (default last 90 days)',
+    tags: ['sessions'],
+    permission: 'sessions.read',
+    params: idParams,
+    query: historyQuery,
+    response: sessionsPage,
+  })
+  history(@Ctx() ctx: AuthContext, @Param() p: { id: ObjectId }, @Query() q: z.output<typeof historyQuery>) {
+    return this.sessions.history(ctx, p.id, q);
+  }
+
+  @Get('subscribers/:id/auth-log')
+  @Endpoint({
+    summary: 'Login attempts with the reject reason (default last 90 days)',
+    tags: ['sessions'],
+    permission: 'sessions.read',
+    params: idParams,
+    query: historyQuery,
+    response: authPage,
+  })
+  authLog(@Ctx() ctx: AuthContext, @Param() p: { id: ObjectId }, @Query() q: z.output<typeof historyQuery>) {
+    return this.sessions.authLog(ctx, p.id, q);
+  }
+}
