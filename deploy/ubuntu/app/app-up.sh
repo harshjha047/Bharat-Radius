@@ -69,19 +69,20 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 [[ "$(msh --eval 'db.hello().isWritablePrimary')" == true ]] || die "isp-mongo did not become PRIMARY"
-msh <<JS >/dev/null
-const admin = db.getSiblingDB('admin');
-const roles = [{ role: 'readWrite', db: 'isp' }, { role: 'readWrite', db: 'isp_staging' }];
-if (admin.getUser('isp_app')) admin.updateUser('isp_app', { pwd: '$MONGO_APP_PW', roles });
-else admin.createUser({ user: 'isp_app', pwd: '$MONGO_APP_PW', roles });
-JS
+# --eval, not stdin: mongosh ignores errors in piped scripts, which once left isp_app uncreated.
+user_js="const a = db.getSiblingDB('admin');
+const r = [{ role: 'readWrite', db: 'isp' }, { role: 'readWrite', db: 'isp_staging' }];
+if (a.getUser('isp_app')) a.updateUser('isp_app', { pwd: '$MONGO_APP_PW', roles: r });
+else a.createUser({ user: 'isp_app', pwd: '$MONGO_APP_PW', roles: r });
+print(a.getUser('isp_app') ? 'isp_app ok' : 'isp_app missing');"
+[[ "$(msh --eval "$user_js")" == "isp_app ok" ]] || die "could not create MongoDB user isp_app"
 log "isp-mongo: $(msh --eval 'rs.status().members[0].stateStr')"
 
 # ------------------------------------------------------------------ API + walled garden
 log "building and starting isp-api, isp-walled-garden"
 APP_VERSION="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo dev)" "${COMPOSE[@]}" up -d --build --wait api walled-garden
 
-health="$(docker exec isp-api wget -qO- http://127.0.0.1:4100/healthz || true)"
+health="$(docker exec isp-api node -e "fetch('http://127.0.0.1:4100/healthz').then(r => r.text()).then(console.log)" || true)"
 log "healthz: $health"
 grep -q '"status":"ok"' <<<"$health" || die "API not healthy"
 
