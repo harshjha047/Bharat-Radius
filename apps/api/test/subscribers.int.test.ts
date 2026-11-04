@@ -98,7 +98,7 @@ describe('subscribers', () => {
       (
         await admin.req('POST', '/api/v1/subscribers', {
           ...base,
-          username: 'x1',
+          username: 'dup-ip',
           network: { staticIp: '100.64.1.5' },
         })
       ).status,
@@ -107,7 +107,7 @@ describe('subscribers', () => {
       (
         await admin.req('POST', '/api/v1/subscribers', {
           ...base,
-          username: 'x2',
+          username: 'bad-mac',
           network: { macLock: 'zz' },
         })
       ).status,
@@ -122,7 +122,8 @@ describe('subscribers', () => {
     ).body.id;
     await admin.req('PATCH', `/api/v1/plans/${archived}`, { status: 'archived' });
     expect(
-      (await admin.req('POST', '/api/v1/subscribers', { ...base, username: 'x3', planId: archived })).status,
+      (await admin.req('POST', '/api/v1/subscribers', { ...base, username: 'old-plan', planId: archived }))
+        .status,
     ).toBe(400);
   });
 
