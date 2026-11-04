@@ -14,7 +14,7 @@ systemctl list-units --type=service | grep -i genie    # note GenieACS units and
 ## 1. Install
 
 ```bash
-git clone git@github.com:<you>/isp-platform.git && cd isp-platform
+git clone git@github.com:harshjha047/Bharat-Radius.git isp-platform && cd isp-platform
 sudo WINDOWS_IP=<windows-vps-ip> PG_TLS_HOSTNAME=<dns-name-of-ubuntu-vps> PG_TLS_IP=<ubuntu-ip> \
   radius/scripts/install.sh all
 ```
@@ -32,6 +32,7 @@ Rerunning is safe (CI runs it twice).
 ## 2. Prove it
 
 ```bash
+sudo apt-get install -y python3-pycryptodome bc                 # test-only dependencies
 sudo INSTANCE=staging radius/tests/e2e.sh                       # expect 47 passed, 0 failed
 sudo INSTANCE=staging USERS=20000 PARALLEL=200 TARGET=2000 radius/tests/load.sh   # quiet hour (WP 1.9)
 systemctl status genieacs-cwmp genieacs-nbi genieacs-fs genieacs-ui --no-pager   # GenieACS unaffected

@@ -12,8 +12,15 @@ import socket
 import struct
 import sys
 
-from Crypto.Cipher import DES
-from Crypto.Hash import MD4
+try:
+    from Cryptodome.Cipher import DES
+    from Cryptodome.Hash import MD4
+except ImportError:
+    try:
+        from Crypto.Cipher import DES
+        from Crypto.Hash import MD4
+    except ImportError:
+        sys.exit("missing pycryptodome: sudo apt-get install python3-pycryptodome")
 
 MS_VENDOR = 311
 
