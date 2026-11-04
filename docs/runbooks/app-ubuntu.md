@@ -21,6 +21,7 @@ cd ~/isp-platform && git pull
 sudo APP_SUBNET=172.16.0.0/12 PG_TLS_HOSTNAME=acs-prod PG_TLS_IP=154.49.142.251 \
   bash radius/scripts/install.sh all          # once: lets the app subnet reach PostgreSQL over TLS
 sudo bash deploy/ubuntu/app/app-up.sh         # build, start, Caddy site; rerun after every git pull
+# install.sh remembers APP_SUBNET / PG_TLS_* in /etc/isp-radius/install.env: later reruns need no variables.
 ```
 
 `app-up.sh` adds `sites/isp.caddy` and one `import /etc/caddy/sites/*.caddy` line to `/opt/acs/repo/infra/caddy`,

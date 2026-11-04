@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
-import type { ChangeStream, Db, ObjectId } from 'mongodb';
+import type { ChangeStream, Db } from 'mongodb';
 import type { Logger } from 'pino';
 import type { OutboxDoc, OutboxEntity } from '@isp/db-mongo';
+import { strongest, type CoaAction, type CoaSender } from './coa.js';
 import type { RadiusSync } from './radius-sync.js';
 
 const LEASE_ID = 'outbox-worker';
@@ -42,6 +43,7 @@ export class OutboxWorker {
     private readonly db: Db,
     private readonly sync: RadiusSync,
     private readonly log: Logger,
+    private readonly coa?: CoaSender,
   ) {}
 
   private get outbox() {
@@ -85,16 +87,24 @@ export class OutboxWorker {
     );
   }
 
-  private run(entity: OutboxEntity, id: ObjectId) {
-    switch (entity) {
+  /** Writes the entity to PostgreSQL, then sends the strongest CoA any of the settled rows asked for. */
+  private async run(row: OutboxDoc, coa: CoaAction | undefined): Promise<string> {
+    switch (row.entity) {
       case 'tenant':
-        return this.sync.tenant(id);
+        return this.sync.tenant(row.entityId);
       case 'nas':
-        return this.sync.nas(id);
-      case 'plan':
-        return this.sync.plan(id);
-      case 'subscriber':
-        throw new Error('subscriber sync arrives with WP 2.6');
+        return this.sync.nas(row.entityId);
+      case 'plan': {
+        const r = await this.sync.plan(row.entityId);
+        if (coa && this.coa) await this.coa.forPlan(row.tenantId, row.entityId.toHexString(), coa.reason);
+        return r;
+      }
+      case 'subscriber': {
+        const r = await this.sync.subscriber(row.entityId);
+        if (coa && this.coa && r.username)
+          await this.coa.forSubscriber(row.tenantId, row.entityId, r.username, coa);
+        return r.result;
+      }
     }
   }
 
@@ -106,11 +116,11 @@ export class OutboxWorker {
     const siblings = await this.outbox
       .find(
         { entity: row.entity, entityId: row.entityId, status: 'pending', _id: { $ne: row._id } },
-        { projection: { _id: 1 } },
+        { projection: { _id: 1, coa: 1 } },
       )
       .toArray();
     try {
-      const result = await this.run(row.entity, row.entityId);
+      const result = await this.run(row, strongest([row.coa, ...siblings.map((x) => x.coa)]));
       const done = {
         $set: { status: 'done' as const, doneAt: new Date() },
         $unset: { lockedUntil: '' as const, lastError: '' as const },
@@ -140,6 +150,11 @@ export class OutboxWorker {
           $unset: { lockedUntil: '' },
         },
       );
+      if (row.entity === 'subscriber' && row.attempts >= 3) {
+        await this.db
+          .collection('subscribers')
+          .updateOne({ _id: row.entityId }, { $set: { syncStatus: 'error' } });
+      }
       this.log.warn(
         { entity: row.entity, id: row.entityId.toHexString(), attempts: row.attempts, err: msg },
         'sync failed',

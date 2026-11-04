@@ -64,6 +64,7 @@ jobs:
         env:
           MONGO_URL: 'mongodb://127.0.0.1:27017/?replicaSet=rs0'
           RADIUS_DB_URL: 'postgres://app_ci:ci-app-pw@127.0.0.1:5433/radius_ci'
+          RADIUS_ADMIN_URL: 'postgres://postgres:ci@127.0.0.1:5433/radius_ci'
         run: pnpm --filter @isp/workers test:int
       - name: MongoDB log on failure
         if: failure()

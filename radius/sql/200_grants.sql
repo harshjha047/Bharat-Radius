@@ -28,6 +28,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON usage_daily TO :"app_role";
 GRANT EXECUTE ON FUNCTION
   radius_encrypt_password(text, text),
   radius_online_count(inet, text),
+  -- CoA: the worker sends exactly the rate/lists FreeRADIUS would reply with now.
+  radius_reply(inet, text),
   radius_close_stale_sessions(),
   pgp_sym_encrypt(text, text, text)
   TO :"app_role";

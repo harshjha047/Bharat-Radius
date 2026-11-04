@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@isp/db-mongo": "workspace:*",
+    "@isp/radius-client": "workspace:*",
     "@isp/shared": "workspace:*",
     "mongodb": "^6.20.0",
     "pg": "^8.16.3",

@@ -1,6 +1,6 @@
 import type { Db, ObjectId } from 'mongodb';
 import type pg from 'pg';
-import type { NasDeviceDoc, PlanDoc, TenantDoc } from '@isp/db-mongo';
+import type { NasDeviceDoc, PlanDoc, SubscriberDoc, TenantDoc } from '@isp/db-mongo';
 import type { FieldCrypto } from '@isp/shared';
 
 type Tx = pg.PoolClient;
@@ -8,8 +8,9 @@ type Tx = pg.PoolClient;
 /** Tries each statement in order until one touches a row: update by sync key → adopt a pre-existing row → insert. */
 async function upsert(tx: Tx, steps: { sql: string; params: unknown[] }[]): Promise<number> {
   for (const s of steps) {
-    const r = await tx.query<{ id: number }>(s.sql, s.params);
-    if (r.rowCount) return r.rows[0]!.id;
+    // bigserial ids come back as strings from node-postgres; RADIUS ids stay far below 2^53.
+    const r = await tx.query<{ id: number | string }>(s.sql, s.params);
+    if (r.rowCount) return Number(r.rows[0]!.id);
   }
   throw new Error('upsert touched no row');
 }
@@ -39,6 +40,8 @@ export class RadiusSync {
     private readonly pool: pg.Pool,
     private readonly db: Db,
     private readonly crypto: FieldCrypto,
+    /** pgcrypto key for subscribers.password_enc (TRD §5.5); never stored in the database. */
+    private readonly pwKey: string,
   ) {}
 
   private async tenantPgId(tx: Tx, tenantId: ObjectId): Promise<number> {
@@ -173,5 +176,76 @@ export class RadiusSync {
     });
     await col.updateOne({ _id: id }, { $set: { radiusId: pgId } });
     return 'synced';
+  }
+
+  /**
+   * Subscriber row for radius_check/radius_reply. Returns the RADIUS username the change applies to (for CoA),
+   * also when the subscriber was deleted and its row removed.
+   */
+  async subscriber(
+    id: ObjectId,
+  ): Promise<{ result: 'synced' | 'gone'; username?: string; doc?: SubscriberDoc }> {
+    const col = this.db.collection<SubscriberDoc>('subscribers');
+    const s = await col.findOne({ _id: id });
+    const ext = id.toHexString();
+    if (!s || s.status === 'deleted' || !s.username) {
+      await this.pool.query('DELETE FROM subscribers WHERE external_id = $1', [ext]);
+      if (s)
+        await col.updateOne(
+          { _id: id, version: s.version },
+          { $set: { syncStatus: 'synced' }, $unset: { radiusId: '' } },
+        );
+      const username = s?.username ?? s?.deletedUsername;
+      return { result: 'gone', ...(username ? { username } : {}), ...(s ? { doc: s } : {}) };
+    }
+    let planPgId: number | null = null;
+    if (s.planId) {
+      const planExt = s.planId.toHexString();
+      const find = () =>
+        this.pool.query<{ id: number }>('SELECT id FROM plans WHERE external_id = $1', [planExt]);
+      let r = await find();
+      if (!r.rowCount) {
+        await this.plan(s.planId);
+        r = await find();
+      }
+      planPgId = r.rows[0]?.id ?? null;
+    }
+    const password = this.crypto.decrypt(s.pppoePassword, `subscribers.pppoe:${ext}`);
+    const pgId = await inTx(this.pool, async (tx) => {
+      const p = [
+        ext,
+        await this.tenantPgId(tx, s.tenantId),
+        s.username,
+        password,
+        this.pwKey,
+        planPgId,
+        s.status,
+        s.expiresAt ?? null,
+        s.network.staticIp ?? null,
+        s.network.macLock ?? null,
+        s.network.simUse ?? null,
+        s.fup?.active === true,
+      ];
+      const cols = `tenant_id = $2, username = $3, password_enc = radius_encrypt_password($4, $5), plan_id = $6,
+                    status = $7, expires_at = $8, static_ip = $9::inet, mac_lock = $10, sim_use = $11,
+                    fup_active = $12, updated_at = now()`;
+      return upsert(tx, [
+        { sql: `UPDATE subscribers SET ${cols} WHERE external_id = $1 RETURNING id`, params: p },
+        {
+          sql: `UPDATE subscribers SET external_id = $1, ${cols}
+                 WHERE tenant_id = $2 AND username = $3 AND external_id IS NULL RETURNING id`,
+          params: p,
+        },
+        {
+          sql: `INSERT INTO subscribers (external_id, tenant_id, username, password_enc, plan_id, status, expires_at,
+                                         static_ip, mac_lock, sim_use, fup_active)
+                VALUES ($1, $2, $3, radius_encrypt_password($4, $5), $6, $7, $8, $9::inet, $10, $11, $12) RETURNING id`,
+          params: p,
+        },
+      ]);
+    });
+    // Only the version we wrote is marked synced; a newer edit keeps "pending" until its own row runs.
+    await col.updateOne({ _id: id, version: s.version }, { $set: { syncStatus: 'synced', radiusId: pgId } });
+    return { result: 'synced', username: s.username, doc: s };
   }
 }

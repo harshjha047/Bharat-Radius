@@ -159,7 +159,7 @@ export interface OutboxDoc {
   tenantId: ObjectId;
   entity: OutboxEntity;
   entityId: ObjectId;
-  coa?: { action: 'update' | 'disconnect' };
+  coa?: { action: 'update' | 'disconnect'; reason: CoaReason };
   status: 'pending' | 'processing' | 'done';
   attempts: number;
   nextAttemptAt: Date;
@@ -167,4 +167,68 @@ export interface OutboxDoc {
   lastError?: string;
   createdAt: Date;
   doneAt?: Date;
+}
+
+export type SubscriberStatus = 'active' | 'suspended' | 'disabled' | 'deleted';
+
+export interface SubscriberDoc extends Standard {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  resellerId: ObjectId | null;
+  ancestors: ObjectId[];
+  customerNo: string;
+  /** PPPoE username; moved to deletedUsername on delete so it can be reused. */
+  username?: string;
+  deletedUsername?: string;
+  pppoePassword: EncryptedField;
+  name: string;
+  phone: string;
+  altPhone?: string;
+  email?: string;
+  address: {
+    line1: string;
+    line2?: string;
+    city: string;
+    district?: string;
+    state: string;
+    stateCode: string;
+    pincode: string;
+    lat?: number;
+    lng?: number;
+  };
+  gstin?: string;
+  billingType: 'prepaid' | 'postpaid';
+  planId?: ObjectId;
+  expiresAt?: Date;
+  status: SubscriberStatus;
+  suspendReason?: string;
+  network: { staticIp?: string; macLock?: string; simUse?: number; popName?: string };
+  fup?: { active: boolean; cycleStart?: Date; usedBytes?: number };
+  kyc: { status: 'pending' | 'verified' | 'rejected'; cafNo?: string; aadhaarLast4?: string };
+  tags: string[];
+  notes?: string;
+  /** Lower-case prefix tokens (name words, username, phone, customer no.) for indexed search. */
+  search: string[];
+  radiusId?: number;
+  syncStatus: 'synced' | 'pending' | 'error';
+  deletedAt?: Date;
+  version: number;
+}
+
+export type CoaReason =
+  'plan_change' | 'renewal' | 'fup' | 'kick' | 'suspend' | 'network' | 'password' | 'delete';
+
+export interface CoaLogDoc {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  subscriberId: ObjectId;
+  username: string;
+  nasIp: string;
+  type: 'coa' | 'disconnect';
+  attributes?: Record<string, string>;
+  result: 'ack' | 'nak' | 'timeout' | 'skipped_offline' | 'error';
+  errorCause?: number;
+  latencyMs?: number;
+  trigger: { type: CoaReason; refId?: ObjectId };
+  createdAt: Date;
 }

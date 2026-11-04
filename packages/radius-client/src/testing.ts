@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'node:crypto';
 import dgram from 'node:dgram';
-import { Attr, Code, decodeAttributes, type Attribute } from '../src/packet.js';
+import { Attr, Code, decodeAttributes, type Attribute } from './packet.js';
 
 export type Behaviour = 'ack' | 'nak' | 'drop' | 'drop-once' | 'bad-auth';
 

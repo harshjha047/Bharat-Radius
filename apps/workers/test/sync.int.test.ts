@@ -6,12 +6,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   connectMongo,
   migrate,
+  type CoaLogDoc,
   type NasDeviceDoc,
   type OutboxDoc,
   type PlanDoc,
+  type SubscriberDoc,
   type TenantDoc,
 } from '@isp/db-mongo';
 import { FieldCrypto } from '@isp/shared';
+import { RadiusCoaClient } from '@isp/radius-client';
+import { startFakeNas } from '@isp/radius-client/testing';
+import { CoaSender } from '../src/coa.js';
 import { OutboxWorker } from '../src/outbox-worker.js';
 import { RadiusSync } from '../src/radius-sync.js';
 
@@ -22,6 +27,7 @@ let crypto: FieldCrypto;
 let worker: OutboxWorker;
 const log = pino({ level: 'silent' });
 const run = randomBytes(3).toString('hex');
+const PW_KEY = 'test-pgcrypto-key-0123456789';
 const now = () => new Date();
 const std = () => ({ createdAt: now(), updatedAt: now(), createdBy: 'test', updatedBy: 'test' });
 
@@ -114,7 +120,12 @@ beforeAll(async () => {
   await migrate(db);
   pool = new pg.Pool({ connectionString: process.env.RADIUS_DB_URL, max: 4 });
   crypto = new FieldCrypto(randomBytes(32).toString('base64'));
-  worker = new OutboxWorker(db, new RadiusSync(pool, db, crypto), log);
+  worker = new OutboxWorker(
+    db,
+    new RadiusSync(pool, db, crypto, PW_KEY),
+    log,
+    new CoaSender(pool, db, new RadiusCoaClient({ timeoutMs: 500, retries: 1 }), log),
+  );
 });
 afterAll(async () => {
   await worker?.stop();
@@ -225,9 +236,89 @@ describe('outbox → RADIUS', () => {
     });
   });
 
+  it('subscriber: synced with encrypted password, kick reaches the live session (rows coalesced)', async () => {
+    const admin = new pg.Pool({ connectionString: process.env.RADIUS_ADMIN_URL });
+    const nasDev = await startFakeNas('Router-Secret-12345', 'ack');
+    try {
+      const t = await tenant();
+      const n = await nas(t, '127.0.0.1');
+      await db
+        .collection<NasDeviceDoc>('nas_devices')
+        .updateOne({ _id: n }, { $set: { coaPort: nasDev.port } });
+      const p = await plan(t, 'Sub plan');
+      const sid = new ObjectId();
+      await db.collection<SubscriberDoc>('subscribers').insertOne({
+        _id: sid,
+        tenantId: t,
+        resellerId: null,
+        ancestors: [],
+        customerNo: 'C000001',
+        username: `u${run}`,
+        pppoePassword: crypto.encrypt('pppoe-pw', `subscribers.pppoe:${sid.toHexString()}`),
+        name: 'Test User',
+        phone: '+919876543210',
+        address: { line1: 'x', city: 'Delhi', state: 'Delhi', stateCode: '07', pincode: '110001' },
+        billingType: 'prepaid',
+        planId: p,
+        expiresAt: new Date(Date.now() + 86_400_000),
+        status: 'active',
+        network: {},
+        kyc: { status: 'pending' },
+        tags: [],
+        search: [],
+        syncStatus: 'pending',
+        version: 0,
+        ...std(),
+      });
+      await enqueue(t, 'nas', n);
+      await enqueue(t, 'subscriber', sid);
+      await worker.drain();
+      const row = await one<{ id: number }>('SELECT id FROM subscribers WHERE external_id = $1', [
+        sid.toHexString(),
+      ]);
+      expect(row).toBeDefined();
+      const pw = await admin.query(
+        `SELECT value FROM radius_check('127.0.0.1', $1, NULL, $2) WHERE attribute = 'Cleartext-Password'`,
+        [`u${run}`, PW_KEY],
+      );
+      expect(pw.rows[0]?.value).toBe('pppoe-pw');
+      expect((await db.collection<SubscriberDoc>('subscribers').findOne({ _id: sid }))?.syncStatus).toBe(
+        'synced',
+      );
+
+      const tid = (await one<{ id: number }>('SELECT id FROM tenants WHERE external_id = $1', [
+        t.toHexString(),
+      ]))!.id;
+      await admin.query(
+        `INSERT INTO radacct (tenant_id, acctsessionid, acctuniqueid, username, nasipaddress, acctstarttime, acctupdatetime)
+         VALUES ($1, 'sess-1', $2, $3, '127.0.0.1', now(), now())`,
+        [tid, randomBytes(8).toString('hex'), `u${run}`],
+      );
+      await enqueue(t, 'subscriber', sid);
+      await db.collection<OutboxDoc>('outbox').insertOne({
+        _id: new ObjectId(),
+        tenantId: t,
+        entity: 'subscriber',
+        entityId: sid,
+        coa: { action: 'disconnect', reason: 'kick' },
+        status: 'pending',
+        attempts: 0,
+        nextAttemptAt: now(),
+        createdAt: now(),
+      });
+      expect(await worker.drain()).toBe(1);
+      expect(nasDev.received.map((r) => r.code)).toEqual([40]);
+      const log = await db.collection<CoaLogDoc>('coa_log').findOne({ subscriberId: sid });
+      expect(log).toMatchObject({ type: 'disconnect', result: 'ack', trigger: { type: 'kick' } });
+    } finally {
+      await nasDev.close();
+      await admin.end();
+    }
+  });
+
   it('only one worker leads', async () => {
     expect(await worker.holdLease()).toBe(true);
-    const other = new OutboxWorker(db, new RadiusSync(pool, db, crypto), log);
+    const other = new OutboxWorker(db, new RadiusSync(pool, db, crypto, PW_KEY), log);
     expect(await other.holdLease()).toBe(false);
   });
 

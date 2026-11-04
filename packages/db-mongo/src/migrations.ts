@@ -283,4 +283,94 @@ const config: Migration = {
   },
 };
 
-export const MIGRATIONS: readonly Migration[] = [identity, config];
+const subscribers: Migration = {
+  id: '003_subscribers',
+  async up(db) {
+    await ensureCollection(db, 'subscribers', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'resellerId',
+        'ancestors',
+        'customerNo',
+        'pppoePassword',
+        'name',
+        'phone',
+        'address',
+        'billingType',
+        'status',
+        'network',
+        'kyc',
+        'tags',
+        'search',
+        'syncStatus',
+        'version',
+        ...standardRequired,
+      ],
+      properties: {
+        tenantId: oid,
+        resellerId: oidOrNull,
+        ancestors: { bsonType: 'array', items: oid },
+        customerNo: str,
+        username: { bsonType: 'string', pattern: '^[A-Za-z0-9._@-]{3,64}$' },
+        deletedUsername: str,
+        pppoePassword: encrypted,
+        name: { bsonType: 'string', minLength: 1, maxLength: 120 },
+        phone: { bsonType: 'string', pattern: '^\\+[1-9][0-9]{7,14}$' },
+        address: { bsonType: 'object', required: ['line1', 'city', 'state', 'stateCode', 'pincode'] },
+        billingType: { enum: ['prepaid', 'postpaid'] },
+        planId: oid,
+        expiresAt: date,
+        status: { enum: ['active', 'suspended', 'disabled', 'deleted'] },
+        network: {
+          bsonType: 'object',
+          properties: {
+            staticIp: str,
+            macLock: { bsonType: 'string', pattern: '^([0-9A-F]{2}:){5}[0-9A-F]{2}$' },
+            simUse: { bsonType: 'int', minimum: 1, maximum: 10 },
+          },
+        },
+        kyc: { bsonType: 'object', required: ['status'] },
+        tags: { bsonType: 'array', items: str },
+        search: { bsonType: 'array', items: str },
+        syncStatus: { enum: ['synced', 'pending', 'error'] },
+        radiusId: int,
+        version: int,
+        ...standard,
+      },
+    });
+    await ensureIndexes(db, 'subscribers', [
+      {
+        key: { tenantId: 1, username: 1 },
+        unique: true,
+        partialFilterExpression: { username: { $type: 'string' } },
+      },
+      { key: { tenantId: 1, customerNo: 1 }, unique: true },
+      {
+        key: { tenantId: 1, 'network.staticIp': 1 },
+        unique: true,
+        partialFilterExpression: { 'network.staticIp': { $type: 'string' } },
+      },
+      { key: { tenantId: 1, search: 1 } },
+      { key: { tenantId: 1, status: 1, _id: -1 } },
+      { key: { tenantId: 1, ancestors: 1, status: 1 } },
+      { key: { tenantId: 1, resellerId: 1 } },
+      { key: { tenantId: 1, planId: 1 } },
+      { key: { tenantId: 1, expiresAt: 1 } },
+      { key: { tenantId: 1, phone: 1 } },
+      {
+        key: { tenantId: 1, syncStatus: 1 },
+        partialFilterExpression: { syncStatus: { $in: ['pending', 'error'] } },
+      },
+    ]);
+
+    await ensureCollection(db, 'coa_log');
+    await ensureIndexes(db, 'coa_log', [
+      { key: { tenantId: 1, subscriberId: 1, createdAt: -1 } },
+      { key: { createdAt: 1 }, expireAfterSeconds: 90 * 24 * 3600 },
+    ]);
+    await ensureCollection(db, 'counters');
+  },
+};
+
+export const MIGRATIONS: readonly Migration[] = [identity, config, subscribers];

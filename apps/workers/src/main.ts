@@ -4,6 +4,8 @@ import { pino } from 'pino';
 import { z } from 'zod';
 import { connectMongo, pendingMigrations, type OutboxDoc } from '@isp/db-mongo';
 import { FieldCrypto } from '@isp/shared';
+import { RadiusCoaClient } from '@isp/radius-client';
+import { CoaSender } from './coa.js';
 import { OutboxWorker } from './outbox-worker.js';
 import { RadiusSync } from './radius-sync.js';
 
@@ -13,6 +15,9 @@ const config = z
     RADIUS_DB_URL: z.string().startsWith('postgres'),
     RADIUS_DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(4),
     FIELD_ENCRYPTION_KEY: z.string().min(40),
+    RADIUS_PW_KEY: z.string().min(16),
+    /** Source address for CoA (router firewalls accept UDP 3799 only from it); default: any. */
+    COA_SOURCE_IP: z.string().optional(),
     WORKERS_HOST: z.string().default('127.0.0.1'),
     WORKERS_PORT: z.coerce.number().int().default(4101),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
@@ -37,10 +42,14 @@ const pool = new pg.Pool({
 });
 pool.on('error', (err) => log.warn({ err }, 'idle PostgreSQL connection failed'));
 
+const coaClient = new RadiusCoaClient(
+  config.COA_SOURCE_IP && config.COA_SOURCE_IP !== '0.0.0.0' ? { sourceIp: config.COA_SOURCE_IP } : {},
+);
 const worker = new OutboxWorker(
   db,
-  new RadiusSync(pool, db, new FieldCrypto(config.FIELD_ENCRYPTION_KEY)),
+  new RadiusSync(pool, db, new FieldCrypto(config.FIELD_ENCRYPTION_KEY), config.RADIUS_PW_KEY),
   log,
+  new CoaSender(pool, db, coaClient, log),
 );
 
 async function metrics(): Promise<string> {
