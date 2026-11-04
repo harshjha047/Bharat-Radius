@@ -8,8 +8,9 @@ type Tx = pg.PoolClient;
 /** Tries each statement in order until one touches a row: update by sync key → adopt a pre-existing row → insert. */
 async function upsert(tx: Tx, steps: { sql: string; params: unknown[] }[]): Promise<number> {
   for (const s of steps) {
-    const r = await tx.query<{ id: number }>(s.sql, s.params);
-    if (r.rowCount) return r.rows[0]!.id;
+    // bigserial ids come back as strings from node-postgres; RADIUS ids stay far below 2^53.
+    const r = await tx.query<{ id: number | string }>(s.sql, s.params);
+    if (r.rowCount) return Number(r.rows[0]!.id);
   }
   throw new Error('upsert touched no row');
 }
