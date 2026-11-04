@@ -195,3 +195,50 @@ export async function signIn(h: Harness, user: SeededUser, tenant?: string): Pro
   }
   return c;
 }
+
+export async function seedNas(h: Harness, tenantId: ObjectId, ip: string): Promise<ObjectId> {
+  const now = new Date();
+  const _id = new ObjectId();
+  await h.db.collection('nas_devices').insertOne({
+    _id,
+    tenantId,
+    name: `router-${ip}`,
+    ip,
+    radiusSecret: h.crypto.encrypt('Seeded-Secret-1234', `nas.secret:${_id.toHexString()}`),
+    coaPort: 3799,
+    status: 'active',
+    version: 0,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: 'test',
+    updatedBy: 'test',
+  });
+  return _id;
+}
+
+export async function seedPlan(h: Harness, tenantId: ObjectId, name: string): Promise<ObjectId> {
+  const now = new Date();
+  const _id = new ObjectId();
+  await h.db.collection('plans').insertOne({
+    _id,
+    tenantId,
+    name,
+    downloadKbps: 50_000,
+    uploadKbps: 50_000,
+    rateLimit: '50M/50M',
+    validityDays: 30,
+    simUse: 1,
+    billingTypes: ['prepaid'],
+    pricePaise: 50_000,
+    gstRatePercent: 18,
+    hsnSac: '998422',
+    extraAttributes: [],
+    status: 'active',
+    version: 0,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: 'test',
+    updatedBy: 'test',
+  });
+  return _id;
+}

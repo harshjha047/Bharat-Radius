@@ -28,6 +28,7 @@ export interface TenantDoc extends Standard {
     expiredSessionSecs: number;
     interimInterval: number;
   };
+  radiusId?: number;
   /** Required from Step 3 (wallets); optional until then. */
   walletId?: ObjectId;
   version: number;
@@ -93,4 +94,77 @@ export interface RateLimitDoc {
   _id: string;
   count: number;
   expiresAt: Date;
+}
+
+export interface NasDeviceDoc extends Standard {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  name: string;
+  /** Source IP of RADIUS packets; unset when deleted (kept in deletedIp) so the IP can be reused. */
+  ip?: string;
+  deletedIp?: string;
+  radiusSecret: EncryptedField;
+  coaPort: number;
+  routerOsVersion?: '6' | '7';
+  location?: { popName?: string; address?: string; lat?: number; lng?: number };
+  description?: string;
+  status: 'active' | 'disabled' | 'deleted';
+  deletedAt?: Date;
+  lastSeenAt?: Date;
+  radiusId?: number;
+  version: number;
+}
+
+export interface PlanDoc extends Standard {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  name: string;
+  description?: string;
+  downloadKbps: number;
+  uploadKbps: number;
+  burst?: {
+    downloadKbps: number;
+    uploadKbps: number;
+    thresholdDownloadKbps: number;
+    thresholdUploadKbps: number;
+    timeSecs: number;
+  };
+  /** MikroTik rate string sent as Mikrotik-Rate-Limit, derived from the speeds above. */
+  rateLimit: string;
+  dataCapBytes?: number;
+  fup?: { downloadKbps: number; uploadKbps: number };
+  fupRate?: string;
+  fupCycle?: 'billing_cycle' | 'calendar_month';
+  validityDays: number;
+  ipPool?: string;
+  simUse: number;
+  billingTypes: ('prepaid' | 'postpaid')[];
+  pricePaise: number;
+  gstRatePercent: number;
+  hsnSac: string;
+  extraAttributes: { attribute: string; op: ':=' | '=' | '+='; value: string }[];
+  status: 'active' | 'archived';
+  radiusId?: number;
+  version: number;
+}
+
+export type OutboxEntity = 'tenant' | 'nas' | 'plan' | 'subscriber';
+
+/**
+ * A change that must reach PostgreSQL. The worker reads the entity's current MongoDB state when it processes the
+ * row (latest state wins), so rows carry no copy of the data and no secrets.
+ */
+export interface OutboxDoc {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  entity: OutboxEntity;
+  entityId: ObjectId;
+  coa?: { action: 'update' | 'disconnect' };
+  status: 'pending' | 'processing' | 'done';
+  attempts: number;
+  nextAttemptAt: Date;
+  lockedUntil?: Date;
+  lastError?: string;
+  createdAt: Date;
+  doneAt?: Date;
 }

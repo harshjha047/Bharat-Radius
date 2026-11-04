@@ -16,7 +16,7 @@ services:
       - prometheus-data:/prometheus
     extra_hosts:
       - 'host.docker.internal:host-gateway'
-    networks: [mon]
+    networks: [mon, isp]
     deploy:
       resources:
         limits: { cpus: '0.5', memory: 512M }

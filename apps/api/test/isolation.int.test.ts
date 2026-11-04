@@ -3,7 +3,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { RoleDoc, UserDoc } from '@isp/db-mongo';
 import { API_PREFIX } from '../src/app.js';
 import { listRoutes } from '../src/http/openapi.js';
-import { Client, roleId, seedTenant, seedUser, signIn, startHarness, type Harness } from './harness.js';
+import {
+  Client,
+  roleId,
+  seedNas,
+  seedPlan,
+  seedTenant,
+  seedUser,
+  signIn,
+  startHarness,
+  type Harness,
+} from './harness.js';
 
 /**
  * Cross-tenant harness (WP 2.2, TRD §8.2): every route that addresses a record by id is called by tenant B's
@@ -21,12 +31,19 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/users/:id/password': 'userA',
   '/api/v1/users/:id/reset-2fa': 'userA',
   '/api/v1/roles/:id': 'roleA',
+  '/api/v1/tenants/:id': 'tenantA',
+  '/api/v1/nas/:id': 'nasA',
+  '/api/v1/nas/:id/secret': 'nasA',
+  '/api/v1/plans/:id': 'planA',
 };
 
 const BODIES: Record<string, unknown> = {
   'PATCH /api/v1/users/:id': { name: 'Changed by B' },
   'POST /api/v1/users/:id/password': { password: 'Changed-By-Tenant-B-1' },
   'PATCH /api/v1/roles/:id': { name: 'Changed by B' },
+  'PATCH /api/v1/tenants/:id': { name: 'Changed by B' },
+  'PATCH /api/v1/nas/:id': { name: 'Changed by B' },
+  'PATCH /api/v1/plans/:id': { name: 'Changed by B' },
 };
 
 beforeAll(async () => {
@@ -52,6 +69,9 @@ beforeAll(async () => {
   });
   ids.userA = userA._id.toHexString();
   ids.roleA = roleA.insertedId.toHexString();
+  ids.tenantA = a.toHexString();
+  ids.nasA = (await seedNas(h, a, '10.10.0.1')).toHexString();
+  ids.planA = (await seedPlan(h, a, 'Alpha 50M')).toHexString();
   const adminB = await seedUser(h, { tenantId: b, email: 'admin@bravo.in', roles: [adminRole], totp: true });
   bAdmin = await signIn(h, adminB, 'bravo');
 });
@@ -78,6 +98,19 @@ describe('tenant isolation', () => {
       expect(await snapshot()).toEqual(before);
     });
   }
+
+  it('lists never include another tenant’s routers or plans', async () => {
+    const nas = await bAdmin.req('GET', '/api/v1/nas');
+    expect(nas.body.items.map((x: { id: string }) => x.id)).not.toContain(ids.nasA);
+    const plans = await bAdmin.req('GET', '/api/v1/plans');
+    expect(plans.body.items.map((x: { id: string }) => x.id)).not.toContain(ids.planA);
+    expect((await bAdmin.req('GET', '/api/v1/tenants')).status).toBe(404);
+  });
+
+  it('a router IP is unique across ISPs', async () => {
+    const r = await bAdmin.req('POST', '/api/v1/nas', { name: 'dup', ip: '10.10.0.1' });
+    expect(r.status).toBe(409);
+  });
 
   it('lists never include another tenant’s rows', async () => {
     const users = await bAdmin.req('GET', '/api/v1/users');
@@ -113,9 +146,17 @@ describe('tenant isolation', () => {
 });
 
 async function snapshot() {
-  const [u, r] = await Promise.all([
-    h.db.collection('users').findOne({ _id: new ObjectId(ids.userA) }),
-    h.db.collection('roles').findOne({ _id: new ObjectId(ids.roleA) }),
-  ]);
-  return JSON.stringify([u, r]);
+  const docs = await Promise.all(
+    (
+      [
+        ['users', 'userA'],
+        ['roles', 'roleA'],
+        ['tenants', 'tenantA'],
+        ['nas_devices', 'nasA'],
+        ['plans', 'planA'],
+      ] as const
+    ).map(([c, k]) => h.db.collection(c).findOne({ _id: new ObjectId(ids[k]) })),
+  );
+  const outbox = await h.db.collection('outbox').countDocuments({});
+  return JSON.stringify([docs, outbox]);
 }
