@@ -55,6 +55,29 @@ services:
         limits: { cpus: '1.5', memory: 768M }
     restart: unless-stopped
 
+  workers:
+    build:
+      context: ../../..
+      dockerfile: deploy/ubuntu/app/workers.Dockerfile
+    image: isp-workers:local
+    container_name: isp-workers
+    env_file: /etc/isp-app/staging.env
+    environment:
+      WORKERS_HOST: 0.0.0.0
+      WORKERS_PORT: '4101'
+      APP_VERSION: ${APP_VERSION:-dev}
+    extra_hosts:
+      - 'acs-prod:host-gateway'
+    volumes:
+      - /etc/isp-radius/tls/ca.crt:/etc/isp/radius-ca.crt:ro
+    networks: [internal]
+    depends_on:
+      mongo: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 256M }
+    restart: unless-stopped
+
   walled-garden:
     image: caddy:2-alpine
     container_name: isp-walled-garden

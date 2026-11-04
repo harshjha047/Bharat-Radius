@@ -29,6 +29,10 @@ scrape_configs:
     static_configs:
       - targets: ['isp-alertmanager:9093']
 
+  - job_name: isp-workers
+    static_configs:
+      - targets: ['isp-workers:4101']
+
   - job_name: blackbox-http
     metrics_path: /probe
     params: { module: [http_2xx] }

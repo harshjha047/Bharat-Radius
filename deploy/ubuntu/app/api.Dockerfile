@@ -4,7 +4,9 @@ FROM node:22-alpine AS build
 WORKDIR /src
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+# Every workspace manifest, so the frozen lockfile matches the workspace exactly.
 COPY apps/api/package.json apps/api/
+COPY apps/workers/package.json apps/workers/
 COPY packages/radius-client/package.json packages/radius-client/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db-mongo/package.json packages/db-mongo/

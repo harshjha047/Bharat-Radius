@@ -39,3 +39,24 @@ export function pageOf<T extends { _id: ObjectId }, R>(docs: T[], limit: number,
 }
 
 export const okResponse = z.object({ ok: z.literal(true) });
+
+type Defined<T> = T extends Date | ObjectId
+  ? T
+  : T extends (infer U)[]
+    ? Defined<U>[]
+    : T extends object
+      ? { [K in keyof T]: Defined<Exclude<T[K], undefined>> }
+      : T;
+
+/** Drops undefined keys (deep). The driver would store them as null; zod output keeps them as undefined. */
+export function compact<T>(v: T): Defined<T> {
+  if (Array.isArray(v)) return v.map(compact) as Defined<T>;
+  if (v && typeof v === 'object' && !(v instanceof Date) && !(v instanceof ObjectId)) {
+    return Object.fromEntries(
+      Object.entries(v)
+        .filter(([, x]) => x !== undefined)
+        .map(([k, x]) => [k, compact(x)]),
+    ) as Defined<T>;
+  }
+  return v as Defined<T>;
+}

@@ -64,3 +64,25 @@ describe('roles', () => {
     }
   });
 });
+
+describe('MikroTik rate', async () => {
+  const { formatKbps, mikrotikRateLimit, burstProblem } = await import('./rate.js');
+  it('formats upload/download with decimal units', () => {
+    expect(formatKbps(50_000)).toBe('50M');
+    expect(formatKbps(512)).toBe('512k');
+    expect(mikrotikRateLimit({ downloadKbps: 100_000, uploadKbps: 50_000 })).toBe('50M/100M');
+  });
+  it('adds burst fields in RouterOS order', () => {
+    const s = { downloadKbps: 50_000, uploadKbps: 20_000 };
+    const b = {
+      downloadKbps: 80_000,
+      uploadKbps: 30_000,
+      thresholdDownloadKbps: 40_000,
+      thresholdUploadKbps: 15_000,
+      timeSecs: 16,
+    };
+    expect(mikrotikRateLimit(s, b)).toBe('20M/50M 30M/80M 15M/40M 16/16');
+    expect(burstProblem(s, b)).toBeNull();
+    expect(burstProblem(s, { ...b, downloadKbps: 10_000 })).toMatch(/exceed/);
+  });
+});

@@ -16,6 +16,8 @@ export interface EndpointOptions {
   tags: string[];
   auth?: AuthMode;
   permission?: Permission;
+  /** Super-admin only; anyone else gets 404 so tenant staff cannot even see the route's records exist. */
+  platformOnly?: boolean;
   /** Origin + CSRF checks for unsafe methods. Off only for server-to-server routes (webhooks). */
   csrf?: boolean;
   body?: ZodType;

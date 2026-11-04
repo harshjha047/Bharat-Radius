@@ -175,4 +175,112 @@ const identity: Migration = {
   },
 };
 
-export const MIGRATIONS: readonly Migration[] = [identity];
+const config: Migration = {
+  id: '002_network_config',
+  async up(db) {
+    await ensureCollection(db, 'nas_devices', {
+      bsonType: 'object',
+      required: ['tenantId', 'name', 'radiusSecret', 'coaPort', 'status', 'version', ...standardRequired],
+      properties: {
+        tenantId: oid,
+        name: { bsonType: 'string', minLength: 1, maxLength: 64 },
+        ip: str,
+        deletedIp: str,
+        radiusSecret: encrypted,
+        coaPort: { bsonType: 'int', minimum: 1, maximum: 65535 },
+        routerOsVersion: { enum: ['6', '7'] },
+        status: { enum: ['active', 'disabled', 'deleted'] },
+        radiusId: int,
+        version: int,
+        ...standard,
+      },
+    });
+    await ensureIndexes(db, 'nas_devices', [
+      { key: { ip: 1 }, unique: true, partialFilterExpression: { ip: { $type: 'string' } } },
+      {
+        key: { tenantId: 1, name: 1 },
+        unique: true,
+        partialFilterExpression: { status: { $in: ['active', 'disabled'] } },
+      },
+      { key: { tenantId: 1, status: 1 } },
+    ]);
+
+    const money = { bsonType: ['int', 'long'], minimum: 0 };
+    const kbps = { bsonType: 'int', minimum: 8 };
+    await ensureCollection(db, 'plans', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'name',
+        'downloadKbps',
+        'uploadKbps',
+        'rateLimit',
+        'validityDays',
+        'simUse',
+        'billingTypes',
+        'pricePaise',
+        'gstRatePercent',
+        'hsnSac',
+        'extraAttributes',
+        'status',
+        'version',
+        ...standardRequired,
+      ],
+      properties: {
+        tenantId: oid,
+        name: { bsonType: 'string', minLength: 1, maxLength: 64 },
+        downloadKbps: kbps,
+        uploadKbps: kbps,
+        rateLimit: { bsonType: 'string', pattern: '^[0-9]+[kM]?/[0-9]+[kM]?( |$)' },
+        dataCapBytes: { bsonType: ['int', 'long', 'double'], minimum: 1 },
+        fupRate: str,
+        validityDays: { bsonType: 'int', minimum: 1, maximum: 3660 },
+        simUse: { bsonType: 'int', minimum: 1, maximum: 10 },
+        billingTypes: { bsonType: 'array', minItems: 1, items: { enum: ['prepaid', 'postpaid'] } },
+        pricePaise: money,
+        gstRatePercent: { bsonType: ['int', 'double', 'decimal'], minimum: 0, maximum: 28 },
+        hsnSac: { bsonType: 'string', pattern: '^[0-9]{4,8}$' },
+        extraAttributes: {
+          bsonType: 'array',
+          items: {
+            bsonType: 'object',
+            required: ['attribute', 'op', 'value'],
+            properties: { attribute: str, op: { enum: [':=', '=', '+='] }, value: str },
+          },
+        },
+        status: { enum: ['active', 'archived'] },
+        radiusId: int,
+        version: int,
+        ...standard,
+      },
+    });
+    await ensureIndexes(db, 'plans', [
+      { key: { tenantId: 1, name: 1 }, unique: true },
+      { key: { tenantId: 1, status: 1 } },
+    ]);
+
+    await ensureCollection(db, 'outbox', {
+      bsonType: 'object',
+      required: ['tenantId', 'entity', 'entityId', 'status', 'attempts', 'nextAttemptAt', 'createdAt'],
+      properties: {
+        tenantId: oid,
+        entity: { enum: ['tenant', 'nas', 'plan', 'subscriber'] },
+        entityId: oid,
+        status: { enum: ['pending', 'processing', 'done'] },
+        attempts: int,
+        nextAttemptAt: date,
+        lockedUntil: date,
+        lastError: str,
+        createdAt: date,
+        doneAt: date,
+      },
+    });
+    await ensureIndexes(db, 'outbox', [
+      { key: { status: 1, nextAttemptAt: 1 } },
+      { key: { entity: 1, entityId: 1, createdAt: 1 } },
+      { key: { doneAt: 1 }, expireAfterSeconds: 30 * 24 * 3600 },
+    ]);
+  },
+};
+
+export const MIGRATIONS: readonly Migration[] = [identity, config];

@@ -46,6 +46,11 @@ jobs:
           up 'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27017"}]}).ok'
           for _ in $(seq 1 30); do [ "$(up 'db.hello().isWritablePrimary')" = true ] && exit 0; sleep 1; done
           docker logs mongo; exit 1
+      - name: PostgreSQL 16 with the RADIUS schema (for the outbox worker)
+        run: |
+          docker run -d --name pg -p 5433:5432 -e POSTGRES_PASSWORD=ci postgres:16
+          for _ in $(seq 1 30); do pg_isready -q -h 127.0.0.1 -p 5433 && break; sleep 1; done
+          ADMIN_URL=postgres://postgres:ci@127.0.0.1:5433 bash radius/tests/schema-only.sh radius_ci fr_ci app_ci ci-app-pw
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm format:check
@@ -55,6 +60,11 @@ jobs:
       - name: API integration (auth, tenant isolation) against MongoDB
         env: { MONGO_URL: 'mongodb://127.0.0.1:27017/?replicaSet=rs0' }
         run: pnpm --filter @isp/api test:int
+      - name: Outbox worker integration (MongoDB → PostgreSQL)
+        env:
+          MONGO_URL: 'mongodb://127.0.0.1:27017/?replicaSet=rs0'
+          RADIUS_DB_URL: 'postgres://app_ci:ci-app-pw@127.0.0.1:5433/radius_ci'
+        run: pnpm --filter @isp/workers test:int
       - name: MongoDB log on failure
         if: failure()
         run: docker logs --tail 200 mongo || true

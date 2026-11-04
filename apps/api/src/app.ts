@@ -21,6 +21,10 @@ import { buildOpenApi } from './http/openapi.js';
 import { ValidationInterceptor } from './http/validation.interceptor.js';
 import { InfraModule } from './infra/infra.module.js';
 import { createLogger, NestPinoLogger } from './logger.js';
+import { NasController, NasService } from './network/nas.js';
+import { PlansController, PlansService } from './network/plans.js';
+import { TenantsController, TenantsService } from './network/tenants.js';
+import { Outbox } from './sync/outbox.js';
 import { RolesController, UsersController } from './users/users.controller.js';
 import { UsersService } from './users/users.service.js';
 
@@ -45,7 +49,16 @@ class AppModule {
     return {
       module: AppModule,
       imports: [InfraModule.forRoot(config)],
-      controllers: [HealthController, OpenApiController, AuthController, UsersController, RolesController],
+      controllers: [
+        HealthController,
+        OpenApiController,
+        AuthController,
+        UsersController,
+        RolesController,
+        TenantsController,
+        NasController,
+        PlansController,
+      ],
       providers: [
         Tokens,
         Cookies,
@@ -53,6 +66,10 @@ class AppModule {
         SessionUsers,
         AuthService,
         UsersService,
+        Outbox,
+        TenantsService,
+        NasService,
+        PlansService,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: ValidationInterceptor },
         { provide: APP_FILTER, useClass: ErrorFilter },

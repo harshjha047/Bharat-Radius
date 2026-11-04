@@ -1,0 +1,24 @@
+{
+  "name": "@isp/workers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "test:int": "vitest run --config vitest.int.config.ts"
+  },
+  "dependencies": {
+    "@isp/db-mongo": "workspace:*",
+    "@isp/shared": "workspace:*",
+    "mongodb": "^6.20.0",
+    "pg": "^8.16.3",
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.5"
+  }
+}

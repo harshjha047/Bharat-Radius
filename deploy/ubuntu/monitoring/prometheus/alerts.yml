@@ -98,3 +98,19 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: '{{ $labels.instance }} health check failing'
+
+      - alert: OutboxStuck
+        expr: isp_outbox_oldest_pending_seconds > 300
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Changes have not reached RADIUS for {{ $value | humanizeDuration }} (outbox)'
+          runbook: docs/runbooks/outbox.md
+
+      - alert: OutboxNoLeader
+        expr: max(isp_outbox_leader) < 1 or absent(isp_outbox_leader)
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: 'No outbox worker is running: router, plan and ISP changes are not reaching RADIUS'
+          runbook: docs/runbooks/outbox.md

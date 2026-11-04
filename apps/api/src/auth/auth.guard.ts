@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import type { FastifyRequest } from 'fastify';
 import { ObjectId } from 'mongodb';
 import { CONFIG, type Config } from '../config.js';
-import { AppError, forbidden, unauthenticated } from '../errors.js';
+import { AppError, forbidden, notFound, unauthenticated } from '../errors.js';
 import { ENDPOINT, type EndpointOptions } from '../http/endpoint.js';
 import { scopeFor } from './context.js';
 import { COOKIE, CSRF_HEADER, Cookies } from './cookies.js';
@@ -68,6 +68,7 @@ export class AuthGuard implements CanActivate {
     if (claims.mfa === 'enroll' && opts.auth !== 'enroll') {
       throw new AppError(403, 'MFA_ENROLLMENT_REQUIRED', 'Turn on two-factor sign-in to continue');
     }
+    if (opts.platformOnly && u.type !== 'superadmin') throw notFound();
     if (opts.permission && !su.permissions.has(opts.permission)) throw forbidden();
 
     req.ctx = {

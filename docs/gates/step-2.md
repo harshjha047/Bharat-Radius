@@ -10,7 +10,9 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
 | 2.1 API skeleton | ✅ code + tests | NestJS 12 (ESM) on Fastify 5; zod at every boundary; OpenAPI 3.1 at `/api/v1/openapi.json` (off in production); pino JSON logs with request id, tenant id, user id; error format TRD §7; `/healthz` `/livez` unchanged; MongoDB migrations with lock, API refuses to start with pending ones; `cli.js migrate / create-tenant / create-user` |
 | 2.2 Data-access scoping | ✅ code + tests | `ScopedDb`/`ScopedCollection` in `packages/db-mongo`: tenant (and reseller branch) ANDed into every read and write; tenant stamped on insert; tenant field immutable; `$lookup`-style stages refused; unknown collections refused. Cross-tenant harness: every `:id` route is called by another tenant's admin and must answer 404 with no change; a new `:id` route without a fixture fails CI |
 | 2.3 Auth | ✅ code + tests | argon2id (19 MiB, t=2), TOTP (RFC 6238, ±1 step, replay-proof), 15-min HS512 access JWT + 30-day rotating refresh token (peppered HMAC, family revocation on reuse, 10 s multi-tab grace), HttpOnly cookies, session-bound CSRF + Origin check, JSON-only bodies, lockout 5 failures/15 min per account and 20/15 min per IP; built-in roles; users and roles API with no privilege escalation |
-| 2.4–2.13 | ⏳ | Next: 2.4 tenants/routers/plans, then 2.5 outbox worker |
+| 2.4 Tenants, routers, plans | ✅ code + tests | Own-ISP settings (staff) and ISP CRUD/suspend (super-admin, others get 404); routers with IP unique across ISPs, encrypted secret (generated, shown once, reveal/rotate), soft delete that frees the IP; plans with Mikrotik-Rate-Limit derived from speeds/burst, cap ⇒ FUP speed, reserved RADIUS attributes refused, GST defaults (18 %, SAC 998422). Every change commits with its outbox row in one MongoDB transaction |
+| 2.5 Outbox worker | ✅ code + tests | `apps/workers` (`isp-workers` container): one leader via lease, change-stream wake + 1 s poll, latest-state sync (idempotent, adopts Step 1 rows by natural key), backoff 5 s → 5 min, `/metrics` + alerts `OutboxStuck`, `OutboxNoLeader`; runbook `docs/runbooks/outbox.md`. Test proves < 2 s save → PostgreSQL |
+| 2.6–2.13 | ⏳ | Next: 2.6 subscribers (sync + CoA) |
 
 ## Decisions and schema changes (BACKEND_SCHEMA to update)
 
@@ -28,6 +30,15 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
    once. Disabling a user or changing roles also revokes refresh tokens immediately.
 9. Reseller users and reseller-scoped roles are modelled (branch scope, `RESELLER_PERMISSIONS`) but only staff
    accounts can be created until resellers exist (Step 3).
+10. **Outbox rows carry no data**: the worker reads the entity's current MongoDB state (BACKEND_SCHEMA said
+    "full row"). Replays and reordering cannot write stale data, and secrets never sit in the outbox.
+11. **Single worker leader** (lease) instead of Agenda for the outbox: ordering needs one writer; Agenda comes with
+    the scheduled jobs (WP 2.8).
+12. Plan `burst` is `{ downloadKbps, uploadKbps, thresholdDownloadKbps, thresholdUploadKbps, timeSecs }`; FUP speed
+    is `fup: { downloadKbps, uploadKbps }`, both turned into RouterOS strings (`upload/download`, 1M = 1000k).
+13. Router delete moves `ip` to `deletedIp` so the IP can be reused; disabling or deleting removes the row from
+    PostgreSQL (FreeRADIUS stops answering that router within 30 s).
+14. A plan speed change reaches online users only after WP 2.6 (CoA); until then at their next login.
 
 ## Tests
 

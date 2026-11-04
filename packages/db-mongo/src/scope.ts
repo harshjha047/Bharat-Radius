@@ -10,7 +10,10 @@ import type {
   FindOneAndUpdateOptions,
   FindOptions,
   InsertManyResult,
+  InsertOneOptions,
   InsertOneResult,
+  BulkWriteOptions,
+  DeleteOptions,
   ObjectId,
   OptionalUnlessRequiredId,
   UpdateFilter,
@@ -179,12 +182,15 @@ export class ScopedCollection<T extends Document> {
     return this.raw.aggregate<R>(scope ? [{ $match: scope }, ...pipeline] : pipeline, opts);
   }
 
-  insertOne(doc: OptionalUnlessRequiredId<T>): Promise<InsertOneResult<T>> {
-    return this.raw.insertOne(this.stampInsert(doc) as OptionalUnlessRequiredId<T>);
+  insertOne(doc: OptionalUnlessRequiredId<T>, opts?: InsertOneOptions): Promise<InsertOneResult<T>> {
+    return this.raw.insertOne(this.stampInsert(doc) as OptionalUnlessRequiredId<T>, opts);
   }
 
-  insertMany(docs: OptionalUnlessRequiredId<T>[]): Promise<InsertManyResult<T>> {
-    return this.raw.insertMany(docs.map((d) => this.stampInsert(d) as OptionalUnlessRequiredId<T>));
+  insertMany(docs: OptionalUnlessRequiredId<T>[], opts?: BulkWriteOptions): Promise<InsertManyResult<T>> {
+    return this.raw.insertMany(
+      docs.map((d) => this.stampInsert(d) as OptionalUnlessRequiredId<T>),
+      opts,
+    );
   }
 
   updateOne(filter: Filter<T>, update: UpdateFilter<T>, opts?: UpdateOptions): Promise<UpdateResult<T>> {
@@ -212,8 +218,8 @@ export class ScopedCollection<T extends Document> {
     });
   }
 
-  deleteOne(filter: Filter<T>): Promise<DeleteResult> {
-    return this.raw.deleteOne(and(filter, this.writeScope()));
+  deleteOne(filter: Filter<T>, opts?: DeleteOptions): Promise<DeleteResult> {
+    return this.raw.deleteOne(and(filter, this.writeScope()), opts ?? {});
   }
 }
 

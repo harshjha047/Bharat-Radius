@@ -26,3 +26,31 @@ tests:
       - eval_time: 2m
         alertname: RadiusStatusStale
         exp_alerts: []
+
+  - interval: 15s
+    input_series:
+      - series: 'isp_outbox_oldest_pending_seconds'
+        values: '0 0 120 240 310 330 350 370 390 410 430 450'
+      - series: 'isp_outbox_leader'
+        values: '1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: OutboxStuck
+        exp_alerts: []
+      - eval_time: 2m15s
+        alertname: OutboxStuck
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations:
+              summary: 'Changes have not reached RADIUS for 6m 50s (outbox)'
+              runbook: docs/runbooks/outbox.md
+      - eval_time: 2m
+        alertname: OutboxNoLeader
+        exp_alerts: []
+      - eval_time: 3m45s
+        alertname: OutboxNoLeader
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations:
+              summary: 'No outbox worker is running: router, plan and ISP changes are not reaching RADIUS'
+              runbook: docs/runbooks/outbox.md
