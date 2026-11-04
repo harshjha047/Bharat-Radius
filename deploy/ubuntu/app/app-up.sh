@@ -81,7 +81,8 @@ log "isp-mongo: $(msh --eval 'rs.status().members[0].stateStr')"
 
 # ------------------------------------------------------------------ API + walled garden
 log "building isp-api, isp-workers"
-export APP_VERSION="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo dev)"
+APP_VERSION="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo dev)"
+export APP_VERSION
 "${COMPOSE[@]}" build api workers
 # Migrations run before the new API starts; the API refuses to start with pending migrations.
 log "MongoDB migrations: $("${COMPOSE[@]}" run --rm --no-deps api node dist/cli.js migrate | tail -1)"

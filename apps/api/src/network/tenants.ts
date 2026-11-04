@@ -38,24 +38,28 @@ const editable = {
   contact: z.object({ phone: phone.optional(), email: email.optional() }),
   radius,
 };
-const ownUpdate = z
-  .object({
-    name: editable.name.optional(),
-    legalName: editable.legalName.optional(),
-    gstin: editable.gstin.optional(),
-    stateCode: editable.stateCode.optional(),
-    address: address.optional(),
-    contact: editable.contact.optional(),
-    radius: radius.partial().optional(),
-  })
-  .refine((b) => Object.keys(b).length > 0, 'nothing to change');
+const ownFields = {
+  name: editable.name.optional(),
+  legalName: editable.legalName.optional(),
+  gstin: editable.gstin.optional(),
+  stateCode: editable.stateCode.optional(),
+  address: address.optional(),
+  contact: editable.contact.optional(),
+  radius: radius.partial().optional(),
+};
+const nonEmpty = (b: object) => Object.keys(b).length > 0;
+const ownUpdate = z.object(ownFields).refine(nonEmpty, 'nothing to change');
 const domain = z
   .string()
   .toLowerCase()
   .regex(/^(?=.{4,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$/, 'must be a host name');
-const platformUpdate = ownUpdate.and(
-  z.object({ status: z.enum(['active', 'suspended']).optional(), domain: domain.nullable().optional() }),
-);
+const platformUpdate = z
+  .object({
+    ...ownFields,
+    status: z.enum(['active', 'suspended']).optional(),
+    domain: domain.nullable().optional(),
+  })
+  .refine(nonEmpty, 'nothing to change');
 const createBody = z.object({
   slug: z
     .string()
