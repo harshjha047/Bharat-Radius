@@ -552,6 +552,7 @@ export class SubscriberExcel {
   }
 }
 
+/** Headers only once the file exists, so a 404/400 on the way is still sent as JSON. */
 const attach = (reply: FastifyReply, name: string) =>
   void reply
     .header('content-type', XLSX_MIME)
@@ -570,8 +571,9 @@ export class SubscriberExcelController {
     permission: 'imports.run',
   })
   async template(@Ctx() ctx: AuthContext, @Res({ passthrough: true }) reply: FastifyReply) {
+    const file = await this.excel.template(ctx);
     attach(reply, 'subscribers-template.xlsx');
-    return this.excel.template(ctx);
+    return file;
   }
 
   /** Body: the .xlsx file itself (Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet). */
@@ -628,8 +630,9 @@ export class SubscriberExcelController {
     params: idParams,
   })
   async errors(@Ctx() ctx: AuthContext, @Param() p: Id, @Res({ passthrough: true }) reply: FastifyReply) {
+    const file = await this.excel.errorReport(ctx, p.id);
     attach(reply, `import-${p.id.toHexString()}-problems.xlsx`);
-    return this.excel.errorReport(ctx, p.id);
+    return file;
   }
 
   @Get('export')
@@ -644,7 +647,8 @@ export class SubscriberExcelController {
     @Query() q: z.output<typeof exportQuery>,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
+    const file = await this.excel.export(ctx, q);
     attach(reply, `subscribers-${istDay(new Date())}.xlsx`);
-    return this.excel.export(ctx, q);
+    return file;
   }
 }
