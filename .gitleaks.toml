@@ -42,4 +42,7 @@ paths = [
   '''(^|/)dist/''',
   '''pnpm-lock\.yaml''',
   '''\.env\.example$''',
+  # Throwaway passwords for test users created in a per-run test database.
+  '''(^|/)test/[^/]+\.int\.test\.ts$''',
+  '''(^|/)test/harness\.ts$''',
 ]

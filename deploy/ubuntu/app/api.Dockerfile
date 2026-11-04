@@ -6,9 +6,13 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/api/package.json apps/api/
 COPY packages/radius-client/package.json packages/radius-client/
+COPY packages/shared/package.json packages/shared/
+COPY packages/db-mongo/package.json packages/db-mongo/
 RUN pnpm install --frozen-lockfile --ignore-scripts
+COPY packages/shared packages/shared
+COPY packages/db-mongo packages/db-mongo
 COPY apps/api apps/api
-RUN pnpm --filter @isp/api build \
+RUN pnpm --filter "@isp/api..." build \
  && pnpm --filter @isp/api deploy --legacy --prod /out
 
 FROM node:22-alpine

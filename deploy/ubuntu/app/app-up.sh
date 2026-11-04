@@ -48,6 +48,7 @@ umask 077
   echo "RADIUS_PW_KEY=${RADIUS_PW_KEY}"
   cat "$ETC/app_keys.env"
   echo "PUBLIC_BASE_URL=https://new.bharatradius.com"
+  echo "MONGO_POOL_MAX=20"
   echo "TZ_BILLING=Asia/Kolkata"
 } >"$ETC/staging.env.new"
 mv "$ETC/staging.env.new" "$ETC/staging.env"
@@ -79,8 +80,13 @@ print(a.getUser('isp_app') ? 'isp_app ok' : 'isp_app missing');"
 log "isp-mongo: $(msh --eval 'rs.status().members[0].stateStr')"
 
 # ------------------------------------------------------------------ API + walled garden
-log "building and starting isp-api, isp-walled-garden"
-APP_VERSION="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo dev)" "${COMPOSE[@]}" up -d --build --wait api walled-garden
+log "building isp-api"
+export APP_VERSION="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo dev)"
+"${COMPOSE[@]}" build api
+# Migrations run before the new API starts; the API refuses to start with pending migrations.
+log "MongoDB migrations: $("${COMPOSE[@]}" run --rm --no-deps api node dist/cli.js migrate | tail -1)"
+log "starting isp-api, isp-walled-garden"
+"${COMPOSE[@]}" up -d --wait api walled-garden
 
 health="$(docker exec isp-api node -e "fetch('http://127.0.0.1:4100/healthz').then(r => r.text()).then(console.log)" || true)"
 log "healthz: $health"

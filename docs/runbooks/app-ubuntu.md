@@ -27,6 +27,23 @@ sudo bash deploy/ubuntu/app/app-up.sh         # build, start, Caddy site; rerun 
 validates with Caddy, and reloads only if valid (otherwise restores the ACS Caddyfile). Commit those two changes in
 the ACS repo, or add `infra/caddy/sites/` to its `.gitignore`.
 
+## First tenant and administrator (once, after the first `app-up.sh` with Step 2)
+
+```bash
+cd ~/isp-platform/deploy/ubuntu/app
+sudo docker compose run --rm --no-deps api node dist/cli.js create-tenant \
+  --slug bharat --name "BharatRadius" --legal-name "<legal name>" --state-code 07 \
+  --line1 "<address>" --city Delhi --state Delhi --pincode 110001 --domain new.bharatradius.com
+sudo docker compose run --rm --no-deps -it api node dist/cli.js create-user \
+  --tenant bharat --name "<your name>" --email <you@domain> --role "ISP Admin"     # prompts for the password
+sudo docker compose run --rm --no-deps -it api node dist/cli.js create-user \
+  --tenant platform --name "<your name>" --email <you@domain>                      # super-admin (optional)
+```
+
+`--domain` lets staff sign in on that host without typing a tenant. ISP Admin and super-admin accounts must set up
+an authenticator app (TOTP) at first sign-in. Lost phone: another admin uses "Reset two-factor"; if you are the only
+admin, `docker exec isp-mongo mongosh ...` → `db.users.updateOne({email: '<you>'}, {$unset: {totp: ''}})`.
+
 ## Checks
 
 ```bash

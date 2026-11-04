@@ -32,12 +32,32 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: 22, cache: pnpm }
       - run: sudo apt-get install -y -qq freeradius-utils
+      - name: MongoDB replica set (transactions need one)
+        run: |
+          # 7.0, not 8.0: MongoDB 8.x refuses to start on kernels 6.19-7.0.13 (SERVER-121912), which the runner uses.
+          # The API uses no 8.0-only features; staging/production stay on 8.0.
+          docker run -d --name mongo -p 27017:27017 mongo:7.0 mongod --replSet rs0 --bind_ip_all
+          up() { docker exec mongo mongosh --quiet --eval "$1" 2>/dev/null; }
+          for _ in $(seq 1 60); do
+            [ "$(docker inspect -f '{{.State.Running}}' mongo)" = true ] || { docker logs mongo; exit 1; }
+            [ "$(up 'db.adminCommand("ping").ok')" = 1 ] && break
+            sleep 1
+          done
+          up 'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27017"}]}).ok'
+          for _ in $(seq 1 30); do [ "$(up 'db.hello().isWritablePrimary')" = true ] && exit 0; sleep 1; done
+          docker logs mongo; exit 1
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm format:check
+      - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm build
+      - name: API integration (auth, tenant isolation) against MongoDB
+        env: { MONGO_URL: 'mongodb://127.0.0.1:27017/?replicaSet=rs0' }
+        run: pnpm --filter @isp/api test:int
+      - name: MongoDB log on failure
+        if: failure()
+        run: docker logs --tail 200 mongo || true
 
   shell:
     runs-on: ubuntu-24.04

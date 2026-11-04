@@ -38,6 +38,8 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: '4100'
       APP_VERSION: ${APP_VERSION:-dev}
+      # Caddy reaches the API over Docker networks; only its X-Forwarded-For is trusted.
+      TRUST_PROXY: 172.16.0.0/12
     extra_hosts:
       - 'acs-prod:host-gateway'
     volumes:
