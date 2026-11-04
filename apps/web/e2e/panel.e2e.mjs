@@ -93,7 +93,7 @@ step('create a plan', async () => {
   await page.fill('#p-fu', '2');
   await page.getByRole('button', { name: 'Create plan' }).click();
   await page.getByRole('cell', { name: 'E2E Home 50', exact: true }).waitFor();
-  await page.getByText('20000k/50000k').waitFor();
+  await page.getByText('20M/50M', { exact: true }).waitFor();
 });
 
 step('add a router; the generated secret is shown once', async () => {
