@@ -5,7 +5,8 @@
 | Built | 3 Nov 2026 (WP 1.1–1.8; 1.9/1.10 need the real servers) |
 | Verified in | Ubuntu 24.04 sandbox, 2 vCPU / 8 GB, FreeRADIUS 3.2.5, PostgreSQL 16 — same packages as the VPS |
 | Ubuntu VPS | `acs-prod` 154.49.142.251, Ubuntu 24.04.5, 4 vCPU Xeon Gold 6138 (KVM, Meltdown PTI on), 7.8 GB; shares the host with GenieACS (Docker) |
-| Status | **Ubuntu VPS done (4 Nov 2026). Open: Windows base (WP 1.4), monitoring (1.8), lab routers (1.6)** |
+| App host (staging) | **Ubuntu VPS, Docker Compose project `isp`** (decision 4 Nov 2026; Windows VPS not used; production placement decided at Step 4) |
+| Status | **RADIUS on Ubuntu done (4 Nov 2026). Open: app stack (WP 1.4, `docs/runbooks/app-ubuntu.md`), NetForChoice firewall, monitoring (1.8), lab routers (1.6)** |
 
 ## Checklist (PRD §13)
 
@@ -47,6 +48,10 @@ Measured 1,099 logins/s on the Ubuntu VPS, zero rejects or timeouts. Root cause 
 **Decision:** accept for Step 1. Today's ~2,000 subscribers reconnect in ~2 s at this rate; 2,000/s is sized for 100,000. The 2,000/s proof moves to Step 5 (WP 5.3 capacity, 5.11 100k load test), together with:
 - move the auth log off the login path (FreeRADIUS writes a local file, a timer bulk-loads it): removes ~58 % of database time per login, estimated +40 %;
 - or put RADIUS on a newer CPU (2021+, no PTI), which likely clears 2,000/s without code changes.
+
+## Decision: staging app on the Ubuntu VPS (owner, 4 Nov 2026)
+
+The NetForChoice network firewall blocks every port not opened in their panel, which stopped Windows → Ubuntu PostgreSQL. Instead of opening the database to the internet, the staging app stack runs on the RADIUS host in Docker Compose (`isp-mongo`, `isp-api`, `isp-walled-garden`) behind the existing ACS Caddy. CPU caps keep RADIUS first (app ≤ 2.75 cores in total). Upgrade the VPS (≥ 8 vCPU / 16 GB) before Step 2 seeds 100,000 test subscribers. Windows work was removed without touching its services. Still required from NetForChoice: inbound UDP 1812, 1813, 11812, 11813 and TCP 8089.
 
 ## Decisions closed in Step 1
 

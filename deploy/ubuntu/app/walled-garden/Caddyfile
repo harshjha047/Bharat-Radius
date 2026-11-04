@@ -1,0 +1,10 @@
+# Expired users' HTTP (any Host) is dst-nat'ed here by MikroTik (setup.rsc payPort). Captive-portal probes land here too.
+{
+	admin off
+	auto_https off
+}
+
+:8089 {
+	header Cache-Control "no-store"
+	redir https://new.bharatradius.com/pay 302
+}

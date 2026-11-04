@@ -1,0 +1,76 @@
+# isp-platform app stack on the RADIUS host (staging). Managed by app-up.sh; secrets live in /etc/isp-app (root only).
+# RADIUS (FreeRADIUS + PostgreSQL) stays native on the host; this stack only talks to it over TLS.
+name: isp
+
+services:
+  mongo:
+    image: mongo:8.0
+    container_name: isp-mongo
+    command: ['--replSet', 'rs-isp', '--keyFile', '/etc/mongo/keyfile', '--bind_ip_all', '--wiredTigerCacheSizeGB', '1']
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /etc/mongo/root_pw
+    volumes:
+      - mongo-data:/data/db
+      - /etc/isp-app/mongo.keyfile:/etc/mongo/keyfile:ro
+      - /etc/isp-app/mongo_root_pw:/etc/mongo/root_pw:ro
+    ports:
+      - '127.0.0.1:27018:27017'
+    networks: [internal]
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    deploy:
+      resources:
+        limits: { cpus: '1.0', memory: 1536M }
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ../../..
+      dockerfile: deploy/ubuntu/app/api.Dockerfile
+    image: isp-api:local
+    container_name: isp-api
+    env_file: /etc/isp-app/staging.env
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: '4100'
+      APP_VERSION: ${APP_VERSION:-dev}
+    extra_hosts:
+      - 'acs-prod:host-gateway'
+    volumes:
+      - /etc/isp-radius/tls/ca.crt:/etc/isp/radius-ca.crt:ro
+    networks:
+      internal: {}
+      acs:
+        aliases: [isp-api]
+    depends_on:
+      mongo: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { cpus: '1.5', memory: 768M }
+    restart: unless-stopped
+
+  walled-garden:
+    image: caddy:2-alpine
+    container_name: isp-walled-garden
+    volumes:
+      - ./walled-garden/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - '8089:8089'
+    networks: [internal]
+    deploy:
+      resources:
+        limits: { cpus: '0.25', memory: 64M }
+    restart: unless-stopped
+
+networks:
+  internal: {}
+  acs:
+    external: true
+    name: acs_default
+
+volumes:
+  mongo-data: {}

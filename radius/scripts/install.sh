@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Idempotent installer for the RADIUS hot path (FreeRADIUS 3.2 + PostgreSQL 16) on Ubuntu 24.04.
-# Usage: sudo WINDOWS_IP=203.0.113.10 PG_TLS_HOSTNAME=radius.example.net ./install.sh [production|staging|all]
+# Usage: sudo PG_TLS_HOSTNAME=radius.example.net [APP_SUBNET=172.16.0.0/12] [WINDOWS_IP=203.0.113.10] ./install.sh [production|staging|all]
+#   APP_SUBNET: Docker networks of the app stack on this host (deploy/ubuntu/app); app roles may connect from there over TLS.
+#   WINDOWS_IP: remote app host (Windows plan); app roles + replication may connect from there over TLS.
 # Never touches GenieACS; never enables a firewall (adds rules only if ufw is already active).
 set -Eeuo pipefail
 
 INSTANCES_ARG="${1:-all}"
 WINDOWS_IP="${WINDOWS_IP:-}"
+APP_SUBNET="${APP_SUBNET:-}"
 PG_TLS_HOSTNAME="${PG_TLS_HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}"
 PG_TLS_IP="${PG_TLS_IP:-}"
 PG_VER=16
@@ -31,6 +34,9 @@ case "$INSTANCES_ARG" in
 esac
 if [[ -n "$WINDOWS_IP" ]]; then
   [[ "$WINDOWS_IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || die "WINDOWS_IP must be an IPv4 address"
+fi
+if [[ -n "$APP_SUBNET" ]]; then
+  [[ "$APP_SUBNET" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}$ ]] || die "APP_SUBNET must be an IPv4 CIDR"
 fi
 
 instance_vars() {
@@ -126,7 +132,7 @@ chown postgres:postgres "$TLS_DIR/server.key" "$TLS_DIR/server.crt"; chmod 0600 
 # ---------------------------------------------------------------- PostgreSQL config
 PGCONF=/etc/postgresql/$PG_VER/main
 log "writing PostgreSQL tuning and pg_hba"
-LISTEN="localhost"; [[ -n "$WINDOWS_IP" ]] && LISTEN="*"
+LISTEN="localhost"; [[ -n "$WINDOWS_IP$APP_SUBNET" ]] && LISTEN="*"
 cat >"$PGCONF/conf.d/isp-radius.conf" <<EOF
 # Managed by isp-platform install.sh. Budget: < 3 GB RAM total (shared VPS with GenieACS).
 listen_addresses = '$LISTEN'
@@ -164,6 +170,10 @@ HBA="$PGCONF/pg_hba.conf"
   echo "local   radius_staging  fr_radius_staging                       scram-sha-256"
   echo "host    radius          app_radius          127.0.0.1/32        scram-sha-256"
   echo "host    radius_staging  app_radius_staging  127.0.0.1/32        scram-sha-256"
+  if [[ -n "$APP_SUBNET" ]]; then
+    echo "hostssl radius          app_radius          $APP_SUBNET  scram-sha-256"
+    echo "hostssl radius_staging  app_radius_staging  $APP_SUBNET  scram-sha-256"
+  fi
   if [[ -n "$WINDOWS_IP" ]]; then
     echo "hostssl radius          app_radius          $WINDOWS_IP/32  scram-sha-256"
     echo "hostssl radius_staging  app_radius_staging  $WINDOWS_IP/32  scram-sha-256"
@@ -327,6 +337,7 @@ if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   log "ufw active: adding rules"
   for inst in "${INSTANCES[@]}"; do instance_vars "$inst"; ufw allow "$AUTH_PORT,$ACCT_PORT/udp" comment "isp-radius $inst" >/dev/null; done
   [[ -n "$WINDOWS_IP" ]] && ufw allow from "$WINDOWS_IP" to any port 5432 proto tcp comment "isp-radius pg" >/dev/null
+  [[ -n "$APP_SUBNET" ]] && ufw allow from "$APP_SUBNET" to any port 5432 proto tcp comment "isp-radius pg (app containers)" >/dev/null
 fi
 
-log "done. Give the Windows VPS: $TLS_DIR/ca.crt and $ETC_DIR/<instance>.app.env (copy over SSH, never email)."
+log "done. App credentials: $ETC_DIR/<instance>.app.env; CA: $TLS_DIR/ca.crt (never email or paste them)."

@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/.next
+**/coverage
+.git
+.github
+.githooks
+docs
+radius
+mikrotik
+deploy/windows
+**/*.log
+**/.env
+**/.env.*

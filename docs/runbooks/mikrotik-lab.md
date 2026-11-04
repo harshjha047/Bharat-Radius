@@ -16,7 +16,7 @@ INSERT INTO subscribers (tenant_id, username, password_enc, plan_id, expires_at)
 ```
 Run with `-v key="$RADIUS_PW_KEY"` from `/etc/isp-radius/staging.env`. Within 30 s the NAS watcher restarts FreeRADIUS.
 
-2. On the router: edit the variables at the top of `mikrotik/setup.rsc` (`radiusIp`, `radiusSecret`, `authPort 11812`, `acctPort 11813`, `appIp`), upload, `/import file-name=setup.rsc`.
+2. On the router: edit the variables at the top of `mikrotik/setup.rsc` (`radiusSecret`, `authPort 11812`, `acctPort 11813`; `radiusIp` and `appIp` are both `154.49.142.251` for staging), upload, `/import file-name=setup.rsc`.
 
 ## Tests to record in docs/gates/step-1.md
 
@@ -24,7 +24,7 @@ Run with `-v key="$RADIUS_PW_KEY"` from `/etc/isp-radius/staging.env`. Within 30
 |---|---|---|
 | 1 | Dial PPPoE (PAP, then CHAP, then MS-CHAPv2 in the client) | Connected; `/queue simple print` shows 20M/20M |
 | 2 | `select * from radacct where username='labuser1' order by radacctid desc limit 1` | open row, framed IP, interim every 5 min |
-| 3 | On Windows: `coa rate labuser1 5M/5M --tenant lab` | `ack`; queue shows 5M/5M without reconnect |
+| 3 | On the Ubuntu VPS: `coa rate labuser1 5M/5M --tenant lab` | `ack`; queue shows 5M/5M without reconnect |
 | 4 | `coa kick labuser1 --tenant lab` | `ack`; client redials |
 | 5 | `UPDATE subscribers SET expires_at = now() - interval '1 minute' WHERE username='labuser1'`; kick | Redials at 256k; `/ip firewall address-list print where list=expired` shows the IP; HTTP to any site lands on `:8089` → pay URL |
 | 6 | Reboot the router | `NAS-Reboot` stop on open sessions |

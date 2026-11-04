@@ -3,7 +3,7 @@
 # Edit the values below, upload the file, then:  /import file-name=setup.rsc
 # Existing PPPoE server, profiles and IP pools are not touched (Framed-Pool names must match /ip pool names).
 {
-:local radiusIp "203.0.113.20"
+:local radiusIp "154.49.142.251"
 :local radiusSecret "CHANGE_ME_router_secret"
 # production 1812/1813, staging 11812/11813
 :local authPort 1812
@@ -15,8 +15,8 @@
 :local fallbackSecret ""
 :local fallbackAuthPort 1812
 :local fallbackAcctPort 1813
-# Windows VPS: CoA source and walled-garden pay page (HTTP port payPort)
-:local appIp "198.51.100.10"
+# App server: CoA source and walled-garden page on HTTP port payPort (staging: the RADIUS VPS)
+:local appIp "154.49.142.251"
 :local payPort 8089
 # true = expired users reach only DNS, the pay page and payment gateways; false = web traffic redirected, rest at slow speed
 :local strictExpired false

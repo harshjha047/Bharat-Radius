@@ -1,0 +1,46 @@
+# Staging app stack on the Ubuntu VPS (replaces WP 1.4 Windows base for staging)
+
+Decision 4 Nov 2026: the staging app runs on the RADIUS host, in Docker Compose project `isp`, next to the ACS stack.
+The Windows VPS is not used. Production placement is decided at Step 4.
+
+| Container | Purpose | Reachable at |
+|---|---|---|
+| `isp-mongo` | MongoDB 8.0, replica set `rs-isp`, auth + keyfile | containers on network `isp_internal`; host `127.0.0.1:27018` |
+| `isp-api` | Node API (CPU ≤ 1.5, RAM ≤ 768 MB) | `isp-api:4100` on `acs_default` (ACS Caddy) |
+| `isp-walled-garden` | Redirects expired users' HTTP to the pay page | public TCP 8089 |
+
+RADIUS stays native. The API reaches PostgreSQL as `acs-prod:5432` (mapped to the Docker host gateway) over TLS with
+full certificate check; PostgreSQL accepts the app roles only from `172.16.0.0/12` and only over TLS.
+
+Secrets: `/etc/isp-app/` (root only): `staging.env`, Mongo root/app passwords, keyfile, JWT/encryption keys.
+
+## Install / update
+
+```bash
+cd ~/isp-platform && git pull
+sudo APP_SUBNET=172.16.0.0/12 PG_TLS_HOSTNAME=acs-prod PG_TLS_IP=154.49.142.251 \
+  bash radius/scripts/install.sh all          # once: lets the app subnet reach PostgreSQL over TLS
+sudo bash deploy/ubuntu/app/app-up.sh         # build, start, Caddy site; rerun after every git pull
+```
+
+`app-up.sh` adds `sites/isp.caddy` and one `import /etc/caddy/sites/*.caddy` line to `/opt/acs/repo/infra/caddy`,
+validates with Caddy, and reloads only if valid (otherwise restores the ACS Caddyfile). Commit those two changes in
+the ACS repo, or add `infra/caddy/sites/` to its `.gitignore`.
+
+## Checks
+
+```bash
+docker ps --filter name=isp- --format '{{.Names}}\t{{.Status}}'
+docker exec isp-api wget -qO- http://127.0.0.1:4100/healthz          # "status":"ok", radiusDb.ssl true, mongo rs-isp
+curl -s https://new.bharatradius.com/api/healthz                     # after DNS points here
+curl -sI http://127.0.0.1:8089/anything | grep -i location           # https://new.bharatradius.com/pay
+```
+
+## Rollback
+
+```bash
+docker compose -f deploy/ubuntu/app/docker-compose.yml down          # add -v to also delete Mongo data
+sudo rm /opt/acs/repo/infra/caddy/sites/isp.caddy
+sudo sed -i '\|^import /etc/caddy/sites/\*.caddy$|d' /opt/acs/repo/infra/caddy/Caddyfile
+docker exec acs-caddy-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+```
