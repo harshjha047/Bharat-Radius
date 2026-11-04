@@ -86,6 +86,9 @@ sleep 3
 for p in 9100 9187; do
   curl -fsS "http://127.0.0.1:$p/metrics" >/dev/null || die "exporter on :$p not answering"
 done
-curl -fsS http://127.0.0.1:9100/metrics | grep -q '^isp_radius_up' || die "isp_radius_* metrics missing from node exporter"
-curl -fsS http://127.0.0.1:9187/metrics | grep -q '^isp_radius_online_sessions' || die "isp_* queries missing from postgres exporter"
+# Read whole responses first: "curl | grep -q" fails under pipefail when grep exits early (curl error 23).
+node_metrics="$(curl -fsS http://127.0.0.1:9100/metrics)"
+pg_metrics="$(curl -fsS http://127.0.0.1:9187/metrics)"
+grep -q '^isp_radius_up' <<<"$node_metrics" || die "isp_radius_* metrics missing from node exporter"
+grep -q '^isp_radius_default_partition_radacct_rows' <<<"$pg_metrics" || die "isp_* queries missing from postgres exporter"
 log "done: node :9100 (incl. isp_radius_*), postgres :9187 (incl. isp_*)"

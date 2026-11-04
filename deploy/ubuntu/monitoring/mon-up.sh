@@ -15,7 +15,8 @@ trap 'die "failed at line $LINENO: $BASH_COMMAND"' ERR
 [[ "${TELEGRAM_CHAT_ID:-}" =~ ^-?[0-9]+$ ]] || die "set TELEGRAM_CHAT_ID (number from getUpdates)"
 [[ -s /etc/isp-app/telegram_token ]] || die "/etc/isp-app/telegram_token missing"
 for n in isp_internal acs_default; do docker network inspect "$n" >/dev/null 2>&1 || die "network $n missing: run app-up.sh first"; done
-curl -fsS http://127.0.0.1:9100/metrics | grep -q '^isp_radius_up' || die "node exporter without isp_radius_*: run install-exporters.sh first"
+node_metrics="$(curl -fsS http://127.0.0.1:9100/metrics)" || die "node exporter not answering: run install-exporters.sh first"
+grep -q '^isp_radius_up' <<<"$node_metrics" || die "node exporter without isp_radius_*: run install-exporters.sh first"
 
 install -d -m 0711 "$MON"
 # alertmanager runs as nobody (65534), grafana as 472: each gets only its own secret.
