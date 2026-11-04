@@ -211,6 +211,7 @@ export interface SubscriberDoc extends Standard {
   search: string[];
   radiusId?: number;
   syncStatus: 'synced' | 'pending' | 'error';
+  importBatchId?: ObjectId;
   deletedAt?: Date;
   version: number;
 }
@@ -230,5 +231,35 @@ export interface CoaLogDoc {
   errorCause?: number;
   latencyMs?: number;
   trigger: { type: CoaReason; refId?: ObjectId };
+  createdAt: Date;
+}
+
+export interface ImportBatchDoc {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  source: 'excel';
+  fileName: string;
+  status: 'queued' | 'running' | 'done' | 'failed';
+  counts: { read: number; valid: number; created: number; failed: number };
+  /** First 10,000 problems: validation at upload, then creation failures. Excel row numbers. */
+  errors: { row: number; column?: string; message: string }[];
+  leaseUntil?: Date;
+  createdBy: string;
+  createdAt: Date;
+  startedAt?: Date;
+  finishedAt?: Date;
+}
+
+export interface ImportRowDoc {
+  _id: ObjectId;
+  batchId: ObjectId;
+  tenantId: ObjectId;
+  row: number;
+  /** Validated input; the PPPoE password is field-encrypted while it waits. */
+  input: Omit<import('./subscriber-write.js').NewSubscriber, 'pppoePassword'> & {
+    pppoePassword: EncryptedField;
+  };
+  status: 'pending' | 'done' | 'failed';
+  error?: string;
   createdAt: Date;
 }

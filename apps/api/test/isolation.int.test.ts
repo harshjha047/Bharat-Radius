@@ -45,6 +45,8 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/subscribers/:id/sessions': 'subA',
   '/api/v1/subscribers/:id/auth-log': 'subA',
   '/api/v1/subscribers/:id/usage': 'subA',
+  '/api/v1/subscribers/imports/:id': 'importA',
+  '/api/v1/subscribers/imports/:id/errors': 'importA',
 };
 
 const BODIES: Record<string, unknown> = {
@@ -85,6 +87,19 @@ beforeAll(async () => {
   ids.nasA = (await seedNas(h, a, '10.10.0.1')).toHexString();
   ids.planA = (await seedPlan(h, a, 'Alpha 50M')).toHexString();
   ids.subA = (await seedSubscriber(h, a, 'alpha-user')).toHexString();
+  const importA = new ObjectId();
+  await h.db.collection('import_batches').insertOne({
+    _id: importA,
+    tenantId: a,
+    source: 'excel',
+    fileName: 'a.xlsx',
+    status: 'done',
+    counts: { read: 0, valid: 0, created: 0, failed: 0 },
+    errors: [],
+    createdBy: 'test',
+    createdAt: new Date(),
+  });
+  ids.importA = importA.toHexString();
   const adminB = await seedUser(h, { tenantId: b, email: 'admin@bravo.in', roles: [adminRole], totp: true });
   bAdmin = await signIn(h, adminB, 'bravo');
 });

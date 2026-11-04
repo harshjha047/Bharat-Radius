@@ -25,6 +25,13 @@ import { NasController, NasService } from './network/nas.js';
 import { PlansController, PlansService } from './network/plans.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
 import { SessionsController, SessionsService } from './sessions/sessions.js';
+import {
+  IMPORT_PATH,
+  MAX_IMPORT_BYTES,
+  SubscriberExcel,
+  SubscriberExcelController,
+  XLSX_MIME,
+} from './subscribers/excel.js';
 import { SubscribersController, SubscribersService } from './subscribers/subscribers.js';
 import { Outbox } from './sync/outbox.js';
 import { RolesController, UsersController } from './users/users.controller.js';
@@ -62,6 +69,7 @@ class AppModule {
         PlansController,
         SubscribersController,
         SessionsController,
+        SubscriberExcelController,
       ],
       providers: [
         Tokens,
@@ -76,6 +84,7 @@ class AppModule {
         PlansService,
         SubscribersService,
         SessionsService,
+        SubscriberExcel,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: ValidationInterceptor },
         { provide: APP_FILTER, useClass: ErrorFilter },
@@ -109,9 +118,19 @@ export async function createApp(
   app.enableShutdownHooks();
 
   const f = app.getHttpAdapter().getInstance();
+  // Excel uploads arrive as the raw file. A custom media type always needs a CORS preflight, so it is CSRF-safe.
+  f.addContentTypeParser(XLSX_MIME, { parseAs: 'buffer', bodyLimit: MAX_IMPORT_BYTES }, (_req, body, done) =>
+    done(null, body),
+  );
   // JSON only: form and text bodies are what cross-site "simple" requests can send without a CORS preflight.
   f.addHook('onRequest', async (req, reply) => {
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;
+    if (
+      req.method === 'POST' &&
+      req.url.split('?')[0] === IMPORT_PATH &&
+      req.headers['content-type'] === XLSX_MIME
+    )
+      return;
     const hasBody =
       Number(req.headers['content-length'] ?? 0) > 0 || req.headers['transfer-encoding'] !== undefined;
     if (hasBody && !/^application\/json\b/i.test(req.headers['content-type'] ?? '')) {

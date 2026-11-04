@@ -155,7 +155,7 @@ export class Client {
         ...(csrf && method !== 'GET' ? { 'x-csrf-token': decodeURIComponent(csrf) } : {}),
         ...headers,
       },
-      ...(body !== undefined ? { payload: body as object } : {}),
+      ...(body !== undefined ? { payload: body as object | Buffer } : {}),
     });
     for (const c of res.cookies as { name: string; value: string; expires?: Date; maxAge?: number }[]) {
       const gone =
@@ -165,6 +165,7 @@ export class Client {
     }
     return {
       status: res.statusCode,
+      raw: res.rawPayload,
       body: res.body ? (safeJson(res.body) as Record<string, any>) : {},
       headers: res.headers,
     };

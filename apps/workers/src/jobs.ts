@@ -21,7 +21,8 @@ interface Job {
 }
 
 const LEASE_MS = 10 * 60_000;
-const TICK_MS = 30_000;
+/** Imports should start within seconds of an upload; period-based jobs simply skip ticks until due. */
+const TICK_MS = 10_000;
 
 /**
  * Periodic jobs shared by every worker replica: each run is claimed in `_jobs` (due + no live lease), so exactly

@@ -16,6 +16,6 @@ export default tseslint.config(
     },
   },
   // Integration tests read loosely typed JSON responses.
-  { files: ['**/test/**/*.ts'], rules: { '@typescript-eslint/no-explicit-any': 'off' } },
+  { files: ['**/test/**/*.ts', '**/*.test.ts'], rules: { '@typescript-eslint/no-explicit-any': 'off' } },
   { files: ['**/cli.ts', '**/scripts/**'], rules: { 'no-console': 'off' } },
 );

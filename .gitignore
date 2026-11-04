@@ -20,4 +20,7 @@ uploads/
 kyc/
 *.sql.gz
 *.dump
+*.xlsx
+*.xls
+*.csv
 *.patch
