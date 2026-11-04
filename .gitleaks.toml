@@ -35,6 +35,7 @@ regexes = [
   '''secret=\$[A-Za-z]+''',
   ''':\$[A-Za-z]+@''',
   ''':<[a-z_-]+>@''',
+  '''^<[a-z_-]+>$''',
 ]
 paths = [
   '''node_modules/''',
