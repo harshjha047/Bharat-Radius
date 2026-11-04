@@ -92,7 +92,7 @@ step('create a plan', async () => {
   await page.fill('#p-fd', '5');
   await page.fill('#p-fu', '2');
   await page.getByRole('button', { name: 'Create plan' }).click();
-  await page.getByRole('cell', { name: 'E2E Home 50' }).waitFor();
+  await page.getByRole('cell', { name: 'E2E Home 50', exact: true }).waitFor();
   await page.getByText('20000k/50000k').waitFor();
 });
 
@@ -105,7 +105,7 @@ step('add a router; the generated secret is shown once', async () => {
   await page.getByRole('heading', { name: 'Router ready' }).waitFor();
   assert.match(await page.locator('[role=dialog] code').first().textContent(), /^[\w-]{24}$/);
   await page.getByRole('button', { name: 'Done' }).click();
-  await page.getByRole('cell', { name: 'E2E POP-1' }).waitFor();
+  await page.getByRole('cell', { name: 'E2E POP-1', exact: true }).waitFor();
 });
 
 step('create a subscriber with a generated password', async () => {
@@ -148,7 +148,7 @@ step('edit sends only the change and shows in history', async () => {
   await page.getByRole('heading', { name: /Ramesh Kumar E2E/ }).waitFor();
   await page.getByRole('tab', { name: 'History' }).click();
   await page.getByText('Ramesh Kumar E2E').last().waitFor();
-  await page.getByText('Ramesh E2E', { exact: true }).waitFor();
+  await page.locator('.line-through', { hasText: 'Ramesh E2E' }).first().waitFor();
 });
 
 step('audit log lists the changes and sign-in', async () => {
@@ -191,7 +191,7 @@ step('Support sees only what the role allows', async () => {
   await page.goto(`${BASE}/admin/users`);
   await page.getByText('Your role does not allow this.').first().waitFor();
   await page.goto(`${BASE}/admin/routers`);
-  await page.getByRole('cell', { name: 'E2E POP-1' }).waitFor();
+  await page.getByRole('cell', { name: 'E2E POP-1', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Add router' }).count(), 0);
 });
 
