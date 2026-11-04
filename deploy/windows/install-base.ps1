@@ -34,7 +34,7 @@ $RepoDeploy = $PSScriptRoot
 function Log([string]$m) { Write-Host "[install-base] $m" -ForegroundColor Cyan }
 function Fail([string]$m) { Write-Host "[install-base] ERROR: $m" -ForegroundColor Red; exit 1 }
 function New-Secret([int]$bytes = 24) {
-  $b = [byte[]]::new($bytes); [Security.Cryptography.RandomNumberGenerator]::Fill($b)
+  $b = [byte[]]::new($bytes); [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
   -join ($b | ForEach-Object { $_.ToString('x2') })
 }
 function Lock-Acl([string]$path, [string[]]$extra = @()) {
@@ -109,7 +109,7 @@ if (-not $SkipMongo) {
   $keyFile = Join-Path $AppRoot 'secrets\mongo.keyfile'
   $mongoEnv = Join-Path $AppRoot 'secrets\mongo.env'
   if (-not (Test-Path $keyFile)) {
-    $kb = [byte[]]::new(96); [Security.Cryptography.RandomNumberGenerator]::Fill($kb)
+    $kb = [byte[]]::new(96); [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($kb)
     [Convert]::ToBase64String($kb) | Set-Content -NoNewline -Encoding ascii $keyFile
   }
   $template = (Get-Content (Join-Path $RepoDeploy 'mongo\mongod.cfg') -Raw).Replace('C:\isp', $AppRoot).
