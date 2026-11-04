@@ -5,6 +5,7 @@ import { ObjectId, type Filter } from 'mongodb';
 import { z } from 'zod';
 import { FieldCrypto } from '@isp/shared';
 import { ScopedDb, type MongoHandle, type NasDeviceDoc } from '@isp/db-mongo';
+import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, conflict, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
@@ -176,6 +177,7 @@ export class NasService {
       }
       throw e;
     }
+    noteChange({ after: doc, entityId: _id });
     return toView(doc, b.radiusSecret ? undefined : plain);
   }
 
@@ -200,6 +202,7 @@ export class NasService {
       );
       if (!u) throw notFound('Router');
       await this.outbox.enqueue(session, u.tenantId, 'nas', id);
+      noteChange({ before: current, after: u, entityId: id });
       return u;
     });
     return toView(updated, b.rotateSecret ? plain : undefined);
@@ -224,12 +227,14 @@ export class NasService {
         { session },
       );
       if (!r.matchedCount) throw notFound('Router');
+      noteChange({ before: current, after: { ...current, status: 'deleted' }, entityId: id });
       await this.outbox.enqueue(session, current.tenantId, 'nas', id);
     });
   }
 
   async revealSecret(ctx: AuthContext, id: ObjectId) {
     const n = await this.find(ctx, id);
+    noteChange({ after: { name: n.name, ip: n.ip }, entityId: id });
     return { radiusSecret: this.crypto.decrypt(n.radiusSecret, aad(n._id)) };
   }
 }
@@ -256,6 +261,7 @@ export class NasController {
   @Endpoint({
     summary: 'Add a router; FreeRADIUS serves it within ~30 s (secret returned once if generated)',
     tags: ['nas'],
+    audit: 'nas.create',
     permission: 'nas.write',
     body: createBody,
     response: nasView,
@@ -280,6 +286,7 @@ export class NasController {
   @Endpoint({
     summary: 'Edit, disable or rotate the secret of a router',
     tags: ['nas'],
+    audit: 'nas.update',
     permission: 'nas.write',
     params: idParams,
     body: updateBody,
@@ -293,6 +300,7 @@ export class NasController {
   @Endpoint({
     summary: 'Remove a router',
     tags: ['nas'],
+    audit: 'nas.delete',
     permission: 'nas.write',
     params: idParams,
     response: okResponse,
@@ -306,6 +314,7 @@ export class NasController {
   @Endpoint({
     summary: 'Show the RADIUS secret (for router setup)',
     tags: ['nas'],
+    audit: 'nas.secret_reveal',
     permission: 'nas.write',
     params: idParams,
     response: z.object({ radiusSecret: z.string() }),

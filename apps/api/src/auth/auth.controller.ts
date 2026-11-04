@@ -134,7 +134,13 @@ export class AuthController {
 
   @Post('logout-all')
   @HttpCode(200)
-  @Endpoint({ summary: 'Sign out every device', tags: ['auth'], auth: 'enroll', response: okResponse })
+  @Endpoint({
+    summary: 'Sign out every device',
+    tags: ['auth'],
+    audit: 'auth.logout_all',
+    auth: 'enroll',
+    response: okResponse,
+  })
   async logoutAll(@Ctx() ctx: AuthContext, @Res({ passthrough: true }) reply: FastifyReply) {
     await this.auth.revokeAll(ctx.userId, 'logout');
     this.cookies.clearAll(reply);
@@ -158,6 +164,7 @@ export class AuthController {
   @Endpoint({
     summary: 'Start two-factor setup (returns the secret for the authenticator app)',
     tags: ['auth'],
+    audit: 'auth.2fa_setup',
     auth: 'enroll',
     response: z.object({ secret: z.string(), otpauthUrl: z.string() }),
   })
@@ -170,6 +177,7 @@ export class AuthController {
   @Endpoint({
     summary: 'Confirm two-factor setup with a code',
     tags: ['auth'],
+    audit: 'auth.2fa_enable',
     auth: 'enroll',
     body: code,
     response: sessionView,
@@ -190,6 +198,7 @@ export class AuthController {
   @Endpoint({
     summary: 'Turn off two-factor sign-in (not allowed when a role requires it)',
     tags: ['auth'],
+    audit: 'auth.2fa_disable',
     body: code.extend({ password: z.string().min(1).max(256) }),
     response: sessionView,
   })
@@ -209,6 +218,7 @@ export class AuthController {
   @Endpoint({
     summary: 'Change own password (signs out other devices)',
     tags: ['auth'],
+    audit: 'auth.password_change',
     auth: 'enroll',
     body: z.object({ currentPassword: z.string().min(1).max(256), newPassword: passwordSchema }),
     response: sessionView,

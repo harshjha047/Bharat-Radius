@@ -3,6 +3,7 @@ import { ObjectId, type Filter } from 'mongodb';
 import { z } from 'zod';
 import { burstProblem, mikrotikRateLimit } from '@isp/shared';
 import { ScopedDb, type MongoHandle, type PlanDoc } from '@isp/db-mongo';
+import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
@@ -241,6 +242,7 @@ export class PlansService {
       await this.col(ctx).insertOne(doc, { session });
       await this.outbox.enqueue(session, ctx.tenantId!, 'plan', doc._id);
     });
+    noteChange({ after: doc, entityId: doc._id });
     return toView(doc);
   }
 
@@ -278,6 +280,7 @@ export class PlansService {
         { returnDocument: 'after', session },
       );
       if (!u) throw notFound('Plan');
+      noteChange({ before: cur, after: u, entityId: id });
       // New speeds reach users already online by CoA (worker sends the rate RADIUS would now reply with).
       const speedChanged = u.rateLimit !== cur.rateLimit || u.fupRate !== cur.fupRate;
       await this.outbox.enqueue(
@@ -313,6 +316,7 @@ export class PlansController {
   @Endpoint({
     summary: 'Create a plan',
     tags: ['plans'],
+    audit: 'plan.create',
     permission: 'plans.write',
     body: createBody,
     response: planView,
@@ -337,6 +341,7 @@ export class PlansController {
   @Endpoint({
     summary: 'Edit or archive a plan (online users on it get the new speed by CoA)',
     tags: ['plans'],
+    audit: 'plan.update',
     permission: 'plans.write',
     params: idParams,
     body: updateBody,

@@ -405,4 +405,27 @@ const imports: Migration = {
   },
 };
 
-export const MIGRATIONS: readonly Migration[] = [identity, config, subscribers, imports];
+const audit: Migration = {
+  id: '005_audit',
+  async up(db) {
+    await ensureCollection(db, 'audit_logs', {
+      bsonType: 'object',
+      required: ['tenantId', 'actor', 'action', 'entity', 'createdAt'],
+      properties: {
+        tenantId: oidOrNull,
+        actor: { bsonType: 'object', required: ['id', 'type', 'name'] },
+        action: { bsonType: 'string', pattern: '^[a-z0-9_.-]{3,64}$' },
+        entity: { bsonType: 'object', required: ['type', 'id'] },
+        createdAt: date,
+      },
+    });
+    await ensureIndexes(db, 'audit_logs', [
+      { key: { tenantId: 1, _id: -1 } },
+      { key: { tenantId: 1, 'entity.type': 1, 'entity.id': 1, _id: -1 } },
+      { key: { tenantId: 1, 'actor.id': 1, _id: -1 } },
+      { key: { tenantId: 1, action: 1, _id: -1 } },
+    ]);
+  },
+};
+
+export const MIGRATIONS: readonly Migration[] = [identity, config, subscribers, imports, audit];

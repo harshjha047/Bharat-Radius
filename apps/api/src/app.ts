@@ -6,6 +6,7 @@ import { Controller, Get, Inject, Module, type DynamicModule } from '@nestjs/com
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { Logger as PinoLogger } from 'pino';
+import { AuditController, AuditInterceptor, AuditService } from './audit/audit.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthGuard } from './auth/auth.guard.js';
 import { AuthService } from './auth/auth.service.js';
@@ -70,6 +71,7 @@ class AppModule {
         SubscribersController,
         SessionsController,
         SubscriberExcelController,
+        AuditController,
       ],
       providers: [
         Tokens,
@@ -85,8 +87,10 @@ class AppModule {
         SubscribersService,
         SessionsService,
         SubscriberExcel,
+        AuditService,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: ValidationInterceptor },
+        { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
         { provide: APP_FILTER, useClass: ErrorFilter },
       ],
     };

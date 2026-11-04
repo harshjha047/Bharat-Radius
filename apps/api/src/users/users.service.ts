@@ -3,6 +3,7 @@ import { ObjectId, type Filter } from 'mongodb';
 import { RESELLER_PERMISSIONS, isPermission, type Permission } from '@isp/shared';
 import { ScopedDb, type MongoHandle, type RoleDoc, type UserDoc } from '@isp/db-mongo';
 import { AuthService } from '../auth/auth.service.js';
+import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
 import { hashPassword } from '../auth/passwords.js';
 import { SessionUsers } from '../auth/session-users.js';
@@ -132,6 +133,7 @@ export class UsersService {
       updatedBy: actor,
     };
     await this.db(ctx).collection<UserDoc>('users').insertOne(doc);
+    noteChange({ after: toUserView(doc), entityId: doc._id });
     return toUserView(doc);
   }
 
@@ -170,6 +172,7 @@ export class UsersService {
         { returnDocument: 'after' },
       );
     if (!updated) throw notFound('User');
+    noteChange({ before: target, after: updated, entityId: id });
     if (input.status === 'disabled' || input.roleIds) await this.auth.revokeAll(id, 'admin');
     this.sessions.invalidate(id);
     return toUserView(updated);
@@ -299,6 +302,7 @@ export class UsersService {
         { returnDocument: 'after' },
       );
     if (!updated) throw notFound('Role');
+    noteChange({ before: role, after: updated, entityId: id });
     const holders = await this.db(ctx)
       .collection<UserDoc>('users')
       .find({ roleIds: id }, { projection: { _id: 1 } })
@@ -315,5 +319,6 @@ export class UsersService {
       .countDocuments({ roleIds: id }, { limit: 1 });
     if (inUse) throw conflict('Role is still assigned to users');
     await this.db(ctx).collection<RoleDoc>('roles').deleteOne({ _id: id, builtIn: false });
+    noteChange({ before: role, after: null, entityId: id });
   }
 }
