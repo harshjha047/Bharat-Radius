@@ -350,9 +350,9 @@ if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   [[ -n "$APP_SUBNET" ]] && ufw allow from "$APP_SUBNET" to any port 5432 proto tcp comment "isp-radius pg (app containers)" >/dev/null
 fi
 
-install -d -m 0700 "$ETC_DIR"
+# $ETC_DIR was created 0755 above so PostgreSQL can reach tls/; never re-mode it here.
 printf 'WINDOWS_IP=%s\nAPP_SUBNET=%s\nPG_TLS_HOSTNAME=%s\nPG_TLS_IP=%s\n' \
   "$WINDOWS_IP" "$APP_SUBNET" "$PG_TLS_HOSTNAME" "$PG_TLS_IP" >"$SETTINGS"
-chmod 0600 "$SETTINGS"
+chmod 0600 "$SETTINGS"; chown root:root "$SETTINGS"
 log "settings saved to $SETTINGS (APP_SUBNET=${APP_SUBNET:-none}, TLS name $PG_TLS_HOSTNAME${PG_TLS_IP:+, $PG_TLS_IP})"
 log "done. App credentials: $ETC_DIR/<instance>.app.env; CA: $TLS_DIR/ca.crt (never email or paste them)."
