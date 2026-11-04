@@ -41,7 +41,12 @@ beforeAll(async () => {
   );
   other = await signIn(
     h,
-    await seedUser(h, { tenantId: t2, email: 'o@aud2.in', roles: [await roleId(h.db, 'ISP Admin')] }),
+    await seedUser(h, {
+      tenantId: t2,
+      email: 'o@aud2.in',
+      roles: [await roleId(h.db, 'ISP Admin')],
+      totp: true,
+    }),
     'aud2',
   );
 });
