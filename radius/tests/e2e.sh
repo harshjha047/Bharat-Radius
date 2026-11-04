@@ -184,7 +184,7 @@ check "session silent for 15 minutes closed as Stale-Session" eq "$(q -c "SELECT
 acct "$NAS_A" "$SECRET_A" 'Acct-Status-Type=Interim-Update,User-Name=e2e-acct,Acct-Session-Id=stale-1,NAS-IP-Address=127.0.0.1,Acct-Session-Time=1200' >/dev/null
 check "later Interim reopens a stale-closed session" eq "$(q -c "SELECT (acctstoptime IS NULL)::text FROM radacct WHERE acctsessionid='stale-1'")" "true"
 check "sessions land in monthly partitions, not the default" eq "$(q -c "SELECT count(*) FROM radacct_default WHERE tenant_id IN ($TA,$TB)")" "0"
-check "partition maintenance is idempotent" eq "$(q -c "SELECT radius_ensure_partitions(3)")" "0"
+check "partition maintenance is idempotent" eq "$(q -c "SELECT radius_ensure_partitions(1)")" "0"
 
 if [[ "${DB_OUTAGE_TEST:-0}" == 1 ]]; then
   echo "[database outage] (stops PostgreSQL briefly; CI/lab only)"

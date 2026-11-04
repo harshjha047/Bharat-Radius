@@ -222,7 +222,7 @@ SQL
   done
   psql_su -d "$DB" <"$SRC_DIR/sql/100_functions.sql"
   psql_su -d "$DB" -v fr_role="$FR_ROLE" -v app_role="$APP_ROLE" <"$SRC_DIR/sql/200_grants.sql"
-  psql_su -d "$DB" -c "SELECT radius_ensure_partitions(3)" >/dev/null
+  psql_su -d "$DB" -c "SELECT radius_ensure_partitions(1)" >/dev/null
 done
 
 # ---------------------------------------------------------------- FreeRADIUS

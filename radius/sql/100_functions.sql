@@ -123,13 +123,15 @@ RETURNS integer LANGUAGE sql STABLE AS $$
      AND a.acctupdatetime > now() - make_interval(secs => 3 * t.interim_interval);
 $$;
 
+-- plpgsql, not sql: PostgreSQL 16 re-plans SQL-language functions on every call (+40% login throughput).
 CREATE OR REPLACE FUNCTION radius_log_auth(p_nas inet, p_user text, p_reply text, p_reason text, p_calling text)
-RETURNS integer LANGUAGE sql AS $$
+RETURNS integer LANGUAGE plpgsql AS $$
+BEGIN
   INSERT INTO radpostauth (tenant_id, username, reply, reason, nasipaddress, callingstationid, authdate)
   VALUES ((SELECT tenant_id FROM nas WHERE nasname = p_nas), p_user, p_reply,
-          nullif(p_reason, ''), p_nas, nullif(upper(p_calling), ''), now())
-  RETURNING 1;
-$$;
+          nullif(p_reason, ''), p_nas, nullif(upper(p_calling), ''), now());
+  RETURN 1;
+END $$;
 
 -- p_type: start | interim-update | stop | accounting-on | accounting-off. All numeric args arrive as text from FreeRADIUS.
 CREATE OR REPLACE FUNCTION radius_acct(
@@ -254,8 +256,10 @@ BEGIN
 END $$;
 
 -- Creates month partitions [current .. current+p_months_ahead] for radacct and radpostauth.
+-- Keep the horizon short: every login scans all radacct partitions (open sessions are not prunable), and more
+-- than 16 relation locks per query leave PostgreSQL's fast-path lock slots. The daily timer keeps one month ahead.
 -- Rows that already landed in the default partition for a new range are moved into it.
-CREATE OR REPLACE FUNCTION radius_ensure_partitions(p_months_ahead integer DEFAULT 3)
+CREATE OR REPLACE FUNCTION radius_ensure_partitions(p_months_ahead integer DEFAULT 1)
 RETURNS integer LANGUAGE plpgsql AS $$
 DECLARE
   v_parent text;

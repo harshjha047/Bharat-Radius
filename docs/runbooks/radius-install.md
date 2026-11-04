@@ -25,7 +25,7 @@ The installer backs up `/etc/freeradius` and `/etc/postgresql` to `/var/backups/
 |---|---|---|
 | `isp-radius-nas-watch@<inst>` | 30 s | restarts FreeRADIUS after `freeradius -XC` passes when the `nas` table changed |
 | `isp-radius-stale@<inst>` | 5 min | closes sessions silent for 3 interim periods |
-| `isp-radius-partitions@<inst>` | daily | creates month partitions 3 ahead; drops `radpostauth` older than 90 days |
+| `isp-radius-partitions@<inst>` | daily | creates the next month's partitions; drops `radpostauth` older than 90 days |
 
 Rerunning is safe (CI runs it twice).
 
