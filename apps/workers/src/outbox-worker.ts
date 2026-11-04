@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
 import type { ChangeStream, Db, ObjectId } from 'mongodb';
 import type { Logger } from 'pino';
@@ -32,7 +33,7 @@ export class OutboxWorker {
     leader: false,
     lastPassAt: 0,
   };
-  private readonly owner = `${hostname()}:${process.pid}`;
+  private readonly owner = `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`;
   private stopped = false;
   private wake: (() => void) | undefined;
   private stream: ChangeStream | undefined;
