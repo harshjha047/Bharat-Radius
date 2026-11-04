@@ -321,3 +321,57 @@ RETURNS text LANGUAGE sql STABLE AS $$
   SELECT md5(coalesce(string_agg(concat_ws('|', id, host(nasname), shortname, type, secret), ',' ORDER BY id), ''))
     FROM nas;
 $$;
+
+-- Usage roll-up (WP 2.8), run every 15 min by the workers. Adds what each session transferred since it was last
+-- seen to usage_daily for today's IST date (a 15-minute attribution window around midnight is accepted).
+-- Sessions are found through the open-session and stop-time indexes; the advisory lock makes concurrent runs wait.
+CREATE OR REPLACE FUNCTION radius_usage_rollup(p_window interval DEFAULT interval '30 minutes')
+RETURNS TABLE (sessions integer, users integer)
+LANGUAGE plpgsql AS $$
+DECLARE
+  v_since timestamptz := now() - p_window;
+  v_day   date := (now() AT TIME ZONE 'Asia/Kolkata')::date;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('radius_usage_rollup'));
+
+  -- One statement: every CTE reads the same snapshot, so usage_seen is compared before it is updated.
+  RETURN QUERY
+  WITH cur AS (
+    SELECT a.radacctid, a.tenant_id, a.username,
+           a.acctinputoctets AS i, a.acctoutputoctets AS o, a.acctsessiontime AS s,
+           coalesce(u.in_bytes, 0) AS pi, coalesce(u.out_bytes, 0) AS po, coalesce(u.secs, 0) AS ps
+      FROM radacct a
+      LEFT JOIN usage_seen u ON u.radacctid = a.radacctid
+     WHERE (a.acctstoptime IS NULL AND a.acctupdatetime >= v_since)
+        OR (a.acctstoptime IS NOT NULL AND a.acctstoptime >= v_since)
+  ), delta AS (
+    -- counters only grow within a session; a lower value means the row was rewritten: count it from zero
+    SELECT radacctid, tenant_id, username, i, o, s,
+           CASE WHEN i >= pi THEN i - pi ELSE i END AS di,
+           CASE WHEN o >= po THEN o - po ELSE o END AS d_o,
+           CASE WHEN s >= ps THEN s - ps ELSE s END AS ds
+      FROM cur
+  ), seen AS (
+    INSERT INTO usage_seen (radacctid, in_bytes, out_bytes, secs, updated_at)
+    SELECT radacctid, i, o, s, now() FROM delta
+    ON CONFLICT (radacctid) DO UPDATE
+      SET in_bytes = EXCLUDED.in_bytes, out_bytes = EXCLUDED.out_bytes, secs = EXCLUDED.secs, updated_at = now()
+    RETURNING 1
+  ), daily AS (
+    INSERT INTO usage_daily (tenant_id, username, day, bytes_in, bytes_out, session_secs)
+    SELECT tenant_id, username, v_day, sum(di), sum(d_o), sum(ds)
+      FROM delta
+     GROUP BY tenant_id, username
+    HAVING sum(di) + sum(d_o) + sum(ds) > 0
+    ON CONFLICT (tenant_id, username, day) DO UPDATE
+      SET bytes_in = usage_daily.bytes_in + EXCLUDED.bytes_in,
+          bytes_out = usage_daily.bytes_out + EXCLUDED.bytes_out,
+          session_secs = usage_daily.session_secs + EXCLUDED.session_secs
+    RETURNING 1
+  )
+  SELECT (SELECT count(*) FROM seen)::integer, (SELECT count(*) FROM daily)::integer;
+
+  -- Sessions not seen for two days are finished; their last counters are already in usage_daily.
+  DELETE FROM usage_seen WHERE updated_at < now() - interval '2 days';
+END;
+$$;

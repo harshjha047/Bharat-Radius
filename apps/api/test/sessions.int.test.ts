@@ -117,6 +117,25 @@ describe('sessions and logs', () => {
     ]);
   });
 
+  it('daily usage for the subscriber page', async () => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+    const tid = (
+      await pgAdmin.query<{ id: number }>('SELECT id FROM tenants WHERE external_id = $1', [
+        (await h.db.collection('subscribers').findOne({ _id: sub }))!.tenantId.toHexString(),
+      ])
+    ).rows[0]!.id;
+    await pgAdmin.query(
+      'INSERT INTO usage_daily (tenant_id, username, day, bytes_in, bytes_out, session_secs) VALUES ($1, $2, $3, 10, 90, 60)',
+      [tid, user, today],
+    );
+    const r = await support.req('GET', `/api/v1/subscribers/${sub.toHexString()}/usage`);
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({
+      days: [{ day: today, uploadBytes: 10, downloadBytes: 90, sessionSecs: 60 }],
+      cycle: null,
+    });
+  });
+
   it('who had an IP at a given time', async () => {
     const at = new Date(Date.now() - 2.5 * 86_400_000).toISOString();
     const r = await support.req('GET', `/api/v1/sessions/lookup?ip=100.66.0.10&at=${at}`);

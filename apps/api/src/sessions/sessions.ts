@@ -3,12 +3,41 @@ import { Controller, Get, Inject, Injectable, Param, Query } from '@nestjs/commo
 import { ObjectId } from 'mongodb';
 import type pg from 'pg';
 import { z } from 'zod';
-import { ScopedDb, type MongoHandle, type SubscriberDoc } from '@isp/db-mongo';
+import { ScopedDb, type MongoHandle, type PlanDoc, type SubscriberDoc } from '@isp/db-mongo';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import { idParams } from '../http/schemas.js';
 import { MONGO, RADIUS_DB } from '../infra/infra.module.js';
+
+const usageQuery = z.object({
+  from: z
+    .string()
+    .regex(/^\d{4}-\d\d-\d\d$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d\d-\d\d$/)
+    .optional(),
+});
+const usageView = z.object({
+  days: z.array(
+    z.object({
+      day: z.string(),
+      uploadBytes: z.number(),
+      downloadBytes: z.number(),
+      sessionSecs: z.number(),
+    }),
+  ),
+  cycle: z
+    .object({
+      start: z.string().nullable(),
+      usedBytes: z.number(),
+      capBytes: z.number(),
+      fupActive: z.boolean(),
+    })
+    .nullable(),
+});
 
 const tenantQuery = z.object({
   /** Super-admin only: which ISP to read. Ignored for staff (always their own). */
@@ -304,6 +333,54 @@ export class SessionsService {
     };
   }
 
+  /** Daily usage (IST days, default the last 31) and the current data-cap cycle from the usage job. */
+  async usage(ctx: AuthContext, id: ObjectId, q: z.output<typeof usageQuery>) {
+    const s = await new ScopedDb(this.mongo.db, ctx.scope)
+      .collection<SubscriberDoc>('subscribers')
+      .findOne(
+        { _id: id },
+        { projection: { tenantId: 1, username: 1, deletedUsername: 1, planId: 1, fup: 1 } },
+      );
+    const username = s?.username ?? s?.deletedUsername;
+    if (!s || !username) throw notFound('Subscriber');
+    const plan = s.planId
+      ? await this.mongo.db
+          .collection<PlanDoc>('plans')
+          .findOne({ _id: s.planId }, { projection: { dataCapBytes: 1 } })
+      : null;
+    const cycle = plan?.dataCapBytes
+      ? {
+          start: s.fup?.cycleStart?.toISOString() ?? null,
+          usedBytes: s.fup?.usedBytes ?? 0,
+          capBytes: plan.dataCapBytes,
+          fupActive: s.fup?.active === true,
+        }
+      : null;
+    const t = await this.pgTenant(s.tenantId);
+    if (!t) return { days: [], cycle };
+    const to = q.to ?? istToday();
+    const from = q.from ?? istDaysBefore(to, 30);
+    const { rows } = await this.db().query<{
+      day: string;
+      bytes_in: string;
+      bytes_out: string;
+      session_secs: string;
+    }>(
+      `SELECT to_char(day, 'YYYY-MM-DD') AS day, bytes_in, bytes_out, session_secs
+         FROM usage_daily WHERE tenant_id = $1 AND username = $2 AND day BETWEEN $3 AND $4 ORDER BY day`,
+      [t.id, username, from, to],
+    );
+    return {
+      days: rows.map((r) => ({
+        day: r.day,
+        uploadBytes: Number(r.bytes_in),
+        downloadBytes: Number(r.bytes_out),
+        sessionSecs: Number(r.session_secs),
+      })),
+      cycle,
+    };
+  }
+
   /** Who had this IP at that moment (law-enforcement requests, abuse reports). */
   async lookup(ctx: AuthContext, q: z.output<typeof lookupQuery>) {
     const t = await this.pgTenant(this.mongoTenant(ctx, q.tenantId));
@@ -318,6 +395,16 @@ export class SessionsService {
     return rows.map(toSession);
   }
 }
+
+const IST = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Kolkata',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const istToday = () => IST.format(new Date());
+const istDaysBefore = (day: string, n: number) =>
+  new Date(Date.parse(`${day}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
 
 @Controller()
 export class SessionsController {
@@ -370,6 +457,19 @@ export class SessionsController {
   })
   history(@Ctx() ctx: AuthContext, @Param() p: { id: ObjectId }, @Query() q: z.output<typeof historyQuery>) {
     return this.sessions.history(ctx, p.id, q);
+  }
+
+  @Get('subscribers/:id/usage')
+  @Endpoint({
+    summary: 'Daily data usage (IST days, default last 31) and the current data-cap cycle',
+    tags: ['sessions'],
+    permission: 'subscribers.read',
+    params: idParams,
+    query: usageQuery,
+    response: usageView,
+  })
+  usage(@Ctx() ctx: AuthContext, @Param() p: { id: ObjectId }, @Query() q: z.output<typeof usageQuery>) {
+    return this.sessions.usage(ctx, p.id, q);
   }
 
   @Get('subscribers/:id/auth-log')

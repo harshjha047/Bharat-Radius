@@ -6,7 +6,9 @@ import { connectMongo, pendingMigrations, type OutboxDoc } from '@isp/db-mongo';
 import { FieldCrypto } from '@isp/shared';
 import { RadiusCoaClient } from '@isp/radius-client';
 import { CoaSender } from './coa.js';
+import { Scheduler, type JobDoc } from './jobs.js';
 import { OutboxWorker } from './outbox-worker.js';
+import { UsageJob } from './usage.js';
 import { RadiusSync } from './radius-sync.js';
 
 const config = z
@@ -52,6 +54,9 @@ const worker = new OutboxWorker(
   new CoaSender(pool, db, coaClient, log),
 );
 
+const usage = new UsageJob(pool, client, db, log);
+const scheduler = new Scheduler(db, [{ name: 'usage', periodMs: 15 * 60_000, run: () => usage.run() }], log);
+
 async function metrics(): Promise<string> {
   const outbox = db.collection<OutboxDoc>('outbox');
   const [pendingCount, oldest] = await Promise.all([
@@ -76,6 +81,20 @@ async function metrics(): Promise<string> {
     '# TYPE isp_outbox_errors_total counter',
     ...Object.entries(s.errors).map(([e, n]) => `isp_outbox_errors_total{entity="${e}"} ${n}`),
   ];
+  const jobs = await db.collection<JobDoc>('_jobs').find({}).toArray();
+  lines.push(
+    '# HELP isp_job_last_success_timestamp_seconds Last successful run of a periodic job.',
+    '# TYPE isp_job_last_success_timestamp_seconds gauge',
+    ...jobs.map(
+      (j) => `isp_job_last_success_timestamp_seconds{job="${j._id}"} ${(j.lastOkAt?.getTime() ?? 0) / 1000}`,
+    ),
+    '# HELP isp_job_duration_seconds Duration of the last run.',
+    '# TYPE isp_job_duration_seconds gauge',
+    ...jobs.map((j) => `isp_job_duration_seconds{job="${j._id}"} ${(j.durationMs ?? 0) / 1000}`),
+    '# HELP isp_job_failing 1 when the last run of a job failed.',
+    '# TYPE isp_job_failing gauge',
+    ...jobs.map((j) => `isp_job_failing{job="${j._id}"} ${j.lastError ? 1 : 0}`),
+  );
   return `${lines.join('\n')}\n`;
 }
 
@@ -104,6 +123,7 @@ server.listen(config.WORKERS_PORT, config.WORKERS_HOST);
 async function shutdown() {
   log.info('stopping');
   server.close();
+  scheduler.stop();
   await worker.stop();
   await Promise.allSettled([client.close(), pool.end()]);
   process.exit(0);
@@ -112,4 +132,5 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
 log.info({ port: config.WORKERS_PORT }, 'workers started');
+scheduler.start();
 await worker.start();

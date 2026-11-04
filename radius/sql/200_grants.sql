@@ -24,13 +24,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON tenants, nas, plans, plan_attributes, su
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO :"app_role";
 GRANT SELECT, UPDATE ON radacct TO :"app_role";
 GRANT SELECT ON radpostauth TO :"app_role";
-GRANT SELECT, INSERT, UPDATE, DELETE ON usage_daily TO :"app_role";
+GRANT SELECT, INSERT, UPDATE, DELETE ON usage_daily, usage_seen TO :"app_role";
 GRANT EXECUTE ON FUNCTION
   radius_encrypt_password(text, text),
   radius_online_count(inet, text),
   -- CoA: the worker sends exactly the rate/lists FreeRADIUS would reply with now.
   radius_reply(inet, text),
   radius_close_stale_sessions(),
+  radius_usage_rollup(interval),
   pgp_sym_encrypt(text, text, text)
   TO :"app_role";
 

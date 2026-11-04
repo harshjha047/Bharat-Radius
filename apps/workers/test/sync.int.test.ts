@@ -17,6 +17,7 @@ import { FieldCrypto } from '@isp/shared';
 import { RadiusCoaClient } from '@isp/radius-client';
 import { startFakeNas } from '@isp/radius-client/testing';
 import { CoaSender } from '../src/coa.js';
+import { UsageJob } from '../src/usage.js';
 import { OutboxWorker } from '../src/outbox-worker.js';
 import { RadiusSync } from '../src/radius-sync.js';
 
@@ -312,6 +313,99 @@ describe('outbox → RADIUS', () => {
       expect(log).toMatchObject({ type: 'disconnect', result: 'ack', trigger: { type: 'kick' } });
     } finally {
       await nasDev.close();
+      await admin.end();
+    }
+  });
+
+  it('usage roll-up → FUP on at the cap (synced to RADIUS with a disconnect) → off when the cap is removed', async () => {
+    const admin = new pg.Pool({ connectionString: process.env.RADIUS_ADMIN_URL });
+    try {
+      const t = await tenant();
+      const p = await plan(t, 'Capped');
+      await db
+        .collection<PlanDoc>('plans')
+        .updateOne({ _id: p }, { $set: { dataCapBytes: 1_000_000, fupCycle: 'calendar_month' } });
+      const sid = new ObjectId();
+      const uname = `fup${run}`;
+      await db.collection<SubscriberDoc>('subscribers').insertOne({
+        _id: sid,
+        tenantId: t,
+        resellerId: null,
+        ancestors: [],
+        customerNo: 'C000009',
+        username: uname,
+        pppoePassword: crypto.encrypt('pw', `subscribers.pppoe:${sid.toHexString()}`),
+        name: 'Cap User',
+        phone: '+919876543211',
+        address: { line1: 'x', city: 'Delhi', state: 'Delhi', stateCode: '07', pincode: '110001' },
+        billingType: 'prepaid',
+        planId: p,
+        expiresAt: new Date(Date.now() + 86_400_000),
+        status: 'active',
+        network: {},
+        kyc: { status: 'pending' },
+        tags: [],
+        search: [],
+        syncStatus: 'pending',
+        version: 0,
+        ...std(),
+      });
+      await enqueue(t, 'subscriber', sid);
+      await worker.drain();
+      const tid = (await one<{ id: number }>('SELECT id FROM tenants WHERE external_id = $1', [
+        t.toHexString(),
+      ]))!.id;
+      const acctId = randomBytes(8).toString('hex');
+      await admin.query(
+        `INSERT INTO radacct (tenant_id, acctsessionid, acctuniqueid, username, nasipaddress, acctstarttime,
+                              acctupdatetime, acctinputoctets, acctoutputoctets)
+         VALUES ($1, 'cap', $2, $3, '192.0.2.1', now() - interval '1 hour', now(), 100000, 500000)`,
+        [tid, acctId, uname],
+      );
+      const job = new UsageJob(pool, client, db, log);
+      const r1 = await job.run();
+      expect(r1.fupOn).toBe(0);
+      expect((await db.collection<SubscriberDoc>('subscribers').findOne({ _id: sid }))?.fup).toMatchObject({
+        active: false,
+        usedBytes: 600_000,
+      });
+
+      await admin.query(
+        `UPDATE radacct SET acctoutputoctets = 950000, acctupdatetime = now() WHERE acctuniqueid = $1`,
+        [acctId],
+      );
+      const r2 = await job.run();
+      expect(r2).toMatchObject({ fupOn: 1 });
+      const sub = await db.collection<SubscriberDoc>('subscribers').findOne({ _id: sid });
+      expect(sub).toMatchObject({
+        fup: { active: true, usedBytes: 1_050_000 },
+        syncStatus: 'pending',
+        version: 1,
+      });
+      const queued = await db.collection<OutboxDoc>('outbox').findOne({ entityId: sid, status: 'pending' });
+      expect(queued?.coa).toEqual({ action: 'disconnect', reason: 'fup' });
+      await worker.drain();
+      expect(
+        await one('SELECT fup_active FROM subscribers WHERE external_id = $1', [sid.toHexString()]),
+      ).toEqual({
+        fup_active: true,
+      });
+      expect((await job.run()).fupOn).toBe(0);
+
+      await db.collection<PlanDoc>('plans').updateOne({ _id: p }, { $unset: { dataCapBytes: '' } });
+      expect((await job.run()).fupOff).toBe(1);
+      await worker.drain();
+      expect(
+        await one('SELECT fup_active FROM subscribers WHERE external_id = $1', [sid.toHexString()]),
+      ).toEqual({
+        fup_active: false,
+      });
+      const daily = await one<{ total: string }>(
+        'SELECT sum(bytes_in + bytes_out)::text AS total FROM usage_daily WHERE tenant_id = $1 AND username = $2',
+        [tid, uname],
+      );
+      expect(daily?.total).toBe('1050000');
+    } finally {
       await admin.end();
     }
   });
