@@ -54,3 +54,19 @@ tests:
             exp_annotations:
               summary: 'No outbox worker is running: router, plan and ISP changes are not reaching RADIUS'
               runbook: docs/runbooks/outbox.md
+
+  - interval: 1m
+    input_series:
+      - series: 'isp_job_last_success_timestamp_seconds{job="usage"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: UsageJobStale
+        exp_alerts: []
+      - eval_time: 55m
+        alertname: UsageJobStale
+        exp_alerts:
+          - exp_labels: { severity: warning, job: usage }
+            exp_annotations:
+              summary: 'Usage roll-up has not succeeded for 45+ minutes: usage graphs and FUP are behind'
+              runbook: docs/runbooks/usage.md

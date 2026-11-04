@@ -44,6 +44,7 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/subscribers/:id/coa-log': 'subA',
   '/api/v1/subscribers/:id/sessions': 'subA',
   '/api/v1/subscribers/:id/auth-log': 'subA',
+  '/api/v1/subscribers/:id/usage': 'subA',
 };
 
 const BODIES: Record<string, unknown> = {

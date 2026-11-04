@@ -14,7 +14,8 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
 | 2.5 Outbox worker | ✅ code + tests | `apps/workers` (`isp-workers` container): one leader via lease, change-stream wake + 1 s poll, latest-state sync (idempotent, adopts Step 1 rows by natural key), backoff 5 s → 5 min, `/metrics` + alerts `OutboxStuck`, `OutboxNoLeader`; runbook `docs/runbooks/outbox.md`. Test proves < 2 s save → PostgreSQL |
 | 2.6 Subscribers | ✅ code + tests | CRUD, suspend/activate, kick, delete (frees username/static IP), PPPoE password encrypted (generated, shown once, reveal needs `subscribers.password.reveal`), customer numbers per ISP, MAC lock/static IP/sim-use, prefix search on name/username/phone/customer no., `syncStatus` per version. Worker syncs to PostgreSQL (`radius_encrypt_password`) and sends CoA: rate change via `radius_reply`, disconnect for state changes, NAK → disconnect, every attempt in `coa_log` (`GET /subscribers/:id/coa-log`). Plan speed edits CoA everyone online on the plan |
 | 2.7 Sessions and logs | ✅ code + tests | `GET /sessions/live` (search username/IP/MAC prefix, filter by router, stale flag), `/sessions/summary` (online per router), `/sessions/lookup?ip=&at=` (who had an IP), `/subscribers/:id/sessions` and `/auth-log` (reject reasons), keyset paging with microsecond-exact cursors, partition-pruned 90-day default window. Kick is `POST /subscribers/:id/kick` (2.6) |
-| 2.8–2.13 | ⏳ | Next: 2.8 usage roll-up and FUP |
+| 2.8 Usage and FUP | ✅ code + tests | `radius_usage_rollup()` (one statement, advisory lock, `usage_seen` so runs never double count) every 15 min via a lease-based scheduler in `isp-workers`; FUP on/off when cycle usage crosses the plan cap (calendar month or billing cycle), synced with a Disconnect; cap removed → FUP lifted; `GET /subscribers/:id/usage`; job metrics + `UsageJobStale` alert; runbook `docs/runbooks/usage.md` |
+| 2.9–2.13 | ⏳ | Next: 2.9 Excel import/export |
 
 ## Decisions and schema changes (BACKEND_SCHEMA to update)
 
@@ -53,6 +54,10 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
     login path (Step 1 item 10). It comes with moving the auth log off the login path (Step 5); per-subscriber
     history covers support.
 20. Resellers get session views in Step 3 (403 until then); super-admins pass `?tenantId=`.
+21. FUP counts upload + download. Usage is booked on the IST day of the 15-minute run (traffic just before midnight
+    may land on the next day); per-session totals are exact. No separate `fup-reset` job: every run re-evaluates the
+    current cycle, so a new cycle lifts FUP within 15 minutes.
+22. PostgreSQL migration 003 (`usage_seen`) and new grants: **rerun `install.sh all`** before deploying.
 
 ## Tests
 
