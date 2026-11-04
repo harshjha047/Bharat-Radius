@@ -32,11 +32,11 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: 22, cache: pnpm }
       - run: sudo apt-get install -y -qq freeradius-utils
-      - name: MongoDB 8.0 replica set (transactions need one)
+      - name: MongoDB replica set (transactions need one)
         run: |
-          # MongoDB 8.0 TCMalloc needs rseq, which glibc claims first on newer kernels (MongoDB production notes).
-          docker run -d --name mongo -p 27017:27017 -e GLIBC_TUNABLES=glibc.pthread.rseq=0 \
-            mongo:8.0 mongod --replSet rs0 --bind_ip_all
+          # 7.0, not 8.0: MongoDB 8.x refuses to start on kernels 6.19-7.0.13 (SERVER-121912), which the runner uses.
+          # The API uses no 8.0-only features; staging/production stay on 8.0.
+          docker run -d --name mongo -p 27017:27017 mongo:7.0 mongod --replSet rs0 --bind_ip_all
           up() { docker exec mongo mongosh --quiet --eval "$1" 2>/dev/null; }
           for _ in $(seq 1 60); do
             [ "$(docker inspect -f '{{.State.Running}}' mongo)" = true ] || { docker logs mongo; exit 1; }

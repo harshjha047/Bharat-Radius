@@ -33,7 +33,7 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
 
 ```
 unit:        shared 7, db-mongo 10 (scope rules), api 34 (config, tokens, passwords, route table, app wiring)
-integration: apps/api/test/*.int.test.ts against MongoDB 8.0 replica set (CI): health/errors, sign-in, TOTP,
+integration: apps/api/test/*.int.test.ts against a MongoDB replica set (CI: 7.0, see ci.yml): health/errors, sign-in, TOTP,
              enrolment, lockout, refresh rotation and reuse, CSRF/Origin, disable, password change, logout,
              permissions, privilege escalation, cross-tenant 404 for every :id route
 ```
