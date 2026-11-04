@@ -247,6 +247,7 @@ done
 
 # ---------------------------------------------------------------- FreeRADIUS
 install -d -m 0755 "$OPT_DIR"
+# Only these two are owned here; other tools keep their files elsewhere under $OPT_DIR (e.g. monitoring/).
 rm -rf "$OPT_DIR/scripts" "$OPT_DIR/sql"
 cp -r "$SRC_DIR/scripts" "$SRC_DIR/sql" "$OPT_DIR/"
 chmod 0755 "$OPT_DIR"/scripts/*.sh

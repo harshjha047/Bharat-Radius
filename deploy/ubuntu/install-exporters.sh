@@ -25,14 +25,17 @@ EOF
 systemctl restart prometheus-node-exporter
 
 log "radius status every 15 s"
-install -m 0755 "$DIR/monitoring/radius-status.sh" /opt/isp-radius/scripts/radius-status.sh
+# Own directory: radius/scripts/install.sh replaces /opt/isp-radius/scripts on every run.
+install -d -m 0755 /opt/isp-radius/monitoring
+install -m 0755 "$DIR/monitoring/radius-status.sh" /opt/isp-radius/monitoring/radius-status.sh
+rm -f /opt/isp-radius/scripts/radius-status.sh
 cat >/etc/systemd/system/isp-radius-status.service <<'EOF'
 [Unit]
 Description=isp-radius Status-Server metrics for node exporter
 
 [Service]
 Type=oneshot
-ExecStart=/opt/isp-radius/scripts/radius-status.sh
+ExecStart=/opt/isp-radius/monitoring/radius-status.sh
 EOF
 cat >/etc/systemd/system/isp-radius-status.timer <<'EOF'
 [Unit]
@@ -48,6 +51,7 @@ WantedBy=timers.target
 EOF
 systemctl daemon-reload
 systemctl enable -q --now isp-radius-status.timer
+systemctl reset-failed isp-radius-status.service 2>/dev/null || true
 
 log "postgres exporter"
 runuser -u postgres -- psql -Xq -v ON_ERROR_STOP=1 -d postgres <<'SQL'
