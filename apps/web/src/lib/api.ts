@@ -1,0 +1,125 @@
+import createClient from 'openapi-fetch';
+import type { paths } from './api-types';
+
+export type { paths };
+
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+    readonly details?: unknown,
+    readonly requestId?: string,
+  ) {
+    super(message);
+  }
+}
+
+const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+// Calls that must not trigger a refresh-and-retry.
+const NO_RETRY = /\/api\/v1\/auth\/(login|refresh|logout|2fa\/verify)$/;
+
+function csrfToken(): string | undefined {
+  const m = /(?:^|;\s*)isp_csrf=([^;]*)/.exec(document.cookie);
+  return m ? decodeURIComponent(m[1]!) : undefined;
+}
+
+function withCsrf(req: Request): Request {
+  const t = csrfToken();
+  if (t && UNSAFE.has(req.method)) req.headers.set('x-csrf-token', t);
+  return req;
+}
+
+let refreshing: Promise<boolean> | null = null;
+/** One refresh at a time; concurrent 401s share it. */
+export function refreshSession(): Promise<boolean> {
+  refreshing ??= fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'same-origin' })
+    .then((r) => r.ok)
+    .catch(() => false)
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
+}
+
+const signedOutListeners = new Set<() => void>();
+export const onSignedOut = (fn: () => void) => {
+  signedOutListeners.add(fn);
+  return () => void signedOutListeners.delete(fn);
+};
+
+/** fetch with CSRF header and one silent refresh when the 15-minute access token has lapsed. */
+export async function authFetch(input: Request): Promise<Response> {
+  const retry = input.clone();
+  const res = await fetch(withCsrf(input));
+  if (res.status !== 401 || NO_RETRY.test(new URL(input.url).pathname)) return res;
+  if (!(await refreshSession())) {
+    signedOutListeners.forEach((fn) => fn());
+    return res;
+  }
+  return fetch(withCsrf(retry));
+}
+
+export const api = createClient<paths>({ fetch: authFetch, credentials: 'same-origin' });
+
+interface ErrorBody {
+  error?: { code?: string; message?: string; details?: unknown; requestId?: string };
+}
+
+export async function toApiError(res: Response, body?: unknown): Promise<ApiError> {
+  let b = body as ErrorBody | undefined;
+  if (b === undefined) b = (await res.json().catch(() => undefined)) as ErrorBody | undefined;
+  const e = b?.error;
+  return new ApiError(
+    res.status,
+    e?.code ?? `HTTP_${res.status}`,
+    e?.message ??
+      (res.status >= 500 ? 'The server had a problem. Try again.' : res.statusText || 'Request failed'),
+    e?.details,
+    e?.requestId,
+  );
+}
+
+/** Returns the data or throws an ApiError with the server's message. */
+export async function unwrap<T>(p: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
+  const { data, error, response } = await p;
+  if (!response.ok) throw await toApiError(response, error);
+  return data as T;
+}
+
+/** Downloads a file endpoint (xlsx) through the same auth path. */
+export async function download(path: string, fallbackName: string): Promise<void> {
+  const res = await authFetch(new Request(path, { credentials: 'same-origin' }));
+  if (!res.ok) throw await toApiError(res);
+  const cd = res.headers.get('content-disposition') ?? '';
+  const name = /filename="?([^";]+)"?/.exec(cd)?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** Field errors from a 400 VALIDATION_FAILED response, keyed by dotted path. */
+export function fieldErrors(e: unknown): Record<string, string> {
+  const issues = (
+    e instanceof ApiError ? (e.details as { issues?: unknown } | undefined)?.issues : undefined
+  ) as { path?: string; message?: string }[] | undefined;
+  const out: Record<string, string> = {};
+  for (const i of issues ?? []) if (i.path && i.message) out[i.path] ??= i.message;
+  return out;
+}
+
+type Paths = keyof paths;
+type GetPaths = {
+  [P in Paths]: paths[P] extends { get: { responses: { 200: unknown } } } ? P : never;
+}[Paths];
+export type ApiData<P extends GetPaths> = paths[P] extends {
+  get: { responses: { 200: { content: { 'application/json': infer R } } } };
+}
+  ? R
+  : never;
+export type Item<P extends GetPaths> = ApiData<P> extends { items: (infer I)[] } ? I : never;

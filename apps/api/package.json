@@ -9,7 +9,8 @@
     "start": "node dist/main.js",
     "test": "vitest run",
     "test:int": "vitest run --config vitest.int.config.ts",
-    "cli": "node dist/cli.js"
+    "cli": "node dist/cli.js",
+    "openapi": "node dist/openapi-cli.js"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",

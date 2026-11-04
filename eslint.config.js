@@ -1,8 +1,20 @@
 import js from '@eslint/js';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/.next/**', 'deploy/**', 'radius/**', 'mikrotik/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/.next/**',
+      'apps/web/src/lib/api-types.ts',
+      'apps/web/next-env.d.ts',
+      'deploy/**',
+      'radius/**',
+      'mikrotik/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
@@ -18,4 +30,9 @@ export default tseslint.config(
   // Integration tests read loosely typed JSON responses.
   { files: ['**/test/**/*.ts', '**/*.test.ts'], rules: { '@typescript-eslint/no-explicit-any': 'off' } },
   { files: ['**/cli.ts', '**/scripts/**'], rules: { 'no-console': 'off' } },
+  {
+    files: ['apps/web/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    rules: { ...reactHooks.configs.recommended.rules },
+  },
 );

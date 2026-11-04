@@ -55,8 +55,14 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm build
+        # The panel proxies /api to a local API only in CI/dev; in production Caddy routes /api.
+        env: { API_ORIGIN: 'http://127.0.0.1:4100', NEXT_TELEMETRY_DISABLED: 1 }
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Web API types match the API (run `pnpm --filter @isp/web gen:api` after API changes)
+        run: |
+          pnpm --filter @isp/web gen:api
+          git diff --exit-code apps/web/openapi.json apps/web/src/lib/api-types.ts
       - name: API integration (auth, tenant isolation) against MongoDB and PostgreSQL
         env:
           MONGO_URL: 'mongodb://127.0.0.1:27017/?replicaSet=rs0'
@@ -69,6 +75,40 @@ jobs:
           RADIUS_DB_URL: 'postgres://app_ci:ci-app-pw@127.0.0.1:5433/radius_ci'
           RADIUS_ADMIN_URL: 'postgres://postgres:ci@127.0.0.1:5433/radius_ci'
         run: pnpm --filter @isp/workers test:int
+      - name: Panel end-to-end (Chromium → web → API → MongoDB)
+        env:
+          MONGO_URL: 'mongodb://127.0.0.1:27017/isp_e2e?replicaSet=rs0'
+          RADIUS_DB_URL: 'postgres://app_ci:ci-app-pw@127.0.0.1:5433/radius_ci'
+          NODE_ENV: development
+          PUBLIC_BASE_URL: 'http://localhost:3000'
+          COOKIE_SECURE: 'false'
+          LOG_LEVEL: warn
+          E2E_PASSWORD: 'Monsoon-Fibre-42'
+        run: |
+          export JWT_SIGNING_KEY="$(openssl rand -hex 32)" REFRESH_TOKEN_PEPPER="$(openssl rand -hex 32)"
+          export FIELD_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+          cli() { node apps/api/dist/cli.js "$@"; }
+          cli migrate
+          cli create-tenant --slug e2e --name 'E2E Broadband' --legal-name 'E2E Broadband Pvt Ltd' --state-code 09 \
+            --city Noida --state 'Uttar Pradesh' --pincode 201301 --line1 '1 Sector 18'
+          echo "$E2E_PASSWORD" | cli create-user --tenant e2e --name 'E2E Admin' --email admin@e2e.test --role 'ISP Admin'
+          echo "$E2E_PASSWORD" | cli create-user --tenant e2e --name 'E2E Support' --email support@e2e.test --role Support
+          node apps/api/dist/main.js > apps/web/api.log 2>&1 &
+          (cd apps/web/.next/standalone/apps/web && cp -r ../../../static .next/static && \
+            PORT=3000 HOSTNAME=127.0.0.1 node server.js > ../../../../web.log 2>&1 &)
+          for _ in $(seq 1 60); do curl -fs http://127.0.0.1:4100/livez >/dev/null && curl -fs http://127.0.0.1:3000/livez >/dev/null && break; sleep 1; done
+          pnpm --filter @isp/web exec playwright install --with-deps chromium
+          cd apps/web && node --test --test-concurrency=1 e2e/panel.e2e.mjs
+      - name: Panel end-to-end artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: panel-e2e
+          path: |
+            apps/web/e2e-artifacts
+            apps/web/api.log
+            apps/web/web.log
+          if-no-files-found: ignore
       - name: MongoDB log on failure
         if: failure()
         run: docker logs --tail 200 mongo || true
