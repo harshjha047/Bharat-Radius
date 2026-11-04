@@ -12,7 +12,8 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
 | 2.3 Auth | ✅ code + tests | argon2id (19 MiB, t=2), TOTP (RFC 6238, ±1 step, replay-proof), 15-min HS512 access JWT + 30-day rotating refresh token (peppered HMAC, family revocation on reuse, 10 s multi-tab grace), HttpOnly cookies, session-bound CSRF + Origin check, JSON-only bodies, lockout 5 failures/15 min per account and 20/15 min per IP; built-in roles; users and roles API with no privilege escalation |
 | 2.4 Tenants, routers, plans | ✅ code + tests | Own-ISP settings (staff) and ISP CRUD/suspend (super-admin, others get 404); routers with IP unique across ISPs, encrypted secret (generated, shown once, reveal/rotate), soft delete that frees the IP; plans with Mikrotik-Rate-Limit derived from speeds/burst, cap ⇒ FUP speed, reserved RADIUS attributes refused, GST defaults (18 %, SAC 998422). Every change commits with its outbox row in one MongoDB transaction |
 | 2.5 Outbox worker | ✅ code + tests | `apps/workers` (`isp-workers` container): one leader via lease, change-stream wake + 1 s poll, latest-state sync (idempotent, adopts Step 1 rows by natural key), backoff 5 s → 5 min, `/metrics` + alerts `OutboxStuck`, `OutboxNoLeader`; runbook `docs/runbooks/outbox.md`. Test proves < 2 s save → PostgreSQL |
-| 2.6–2.13 | ⏳ | Next: 2.6 subscribers (sync + CoA) |
+| 2.6 Subscribers | ✅ code + tests | CRUD, suspend/activate, kick, delete (frees username/static IP), PPPoE password encrypted (generated, shown once, reveal needs `subscribers.password.reveal`), customer numbers per ISP, MAC lock/static IP/sim-use, prefix search on name/username/phone/customer no., `syncStatus` per version. Worker syncs to PostgreSQL (`radius_encrypt_password`) and sends CoA: rate change via `radius_reply`, disconnect for state changes, NAK → disconnect, every attempt in `coa_log` (`GET /subscribers/:id/coa-log`). Plan speed edits CoA everyone online on the plan |
+| 2.7–2.13 | ⏳ | Next: 2.7 live sessions, kick, session and login history |
 
 ## Decisions and schema changes (BACKEND_SCHEMA to update)
 
@@ -38,7 +39,15 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
     is `fup: { downloadKbps, uploadKbps }`, both turned into RouterOS strings (`upload/download`, 1M = 1000k).
 13. Router delete moves `ip` to `deletedIp` so the IP can be reused; disabling or deleting removes the row from
     PostgreSQL (FreeRADIUS stops answering that router within 30 s).
-14. A plan speed change reaches online users only after WP 2.6 (CoA); until then at their next login.
+14. ~~A plan speed change reaches online users only after WP 2.6~~ done in 2.6.
+15. **CoA policy**: same RADIUS state (active/fup/expired) and a new plan → CoA with the rate `radius_reply()` now
+    returns; any state change, suspend, delete, new static IP or MAC lock → Disconnect (the router re-dials and gets
+    a fresh reply, including address lists). A NAK falls back to Disconnect. Needs `radius_reply` granted to the
+    app role (`200_grants.sql`): **rerun `install.sh all` on the VPS**; without it the worker disconnects instead.
+16. Search uses a `search` array of lower-case prefix tokens indexed with `tenantId`, not a MongoDB text index:
+    prefix matches on phone/username are what support types, and the compound index keeps it per ISP.
+17. PPPoE usernames cannot be renamed (delete and recreate); static IPs are unique per ISP.
+18. Until recharges exist (Step 3) staff with `subscribers.write` may set `expiresAt` directly.
 
 ## Tests
 

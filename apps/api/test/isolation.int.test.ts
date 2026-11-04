@@ -8,6 +8,7 @@ import {
   roleId,
   seedNas,
   seedPlan,
+  seedSubscriber,
   seedTenant,
   seedUser,
   signIn,
@@ -35,6 +36,12 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/nas/:id': 'nasA',
   '/api/v1/nas/:id/secret': 'nasA',
   '/api/v1/plans/:id': 'planA',
+  '/api/v1/subscribers/:id': 'subA',
+  '/api/v1/subscribers/:id/suspend': 'subA',
+  '/api/v1/subscribers/:id/activate': 'subA',
+  '/api/v1/subscribers/:id/kick': 'subA',
+  '/api/v1/subscribers/:id/password': 'subA',
+  '/api/v1/subscribers/:id/coa-log': 'subA',
 };
 
 const BODIES: Record<string, unknown> = {
@@ -44,6 +51,8 @@ const BODIES: Record<string, unknown> = {
   'PATCH /api/v1/tenants/:id': { name: 'Changed by B' },
   'PATCH /api/v1/nas/:id': { name: 'Changed by B' },
   'PATCH /api/v1/plans/:id': { name: 'Changed by B' },
+  'PATCH /api/v1/subscribers/:id': { name: 'Changed by B' },
+  'POST /api/v1/subscribers/:id/suspend': {},
 };
 
 beforeAll(async () => {
@@ -72,6 +81,7 @@ beforeAll(async () => {
   ids.tenantA = a.toHexString();
   ids.nasA = (await seedNas(h, a, '10.10.0.1')).toHexString();
   ids.planA = (await seedPlan(h, a, 'Alpha 50M')).toHexString();
+  ids.subA = (await seedSubscriber(h, a, 'alpha-user')).toHexString();
   const adminB = await seedUser(h, { tenantId: b, email: 'admin@bravo.in', roles: [adminRole], totp: true });
   bAdmin = await signIn(h, adminB, 'bravo');
 });
@@ -105,6 +115,25 @@ describe('tenant isolation', () => {
     const plans = await bAdmin.req('GET', '/api/v1/plans');
     expect(plans.body.items.map((x: { id: string }) => x.id)).not.toContain(ids.planA);
     expect((await bAdmin.req('GET', '/api/v1/tenants')).status).toBe(404);
+  });
+
+  it('subscriber search never returns another tenant’s subscribers; the same username is allowed per ISP', async () => {
+    const r = await bAdmin.req('GET', '/api/v1/subscribers?q=alpha');
+    expect(r.body.items).toEqual([]);
+    const plan = await bAdmin.req('POST', '/api/v1/plans', {
+      name: 'B plan',
+      downloadKbps: 10_000,
+      uploadKbps: 10_000,
+      pricePaise: 100,
+    });
+    const created = await bAdmin.req('POST', '/api/v1/subscribers', {
+      username: 'alpha-user',
+      name: 'Bravo customer',
+      phone: '9812345678',
+      address: { line1: 'x', city: 'Delhi', state: 'Delhi', pincode: '110001' },
+      planId: plan.body.id,
+    });
+    expect(created.status).toBe(201);
   });
 
   it('a router IP is unique across ISPs', async () => {
@@ -154,6 +183,7 @@ async function snapshot() {
         ['tenants', 'tenantA'],
         ['nas_devices', 'nasA'],
         ['plans', 'planA'],
+        ['subscribers', 'subA'],
       ] as const
     ).map(([c, k]) => h.db.collection(c).findOne({ _id: new ObjectId(ids[k]) })),
   );

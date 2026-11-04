@@ -242,3 +242,33 @@ export async function seedPlan(h: Harness, tenantId: ObjectId, name: string): Pr
   });
   return _id;
 }
+
+export async function seedSubscriber(h: Harness, tenantId: ObjectId, username: string): Promise<ObjectId> {
+  const now = new Date();
+  const _id = new ObjectId();
+  await h.db.collection('subscribers').insertOne({
+    _id,
+    tenantId,
+    resellerId: null,
+    ancestors: [],
+    customerNo: `C${username}`,
+    username,
+    pppoePassword: h.crypto.encrypt('seeded-pw', `subscribers.pppoe:${_id.toHexString()}`),
+    name: 'Seeded Subscriber',
+    phone: '+919812345678',
+    address: { line1: 'x', city: 'Delhi', state: 'Delhi', stateCode: '07', pincode: '110001' },
+    billingType: 'prepaid',
+    status: 'active',
+    network: {},
+    kyc: { status: 'pending' },
+    tags: [],
+    search: [username],
+    syncStatus: 'synced',
+    version: 0,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: 'test',
+    updatedBy: 'test',
+  });
+  return _id;
+}

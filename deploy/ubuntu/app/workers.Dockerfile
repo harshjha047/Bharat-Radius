@@ -11,6 +11,7 @@ COPY packages/radius-client/package.json packages/radius-client/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db-mongo/package.json packages/db-mongo/
 RUN pnpm install --frozen-lockfile --ignore-scripts
+COPY packages/radius-client packages/radius-client
 COPY packages/shared packages/shared
 COPY packages/db-mongo packages/db-mongo
 COPY apps/workers apps/workers

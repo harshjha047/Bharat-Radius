@@ -87,6 +87,9 @@ importers:
       '@isp/db-mongo':
         specifier: workspace:*
         version: link:../../packages/db-mongo
+      '@isp/radius-client':
+        specifier: workspace:*
+        version: link:../../packages/radius-client
       '@isp/shared':
         specifier: workspace:*
         version: link:../../packages/shared

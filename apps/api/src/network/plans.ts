@@ -278,7 +278,15 @@ export class PlansService {
         { returnDocument: 'after', session },
       );
       if (!u) throw notFound('Plan');
-      await this.outbox.enqueue(session, u.tenantId, 'plan', id);
+      // New speeds reach users already online by CoA (worker sends the rate RADIUS would now reply with).
+      const speedChanged = u.rateLimit !== cur.rateLimit || u.fupRate !== cur.fupRate;
+      await this.outbox.enqueue(
+        session,
+        u.tenantId,
+        'plan',
+        id,
+        speedChanged ? { action: 'update', reason: 'plan_change' } : undefined,
+      );
       return u;
     });
     return toView(updated);
@@ -327,7 +335,7 @@ export class PlansController {
 
   @Patch(':id')
   @Endpoint({
-    summary: 'Edit or archive a plan (new speeds apply at next login; online users get CoA from WP 2.6)',
+    summary: 'Edit or archive a plan (online users on it get the new speed by CoA)',
     tags: ['plans'],
     permission: 'plans.write',
     params: idParams,

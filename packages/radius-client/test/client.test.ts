@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { RadiusCoaClient } from '../src/client.js';
 import { Attr, Code, MIKROTIK_VENDOR, MikrotikAttr } from '../src/packet.js';
-import { startFakeNas, type Behaviour } from './fake-nas.js';
+import { startFakeNas, type Behaviour } from '../src/testing.js';
 
 const SECRET = 'e2e-router-secret-01';
 const session = { userName: 'rahul01', acctSessionId: '81a0001f', framedIp: '100.64.0.10' };
