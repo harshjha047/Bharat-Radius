@@ -38,7 +38,7 @@ scrape_configs:
     metrics_path: /probe
     params: { module: [http_2xx] }
     static_configs:
-      - targets: ['http://127.0.0.1:4000/healthz', 'https://new.bharatradius.com/api/healthz']
+      - targets: ['http://127.0.0.1:4100/healthz', 'https://new.bharatradius.com/api/healthz']
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

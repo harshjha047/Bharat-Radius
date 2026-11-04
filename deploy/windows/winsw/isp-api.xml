@@ -10,10 +10,10 @@
   </serviceaccount>
   <env name="NODE_ENV" value="production"/>
   <env name="API_HOST" value="127.0.0.1"/>
-  <env name="API_PORT" value="4000"/>
+  <env name="API_PORT" value="__API_PORT__"/>
   <startmode>Automatic</startmode>
   <delayedAutoStart>true</delayedAutoStart>
-  <depend>MongoDB</depend>
+  <depend>isp-mongo</depend>
   <onfailure action="restart" delay="5 sec"/>
   <onfailure action="restart" delay="30 sec"/>
   <resetfailure>1 hour</resetfailure>

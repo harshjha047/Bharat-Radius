@@ -1,23 +1,28 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-  WP 1.4 — Windows app host base: folders + ACLs, MongoDB replica set rs0, PostgreSQL standby of the Ubuntu
-  `radius` database (port 5433, beside BharatRadius' own PostgreSQL), WinSW service for the API, nginx site.
-  Idempotent. Does not modify BharatRadius services, its nginx server blocks or its PostgreSQL.
+  WP 1.4 — Windows app host base: folders + ACLs, our own MongoDB service (isp-mongo, 127.0.0.1:27018, replica set
+  rs-isp, auth + keyfile), PostgreSQL standby of the Ubuntu `radius` database (isp-pg-standby, port 5433), WinSW
+  service for the API (isp-api, 127.0.0.1:4100), nginx site. Idempotent.
+  Never modifies existing services: the shared MongoDB on 27017, BharatRadius' PostgreSQL on 5432, pm2 apps,
+  or other nginx server blocks.
 
 .PREREQUISITES (install by hand once; versions pinned in docs/runbooks/windows-base.md)
-  Node.js 22 LTS (MSI), MongoDB Server 8.0 (MSI, service "MongoDB"), mongosh, PostgreSQL 16 binaries (EDB installer,
-  untick "PostgreSQL Server" service creation is fine), WinSW-x64.exe v2.12 in <AppRoot>\services, nginx already running.
+  Node.js 22 LTS, MongoDB Server 7.0+ binaries, mongosh, PostgreSQL 16 binaries, WinSW-x64.exe v2.12 in
+  <AppRoot>\services, nginx running (its folder is detected from the running process).
 
 .EXAMPLE
-  .\install-base.ps1 -UbuntuHost radius.example.net -Env staging
+  .\install-base.ps1 -UbuntuHost 154.49.142.251 -Env staging
 #>
 [CmdletBinding()]
 param(
   [Parameter(Mandatory)][string]$UbuntuHost,
   [ValidateSet('staging', 'production')][string]$Env = 'staging',
   [string]$AppRoot = 'C:\isp',
-  [string]$NginxRoot = 'C:\nginx',
+  [string]$NginxRoot = '',
+  [int]$ApiPort = 4100,
+  [int]$MongoPort = 27018,
+  [string]$MongoReplSet = 'rs-isp',
   [int]$StandbyPort = 5433,
   [switch]$SkipStandby,
   [switch]$SkipMongo
@@ -36,19 +41,35 @@ function Lock-Acl([string]$path, [string[]]$extra = @()) {
   icacls $path /inheritance:r /grant:r 'Administrators:(OI)(CI)F' 'SYSTEM:(OI)(CI)F' | Out-Null
   foreach ($e in $extra) { icacls $path /grant "${e}:(OI)(CI)R" | Out-Null }
 }
-function Test-PortOwner([int]$port, [string[]]$allowed) {
+# A port may be in use only by our own service (re-runs); anything else is a conflict.
+function Assert-PortOurs([int]$port, [string]$ourService) {
   $c = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $c) { return }
+  $svc = Get-CimInstance Win32_Service -Filter "Name='$ourService'" -ErrorAction SilentlyContinue
+  if ($svc -and $svc.ProcessId -and ($svc.ProcessId -eq $c.OwningProcess -or
+      (Get-CimInstance Win32_Process -Filter "ParentProcessId=$($svc.ProcessId)" | Where-Object ProcessId -eq $c.OwningProcess))) { return }
   $p = (Get-Process -Id $c.OwningProcess -ErrorAction SilentlyContinue).ProcessName
-  if ($allowed -notcontains $p) { Fail "TCP $port is used by '$p'" }
+  Fail "TCP $port is already used by '$p' (pid $($c.OwningProcess)); choose another port with -$(if ($port -eq $ApiPort) {'ApiPort'} elseif ($port -eq $MongoPort) {'MongoPort'} else {'StandbyPort'})"
+}
+function Wait-Port([int]$port, [int]$secs = 30) {
+  for ($i = 0; $i -lt $secs; $i++) {
+    if (Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue) { return }
+    Start-Sleep 1
+  }
+  Fail "nothing listening on $port after $secs s"
 }
 
 # ------------------------------------------------------------------ preflight
 Log 'preflight'
-Test-PortOwner 4000 @('node')
-Test-PortOwner 3000 @('node')
-Test-PortOwner 27017 @('mongod')
-Test-PortOwner $StandbyPort @('postgres')
+Assert-PortOurs $ApiPort 'isp-api'
+Assert-PortOurs $MongoPort 'isp-mongo'
+Assert-PortOurs $StandbyPort 'isp-pg-standby'
+if (-not $NginxRoot) {
+  $ngx = Get-Process nginx -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $ngx) { Fail 'nginx is not running; pass -NginxRoot' }
+  $NginxRoot = Split-Path $ngx.Path
+}
+Log "nginx: $NginxRoot; API 127.0.0.1:$ApiPort; MongoDB 127.0.0.1:$MongoPort ($MongoReplSet); standby :$StandbyPort"
 $node = Get-Command node -ErrorAction SilentlyContinue
 if (-not $node) { Fail 'Node.js 22 not installed' }
 $nodeMajor = [int]((& node -v).TrimStart('v').Split('.')[0])
@@ -77,11 +98,11 @@ if (-not (Test-Path $envFile)) {
   ) | Set-Content -Encoding ascii $envFile
 }
 
-# ------------------------------------------------------------------ MongoDB replica set rs0
+# ------------------------------------------------------------------ our MongoDB (isp-mongo)
 if (-not $SkipMongo) {
-  $svc = Get-Service MongoDB -ErrorAction SilentlyContinue
-  if (-not $svc) { Fail 'MongoDB service not found (install MongoDB 8.0 MSI first)' }
-  $mongod = (Get-CimInstance Win32_Service -Filter "Name='MongoDB'").PathName -replace '^"([^"]+)".*', '$1'
+  $mongod = Get-ChildItem 'C:\Program Files\MongoDB\Server\*\bin\mongod.exe' -ErrorAction SilentlyContinue |
+    Sort-Object { [version]($_.Directory.Parent.Name + '.0') } -Descending | Select-Object -First 1 -ExpandProperty FullName
+  if (-not $mongod) { Fail 'mongod.exe not found under C:\Program Files\MongoDB\Server' }
   $mongosh = (Get-Command mongosh -ErrorAction SilentlyContinue).Source
   if (-not $mongosh) { Fail 'mongosh not found on PATH' }
   $cfg = Join-Path $AppRoot 'mongo\mongod.cfg'
@@ -91,40 +112,48 @@ if (-not $SkipMongo) {
     $kb = [byte[]]::new(96); [Security.Cryptography.RandomNumberGenerator]::Fill($kb)
     [Convert]::ToBase64String($kb) | Set-Content -NoNewline -Encoding ascii $keyFile
   }
-  $mongoAcct = (Get-CimInstance Win32_Service -Filter "Name='MongoDB'").StartName
-  icacls $keyFile /grant "${mongoAcct}:R" | Out-Null
-  icacls (Join-Path $AppRoot 'mongo') /grant "${mongoAcct}:(OI)(CI)M" | Out-Null
-  $template = Get-Content (Join-Path $RepoDeploy 'mongo\mongod.cfg') -Raw
-  $secured = (Test-Path $mongoEnv)
-  $content = if ($secured) { $template -replace '#SECURITY#', '' } else { $template -replace '(?m)^#SECURITY#.*\r?\n', '' }
-  $content = $content.Replace('C:\isp', $AppRoot)
-  $changed = -not (Test-Path $cfg) -or ((Get-Content $cfg -Raw) -ne $content)
-  if ($changed) {
-    Log 'configuring MongoDB service with replica set rs0'
-    Set-Content -Encoding ascii $cfg $content
-    Stop-Service MongoDB
-    & sc.exe config MongoDB binPath= "`"$mongod`" --config `"$cfg`" --service" | Out-Null
-    Start-Service MongoDB
-    Start-Sleep 3
+  $template = (Get-Content (Join-Path $RepoDeploy 'mongo\mongod.cfg') -Raw).Replace('C:\isp', $AppRoot).
+    Replace('__MONGO_PORT__', "$MongoPort").Replace('__REPLSET__', $MongoReplSet)
+  $securedCfg = $template -replace '#SECURITY#', ''
+  $openCfg = $template -replace '(?m)^#SECURITY#.*\r?\n', ''
+
+  if (-not (Get-Service isp-mongo -ErrorAction SilentlyContinue)) {
+    Log "registering service isp-mongo ($mongod)"
+    Set-Content -Encoding ascii $cfg $openCfg
+    New-Service -Name isp-mongo -DisplayName 'ISP MongoDB (isp-platform)' -StartupType Automatic `
+      -BinaryPathName "`"$mongod`" --config `"$cfg`" --service --serviceName isp-mongo" | Out-Null
+    Start-Service isp-mongo
+    Wait-Port $MongoPort
   }
-  if (-not $secured) {
-    Log 'initiating rs0 and creating users (one time)'
-    & $mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0', members:[{_id:0, host:'127.0.0.1:27017'}]}) }" | Out-Null
-    Start-Sleep 5
+  if (-not (Test-Path $mongoEnv)) {
+    Log "initiating replica set $MongoReplSet and creating users (one time)"
+    & $mongosh --port $MongoPort --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'$MongoReplSet', members:[{_id:0, host:'127.0.0.1:$MongoPort'}]}) }" | Out-Null
+    for ($i = 0; $i -lt 30; $i++) {
+      if ((& $mongosh --port $MongoPort --quiet --eval 'db.hello().isWritablePrimary') -eq 'true') { break }
+      Start-Sleep 1
+    }
     $adminPw = New-Secret; $appPw = New-Secret
-    $js = @"
+    @"
 db.getSiblingDB('admin').createUser({ user: 'ispAdmin', pwd: '$adminPw', roles: ['root'] });
 db.getSiblingDB('admin').createUser({ user: 'isp_app', pwd: '$appPw', roles: [
   { role: 'readWrite', db: 'isp' }, { role: 'readWrite', db: 'isp_staging' } ] });
-"@
-    $js | & $mongosh --quiet | Out-Null
+"@ | & $mongosh --port $MongoPort --quiet | Out-Null
+    if ($LASTEXITCODE -ne 0) { Fail 'creating MongoDB users failed' }
     @("MONGO_ADMIN_PASSWORD=$adminPw", "MONGO_APP_PASSWORD=$appPw") | Set-Content -Encoding ascii $mongoEnv
     $db = if ($Env -eq 'production') { 'isp' } else { 'isp_staging' }
-    (Get-Content $envFile) -replace '^MONGO_URL=.*$', "MONGO_URL=mongodb://isp_app:$appPw@127.0.0.1:27017/${db}?replicaSet=rs0&authSource=admin" | Set-Content -Encoding ascii $envFile
-    Log 'enabling authorization + keyFile'
-    Set-Content -Encoding ascii $cfg (($template -replace '#SECURITY#', '').Replace('C:\isp', $AppRoot))
-    Restart-Service MongoDB
+    (Get-Content $envFile) -replace '^MONGO_URL=.*$',
+      "MONGO_URL=mongodb://isp_app:$appPw@127.0.0.1:$MongoPort/${db}?replicaSet=$MongoReplSet&authSource=admin" |
+      Set-Content -Encoding ascii $envFile
   }
+  if (-not (Test-Path $cfg) -or (Get-Content $cfg -Raw) -ne $securedCfg) {
+    Log 'enabling MongoDB authorization + keyFile'
+    Set-Content -Encoding ascii $cfg $securedCfg
+    Restart-Service isp-mongo
+    Wait-Port $MongoPort
+  }
+  $adminPw = ((Get-Content $mongoEnv) -match '^MONGO_ADMIN_PASSWORD=') -replace '^MONGO_ADMIN_PASSWORD=', ''
+  $state = & $mongosh "mongodb://ispAdmin:$adminPw@127.0.0.1:$MongoPort/?authSource=admin&directConnection=true" --quiet --eval 'rs.status().members[0].stateStr'
+  Log "isp-mongo: $state"
 }
 
 # ------------------------------------------------------------------ PostgreSQL standby (port $StandbyPort)
@@ -180,7 +209,7 @@ if (-not (Test-Path $winsw)) { Fail "download WinSW-x64.exe v2.12.0 to $winsw" }
 $apiExe = Join-Path $AppRoot 'services\isp-api.exe'
 $apiXml = Join-Path $AppRoot 'services\isp-api.xml'
 Copy-Item $winsw $apiExe -Force
-(Get-Content (Join-Path $RepoDeploy 'winsw\isp-api.xml') -Raw).Replace('__APPROOT__', $AppRoot).Replace('__ENV__', $Env) |
+(Get-Content (Join-Path $RepoDeploy 'winsw\isp-api.xml') -Raw).Replace('__APPROOT__', $AppRoot).Replace('__ENV__', $Env).Replace('__API_PORT__', "$ApiPort") |
   Set-Content -Encoding utf8 $apiXml
 if (-not (Get-Service isp-api -ErrorAction SilentlyContinue)) { & $apiExe install | Out-Null; Log 'isp-api service registered' }
 else { & $apiExe refresh | Out-Null }
@@ -189,7 +218,8 @@ icacls (Join-Path $AppRoot 'current') /grant 'NT AUTHORITY\LocalService:(OI)(CI)
 # ------------------------------------------------------------------ nginx site
 $siteDir = Join-Path $NginxRoot 'conf\isp'
 New-Item -ItemType Directory -Force -Path $siteDir | Out-Null
-Copy-Item (Join-Path $RepoDeploy 'nginx\isp-staging.conf') (Join-Path $siteDir 'isp-staging.conf') -Force
+(Get-Content (Join-Path $RepoDeploy 'nginx\isp-staging.conf') -Raw).Replace('__API_PORT__', "$ApiPort").Replace('C:/isp', $AppRoot.Replace('\', '/')) |
+  Set-Content -Encoding ascii (Join-Path $siteDir 'isp-staging.conf')
 $mainConf = Get-Content (Join-Path $NginxRoot 'conf\nginx.conf') -Raw
 if ($mainConf -notmatch 'include\s+isp/\*\.conf') {
   Log "ACTION: add 'include isp/*.conf;' inside http { } of $NginxRoot\conf\nginx.conf, then rerun"
