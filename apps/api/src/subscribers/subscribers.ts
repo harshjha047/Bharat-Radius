@@ -28,6 +28,7 @@ import {
   type SubscriberDoc,
   type TenantDoc,
 } from '@isp/db-mongo';
+import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, conflict, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
@@ -317,6 +318,7 @@ export class SubscribersService {
         },
         toNewSubscriber(b, plain, tenant?.stateCode),
       );
+      noteChange({ after: doc, entityId: doc._id });
       return toView(doc, b.pppoePassword ? undefined : plain);
     } catch (e) {
       if ((e as { code?: number }).code === 11000) duplicate(e);
@@ -343,6 +345,7 @@ export class SubscribersService {
           { returnDocument: 'after', session },
         );
         if (!u) throw conflict('The subscriber was changed at the same time. Reload and try again.');
+        noteChange({ before: cur, after: u, entityId: u._id });
         await this.outbox.enqueue(session, u.tenantId, 'subscriber', u._id, forceCoa ?? coaFor(cur, u));
         return u;
       });
@@ -432,6 +435,7 @@ export class SubscribersService {
 
   async revealPassword(ctx: AuthContext, id: ObjectId) {
     const s = await this.find(ctx, id);
+    noteChange({ after: { username: s.username }, entityId: id });
     return { pppoePassword: this.crypto.decrypt(s.pppoePassword, pwAad(s._id)) };
   }
 
@@ -475,6 +479,7 @@ export class SubscribersController {
   @Endpoint({
     summary: 'Create a subscriber (PPPoE password returned once if generated)',
     tags: ['subscribers'],
+    audit: 'subscriber.create',
     permission: 'subscribers.write',
     body: createBody,
     response: subscriberView,
@@ -499,6 +504,7 @@ export class SubscribersController {
   @Endpoint({
     summary: 'Edit a subscriber; RADIUS and an online session follow (CoA or reconnect)',
     tags: ['subscribers'],
+    audit: 'subscriber.update',
     permission: 'subscribers.write',
     params: idParams,
     body: updateBody,
@@ -513,6 +519,7 @@ export class SubscribersController {
   @Endpoint({
     summary: 'Suspend (disconnects the session; logins are refused)',
     tags: ['subscribers'],
+    audit: 'subscriber.suspend',
     permission: 'subscribers.write',
     params: idParams,
     body: z.object({ reason: z.string().trim().min(1).max(60).optional() }),
@@ -527,6 +534,7 @@ export class SubscribersController {
   @Endpoint({
     summary: 'Lift a suspension',
     tags: ['subscribers'],
+    audit: 'subscriber.activate',
     permission: 'subscribers.write',
     params: idParams,
     response: subscriberView,
@@ -539,6 +547,7 @@ export class SubscribersController {
   @Endpoint({
     summary: 'Delete (disconnects; username and static IP become free; history kept)',
     tags: ['subscribers'],
+    audit: 'subscriber.delete',
     permission: 'subscribers.write',
     params: idParams,
     response: okResponse,
@@ -553,6 +562,7 @@ export class SubscribersController {
   @Endpoint({
     summary: 'Disconnect the live session',
     tags: ['subscribers'],
+    audit: 'subscriber.kick',
     permission: 'subscribers.kick',
     params: idParams,
     response: okResponse,
@@ -566,6 +576,7 @@ export class SubscribersController {
   @Endpoint({
     summary: 'Show the PPPoE password',
     tags: ['subscribers'],
+    audit: 'subscriber.password_reveal',
     permission: 'subscribers.password.reveal',
     params: idParams,
     response: z.object({ pppoePassword: z.string() }),

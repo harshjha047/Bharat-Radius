@@ -263,3 +263,18 @@ export interface ImportRowDoc {
   error?: string;
   createdAt: Date;
 }
+
+/** Append-only (BACKEND_SCHEMA §4.6). Only changed fields are kept; secrets are replaced before writing. */
+export interface AuditLogDoc {
+  _id: ObjectId;
+  tenantId: ObjectId | null;
+  actor: { id: string; type: string; name: string };
+  action: string;
+  entity: { type: string; id: string | null };
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  ip?: string;
+  userAgent?: string;
+  requestId?: string;
+  createdAt: Date;
+}

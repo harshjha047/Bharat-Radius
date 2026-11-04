@@ -3,6 +3,7 @@ import { ObjectId, type Filter } from 'mongodb';
 import { z } from 'zod';
 import { ScopedDb, type MongoHandle, type TenantDoc } from '@isp/db-mongo';
 import { PLATFORM_SLUG } from '../auth/auth.service.js';
+import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
 import { SessionUsers } from '../auth/session-users.js';
 import { AppError, notFound } from '../errors.js';
@@ -173,6 +174,7 @@ export class TenantsService {
       await this.col(ctx).insertOne(doc, { session });
       await this.outbox.enqueue(session, doc._id, 'tenant', doc._id);
     });
+    noteChange({ after: doc, entityId: doc._id, tenantId: doc._id });
     return toView(doc);
   }
 
@@ -201,6 +203,7 @@ export class TenantsService {
         { returnDocument: 'after', session },
       );
       if (!u) throw notFound('Tenant');
+      noteChange({ before: current, after: u, entityId: id, tenantId: id });
       if (b.radius || b.status || b.name) await this.outbox.enqueue(session, id, 'tenant', id);
       return u;
     });
@@ -235,6 +238,7 @@ export class TenantsController {
   @Endpoint({
     summary: 'Edit own ISP settings (RADIUS settings sync to routers)',
     tags: ['tenants'],
+    audit: 'tenant.update',
     permission: 'tenant.settings',
     body: ownUpdate,
     response: tenantView,
@@ -261,6 +265,7 @@ export class TenantsController {
   @Endpoint({
     summary: 'Create an ISP (super-admin)',
     tags: ['tenants'],
+    audit: 'tenant.create',
     permission: 'tenant.settings',
     platformOnly: true,
     body: createBody,
@@ -287,6 +292,7 @@ export class TenantsController {
   @Endpoint({
     summary: 'Edit or suspend an ISP (super-admin)',
     tags: ['tenants'],
+    audit: 'tenant.update',
     permission: 'tenant.settings',
     platformOnly: true,
     params: idParams,

@@ -14,6 +14,7 @@ import {
   type SubscriberDoc,
   type TenantDoc,
 } from '@isp/db-mongo';
+import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
@@ -439,6 +440,7 @@ export class SubscriberExcel {
       createdAt: now,
     };
     await this.mongo.db.collection<ImportBatchDoc>('import_batches').insertOne(batch);
+    noteChange({ after: { fileName, counts, skippedInvalid: issues.length }, entityId: batch._id });
     const rows = this.mongo.db.collection<ImportRowDoc>('import_rows');
     for (let i = 0; i < valid.length; i += 1000) {
       await rows.insertMany(
@@ -548,6 +550,7 @@ export class SubscriberExcel {
         istDay(s.createdAt),
       ]);
     }
+    noteChange({ after: { rows: n, filter: q } });
     return writeXlsxFile(data, { sheet: 'Subscribers', stickyRowsCount: 1 }).toBuffer();
   }
 }
@@ -583,6 +586,7 @@ export class SubscriberExcelController {
     summary:
       'Import subscribers from Excel (dryRun=true checks only; invalid rows reject the file unless skipInvalid)',
     tags: ['import'],
+    audit: 'import.create',
     permission: 'imports.run',
     query: importQuery,
     response: batchView,
@@ -639,6 +643,7 @@ export class SubscriberExcelController {
   @Endpoint({
     summary: 'Export subscribers to Excel (no passwords; at most 100,000 rows)',
     tags: ['import'],
+    audit: 'subscriber.export',
     permission: 'subscribers.export',
     query: exportQuery,
   })

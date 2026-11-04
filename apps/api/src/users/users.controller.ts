@@ -69,6 +69,7 @@ export class UsersController {
   @Endpoint({
     summary: 'Create a staff account',
     tags: ['users'],
+    audit: 'user.create',
     permission: 'users.write',
     body: createBody,
     response: userView,
@@ -93,6 +94,7 @@ export class UsersController {
   @Endpoint({
     summary: 'Edit a staff account (disabling or changing roles signs it out)',
     tags: ['users'],
+    audit: 'user.update',
     permission: 'users.write',
     params: idParams,
     body: updateBody,
@@ -107,6 +109,7 @@ export class UsersController {
   @Endpoint({
     summary: 'Clear a sign-in lock',
     tags: ['users'],
+    audit: 'user.unlock',
     permission: 'users.write',
     params: idParams,
     response: userView,
@@ -120,6 +123,7 @@ export class UsersController {
   @Endpoint({
     summary: 'Set a new password for a staff account (signs it out)',
     tags: ['users'],
+    audit: 'user.password_reset',
     permission: 'users.write',
     params: idParams,
     body: z.object({ password: passwordSchema }),
@@ -134,6 +138,7 @@ export class UsersController {
   @Endpoint({
     summary: 'Remove two-factor sign-in (lost phone)',
     tags: ['users'],
+    audit: 'user.2fa_reset',
     permission: 'users.write',
     params: idParams,
     response: userView,
@@ -162,6 +167,7 @@ export class RolesController {
   @Endpoint({
     summary: 'Create a custom role',
     tags: ['roles'],
+    audit: 'role.create',
     permission: 'roles.write',
     body: roleBody,
     response: roleView,
@@ -174,6 +180,7 @@ export class RolesController {
   @Endpoint({
     summary: 'Edit a custom role',
     tags: ['roles'],
+    audit: 'role.update',
     permission: 'roles.write',
     params: idParams,
     body: roleUpdate,
@@ -187,6 +194,7 @@ export class RolesController {
   @Endpoint({
     summary: 'Delete an unused custom role',
     tags: ['roles'],
+    audit: 'role.delete',
     permission: 'roles.write',
     params: idParams,
     response: okResponse,

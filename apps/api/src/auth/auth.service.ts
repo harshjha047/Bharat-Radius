@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ObjectId, type Filter } from 'mongodb';
 import { FieldCrypto, newTotpSecret, otpauthUrl, verifyTotp } from '@isp/shared';
 import type { MongoHandle, RefreshTokenDoc, TenantDoc, UserDoc } from '@isp/db-mongo';
+import { AuditService, recordSignIn } from '../audit/audit.js';
 import { CONFIG, type Config } from '../config.js';
 import { AppError, tooMany, unauthenticated } from '../errors.js';
 import { MONGO } from '../infra/infra.module.js';
@@ -51,6 +52,7 @@ export class AuthService {
     @Inject(RateLimiter) private readonly limiter: RateLimiter,
     @Inject(SessionUsers) private readonly sessions: SessionUsers,
     @Inject(FieldCrypto) private readonly crypto: FieldCrypto,
+    @Inject(AuditService) private readonly audit: AuditService,
   ) {}
 
   private get users() {
@@ -76,10 +78,17 @@ export class AuthService {
     return byHost ? byHost._id : null;
   }
 
-  private async recordFailure(user: UserDoc | null, ipKey: string): Promise<void> {
+  private note(user: UserDoc, action: 'auth.login' | 'auth.login_failed' | 'auth.locked', meta: ClientMeta) {
+    return recordSignIn(this.audit, user, action, meta, (e) =>
+      this.log.error(`audit write failed: ${String(e)}`),
+    );
+  }
+
+  private async recordFailure(user: UserDoc | null, meta: ClientMeta): Promise<void> {
     const window = this.config.LOGIN_WINDOW_SECS;
-    await this.limiter.hit(ipKey, window);
+    await this.limiter.hit(`login:ip:${meta.ip}`, window);
     if (!user) return;
+    await this.note(user, 'auth.login_failed', meta);
     const after = await this.users.findOneAndUpdate(
       { _id: user._id },
       { $inc: { failedLogins: 1 } },
@@ -93,6 +102,7 @@ export class AuthService {
         },
       );
       this.log.warn(`account locked after repeated failures: user ${user._id.toHexString()}`);
+      await this.note(user, 'auth.locked', meta);
     }
   }
 
@@ -115,7 +125,7 @@ export class AuthService {
     }
     const ok = await verifyPassword(user?.passwordHash, input.password);
     if (!ok || !user || user.type === 'customer') {
-      await this.recordFailure(user, ipKey);
+      await this.recordFailure(user, meta);
       throw invalidCredentials();
     }
 
@@ -133,6 +143,7 @@ export class AuthService {
       return { kind: 'mfa', challenge: token };
     }
     const mfa = su.requireMfa ? 'enroll' : 'ok';
+    await this.note(user, 'auth.login', meta);
     return { kind: 'session', session: await this.startSession(user, mfa, meta), userId: user._id, mfa };
   }
 
@@ -154,9 +165,10 @@ export class AuthService {
     }
     const step = await this.consumeTotp(user, user.totp.secret, code);
     if (step === null) {
-      await this.recordFailure(user, `login:ip:${meta.ip}`);
+      await this.recordFailure(user, meta);
       throw new AppError(401, 'MFA_INVALID', 'Wrong or already used code');
     }
+    await this.note(user, 'auth.login', meta);
     return { session: await this.startSession(user, 'ok', meta), userId: user._id };
   }
 
