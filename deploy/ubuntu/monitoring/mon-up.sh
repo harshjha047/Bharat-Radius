@@ -35,6 +35,8 @@ docker run --rm --entrypoint amtool -v "$MON:/etc/alertmanager:ro" prom/alertman
 
 log "starting"
 "${COMPOSE[@]}" up -d --wait --remove-orphans
+# Single-file bind mounts keep the old inode when a secret file is replaced: restart to pick up a new token.
+docker restart isp-alertmanager >/dev/null
 docker exec isp-prometheus wget -qO- --post-data= http://127.0.0.1:9090/-/reload >/dev/null 2>&1 || true
 
 sleep 20
