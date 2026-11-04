@@ -36,6 +36,7 @@ export async function startHarness(over: Record<string, string> = {}): Promise<H
     PUBLIC_BASE_URL: ORIGIN,
     SESSION_CACHE_TTL_MS: '0',
     LOG_LEVEL: 'fatal',
+    ...(process.env.RADIUS_DB_URL ? { RADIUS_DB_URL: process.env.RADIUS_DB_URL } : {}),
     ...over,
   });
   const { client, db } = await connectMongo(config.MONGO_URL, 5);

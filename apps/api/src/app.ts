@@ -24,6 +24,7 @@ import { createLogger, NestPinoLogger } from './logger.js';
 import { NasController, NasService } from './network/nas.js';
 import { PlansController, PlansService } from './network/plans.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
+import { SessionsController, SessionsService } from './sessions/sessions.js';
 import { SubscribersController, SubscribersService } from './subscribers/subscribers.js';
 import { Outbox } from './sync/outbox.js';
 import { RolesController, UsersController } from './users/users.controller.js';
@@ -60,6 +61,7 @@ class AppModule {
         NasController,
         PlansController,
         SubscribersController,
+        SessionsController,
       ],
       providers: [
         Tokens,
@@ -73,6 +75,7 @@ class AppModule {
         NasService,
         PlansService,
         SubscribersService,
+        SessionsService,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: ValidationInterceptor },
         { provide: APP_FILTER, useClass: ErrorFilter },
