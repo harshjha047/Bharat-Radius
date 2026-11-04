@@ -1,0 +1,231 @@
+import type {
+  AggregateOptions,
+  Collection,
+  CountDocumentsOptions,
+  Db,
+  DeleteResult,
+  Document,
+  Filter,
+  FindCursor,
+  FindOneAndUpdateOptions,
+  FindOptions,
+  InsertManyResult,
+  InsertOneResult,
+  ObjectId,
+  OptionalUnlessRequiredId,
+  UpdateFilter,
+  UpdateOptions,
+  UpdateResult,
+  WithId,
+} from 'mongodb';
+
+/** Who a request acts for (TRD §8.2). Built once per request from the authenticated user, never from input. */
+export type Scope =
+  | { kind: 'platform' }
+  | { kind: 'tenant'; tenantId: ObjectId }
+  | { kind: 'branch'; tenantId: ObjectId; resellerId: ObjectId };
+
+type BranchRule =
+  /** Reseller sees rows it owns or that sit anywhere below it. */
+  | { ownerField: string; ancestorsField?: string }
+  /** Reseller may read every row of its tenant (e.g. plans), never write. */
+  | 'tenant-read'
+  | 'deny';
+
+export interface CollectionPolicy {
+  tenantField: string;
+  /** Rows with tenantField = null (built-in records) are readable by every tenant, writable only by the platform. */
+  sharedGlobal?: boolean;
+  branch: BranchRule;
+}
+
+export const POLICIES: Record<string, CollectionPolicy> = {
+  tenants: { tenantField: '_id', branch: 'tenant-read' },
+  users: { tenantField: 'tenantId', branch: { ownerField: 'resellerId' } },
+  roles: { tenantField: 'tenantId', sharedGlobal: true, branch: 'tenant-read' },
+  nas_devices: { tenantField: 'tenantId', branch: 'deny' },
+  plans: { tenantField: 'tenantId', branch: 'tenant-read' },
+  subscribers: { tenantField: 'tenantId', branch: { ownerField: 'resellerId', ancestorsField: 'ancestors' } },
+  resellers: { tenantField: 'tenantId', branch: { ownerField: '_id', ancestorsField: 'ancestors' } },
+  outbox: { tenantField: 'tenantId', branch: 'deny' },
+  coa_log: { tenantField: 'tenantId', branch: 'deny' },
+  audit_logs: { tenantField: 'tenantId', branch: 'deny' },
+};
+
+export class ScopeViolation extends Error {
+  override name = 'ScopeViolation';
+}
+
+/** Stages that read other collections or write output; they would bypass the injected $match. */
+const UNSAFE_STAGES = new Set(['$lookup', '$graphLookup', '$unionWith', '$out', '$merge']);
+
+function assertSafePipeline(node: unknown): void {
+  if (Array.isArray(node)) return node.forEach(assertSafePipeline);
+  if (node && typeof node === 'object') {
+    for (const [k, v] of Object.entries(node)) {
+      if (UNSAFE_STAGES.has(k)) throw new ScopeViolation(`${k} is not allowed in a scoped aggregate`);
+      assertSafePipeline(v);
+    }
+  }
+}
+
+function touchesField(update: Document, field: string): boolean {
+  for (const [op, spec] of Object.entries(update)) {
+    if (!op.startsWith('$') || !spec || typeof spec !== 'object') continue;
+    for (const [path, val] of Object.entries(spec as Document)) {
+      if (path === field || path.startsWith(`${field}.`)) return true;
+      if (op === '$rename' && (val === field || String(val).startsWith(`${field}.`))) return true;
+    }
+  }
+  return false;
+}
+
+const and = <T>(a: Filter<T>, b: Filter<T> | null): Filter<T> =>
+  b === null ? a : Object.keys(a).length === 0 ? b : ({ $and: [a, b] } as Filter<T>);
+
+export class ScopedCollection<T extends Document> {
+  constructor(
+    readonly raw: Collection<T>,
+    private readonly policy: CollectionPolicy,
+    readonly scope: Scope,
+  ) {}
+
+  private branchFilter(rule: Exclude<BranchRule, 'tenant-read' | 'deny'>, resellerId: ObjectId): Document {
+    const own = { [rule.ownerField]: resellerId };
+    return rule.ancestorsField ? { $or: [own, { [rule.ancestorsField]: resellerId }] } : own;
+  }
+
+  /** Filter every read gets; null = unrestricted (platform). */
+  readScope(): Filter<T> | null {
+    const s = this.scope;
+    if (s.kind === 'platform') return null;
+    const { tenantField, sharedGlobal, branch } = this.policy;
+    const tenant: Document = sharedGlobal
+      ? { [tenantField]: { $in: [s.tenantId, null] } }
+      : { [tenantField]: s.tenantId };
+    if (s.kind === 'tenant') return tenant as Filter<T>;
+    if (branch === 'deny') throw new ScopeViolation(`${this.raw.collectionName} is not visible to resellers`);
+    if (branch === 'tenant-read') return tenant as Filter<T>;
+    return { $and: [tenant, this.branchFilter(branch, s.resellerId)] } as Filter<T>;
+  }
+
+  /** Filter every write gets: never shared global rows, never tenant-wide rows for a reseller. */
+  writeScope(): Filter<T> | null {
+    const s = this.scope;
+    if (s.kind === 'platform') return null;
+    const { tenantField, branch } = this.policy;
+    const tenant: Document = { [tenantField]: s.tenantId };
+    if (s.kind === 'tenant') return tenant as Filter<T>;
+    if (branch === 'deny' || branch === 'tenant-read') {
+      throw new ScopeViolation(`${this.raw.collectionName} is read-only for resellers`);
+    }
+    return { $and: [tenant, this.branchFilter(branch, s.resellerId)] } as Filter<T>;
+  }
+
+  private stampInsert(doc: Document): Document {
+    const s = this.scope;
+    if (s.kind === 'platform') return doc;
+    const { tenantField, branch } = this.policy;
+    if (tenantField === '_id')
+      throw new ScopeViolation(`${this.raw.collectionName} rows are created by the platform`);
+    const given = doc[tenantField] as ObjectId | null | undefined;
+    if (given != null && !given.equals(s.tenantId)) throw new ScopeViolation('tenant mismatch on insert');
+    if (s.kind === 'branch') {
+      if (branch === 'deny' || branch === 'tenant-read') {
+        throw new ScopeViolation(`${this.raw.collectionName} is read-only for resellers`);
+      }
+      const owner = doc[branch.ownerField] as ObjectId | undefined;
+      const anc = branch.ancestorsField ? (doc[branch.ancestorsField] as ObjectId[] | undefined) : undefined;
+      const inBranch = owner?.equals(s.resellerId) || anc?.some((a) => a.equals(s.resellerId));
+      if (!inBranch) throw new ScopeViolation('insert outside the reseller branch');
+    }
+    return { ...doc, [tenantField]: s.tenantId };
+  }
+
+  private checkUpdate(update: UpdateFilter<T> | Document[]): void {
+    if (this.scope.kind === 'platform') return;
+    if (Array.isArray(update))
+      throw new ScopeViolation('pipeline updates are not allowed in a scoped collection');
+    if (touchesField(update as Document, this.policy.tenantField)) {
+      throw new ScopeViolation(`${this.policy.tenantField} cannot be changed`);
+    }
+  }
+
+  private checkUpsert(opts?: { upsert?: boolean }): void {
+    if (
+      opts?.upsert &&
+      this.scope.kind !== 'platform' &&
+      (this.scope.kind === 'branch' || this.policy.sharedGlobal)
+    ) {
+      throw new ScopeViolation('upsert is only allowed for tenant-owned collections at tenant scope');
+    }
+  }
+
+  find(filter: Filter<T> = {}, opts?: FindOptions): FindCursor<WithId<T>> {
+    return this.raw.find(and(filter, this.readScope()), opts);
+  }
+
+  findOne(filter: Filter<T> = {}, opts?: FindOptions): Promise<WithId<T> | null> {
+    return this.raw.findOne(and(filter, this.readScope()), opts);
+  }
+
+  countDocuments(filter: Filter<T> = {}, opts?: CountDocumentsOptions): Promise<number> {
+    return this.raw.countDocuments(and(filter, this.readScope()), opts);
+  }
+
+  aggregate<R extends Document = Document>(pipeline: Document[], opts?: AggregateOptions) {
+    assertSafePipeline(pipeline);
+    const scope = this.readScope();
+    return this.raw.aggregate<R>(scope ? [{ $match: scope }, ...pipeline] : pipeline, opts);
+  }
+
+  insertOne(doc: OptionalUnlessRequiredId<T>): Promise<InsertOneResult<T>> {
+    return this.raw.insertOne(this.stampInsert(doc) as OptionalUnlessRequiredId<T>);
+  }
+
+  insertMany(docs: OptionalUnlessRequiredId<T>[]): Promise<InsertManyResult<T>> {
+    return this.raw.insertMany(docs.map((d) => this.stampInsert(d) as OptionalUnlessRequiredId<T>));
+  }
+
+  updateOne(filter: Filter<T>, update: UpdateFilter<T>, opts?: UpdateOptions): Promise<UpdateResult<T>> {
+    this.checkUpdate(update);
+    this.checkUpsert(opts);
+    return this.raw.updateOne(and(filter, this.writeScope()), update, opts);
+  }
+
+  updateMany(filter: Filter<T>, update: UpdateFilter<T>, opts?: UpdateOptions): Promise<UpdateResult<T>> {
+    this.checkUpdate(update);
+    this.checkUpsert(opts);
+    return this.raw.updateMany(and(filter, this.writeScope()), update, opts);
+  }
+
+  findOneAndUpdate(
+    filter: Filter<T>,
+    update: UpdateFilter<T>,
+    opts: FindOneAndUpdateOptions = {},
+  ): Promise<WithId<T> | null> {
+    this.checkUpdate(update);
+    this.checkUpsert(opts);
+    return this.raw.findOneAndUpdate(and(filter, this.writeScope()), update, {
+      ...opts,
+      includeResultMetadata: false,
+    });
+  }
+
+  deleteOne(filter: Filter<T>): Promise<DeleteResult> {
+    return this.raw.deleteOne(and(filter, this.writeScope()));
+  }
+}
+
+export class ScopedDb {
+  constructor(
+    readonly db: Db,
+    readonly scope: Scope,
+  ) {}
+
+  collection<T extends Document>(name: string): ScopedCollection<T> {
+    const policy = POLICIES[name];
+    if (!policy) throw new ScopeViolation(`no scope policy for collection ${name}`);
+    return new ScopedCollection<T>(this.db.collection<T>(name), policy, this.scope);
+  }
+}

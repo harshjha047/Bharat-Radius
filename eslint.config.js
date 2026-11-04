@@ -11,7 +11,11 @@ export default tseslint.config(
       'no-console': ['error', { allow: ['error', 'warn'] }],
       // Buffer/array indexing under noUncheckedIndexedAccess after explicit bounds checks.
       '@typescript-eslint/no-non-null-assertion': 'off',
+      // NestJS modules are decorated classes with only static forRoot().
+      '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
     },
   },
+  // Integration tests read loosely typed JSON responses.
+  { files: ['**/test/**/*.ts'], rules: { '@typescript-eslint/no-explicit-any': 'off' } },
   { files: ['**/cli.ts', '**/scripts/**'], rules: { 'no-console': 'off' } },
 );
