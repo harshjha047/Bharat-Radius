@@ -71,9 +71,9 @@ Another administrator can do this in the panel (Staff & roles → ⋯ → Set ne
 in, on the VPS:
 
 ```bash
-cd ~/isp-platform
-docker compose -p isp -f deploy/ubuntu/app/docker-compose.yml run --rm --no-deps api \
-  node dist/cli.js reset-password --tenant bharat --email info@thediv.in            # add --reset-2fa for a lost phone
+cd ~/isp-platform/deploy/ubuntu/app
+sudo docker compose run --rm --no-deps -it api node dist/cli.js reset-password \
+  --tenant bharat --email info@thediv.in                                            # add --reset-2fa for a lost phone
 ```
 
 It prompts for the new password (not shown), unlocks the account, signs it out everywhere and writes the audit log.
