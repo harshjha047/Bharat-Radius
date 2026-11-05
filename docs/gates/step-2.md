@@ -19,7 +19,7 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
 | 2.10 Audit log | ✅ code + tests | `audit_logs` (migration 005, append-only, no API to change it): every signed-in change and every secret/bulk reveal (router secret, PPPoE password, export) declares an action, enforced by a unit test over the route table; services note before/after and only changed fields are kept, secrets shown as `[redacted]`; sign-in, failed sign-in (known account) and lock recorded with IP; `GET /audit` (`audit.view`) filters by entity, person, action prefix, time, newest first |
 | 2.11 Admin web app | ✅ code + tests | `apps/web` (Next.js 16 App Router, Tailwind 4, shadcn-style Radix components, TanStack Query, react-hook-form + zod, Recharts on demand). Screens: sign-in (password → TOTP, forced 2FA enrolment), dashboard, subscribers (search, filters, create/edit/suspend/activate/kick/delete, password reveal, sessions, login log, usage + cycle, router actions, history), online sessions + "who had this IP", plans, routers (secret once, reveal/rotate), Excel import (check first, progress, error sheet) and export, staff & roles, audit log, ISP settings, my account, super-admin ISPs. Typed client generated from the API's OpenAPI (CI fails on drift); one silent refresh on 401; navigation and actions follow permissions; tables become cards under 640 px; WCAG 2.1 AA checked with axe. Container `isp-web` (≤ 0.5 CPU / 256 MB), Caddy sends `/api/*` to the API and the rest to the panel. CI drives Chromium through the real API and MongoDB |
 | 2.12 Scale test data | ✅ on staging | `cli.js seed-scale` (same document builder as API/import, synced through the outbox): 100,000 subscribers in 66 s (≈1,500/s); `--bench` times the panel's own search; `--remove` cleans up both databases |
-| 2.13 Gate review | 🟡 8 of 9 passed | See "Gate" below; item 6 (roles on staging) open |
+| 2.13 Gate review | ✅ 9 of 9 passed | See "Gate" below |
 
 ## Decisions and schema changes (BACKEND_SCHEMA to update)
 
@@ -96,7 +96,7 @@ Run 5–6 Nov 2026 on staging (`new.bharatradius.com`, staging RADIUS ports 1181
 | 3 | A router added in the panel is accepted by FreeRADIUS within 30 s | ✅ | `Lab CHR` 10.99.0.2 added in the panel, shown Active after sync; its first requests were answered (tcpdump) and the first correct login accepted. The add-to-accept time was not timed separately; the NAS watcher's ≤ 30 s reload was measured in Step 1 |
 | 4 | Data cap applies the FUP speed; it resets at the next cycle | ✅ | Lab: 17.1 MB of a 10 MB cap → FUP at the next roll-up, Disconnect (FUP) → Done 14 ms, reconnect at 1M/1M. Reset: worker integration test runs the cap check as of the 1st of next month → FUP lifted in RADIUS (PR #20) |
 | 5 | Excel import of 2,000 subscribers loads every valid row and lists each bad row with the reason | ✅ | 2,000 rows → 1,975 valid created, 0 failed; 25 deliberate errors (phone, PIN, plan, duplicate username, MAC) listed with row, column and reason; error sheet downloadable |
-| 6 | Each role tested: staff without a permission cannot open or change restricted pages | 🟡 | CI browser test: Support sees no Staff/Audit/Settings/Import, `/admin/users` → "Your role does not allow this", no Add router. Staging check by the owner: open |
+| 6 | Each role tested: staff without a permission cannot open or change restricted pages | ✅ | CI browser test: Support sees no Staff/Audit/Settings/Import, `/admin/users` → "Your role does not allow this", no Add router. Staging (6 Nov, Support user "test"): menu shows only Dashboard, Subscribers, Online now, Plans, Routers; `/admin/users` → "Your role does not allow this"; Routers has no Add router; subscriber ⋯ menu has no "Show PPPoE password" |
 | 7 | Every change shows in the audit log with who made it and when | ✅ | History tab: create, update (plan names before → after), kick, suspend/activate, password reveal (no password), with name and time |
 | 8 | With 100,000 test subscribers, search answers in under 1 second | ✅ | 101,976 subscribers on the 4 vCPU VPS: exact username / customer no. / phone 4 ms, phone prefix 9 ms, first page 23 ms, name word 501 ms (slowest) → PASS |
 | 9 | Logins keep working while the app stack is stopped | ✅ | `isp-web`, `isp-api`, `isp-workers`, `isp-mongo` stopped; lab customer dialled and was accepted |
@@ -110,6 +110,8 @@ Run 5–6 Nov 2026 on staging (`new.bharatradius.com`, staging RADIUS ports 1181
 - Earlier "Not online" Router actions on 5 Nov 18:20–18:26 coincided with a stray second test dialer (fixed in
   `chr-lab.sh`); all later actions were "Done". Watch for it in Step 3 testing.
 - Small wording: PIN-code error shows the raw pattern; "Fup" → "FUP" in Router actions; "1 days" → "1 day".
+- Support can delete subscribers (Delete follows `subscribers.write`; soft delete, history kept). If staff should
+  not delete, split out a `subscribers.delete` permission in Step 3.
 - Step 1 items still open: NetForChoice ports (UDP 1812/1813/11812/11813, TCP 8089) and CoA on RouterOS v6.
 
 ## Tests
