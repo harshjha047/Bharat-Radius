@@ -58,7 +58,7 @@ ufw_rule() {
 # ------------------------------------------------------------------ CHR VM
 install_deps() {
   local need=()
-  for p in qemu-system-x86:qemu-system-x86_64 socat:socat expect:expect ppp:pppd unzip:unzip; do
+  for p in qemu-system-x86:qemu-system-x86_64 socat:socat ppp:pppd unzip:unzip; do
     command -v "${p##*:}" >/dev/null || need+=("${p%%:*}")
   done
   if ((${#need[@]})); then
@@ -114,122 +114,84 @@ UNIT
   systemctl daemon-reload
 }
 
-# Runs one RouterOS command list on the serial console; fails on any RouterOS error.
-ros() {
-  local cmds="$1" pw exp rc=0
-  pw="$(cat "$LIB/admin_pw")"
-  exp="$(mktemp)"
-  cat >"$exp" <<'EXP'
-set timeout 240
-log_user 0
-log_file -a $env(CONSOLE_LOG)
-# RouterOS's serial console drops characters when typed at full speed: ~200 chars/s, and settle after each prompt.
-set send_slow {4 0.02}
-set pw $env(ADMIN_PW)
-set cur ""
-# RouterOS redraws its prompts while typing and on Enter, so a prompt can match more than once. Answer each prompt once
-# per appearance; the password goes once per login attempt, and again only after an explicit "Login failed".
-set last ""
-set pwsent 0
-proc answer {what text} {
-  global last
-  if {$last eq $what} return
-  set last $what
-  send -s "$text\r"
-}
-spawn socat -,raw,echo=0 UNIX-CONNECT:$env(SOCK)
-# Let socat put its terminal in raw mode first, or Ctrl+C would interrupt socat itself instead of reaching RouterOS.
-sleep 1
-# Ctrl+C first: discards anything a previous session left half-typed.
-send "\003\r"
-expect {
-  -re {Login failed} { set last ""; set pwsent 0; exp_continue }
-  # +c no colours, +t no terminal detection, +e "dumb" terminal (no line editing or redraws), 200 columns wide:
-  # a prompt then only appears once a command has really finished.
-  -re {Login: ?$} { answer login admin+cte200w; exp_continue }
-  -re {Password: ?$} {
-    if {!$pwsent} { set pwsent 1; set last pass; send -s "$cur\r"; set cur $pw }
-    exp_continue
-  }
-  -re {software license.*\]: ?$} { answer license n; exp_continue }
-  -re {repeat new password> ?$} { answer repeat $pw; exp_continue }
-  -re {new password> ?$} { answer new $pw; exp_continue }
-  -re {\] > } {}
-  timeout { puts stderr "no RouterOS prompt on the console (transcript: $env(CONSOLE_LOG))"; exit 2 }
-}
-# Clear anything left on the command line (Ctrl+C) before the first command.
-sleep 1
-send "\003"
-expect -re {\] > }
-sleep 0.5
-foreach c [split $env(CMDS) "\n"] {
-  if {[string trim $c] eq ""} continue
-  puts "  > $c"
-  send -s "$c\r"
-  expect {
-    -re {(failure|Script Error|syntax error|expected end of command|bad command name|input does not match|no such item|ambiguous value)[^\r\n]*} {
-      puts stderr "RouterOS: $expect_out(0,string)"
-      puts stderr "console: [string range [regsub -all {\x1b\[[0-9;]*[A-Za-z]} $expect_out(buffer) {}] end-300 end]"
-      puts stderr "full transcript: $env(CONSOLE_LOG)"
-      exit 3 }
-    -re {isp-radius: done} { puts "  setup.rsc finished"; exp_continue }
-    -re {\] > } { sleep 0.5 }
-    timeout { puts stderr "timed out after: $c"; exit 2 }
-  }
-}
-send "/quit\r"
-exit 0
-EXP
-  ADMIN_PW="$pw" SOCK="$RUN/console.sock" CMDS="$cmds" CONSOLE_LOG="$LIB/console.log" expect -f "$exp" || rc=$?
-  rm -f "$exp"
-  return "$rc"
-}
-
-wait_console() {
-  for _ in $(seq 1 60); do [[ -S $RUN/console.sock ]] && return 0; sleep 1; done
-  die "CHR console did not appear; see: journalctl -u $UNIT -n 50"
-}
-
-configure_chr() {
+# First-boot provisioning: RouterOS runs /rw/autorun.scr from its own disk once, at boot, then deletes it. Writing it
+# into the image before the first start avoids driving the serial console (whose line editor is unreliable to script).
+provision_disk() {
   [[ -f $LIB/configured ]] && return 0
   local secret
   read -rsp "RADIUS secret of router $CHR_IP (from the panel, Routers → Show RADIUS secret): " secret; echo
   [[ $secret =~ ^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$ ]] || die "that does not look like a panel RADIUS secret"
-  [[ -f $LIB/admin_pw ]] || (umask 077; openssl rand -hex 12 >"$LIB/admin_pw")
   [[ -f $REPO/mikrotik/setup.rsc ]] || die "mikrotik/setup.rsc not found (run from the repository)"
+  (umask 077; openssl rand -hex 12 >"$LIB/admin_pw")
 
-  log "booting CHR (first boot takes ~30 s)"
-  sleep 20
-  log "base config: address, PPPoE server on ether2, test pool"
-  ros "/system identity set name=isp-lab-chr
+  local script
+  script="$(mktemp)"
+  {
+    cat <<RSC
+:delay 5s
+/system identity set name=isp-lab-chr
+/user set admin password="$(cat "$LIB/admin_pw")"
 /ip address add address=$CHR_IP/24 interface=ether1
 /ip route add gateway=$HOST_IP
 /ip pool add name=lab-pool ranges=100.64.50.10-100.64.50.200
 /ppp profile set default local-address=100.64.50.1 remote-address=lab-pool
-/interface pppoe-server server add service-name=lab interface=ether2 default-profile=default one-session-per-host=yes authentication=pap,chap,mschap2 disabled=no"
+/interface pppoe-server server add service-name=lab interface=ether2 default-profile=default one-session-per-host=yes authentication=pap,chap,mschap2 disabled=no
+/ip service set www disabled=no address=$HOST_IP/32
+RSC
+    # The repo's setup.rsc with lab values: staging ports, local RADIUS/app server, CHR as source address.
+    sed -e "s|^:local radiusIp \".*\"|:local radiusIp \"$HOST_IP\"|" \
+      -e "s|^:local radiusSecret \".*\"|:local radiusSecret \"$secret\"|" \
+      -e "s|^:local authPort .*|:local authPort 11812|" \
+      -e "s|^:local acctPort .*|:local acctPort 11813|" \
+      -e "s|^:local srcAddress \".*\"|:local srcAddress \"$CHR_IP\"|" \
+      -e "s|^:local appIp \".*\"|:local appIp \"$HOST_IP\"|" \
+      "$REPO/mikrotik/setup.rsc"
+  } >"$script"
+  grep -q ":local radiusSecret \"$secret\"" "$script" || { rm -f "$script"; die "could not set values in setup.rsc"; }
 
-  # The repo's setup.rsc with lab values: staging ports, local RADIUS/app server, CHR as source address.
-  local tmp
-  tmp="$(mktemp -d)"
-  sed -e "s|^:local radiusIp \".*\"|:local radiusIp \"$HOST_IP\"|" \
-    -e "s|^:local radiusSecret \".*\"|:local radiusSecret \"$secret\"|" \
-    -e "s|^:local authPort .*|:local authPort 11812|" \
-    -e "s|^:local acctPort .*|:local acctPort 11813|" \
-    -e "s|^:local srcAddress \".*\"|:local srcAddress \"$CHR_IP\"|" \
-    -e "s|^:local appIp \".*\"|:local appIp \"$HOST_IP\"|" \
-    "$REPO/mikrotik/setup.rsc" >"$tmp/isp-setup.rsc"
-  grep -q ":local radiusSecret \"$secret\"" "$tmp/isp-setup.rsc" || die "could not set values in setup.rsc"
-  # One-off file server on the lab bridge only; stops by itself after 5 minutes at the latest.
-  timeout 300 python3 -m http.server 18080 --bind "$HOST_IP" --directory "$tmp" >/dev/null 2>&1 &
-  local http=$! rc=0
-  sleep 1
-  log "applying mikrotik/setup.rsc on the CHR"
-  ros "/tool fetch url=\"http://$HOST_IP:18080/isp-setup.rsc\" dst-path=isp-setup.rsc
-/import file-name=isp-setup.rsc
-/file remove isp-setup.rsc" || rc=$?
-  kill "$http" 2>/dev/null || true
-  rm -rf "$tmp"
-  ((rc == 0)) || die "setup.rsc failed on the CHR (see the RouterOS message above)"
+  log "writing first-boot script into the CHR disk"
+  # Mount each partition at its byte offset (no partition devices or udev needed); RouterOS keeps /rw on one of them.
+  local start mnt rc=1
+  mnt="$(mktemp -d)"
+  while read -r start; do
+    if mount -o "loop,offset=$((start * 512))" "$LIB/chr.img" "$mnt" 2>/dev/null; then
+      if [[ -d $mnt/rw ]]; then
+        install -m 0644 "$script" "$mnt/rw/autorun.scr" && rc=0
+        umount "$mnt"
+        break
+      fi
+      umount "$mnt"
+    fi
+  done < <(partx -g -o START "$LIB/chr.img")
+  rmdir "$mnt"
+  rm -f "$script"
+  ((rc == 0)) || die "could not find RouterOS's rw partition in the CHR image"
+}
+
+# Waits for the CHR to come up with our address, then reads back what autorun.scr configured.
+verify_chr() {
+  [[ -f $LIB/configured ]] && return 0
+  log "waiting for the CHR to boot and apply the first-boot script (up to 2 min)"
+  local ok=0
+  for _ in $(seq 1 120); do
+    if ping -c1 -W1 "$CHR_IP" >/dev/null 2>&1; then ok=1; break; fi
+    sleep 1
+  done
+  ((ok)) || die "CHR did not answer on $CHR_IP; the first-boot script failed. Look: sudo bash $0 console"
+  local pw name radius
+  pw="$(cat "$LIB/admin_pw")"
+  api() { curl -fsS --max-time 5 -u "admin:$pw" "http://$CHR_IP/rest/$1"; }
+  for _ in $(seq 1 30); do name="$(api system/identity 2>/dev/null || true)"; [[ -n $name ]] && break; sleep 2; done
+  if [[ -z $name ]]; then
+    # The address answering already proves the first-boot script ran; the dial test checks RADIUS end to end.
+    log "warning: could not read the CHR's settings back over its web API; continuing (dial test will tell)"
+  else
+    [[ $name == *isp-lab-chr* ]] || die "CHR is up but not configured as expected (identity: $name)"
+    radius="$(api radius 2>/dev/null || true)"
+    [[ $radius == *"$HOST_IP"* && $radius == *11812* ]] ||
+      die "setup.rsc did not configure RADIUS on the CHR (got: ${radius:-nothing}). Look: sudo bash $0 console"
+    log "CHR configured: identity isp-lab-chr, RADIUS $HOST_IP:11812/11813 (staging)"
+  fi
   touch "$LIB/configured"
 }
 
@@ -305,11 +267,11 @@ case "${1:-}" in
   up)
     install_deps
     fetch_chr
+    provision_disk
     write_unit
     ufw_rule add
     systemctl enable -q --now "$UNIT"
-    wait_console
-    configure_chr
+    verify_chr
     status
     log "ready. Next: create a test subscriber in the panel, then: sudo bash $0 dial <username>"
     ;;
@@ -317,7 +279,7 @@ case "${1:-}" in
   hangup) hangup ;;
   status) status ;;
   console)
-    log "RouterOS console (admin password: sudo cat $LIB/admin_pw). Leave with Ctrl+C."
+    log "RouterOS console (login admin, password: sudo cat $LIB/admin_pw; /log print shows first-boot errors). Leave with Ctrl+C."
     socat -,raw,echo=0,escape=0x03 "UNIX-CONNECT:$RUN/console.sock"
     ;;
   winbox)
