@@ -78,6 +78,23 @@ services:
         limits: { cpus: '0.5', memory: 256M }
     restart: unless-stopped
 
+  web:
+    build:
+      context: ../../..
+      dockerfile: deploy/ubuntu/app/web.Dockerfile
+    image: isp-web:local
+    container_name: isp-web
+    environment:
+      APP_VERSION: ${APP_VERSION:-dev}
+    # Only Caddy talks to it; the browser reaches the API through Caddy on the same origin.
+    networks:
+      acs:
+        aliases: [isp-web]
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 256M }
+    restart: unless-stopped
+
   walled-garden:
     image: caddy:2-alpine
     container_name: isp-walled-garden

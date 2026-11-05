@@ -80,14 +80,14 @@ print(a.getUser('isp_app') ? 'isp_app ok' : 'isp_app missing');"
 log "isp-mongo: $(msh --eval 'rs.status().members[0].stateStr')"
 
 # ------------------------------------------------------------------ API + walled garden
-log "building isp-api, isp-workers"
+log "building isp-api, isp-workers, isp-web"
 APP_VERSION="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo dev)"
 export APP_VERSION
-"${COMPOSE[@]}" build api workers
+"${COMPOSE[@]}" build api workers web
 # Migrations run before the new API starts; the API refuses to start with pending migrations.
 log "MongoDB migrations: $("${COMPOSE[@]}" run --rm --no-deps api node dist/cli.js migrate | tail -1)"
-log "starting isp-api, isp-workers, isp-walled-garden"
-"${COMPOSE[@]}" up -d --wait api workers walled-garden
+log "starting isp-api, isp-workers, isp-web, isp-walled-garden"
+"${COMPOSE[@]}" up -d --wait api workers web walled-garden
 
 health="$(docker exec isp-api node -e "fetch('http://127.0.0.1:4100/healthz').then(r => r.text()).then(console.log)" || true)"
 log "healthz: $health"

@@ -7,6 +7,7 @@ The Windows VPS is not used. Production placement is decided at Step 4.
 |---|---|---|
 | `isp-mongo` | MongoDB 8.0, replica set `rs-isp`, auth + keyfile | containers on network `isp_internal`; host `127.0.0.1:27018` |
 | `isp-api` | Node API (CPU ≤ 1.5, RAM ≤ 768 MB) | `isp-api:4100` on `acs_default` (ACS Caddy) |
+| `isp-web` | Admin panel (Next.js; CPU ≤ 0.5, RAM ≤ 256 MB) | `isp-web:3000` on `acs_default`; Caddy sends everything except `/api/*` and `/grafana` here |
 | `isp-walled-garden` | Redirects expired users' HTTP to the pay page | public TCP 8089 |
 
 RADIUS stays native. The API reaches PostgreSQL as `acs-prod:5432` (mapped to the Docker host gateway) over TLS with
@@ -50,6 +51,7 @@ admin, `docker exec isp-mongo mongosh ...` → `db.users.updateOne({email: '<you
 ```bash
 docker ps --filter name=isp- --format '{{.Names}}\t{{.Status}}'
 docker exec isp-api wget -qO- http://127.0.0.1:4100/healthz          # "status":"ok", radiusDb.ssl true, mongo rs-isp
+docker exec isp-web wget -qO- http://127.0.0.1:3000/livez            # ok
 curl -s https://new.bharatradius.com/api/healthz                     # after DNS points here
 curl -sI http://127.0.0.1:8089/anything | grep -i location           # https://new.bharatradius.com/pay
 ```

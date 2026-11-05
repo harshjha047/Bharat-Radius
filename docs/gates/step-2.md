@@ -17,7 +17,8 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
 | 2.8 Usage and FUP | ✅ code + tests | `radius_usage_rollup()` (one statement, advisory lock, `usage_seen` so runs never double count) every 15 min via a lease-based scheduler in `isp-workers`; FUP on/off when cycle usage crosses the plan cap (calendar month or billing cycle), synced with a Disconnect; cap removed → FUP lifted; `GET /subscribers/:id/usage`; job metrics + `UsageJobStale` alert; runbook `docs/runbooks/usage.md` |
 | 2.9 Excel import/export | ✅ code + tests | Template (`/subscribers/import/template`, with the ISP's plans and column help); upload the `.xlsx` as the request body (≤ 10 MB, ≤ 50,000 rows), every row validated with the same rules as the API (plan by name, duplicates in file and in the ISP), `dryRun`, all-or-nothing unless `skipInvalid`; valid rows queued (passwords encrypted) and created by the `imports` worker job through the shared writer (customer no., RADIUS sync), resumable; progress + error sheet; `/subscribers/export` without passwords (`subscribers.export`) |
 | 2.10 Audit log | ✅ code + tests | `audit_logs` (migration 005, append-only, no API to change it): every signed-in change and every secret/bulk reveal (router secret, PPPoE password, export) declares an action, enforced by a unit test over the route table; services note before/after and only changed fields are kept, secrets shown as `[redacted]`; sign-in, failed sign-in (known account) and lock recorded with IP; `GET /audit` (`audit.view`) filters by entity, person, action prefix, time, newest first |
-| 2.11–2.13 | ⏳ | Next: 2.11 admin web app |
+| 2.11 Admin web app | ✅ code + tests | `apps/web` (Next.js 16 App Router, Tailwind 4, shadcn-style Radix components, TanStack Query, react-hook-form + zod, Recharts on demand). Screens: sign-in (password → TOTP, forced 2FA enrolment), dashboard, subscribers (search, filters, create/edit/suspend/activate/kick/delete, password reveal, sessions, login log, usage + cycle, router actions, history), online sessions + "who had this IP", plans, routers (secret once, reveal/rotate), Excel import (check first, progress, error sheet) and export, staff & roles, audit log, ISP settings, my account, super-admin ISPs. Typed client generated from the API's OpenAPI (CI fails on drift); one silent refresh on 401; navigation and actions follow permissions; tables become cards under 640 px; WCAG 2.1 AA checked with axe. Container `isp-web` (≤ 0.5 CPU / 256 MB), Caddy sends `/api/*` to the API and the rest to the panel. CI drives Chromium through the real API and MongoDB |
+| 2.12–2.13 | ⏳ | Next: 2.12 100,000 test subscribers (needs the VPS upgrade) |
 
 ## Decisions and schema changes (BACKEND_SCHEMA to update)
 
@@ -68,11 +69,23 @@ Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to
 25. Audit entries are written after the change commits, in the same request; a failed audit write is logged as an error and does not undo the change. Login, failed login and lock are recorded only for a known account (unknown logins stay in the IP rate limit, not the log).
 26. Audit keeps changed top-level fields only; `updatedAt`, `version`, `search`, `syncStatus` are ignored. Retention: kept indefinitely until Step 6 sets archiving.
 
+27. **Panel on the same origin**: Caddy routes `/api/*` to `isp-api` and everything else to `isp-web`, so the
+    HttpOnly session cookies, CSRF token and Origin check work unchanged; the panel itself holds no secrets.
+28. CSP allows `'unsafe-inline'` scripts/styles (Next.js inlines its bootstrap). A nonce-based CSP needs every page
+    rendered per request; revisit with the customer portal (Step 4). All other sources are `'self'` only.
+29. Edits send only the fields that changed (PATCH), so the audit diff and CoA match what staff actually did.
+30. "Valid until" dates mean the end of that day in IST (23:59:59 +05:30).
+31. `/pay` is a holding page for the walled garden until online payments (Step 3); it says to recharge with the ISP.
+
 ## Tests
 
 ```
-unit:        shared 7, db-mongo 10 (scope rules), api 34 (config, tokens, passwords, route table, app wiring)
-integration: apps/api/test/*.int.test.ts against a MongoDB replica set (CI: 7.0, see ci.yml): health/errors, sign-in, TOTP,
-             enrolment, lockout, refresh rotation and reuse, CSRF/Origin, disable, password change, logout,
-             permissions, privilege escalation, cross-tenant 404 for every :id route
+unit:        shared 9, db-mongo 10 (scope rules), radius-client 13, workers 5, api 49 (config, tokens, passwords,
+             route table + audit coverage, Excel validation, CoA policy), web 6 (formatters, redirects, IST dates,
+             PATCH bodies)
+integration: apps/api/test/*.int.test.ts and apps/workers against MongoDB (CI: 7.0) and PostgreSQL 16: auth, TOTP,
+             lockout, refresh, CSRF/Origin, permissions, privilege escalation, cross-tenant 404 for every :id route,
+             routers/plans/subscribers, outbox → RADIUS + CoA, sessions, usage/FUP, Excel import/export, audit log
+browser:     apps/web/e2e/panel.e2e.mjs (Chromium → web → API → MongoDB): 2FA enrolment, plan, router, subscriber
+             create/duplicate/edit/history, audit, phone layout, sign-out, Support role limits
 ```
