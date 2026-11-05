@@ -262,7 +262,7 @@ status() {
   printf 'CHR reachable: %s\n' "$(ping -c1 -W1 "$CHR_IP" >/dev/null 2>&1 && echo yes || echo no)"
   local ip
   ip="$(ip netns exec "$NS" ip -4 -o addr show 2>/dev/null | awk '$2 ~ /^ppp/ {printf "%s%s", sep, $4; sep=", "}' || true)"
-  printf 'Test customer: %s\n' "${ip:+online, $ip}${ip:-offline}"
+  if [[ -n $ip ]]; then printf 'Test customer: online, %s\n' "$ip"; else printf 'Test customer: offline\n'; fi
   if [[ -f $RUN/pppd.log ]]; then
     echo '--- last pppd log'
     tail -n 8 "$RUN/pppd.log"
