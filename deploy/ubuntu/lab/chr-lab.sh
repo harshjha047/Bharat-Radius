@@ -138,6 +138,8 @@ proc answer {what text} {
   send -s "$text\r"
 }
 spawn socat -,raw,echo=0 UNIX-CONNECT:$env(SOCK)
+# Let socat put its terminal in raw mode first, or Ctrl+C would interrupt socat itself instead of reaching RouterOS.
+sleep 1
 # Ctrl+C first: discards anything a previous session left half-typed.
 send "\003\r"
 expect {
