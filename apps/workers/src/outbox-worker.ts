@@ -166,7 +166,11 @@ export class OutboxWorker {
   /** Processes everything currently due (tests, and one pass of the loop). */
   async drain(max = 10_000): Promise<number> {
     let n = 0;
-    while (n < max && !this.stopped && (await this.step())) n++;
+    // Liveness is progress, not pass length: a large backlog (bulk import, scale test) makes a pass run long.
+    while (n < max && !this.stopped && (await this.step())) {
+      n++;
+      this.stats.lastPassAt = Date.now();
+    }
     this.stats.lastPassAt = Date.now();
     return n;
   }
