@@ -64,3 +64,16 @@ sudo rm /opt/acs/repo/infra/caddy/sites/isp.caddy
 sudo sed -i '\|^import /etc/caddy/sites/\*.caddy$|d' /opt/acs/repo/infra/caddy/Caddyfile
 docker exec acs-caddy-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
+
+## Forgotten password or lost 2FA phone
+
+Another administrator can do this in the panel (Staff & roles → ⋯ → Set new password / Remove 2FA). When nobody can sign
+in, on the VPS:
+
+```bash
+cd ~/isp-platform/deploy/ubuntu/app
+sudo docker compose run --rm --no-deps -it api node dist/cli.js reset-password \
+  --tenant bharat --email info@thediv.in                                            # add --reset-2fa for a lost phone
+```
+
+It prompts for the new password (not shown), unlocks the account, signs it out everywhere and writes the audit log.
