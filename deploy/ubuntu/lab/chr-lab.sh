@@ -122,22 +122,41 @@ ros() {
   cat >"$exp" <<'EXP'
 set timeout 240
 log_user 0
+log_file -a $env(CONSOLE_LOG)
 # RouterOS's serial console drops characters when typed at full speed: ~200 chars/s, and settle after each prompt.
 set send_slow {4 0.02}
 set pw $env(ADMIN_PW)
 set cur ""
+# RouterOS redraws its prompts while typing and on Enter, so a prompt can match more than once. Answer each prompt once
+# per appearance; the password goes once per login attempt, and again only after an explicit "Login failed".
+set last ""
+set pwsent 0
+proc answer {what text} {
+  global last
+  if {$last eq $what} return
+  set last $what
+  send -s "$text\r"
+}
 spawn socat -,raw,echo=0 UNIX-CONNECT:$env(SOCK)
 send "\r"
 expect {
-  -re {Login: ?$} { send "admin\r"; exp_continue }
-  -re {Password: ?$} { send "$cur\r"; set cur $pw; exp_continue }
-  -re {software license.*\]: ?$} { send "n\r"; exp_continue }
-  -re {new password> ?$} { send "$pw\r"; exp_continue }
-  -re {repeat new password> ?$} { send "$pw\r"; exp_continue }
+  -re {Login failed} { set last ""; set pwsent 0; exp_continue }
+  -re {Login: ?$} { answer login admin; exp_continue }
+  -re {Password: ?$} {
+    if {!$pwsent} { set pwsent 1; set last pass; send -s "$cur\r"; set cur $pw }
+    exp_continue
+  }
+  -re {software license.*\]: ?$} { answer license n; exp_continue }
+  -re {repeat new password> ?$} { answer repeat $pw; exp_continue }
+  -re {new password> ?$} { answer new $pw; exp_continue }
   -re {\] > } {}
-  timeout { puts stderr "no RouterOS prompt on the console"; exit 2 }
+  timeout { puts stderr "no RouterOS prompt on the console (transcript: $env(CONSOLE_LOG))"; exit 2 }
 }
+# Clear anything left on the command line (Ctrl+C) before the first command.
 sleep 1
+send "\003"
+expect -re {\] > }
+sleep 0.5
 foreach c [split $env(CMDS) "\n"] {
   if {[string trim $c] eq ""} continue
   puts "  > $c"
@@ -146,6 +165,7 @@ foreach c [split $env(CMDS) "\n"] {
     -re {(failure|Script Error|syntax error|expected end of command|bad command name|input does not match|no such item|ambiguous value)[^\r\n]*} {
       puts stderr "RouterOS: $expect_out(0,string)"
       puts stderr "console: [string range [regsub -all {\x1b\[[0-9;]*[A-Za-z]} $expect_out(buffer) {}] end-300 end]"
+      puts stderr "full transcript: $env(CONSOLE_LOG)"
       exit 3 }
     -re {isp-radius: done} { puts "  setup.rsc finished"; exp_continue }
     -re {\] > } { sleep 0.5 }
@@ -155,7 +175,7 @@ foreach c [split $env(CMDS) "\n"] {
 send "/quit\r"
 exit 0
 EXP
-  ADMIN_PW="$pw" SOCK="$RUN/console.sock" CMDS="$cmds" expect -f "$exp" || rc=$?
+  ADMIN_PW="$pw" SOCK="$RUN/console.sock" CMDS="$cmds" CONSOLE_LOG="$LIB/console.log" expect -f "$exp" || rc=$?
   rm -f "$exp"
   return "$rc"
 }
