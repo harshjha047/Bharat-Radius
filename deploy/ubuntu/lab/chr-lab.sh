@@ -225,7 +225,7 @@ nodefaultroute
 noipdefault
 persist
 holdoff 5
-maxfail 0
+maxfail 3
 lcp-echo-interval 20
 lcp-echo-failure 3
 linkname labcpe
@@ -235,26 +235,33 @@ OPTS
   log "dialing as $user"
   if ip netns exec "$NS" pppd file "$opts"; then
     rm -f "$opts"
-    log "connected: $(ip netns exec "$NS" ip -4 -o addr show dev ppp0 | awk '{print $4}')"
+    log "connected: $(ip netns exec "$NS" ip -4 -o addr show | awk '$2 ~ /^ppp/ {print $4; exit}')"
   else
     rm -f "$opts"
     tail -n 15 "$RUN/pppd.log" >&2 || true
-    die "login refused or no answer (the reason is also in the panel: subscriber → Login log)"
+    hangup quiet
+    die "login refused 3 times or no answer; the reason is in the panel: subscriber → Login log"
   fi
 }
 
 hangup() {
-  local pid
-  pid="$(cat /run/ppp-labcpe.pid 2>/dev/null || true)"
-  if [[ -n $pid ]] && kill "$pid" 2>/dev/null; then sleep 1; [[ ${1:-} == quiet ]] || log "hung up"
-  elif [[ ${1:-} != quiet ]]; then log "not connected"; fi
+  local pids
+  pids="$(ip netns pids "$NS" 2>/dev/null || true)"
+  if [[ -n $pids ]]; then
+    # shellcheck disable=SC2086
+    kill $pids 2>/dev/null || true
+    sleep 1
+    [[ ${1:-} == quiet ]] || log "hung up"
+  elif [[ ${1:-} != quiet ]]; then
+    log "not connected"
+  fi
 }
 
 status() {
   printf 'CHR service : %s\n' "$(systemctl is-active "$UNIT" 2>/dev/null || true)"
   printf 'CHR reachable: %s\n' "$(ping -c1 -W1 "$CHR_IP" >/dev/null 2>&1 && echo yes || echo no)"
   local ip
-  ip="$(ip netns exec "$NS" ip -4 -o addr show dev ppp0 2>/dev/null | awk '{print $4}' || true)"
+  ip="$(ip netns exec "$NS" ip -4 -o addr show 2>/dev/null | awk '$2 ~ /^ppp/ {printf "%s%s", sep, $4; sep=", "}' || true)"
   printf 'Test customer: %s\n' "${ip:+online, $ip}${ip:-offline}"
   if [[ -f $RUN/pppd.log ]]; then
     echo '--- last pppd log'
