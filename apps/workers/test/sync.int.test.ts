@@ -321,7 +321,7 @@ describe('outbox → RADIUS', () => {
     }
   });
 
-  it('usage roll-up → FUP on at the cap (synced to RADIUS with a disconnect) → off when the cap is removed', async () => {
+  it('usage roll-up → FUP on at the cap (synced to RADIUS with a disconnect) → off at the next cycle → off when the cap is removed', async () => {
     const admin = new pg.Pool({ connectionString: process.env.RADIUS_ADMIN_URL });
     try {
       const t = await tenant();
@@ -395,6 +395,27 @@ describe('outbox → RADIUS', () => {
         fup_active: true,
       });
       expect((await job.run()).fupOn).toBe(0);
+
+      // A new cycle (1st of next month, noon IST) counts from zero: FUP is lifted in RADIUS.
+      const nextCycle = new Date();
+      nextCycle.setUTCMonth(nextCycle.getUTCMonth() + 1, 1);
+      nextCycle.setUTCHours(6, 30, 0, 0);
+      expect(await job.checkCaps(nextCycle)).toMatchObject({ fupOff: 1, fupOn: 0 });
+      expect((await db.collection<SubscriberDoc>('subscribers').findOne({ _id: sid }))?.fup).toMatchObject({
+        active: false,
+        usedBytes: 0,
+      });
+      expect(
+        (await db.collection<OutboxDoc>('outbox').findOne({ entityId: sid, status: 'pending' }))?.coa,
+      ).toEqual({ action: 'disconnect', reason: 'fup' });
+      await worker.drain();
+      expect(
+        await one('SELECT fup_active FROM subscribers WHERE external_id = $1', [sid.toHexString()]),
+      ).toEqual({ fup_active: false });
+
+      // Back in this cycle the usage is still over the cap, so FUP comes back on.
+      expect(await job.checkCaps()).toMatchObject({ fupOn: 1 });
+      await worker.drain();
 
       await db.collection<PlanDoc>('plans').updateOne({ _id: p }, { $unset: { dataCapBytes: '' } });
       expect((await job.run()).fupOff).toBe(1);
