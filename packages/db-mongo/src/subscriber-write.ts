@@ -110,18 +110,16 @@ export const subscriberOutboxRow = (
 
 /** Reserves `count` consecutive customer numbers; returns the first sequence number. */
 export async function reserveCustomerNos(db: Db, tenantId: ObjectId, count: number, session?: ClientSession) {
-  const c = await db
-    .collection<{ _id: string; seq: number }>('counters')
-    .findOneAndUpdate(
-      { _id: `customerNo:${tenantId.toHexString()}` },
-      { $inc: { seq: count } },
-      {
-        upsert: true,
-        returnDocument: 'after',
-        includeResultMetadata: false,
-        ...(session ? { session } : {}),
-      },
-    );
+  const c = await db.collection<{ _id: string; seq: number }>('counters').findOneAndUpdate(
+    { _id: `customerNo:${tenantId.toHexString()}` },
+    { $inc: { seq: count } },
+    {
+      upsert: true,
+      returnDocument: 'after',
+      includeResultMetadata: false,
+      ...(session ? { session } : {}),
+    },
+  );
   return c!.seq - count + 1;
 }
 
