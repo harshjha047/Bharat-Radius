@@ -14,6 +14,7 @@ import {
 } from '@isp/db-mongo';
 import { PLATFORM_SLUG } from './auth/auth.service.js';
 import { hashPassword, passwordSchema } from './auth/passwords.js';
+import { benchSearch, removeScale, seedScale } from './scale-seed.js';
 import { email as emailSchema, phone as phoneSchema } from './http/schemas.js';
 
 const USAGE = `usage: node dist/cli.js <command> [options]   (MONGO_URL from the environment)
@@ -24,6 +25,9 @@ const USAGE = `usage: node dist/cli.js <command> [options]   (MONGO_URL from the
                  --pincode <p> --line1 <addr> [--domain <host>]
   create-user    --tenant <slug|platform> --name <n> (--email <e> | --phone <p>) [--role "ISP Admin"]
                  password: prompted, or piped on stdin
+  seed-scale     --tenant <slug> [--count 100000] [--plan "Home 50"]   add scale-test subscribers (synced to RADIUS)
+  seed-scale     --tenant <slug> --bench        time the panel's subscriber search
+  seed-scale     --tenant <slug> --remove       delete scale-test subscribers (and their RADIUS rows)
   reset-password --tenant <slug|platform> (--email <e> | --phone <p>) [--reset-2fa]
                  new password prompted (or stdin); unlocks the account and signs it out everywhere`;
 
@@ -53,9 +57,10 @@ function need(v: Record<string, string | undefined>, ...keys: string[]): void {
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
-  const resetMfa = rest.includes('--reset-2fa');
+  const flags = new Set(rest.filter((a) => ['--reset-2fa', '--remove', '--bench'].includes(a)));
+  const resetMfa = flags.has('--reset-2fa');
   const { values: v } = parseArgs({
-    args: rest.filter((a) => a !== '--reset-2fa'),
+    args: rest.filter((a) => !flags.has(a)),
     options: Object.fromEntries(
       [
         'slug',
@@ -71,6 +76,8 @@ async function main() {
         'email',
         'phone',
         'role',
+        'count',
+        'plan',
       ].map((k) => [k, { type: 'string' as const }]),
     ),
   }) as { values: Record<string, string | undefined> };
@@ -161,6 +168,18 @@ async function main() {
       console.log(`user ${doc._id.toHexString()} (${doc.type}); two-factor setup is asked at first sign-in`);
       return;
     }
+    if (cmd === 'seed-scale') {
+      need(v, 'tenant');
+      const out = (m: string) => console.log(m);
+      if (flags.has('--remove')) return await removeScale(db, v.tenant!, out);
+      if (flags.has('--bench')) return await benchSearch(db, v.tenant!, out);
+      const count = Number(v.count ?? 100_000);
+      if (!Number.isInteger(count) || count < 1 || count > 500_000)
+        throw new Error('--count must be 1..500000');
+      await seedScale(db, v.tenant!, count, v.plan ?? 'Home 50', out);
+      return;
+    }
+
     if (cmd === 'reset-password') {
       need(v, 'tenant');
       if (!v.email && !v.phone) throw new Error('give --email or --phone');
