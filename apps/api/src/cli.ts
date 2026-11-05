@@ -198,31 +198,29 @@ async function main() {
         );
       const actor = { id: 'cli', type: 'system', name: 'server command line' };
       const entity = { type: 'user', id: user._id.toHexString() };
-      await db
-        .collection<AuditLogDoc>('audit_logs')
-        .insertMany([
-          {
-            _id: new ObjectId(),
-            tenantId: user.tenantId,
-            actor,
-            action: 'user.password_reset',
-            entity,
-            after: { password: '[redacted]' },
-            createdAt: now,
-          },
-          ...(resetMfa
-            ? [
-                {
-                  _id: new ObjectId(),
-                  tenantId: user.tenantId,
-                  actor,
-                  action: 'user.2fa_reset',
-                  entity,
-                  createdAt: now,
-                },
-              ]
-            : []),
-        ]);
+      await db.collection<AuditLogDoc>('audit_logs').insertMany([
+        {
+          _id: new ObjectId(),
+          tenantId: user.tenantId,
+          actor,
+          action: 'user.password_reset',
+          entity,
+          after: { password: '[redacted]' },
+          createdAt: now,
+        },
+        ...(resetMfa
+          ? [
+              {
+                _id: new ObjectId(),
+                tenantId: user.tenantId,
+                actor,
+                action: 'user.2fa_reset',
+                entity,
+                createdAt: now,
+              },
+            ]
+          : []),
+      ]);
       console.log(
         `password set for ${user.name}; signed out everywhere${resetMfa ? '; two-factor removed (set up again at sign-in)' : ''}`,
       );
