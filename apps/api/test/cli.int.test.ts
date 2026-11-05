@@ -56,7 +56,7 @@ describe('cli reset-password', () => {
 
     const audit = await h.db
       .collection('audit_logs')
-      .find({ 'entity.id': admin._id.toHexString() })
+      .find({ 'entity.id': admin._id.toHexString(), 'actor.id': 'cli' })
       .toArray();
     expect(audit.map((a) => a.action).sort()).toEqual(['user.2fa_reset', 'user.password_reset']);
     expect(JSON.stringify(audit)).not.toContain(NEW_PASSWORD);
