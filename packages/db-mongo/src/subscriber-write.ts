@@ -50,16 +50,82 @@ export interface InsertContext {
   importBatchId?: ObjectId;
 }
 
-async function nextCustomerNo(db: Db, tenantId: ObjectId, session: ClientSession): Promise<string> {
+/** The subscriber document as created (shared by the API, the Excel import and the scale-test seeder). */
+export function buildSubscriberDoc(
+  crypto: FieldCrypto,
+  ctx: InsertContext,
+  input: NewSubscriber,
+  customerNo: string,
+  _id: ObjectId = new ObjectId(),
+  now: Date = new Date(),
+): SubscriberDoc {
+  return {
+    _id,
+    tenantId: ctx.tenantId,
+    resellerId: ctx.resellerId ?? null,
+    ancestors: ctx.ancestors ?? [],
+    customerNo,
+    username: input.username,
+    pppoePassword: crypto.encrypt(input.pppoePassword, pppoeAad(_id)),
+    name: input.name,
+    phone: input.phone,
+    ...(input.altPhone ? { altPhone: input.altPhone } : {}),
+    ...(input.email ? { email: input.email } : {}),
+    address: input.address,
+    ...(input.gstin ? { gstin: input.gstin } : {}),
+    billingType: input.billingType,
+    ...(input.planId ? { planId: input.planId } : {}),
+    ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
+    status: 'active',
+    network: input.network,
+    kyc: { status: 'pending' },
+    tags: [...new Set(input.tags)],
+    ...(input.notes ? { notes: input.notes } : {}),
+    search: searchTokens({ ...input, customerNo }),
+    syncStatus: 'pending',
+    ...(ctx.importBatchId ? { importBatchId: ctx.importBatchId } : {}),
+    version: 0,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: ctx.actor,
+    updatedBy: ctx.actor,
+  };
+}
+
+/** Outbox row asking the worker to sync one subscriber to RADIUS (latest state; no CoA). */
+export const subscriberOutboxRow = (
+  tenantId: ObjectId,
+  entityId: ObjectId,
+  now: Date = new Date(),
+): OutboxDoc => ({
+  _id: new ObjectId(),
+  tenantId,
+  entity: 'subscriber',
+  entityId,
+  status: 'pending',
+  attempts: 0,
+  nextAttemptAt: now,
+  createdAt: now,
+});
+
+/** Reserves `count` consecutive customer numbers; returns the first sequence number. */
+export async function reserveCustomerNos(db: Db, tenantId: ObjectId, count: number, session?: ClientSession) {
   const c = await db
     .collection<{ _id: string; seq: number }>('counters')
     .findOneAndUpdate(
       { _id: `customerNo:${tenantId.toHexString()}` },
-      { $inc: { seq: 1 } },
-      { upsert: true, returnDocument: 'after', session, includeResultMetadata: false },
+      { $inc: { seq: count } },
+      {
+        upsert: true,
+        returnDocument: 'after',
+        includeResultMetadata: false,
+        ...(session ? { session } : {}),
+      },
     );
-  return `C${String(c!.seq).padStart(6, '0')}`;
+  return c!.seq - count + 1;
 }
+
+export const formatCustomerNo = (seq: number) => `C${String(seq).padStart(6, '0')}`;
 
 /**
  * The single way a subscriber is created: customer number, encrypted PPPoE password, search tokens and the outbox
@@ -77,52 +143,12 @@ export async function insertSubscriber(
   let doc: SubscriberDoc | undefined;
   await client.withSession((session) =>
     session.withTransaction(async () => {
-      const customerNo = await nextCustomerNo(db, ctx.tenantId, session);
-      doc = {
-        _id,
-        tenantId: ctx.tenantId,
-        resellerId: ctx.resellerId ?? null,
-        ancestors: ctx.ancestors ?? [],
-        customerNo,
-        username: input.username,
-        pppoePassword: crypto.encrypt(input.pppoePassword, pppoeAad(_id)),
-        name: input.name,
-        phone: input.phone,
-        ...(input.altPhone ? { altPhone: input.altPhone } : {}),
-        ...(input.email ? { email: input.email } : {}),
-        address: input.address,
-        ...(input.gstin ? { gstin: input.gstin } : {}),
-        billingType: input.billingType,
-        ...(input.planId ? { planId: input.planId } : {}),
-        ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
-        status: 'active',
-        network: input.network,
-        kyc: { status: 'pending' },
-        tags: [...new Set(input.tags)],
-        ...(input.notes ? { notes: input.notes } : {}),
-        search: searchTokens({ ...input, customerNo }),
-        syncStatus: 'pending',
-        ...(ctx.importBatchId ? { importBatchId: ctx.importBatchId } : {}),
-        version: 0,
-        createdAt: now,
-        updatedAt: now,
-        createdBy: ctx.actor,
-        updatedBy: ctx.actor,
-      };
+      const customerNo = formatCustomerNo(await reserveCustomerNos(db, ctx.tenantId, 1, session));
+      doc = buildSubscriberDoc(crypto, ctx, input, customerNo, _id, now);
       await db.collection<SubscriberDoc>('subscribers').insertOne(doc, { session });
-      await db.collection<OutboxDoc>('outbox').insertOne(
-        {
-          _id: new ObjectId(),
-          tenantId: ctx.tenantId,
-          entity: 'subscriber',
-          entityId: _id,
-          status: 'pending',
-          attempts: 0,
-          nextAttemptAt: now,
-          createdAt: now,
-        },
-        { session },
-      );
+      await db
+        .collection<OutboxDoc>('outbox')
+        .insertOne(subscriberOutboxRow(ctx.tenantId, _id, now), { session });
     }),
   );
   return doc!;
