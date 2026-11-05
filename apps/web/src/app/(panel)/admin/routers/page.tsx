@@ -28,6 +28,9 @@ export default function RoutersPage() {
   const list = useQuery({
     queryKey: ['nas', 'all'],
     queryFn: () => unwrap(api.GET('/api/v1/nas', { params: { query: { limit: 200 } } })),
+    // A new or edited router shows "Syncing" until the worker has written it to RADIUS (normally ~1 s).
+    refetchInterval: (q) =>
+      q.state.data?.items.some((n) => n.status === 'active' && n.radiusId == null) ? 2000 : false,
   });
   const refresh = () => qc.invalidateQueries({ queryKey: ['nas'] });
   const path = (n: Nas) => ({ params: { path: { id: n.id } } });

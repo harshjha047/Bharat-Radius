@@ -19,7 +19,7 @@ import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, dialogActions } from '@/components/ui/dialog';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/dropdown';
 import { Checkbox, Input } from '@/components/ui/input';
 import { ConfirmDialog, ErrorState, Field, PageHeader } from '@/components/ui/misc';
@@ -145,7 +145,7 @@ function UserForm({
           ))}
         {editing ? <p className="text-xs text-muted-foreground">Changing roles signs them out.</p> : null}
       </fieldset>
-      <div className="flex justify-end gap-2">
+      <div className={dialogActions}>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
@@ -460,7 +460,7 @@ function RoleForm({
         <Checkbox checked={mfa} disabled={readOnly} onChange={(e) => setMfa(e.target.checked)} />
         Require two-factor sign-in
       </label>
-      <div className="flex justify-end gap-2">
+      <div className={dialogActions}>
         <Button type="button" variant="outline" onClick={onCancel}>
           {readOnly ? 'Close' : 'Cancel'}
         </Button>

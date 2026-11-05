@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { dialogActions } from '@/components/ui/dialog';
 import { Input, Select } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { applyServerErrors, changedOnly } from '@/lib/forms';
@@ -90,7 +91,7 @@ export function RouterForm({
     <form onSubmit={submit} className="space-y-4" noValidate>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="n-name" error={err('name')}>
-          <Input id="n-name" placeholder="POP-1 CCR1036" {...register('name')} />
+          <Input id="n-name" placeholder="e.g. POP-1 CCR1036" {...register('name')} />
         </Field>
         <Field
           label="Router IP"
@@ -131,7 +132,7 @@ export function RouterForm({
           </Field>
         ) : null}
       </div>
-      <div className="flex justify-end gap-2">
+      <div className={dialogActions}>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>

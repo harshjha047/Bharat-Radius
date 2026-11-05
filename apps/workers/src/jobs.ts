@@ -75,7 +75,9 @@ export class Scheduler {
           $unset: { lastError: '' },
         },
       );
-      this.log.info({ job: job.name, ms: Date.now() - t0, ...result }, 'job done');
+      // Idle runs (nothing counted) every few seconds would bury real events; they go to debug.
+      const busy = Object.values(result ?? {}).some((v) => typeof v === 'number' && v > 0);
+      this.log[busy ? 'info' : 'debug']({ job: job.name, ms: Date.now() - t0, ...result }, 'job done');
       return result;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
