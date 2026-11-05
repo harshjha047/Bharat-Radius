@@ -6,6 +6,8 @@ import {
   connectMongo,
   migrate,
   pendingMigrations,
+  type AuditLogDoc,
+  type RefreshTokenDoc,
   type RoleDoc,
   type TenantDoc,
   type UserDoc,
@@ -21,7 +23,9 @@ const USAGE = `usage: node dist/cli.js <command> [options]   (MONGO_URL from the
   create-tenant  --slug <s> --name <n> --legal-name <n> --state-code <NN> --city <c> --state <s>
                  --pincode <p> --line1 <addr> [--domain <host>]
   create-user    --tenant <slug|platform> --name <n> (--email <e> | --phone <p>) [--role "ISP Admin"]
-                 password: prompted, or piped on stdin`;
+                 password: prompted, or piped on stdin
+  reset-password --tenant <slug|platform> (--email <e> | --phone <p>) [--reset-2fa]
+                 new password prompted (or stdin); unlocks the account and signs it out everywhere`;
 
 async function readPassword(): Promise<string> {
   if (!process.stdin.isTTY) {
@@ -49,8 +53,9 @@ function need(v: Record<string, string | undefined>, ...keys: string[]): void {
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
+  const resetMfa = rest.includes('--reset-2fa');
   const { values: v } = parseArgs({
-    args: rest,
+    args: rest.filter((a) => a !== '--reset-2fa'),
     options: Object.fromEntries(
       [
         'slug',
@@ -154,6 +159,73 @@ async function main() {
       };
       await db.collection<UserDoc>('users').insertOne(doc);
       console.log(`user ${doc._id.toHexString()} (${doc.type}); two-factor setup is asked at first sign-in`);
+      return;
+    }
+    if (cmd === 'reset-password') {
+      need(v, 'tenant');
+      if (!v.email && !v.phone) throw new Error('give --email or --phone');
+      const platform = v.tenant === PLATFORM_SLUG;
+      const tenant = platform
+        ? null
+        : await db.collection<TenantDoc>('tenants').findOne({ slug: v.tenant!.toLowerCase() });
+      if (!platform && !tenant) throw new Error(`tenant ${v.tenant} not found`);
+      const users = db.collection<UserDoc>('users');
+      const user = await users.findOne({
+        tenantId: tenant?._id ?? null,
+        ...(v.email ? { email: emailSchema.parse(v.email) } : { phone: phoneSchema.parse(v.phone) }),
+      });
+      if (!user) throw new Error(`no account with that ${v.email ? 'email' : 'phone'} in ${v.tenant}`);
+      const pw = passwordSchema.safeParse(await readPassword());
+      if (!pw.success) throw new Error(`password ${pw.error.issues[0]!.message}`);
+      await users.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            passwordHash: await hashPassword(pw.data),
+            failedLogins: 0,
+            updatedAt: now,
+            updatedBy: 'cli',
+          },
+          $inc: { tokenVersion: 1 },
+          $unset: { lockedUntil: '', ...(resetMfa ? { totp: '' } : {}) },
+        },
+      );
+      await db
+        .collection<RefreshTokenDoc>('refresh_tokens')
+        .updateMany(
+          { userId: user._id, revokedAt: { $exists: false } },
+          { $set: { revokedAt: now, revokedReason: 'admin' } },
+        );
+      const actor = { id: 'cli', type: 'system', name: 'server command line' };
+      const entity = { type: 'user', id: user._id.toHexString() };
+      await db
+        .collection<AuditLogDoc>('audit_logs')
+        .insertMany([
+          {
+            _id: new ObjectId(),
+            tenantId: user.tenantId,
+            actor,
+            action: 'user.password_reset',
+            entity,
+            after: { password: '[redacted]' },
+            createdAt: now,
+          },
+          ...(resetMfa
+            ? [
+                {
+                  _id: new ObjectId(),
+                  tenantId: user.tenantId,
+                  actor,
+                  action: 'user.2fa_reset',
+                  entity,
+                  createdAt: now,
+                },
+              ]
+            : []),
+        ]);
+      console.log(
+        `password set for ${user.name}; signed out everywhere${resetMfa ? '; two-factor removed (set up again at sign-in)' : ''}`,
+      );
       return;
     }
     throw new Error(USAGE);
