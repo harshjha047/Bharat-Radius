@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
-      - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh
+      - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh deploy/ubuntu/lab/*.sh
 
   radius:
     runs-on: ubuntu-24.04

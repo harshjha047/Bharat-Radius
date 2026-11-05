@@ -1,5 +1,22 @@
 # MikroTik lab test (WP 1.6, Step 1 items "real PPPoE dial-in" and "CoA on v6 and v7")
 
+## Option A: CHR lab on the VPS (no hardware, no customers)
+
+`deploy/ubuntu/lab/chr-lab.sh` runs a MikroTik CHR (RouterOS 7, KVM, ≤ 0.5 CPU / 512 MB) and a PPPoE test customer on
+private addresses next to the **staging** RADIUS (VPS `10.99.0.1`, CHR `10.99.0.2`). It needs no NetForChoice ports
+and applies the repo's own `mikrotik/setup.rsc` to the CHR.
+
+1. Panel → Routers → Add router: name `Lab CHR`, IP `10.99.0.2`, RouterOS v7. Copy the secret.
+2. `sudo bash deploy/ubuntu/lab/chr-lab.sh up` (asks for that secret; first run downloads the CHR and takes ~1 min).
+3. Panel → Subscribers → New subscriber on a plan; then `sudo bash deploy/ubuntu/lab/chr-lab.sh dial <username>`.
+4. Run the tests below from the panel (Online now, Kick, plan change, suspend, expiry) and watch `chr-lab.sh status`.
+   Winbox to the CHR: `chr-lab.sh winbox` prints the SSH tunnel to use.
+5. `sudo bash deploy/ubuntu/lab/chr-lab.sh down --wipe` removes everything.
+
+A CHR without a licence is limited to 1 Mbps per interface: fine for logins, CoA and FUP, not for speed tests.
+
+## Option B: a hardware router
+
 ## Setup
 
 1. Add the lab router as a NAS in **staging** (until the panel exists, as `postgres` on Ubuntu):

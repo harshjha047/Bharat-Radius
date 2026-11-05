@@ -53,8 +53,15 @@
 :if ($hasFilter) do={
   /ip firewall filter add chain=input protocol=udp dst-port=3799 action=drop comment="$tag: CoA from others" place-before=0
   /ip firewall filter add chain=input protocol=udp dst-port=3799 src-address=$appIp action=accept comment="$tag: CoA from app server" place-before=0
+  :if ($fallbackIp != "") do={
+    /ip firewall filter add chain=input protocol=udp dst-port=3799 src-address=$fallbackIp action=accept comment="$tag: CoA from fallback (migration)" place-before=0
+  }
 } else={
   /ip firewall filter add chain=input protocol=udp dst-port=3799 src-address=$appIp action=accept comment="$tag: CoA from app server"
+  # During migration the old RADIUS (fallback) still sends its own kicks and speed changes.
+  :if ($fallbackIp != "") do={
+    /ip firewall filter add chain=input protocol=udp dst-port=3799 src-address=$fallbackIp action=accept comment="$tag: CoA from fallback (migration)"
+  }
   /ip firewall filter add chain=input protocol=udp dst-port=3799 action=drop comment="$tag: CoA from others"
 }
 
