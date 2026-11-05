@@ -131,7 +131,12 @@ export class AuditInterceptor implements NestInterceptor {
               const d =
                 n.before !== undefined
                   ? changes(n.before as never, n.after as never)
-                  : { after: redact(n.after) as never };
+                  : n.after &&
+                      typeof n.after === 'object' &&
+                      !Array.isArray(n.after) &&
+                      !Buffer.isBuffer(n.after)
+                    ? changes(null, n.after as never)
+                    : { after: redact(n.after) as never };
               const id = n.entityId ?? fallbackId;
               await this.audit
                 .record({

@@ -1,3 +1,20 @@
+/** Ids and bookkeeping; older entries still contain them. */
+const HIDDEN = new Set([
+  '_id',
+  'tenantId',
+  'resellerId',
+  'ancestors',
+  'createdAt',
+  'createdBy',
+  'updatedAt',
+  'updatedBy',
+  'version',
+  'search',
+  'syncStatus',
+  'radiusId',
+  'importBatchId',
+]);
+
 const show = (v: unknown): string => {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'string') return v;
@@ -18,7 +35,9 @@ export function AuditChanges({
   resolve?: Resolve | undefined;
 }) {
   const fmt = (k: string, v: unknown) => resolve?.(k, v) ?? show(v);
-  const keys = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])];
+  const keys = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])].filter(
+    (k) => !HIDDEN.has(k),
+  );
   if (!keys.length) return <span className="text-muted-foreground">—</span>;
   return (
     <ul className="space-y-0.5 text-xs">

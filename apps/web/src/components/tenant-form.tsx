@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { dialogActions } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
@@ -220,7 +221,7 @@ export function TenantForm({
           </Field>
         </CardContent>
       </Card>
-      <div className="flex justify-end gap-2">
+      <div className={mode === 'own' ? 'flex justify-end gap-2' : dialogActions}>
         {onCancel ? (
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel

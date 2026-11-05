@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { dialogActions } from '@/components/ui/dialog';
 import { Checkbox, Input, Select, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { applyServerErrors, changedOnly } from '@/lib/forms';
@@ -301,7 +302,7 @@ export function PlanForm({
         </div>
       </details>
 
-      <div className="flex justify-end gap-2">
+      <div className={dialogActions}>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>

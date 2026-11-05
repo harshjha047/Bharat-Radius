@@ -209,7 +209,7 @@ function Lookup() {
     <div className="space-y-4">
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <Field label="IP address" htmlFor="ip">
-          <Input id="ip" name="ip" required inputMode="decimal" placeholder="100.64.3.7" />
+          <Input id="ip" name="ip" required inputMode="decimal" placeholder="e.g. 100.64.3.7" />
         </Field>
         <Field label="Date and time (IST)" htmlFor="at">
           <Input id="at" name="at" type="datetime-local" required />

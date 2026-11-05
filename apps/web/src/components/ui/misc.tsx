@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from './button';
-import { Dialog, DialogContent } from './dialog';
+import { Dialog, DialogContent, dialogActions } from './dialog';
 import { Label } from './input';
 
 export function PageHeader({
@@ -137,7 +137,7 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title={title} description={description}>
         {children}
-        <div className="mt-5 flex justify-end gap-2">
+        <div className={dialogActions}>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

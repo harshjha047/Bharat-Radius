@@ -71,6 +71,25 @@ describe('changes', () => {
     expect(changes({ radiusSecret: { c: '1' } }, { radiusSecret: { c: '1' } })).toEqual({});
   });
 
+  it('a created record keeps what a person entered, not ids and bookkeeping', () => {
+    const id = new ObjectId();
+    expect(
+      changes(null, {
+        _id: id,
+        tenantId: id,
+        ancestors: [],
+        search: ['abc'],
+        syncStatus: 'pending',
+        version: 0,
+        createdAt: new Date(0),
+        createdBy: 'x',
+        name: 'ABC',
+        username: 'test.lab',
+        pppoePassword: { iv: 'a' },
+      }),
+    ).toEqual({ after: { name: 'ABC', username: 'test.lab', pppoePassword: REDACTED } });
+  });
+
   it('create and delete keep one side', () => {
     expect(changes(null, { name: 'A' })).toEqual({ after: { name: 'A' } });
     expect(changes({ name: 'A' }, null)).toEqual({ before: { name: 'A' } });

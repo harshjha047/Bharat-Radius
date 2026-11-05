@@ -256,7 +256,12 @@ export function SubscriberForm({
             error={err('staticIp')}
             hint="Optional. Unique in your ISP."
           >
-            <Input id="staticIp" inputMode="decimal" placeholder="100.64.1.10" {...register('staticIp')} />
+            <Input
+              id="staticIp"
+              inputMode="decimal"
+              placeholder="e.g. 100.64.1.10"
+              {...register('staticIp')}
+            />
           </Field>
           <Field
             label="Lock to MAC"
@@ -264,7 +269,12 @@ export function SubscriberForm({
             error={err('macLock')}
             hint="Optional. Logins from other devices are refused."
           >
-            <Input id="macLock" placeholder="AA:BB:CC:DD:EE:FF" spellCheck={false} {...register('macLock')} />
+            <Input
+              id="macLock"
+              placeholder="e.g. AA:BB:CC:DD:EE:FF"
+              spellCheck={false}
+              {...register('macLock')}
+            />
           </Field>
           <Field
             label="Simultaneous logins"
@@ -286,7 +296,13 @@ export function SubscriberForm({
             <Input id="name" autoComplete="off" {...register('name')} />
           </Field>
           <Field label="Mobile" htmlFor="phone" error={err('phone')}>
-            <Input id="phone" type="tel" inputMode="tel" placeholder="98765 43210" {...register('phone')} />
+            <Input
+              id="phone"
+              type="tel"
+              inputMode="tel"
+              placeholder="e.g. 98765 43210"
+              {...register('phone')}
+            />
           </Field>
           <Field label="Other phone" htmlFor="altPhone" error={err('altPhone')}>
             <Input id="altPhone" type="tel" inputMode="tel" {...register('altPhone')} />

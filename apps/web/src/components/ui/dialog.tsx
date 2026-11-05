@@ -8,6 +8,10 @@ export const Dialog = D.Root;
 export const DialogTrigger = D.Trigger;
 export const DialogClose = D.Close;
 
+/** Action bar pinned to the bottom of a dialog's scroll area, so Save/Cancel never scroll out of view. */
+export const dialogActions =
+  'sticky -bottom-5 z-10 -mx-5 -mb-5 mt-5 flex justify-end gap-2 border-t bg-card px-5 py-3';
+
 export function DialogContent({
   className,
   children,

@@ -23,7 +23,22 @@ export function redact(v: unknown, depth = 0): unknown {
   return out;
 }
 
-const IGNORED = new Set(['updatedAt', 'updatedBy', 'version', 'search', 'syncStatus', '_id']);
+/** Bookkeeping and ids that say nothing about what a person changed. */
+export const IGNORED = new Set([
+  '_id',
+  'tenantId',
+  'resellerId',
+  'ancestors',
+  'createdAt',
+  'createdBy',
+  'updatedAt',
+  'updatedBy',
+  'version',
+  'search',
+  'syncStatus',
+  'radiusId',
+  'importBatchId',
+]);
 
 /**
  * Top-level fields that differ between two documents, both sides redacted. A secret that changed shows as
