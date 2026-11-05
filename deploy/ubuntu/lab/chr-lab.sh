@@ -70,14 +70,21 @@ install_deps() {
 
 fetch_chr() {
   install -d -m 0700 "$LIB"
-  [[ -f $LIB/chr.img ]] && return 0
-  local zip="$LIB/chr-$CHR_VERSION.img.zip"
-  log "downloading CHR $CHR_VERSION"
-  curl -fsSL -o "$zip" "https://download.mikrotik.com/routeros/$CHR_VERSION/chr-$CHR_VERSION.img.zip" ||
-    die "download failed; check CHR_VERSION=$CHR_VERSION exists on mikrotik.com/download"
-  unzip -o -q "$zip" -d "$LIB"
-  mv "$LIB/chr-$CHR_VERSION.img" "$LIB/chr.img"
-  rm -f "$zip" "$LIB/configured"
+  local clean="$LIB/chr-$CHR_VERSION.img"
+  if [[ ! -f $clean ]]; then
+    local zip="$clean.zip"
+    log "downloading CHR $CHR_VERSION"
+    curl -fsSL -o "$zip" "https://download.mikrotik.com/routeros/$CHR_VERSION/chr-$CHR_VERSION.img.zip" ||
+      die "download failed; check CHR_VERSION=$CHR_VERSION exists on mikrotik.com/download"
+    unzip -o -q "$zip" -d "$LIB"
+    rm -f "$zip" "$LIB/configured"
+  fi
+  # Until setup has completed once, every "up" starts from an untouched disk, so retries never trip over half a config.
+  if [[ ! -f $LIB/configured ]]; then
+    systemctl stop "$UNIT" 2>/dev/null || true
+    cp --sparse=always "$clean" "$LIB/chr.img"
+    rm -f "$LIB/admin_pw"
+  fi
 }
 
 write_unit() {
@@ -115,6 +122,8 @@ ros() {
   cat >"$exp" <<'EXP'
 set timeout 240
 log_user 0
+# RouterOS's serial console drops characters when typed at full speed: ~200 chars/s, and settle after each prompt.
+set send_slow {4 0.02}
 set pw $env(ADMIN_PW)
 set cur ""
 spawn socat -,raw,echo=0 UNIX-CONNECT:$env(SOCK)
@@ -128,15 +137,18 @@ expect {
   -re {\] > } {}
   timeout { puts stderr "no RouterOS prompt on the console"; exit 2 }
 }
+sleep 1
 foreach c [split $env(CMDS) "\n"] {
   if {[string trim $c] eq ""} continue
   puts "  > $c"
-  send "$c\r"
+  send -s "$c\r"
   expect {
     -re {(failure|Script Error|syntax error|expected end of command|bad command name|input does not match|no such item|ambiguous value)[^\r\n]*} {
-      puts stderr "RouterOS: $expect_out(0,string)"; exit 3 }
+      puts stderr "RouterOS: $expect_out(0,string)"
+      puts stderr "console: [string range [regsub -all {\x1b\[[0-9;]*[A-Za-z]} $expect_out(buffer) {}] end-300 end]"
+      exit 3 }
     -re {isp-radius: done} { puts "  setup.rsc finished"; exp_continue }
-    -re {\] > } {}
+    -re {\] > } { sleep 0.5 }
     timeout { puts stderr "timed out after: $c"; exit 2 }
   }
 }
