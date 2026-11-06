@@ -161,6 +161,36 @@ step('audit log lists the changes and sign-in', async () => {
   await page.getByText('2FA enable').first().waitFor();
 });
 
+step('resellers: tree, drill-down and a customer added from a reseller', async () => {
+  await page.getByRole('link', { name: 'Resellers' }).click();
+  await page.getByRole('button', { name: 'New reseller' }).click();
+  await page.fill('#r-name', 'E2E Noida Net');
+  await page.fill('#r-owner', 'Amit');
+  await page.getByRole('button', { name: 'Add reseller' }).click();
+  await page.getByRole('link', { name: 'E2E Noida Net' }).click();
+  await page.waitForURL(/\/admin\/resellers\/[0-9a-f]{24}$/);
+  await page.getByRole('button', { name: 'Sub-reseller' }).click();
+  await page.fill('#r-name', 'E2E Sector 62');
+  await page.fill('#r-owner', 'Bina');
+  await page.getByRole('button', { name: 'Add reseller' }).click();
+  await page.getByRole('heading', { name: /E2E Sector 62/ }).waitFor();
+  await page
+    .getByRole('navigation', { name: 'Reseller path' })
+    .getByRole('link', { name: 'E2E Noida Net' })
+    .waitFor();
+  await page.getByRole('link', { name: 'Customer', exact: true }).click();
+  await page.waitForURL(/\/admin\/subscribers\/new\?reseller=/);
+  await page.getByText(/E2E Sector 62 · R-\d{4}/).waitFor();
+  await page.goto(`${BASE}/admin/resellers`);
+  await page
+    .getByRole('row', { name: /E2E Noida Net/ })
+    .getByRole('cell')
+    .nth(3)
+    .click();
+  await page.waitForURL(/parent=/);
+  await page.getByRole('link', { name: 'E2E Sector 62' }).waitFor();
+});
+
 step('phone layout: cards, no sideways scrolling, menu works', async () => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/admin/subscribers`);

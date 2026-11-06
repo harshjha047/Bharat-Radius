@@ -6,6 +6,7 @@ import {
   Gauge,
   LogOut,
   Menu as MenuIcon,
+  Network,
   Package,
   Radio,
   Router,
@@ -38,6 +39,7 @@ const STAFF_NAV: NavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: Gauge, any: ['sessions.read', 'subscribers.read'] },
   { href: '/admin/subscribers', label: 'Subscribers', icon: Users, any: ['subscribers.read'] },
   { href: '/admin/sessions', label: 'Online now', icon: Radio, any: ['sessions.read'] },
+  { href: '/admin/resellers', label: 'Resellers', icon: Network, any: ['resellers.read'] },
   { href: '/admin/plans', label: 'Plans', icon: Package, any: ['plans.read'] },
   { href: '/admin/routers', label: 'Routers', icon: Router, any: ['nas.read'] },
   {

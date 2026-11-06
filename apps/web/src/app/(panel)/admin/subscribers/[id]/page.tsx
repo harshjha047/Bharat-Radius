@@ -307,6 +307,20 @@ function Overview({ s }: { s: Subscriber }) {
                   {s.phone}
                 </a>,
               ],
+              [
+                'Reseller',
+                s.reseller ? (
+                  <Link
+                    key="r"
+                    href={`/admin/resellers/${s.reseller.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {s.reseller.name} · {s.reseller.code}
+                  </Link>
+                ) : (
+                  'Direct customer'
+                ),
+              ],
               ['Other phone', s.altPhone],
               ['Email', s.email],
               ['GSTIN', s.gstin],

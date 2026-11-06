@@ -59,7 +59,7 @@ export class AuthGuard implements CanActivate {
       !su ||
       !u ||
       u.status !== 'active' ||
-      !su.tenantActive ||
+      !su.active ||
       u.tokenVersion !== claims.ver ||
       u.type === 'customer'
     ) {

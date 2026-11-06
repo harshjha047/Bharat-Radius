@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import type { Subscriber } from '@/lib/queries';
+import type { Reseller, Subscriber } from '@/lib/queries';
 
 export function SubscriberState({ s }: { s: Pick<Subscriber, 'status' | 'radiusState' | 'suspendReason'> }) {
   if (s.status === 'suspended')
@@ -25,4 +25,20 @@ export function SyncState({ s }: { s: Pick<Subscriber, 'syncStatus'> }) {
       Syncing
     </Badge>
   );
+}
+
+export function ResellerState({ r }: { r: Pick<Reseller, 'status' | 'suspendReason' | 'blockedBy'> }) {
+  if (r.status === 'suspended')
+    return (
+      <Badge tone="danger" title={r.suspendReason ?? undefined}>
+        Suspended
+      </Badge>
+    );
+  if (r.blockedBy)
+    return (
+      <Badge tone="warning" title={`${r.blockedBy.name} (${r.blockedBy.code}) is suspended`}>
+        Blocked above
+      </Badge>
+    );
+  return <Badge tone="success">Active</Badge>;
 }

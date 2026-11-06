@@ -169,6 +169,36 @@ export interface OutboxDoc {
   doneAt?: Date;
 }
 
+export type ResellerStatus = 'active' | 'suspended' | 'deleted';
+
+export interface ResellerDoc extends Standard {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  /** null = directly under the ISP. */
+  parentId: ObjectId | null;
+  /** Root → parent; [] at the top level. */
+  ancestors: ObjectId[];
+  /** ancestors.length + 1 */
+  level: number;
+  /** R-0001, unique within the tenant. */
+  code: string;
+  name: string;
+  ownerName: string;
+  phone?: string;
+  email?: string;
+  gstin?: string;
+  address?: { line1?: string; city?: string; district?: string; state?: string; pincode?: string };
+  /** Created with the wallet (WP 3.3). */
+  walletId?: ObjectId;
+  creditLimitPaise: number;
+  canCreateSubResellers: boolean;
+  /** Suspended blocks the reseller's panel and new recharges in its whole branch; customers stay online. */
+  status: ResellerStatus;
+  suspendReason?: string;
+  deletedAt?: Date;
+  version: number;
+}
+
 export type SubscriberStatus = 'active' | 'suspended' | 'disabled' | 'deleted';
 
 export interface SubscriberDoc extends Standard {
