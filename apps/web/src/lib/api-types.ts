@@ -410,6 +410,7 @@ export interface paths {
                 tenantId: string | null;
                 /** @enum {string} */
                 type: 'superadmin' | 'staff' | 'reseller' | 'customer';
+                resellerId: string | null;
                 name: string;
                 email: string | null;
                 phone: string | null;
@@ -4453,6 +4454,7 @@ export interface paths {
                 tenantId: string | null;
                 /** @enum {string} */
                 type: 'superadmin' | 'staff' | 'reseller' | 'customer';
+                resellerId: string | null;
                 name: string;
                 email: string | null;
                 phone: string | null;
@@ -4520,6 +4522,7 @@ export interface paths {
               tenantId: string | null;
               /** @enum {string} */
               type: 'superadmin' | 'staff' | 'reseller' | 'customer';
+              resellerId: string | null;
               name: string;
               email: string | null;
               phone: string | null;
@@ -4587,6 +4590,7 @@ export interface paths {
               tenantId: string | null;
               /** @enum {string} */
               type: 'superadmin' | 'staff' | 'reseller' | 'customer';
+              resellerId: string | null;
               name: string;
               email: string | null;
               phone: string | null;
@@ -4657,6 +4661,7 @@ export interface paths {
               tenantId: string | null;
               /** @enum {string} */
               type: 'superadmin' | 'staff' | 'reseller' | 'customer';
+              resellerId: string | null;
               name: string;
               email: string | null;
               phone: string | null;
@@ -4722,6 +4727,7 @@ export interface paths {
               tenantId: string | null;
               /** @enum {string} */
               type: 'superadmin' | 'staff' | 'reseller' | 'customer';
+              resellerId: string | null;
               name: string;
               email: string | null;
               phone: string | null;
@@ -4797,6 +4803,7 @@ export interface paths {
               tenantId: string | null;
               /** @enum {string} */
               type: 'superadmin' | 'staff' | 'reseller' | 'customer';
+              resellerId: string | null;
               name: string;
               email: string | null;
               phone: string | null;
@@ -4866,6 +4873,7 @@ export interface paths {
               tenantId: string | null;
               /** @enum {string} */
               type: 'superadmin' | 'staff' | 'reseller' | 'customer';
+              resellerId: string | null;
               name: string;
               email: string | null;
               phone: string | null;

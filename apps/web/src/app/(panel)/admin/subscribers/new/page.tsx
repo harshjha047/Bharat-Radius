@@ -1,7 +1,8 @@
 'use client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { PageSkeleton } from '@/components/shell';
 import { SubscriberForm } from '@/components/subscriber-form';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -9,8 +10,14 @@ import { PageHeader, SecretBox } from '@/components/ui/misc';
 import { api, unwrap } from '@/lib/api';
 import type { Subscriber } from '@/lib/queries';
 
-export default function NewSubscriberPage() {
+function NewSubscriber() {
   const router = useRouter();
+  const resellerId = useSearchParams().get('reseller');
+  const reseller = useQuery({
+    queryKey: ['reseller', resellerId],
+    queryFn: () => unwrap(api.GET('/api/v1/resellers/{id}', { params: { path: { id: resellerId! } } })),
+    enabled: !!resellerId,
+  });
   const qc = useQueryClient();
   const [created, setCreated] = useState<Subscriber | null>(null);
   const create = useMutation({
@@ -30,11 +37,20 @@ export default function NewSubscriberPage() {
         title="New subscriber"
         description="The account reaches the RADIUS server within seconds."
       />
-      <SubscriberForm
-        submitting={create.isPending}
-        onSubmit={(b) => create.mutateAsync(b)}
-        onCancel={() => router.back()}
-      />
+      {resellerId && reseller.isLoading ? (
+        <PageSkeleton />
+      ) : (
+        <SubscriberForm
+          initialReseller={
+            reseller.data
+              ? { id: reseller.data.id, code: reseller.data.code, name: reseller.data.name }
+              : null
+          }
+          submitting={create.isPending}
+          onSubmit={(b) => create.mutateAsync(b)}
+          onCancel={() => router.back()}
+        />
+      )}
       <Dialog
         open={!!created}
         onOpenChange={(o) => !o && created && router.replace(`/admin/subscribers/${created.id}`)}
@@ -59,5 +75,13 @@ export default function NewSubscriberPage() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+export default function NewSubscriberPage() {
+  return (
+    <Suspense>
+      <NewSubscriber />
+    </Suspense>
   );
 }

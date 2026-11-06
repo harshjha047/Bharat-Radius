@@ -1,12 +1,15 @@
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ResellerPicker, type ResellerRef } from '@/components/reseller-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input, Select, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { ApiError } from '@/lib/api';
+import { useCan } from '@/lib/auth';
 import { applyServerErrors, endOfDayIst, istDateInput } from '@/lib/forms';
 import { usePlans, type Subscriber } from '@/lib/queries';
 
@@ -90,6 +93,7 @@ const KNOWN = [
   'network',
   'tags',
   'notes',
+  'resellerId',
 ];
 
 /** API body: on create everything filled in; on edit only what changed (nullable fields cleared with null). */
@@ -136,17 +140,26 @@ export function toBody(
 
 export function SubscriberForm({
   subscriber,
+  initialReseller,
   submitting,
   onSubmit,
   onCancel,
 }: {
   subscriber?: Subscriber;
+  /** Pre-selected owner when adding a customer from a reseller's page. */
+  initialReseller?: ResellerRef | null;
   submitting: boolean;
   onSubmit: (body: Record<string, unknown>) => Promise<unknown>;
   onCancel: () => void;
 }) {
   const editing = !!subscriber;
+  const can = useCan();
   const { plans } = usePlans();
+  const [reseller, setReseller] = useState<ResellerRef | null>(
+    subscriber?.reseller ?? initialReseller ?? null,
+  );
+  const [resellerError, setResellerError] = useState<string>();
+  const resellerChanged = (reseller?.id ?? null) !== (subscriber?.reseller?.id ?? null);
   const form = useForm<SubscriberFormValues>({
     resolver: zodResolver(schema),
     defaultValues: defaults(subscriber),
@@ -165,7 +178,9 @@ export function SubscriberForm({
 
   const submit = handleSubmit(async (v) => {
     try {
-      await onSubmit(toBody(v, editing ? (dirtyFields as Record<string, unknown>) : null));
+      const body = toBody(v, editing ? (dirtyFields as Record<string, unknown>) : null);
+      if (editing ? resellerChanged : reseller) body.resellerId = reseller?.id ?? null;
+      await onSubmit(body);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         const field = /username/i.test(e.message)
@@ -175,8 +190,14 @@ export function SubscriberForm({
             : null;
         if (field) return setError(field, { type: 'server', message: e.message });
       }
+      if (e instanceof ApiError && /reseller|suspended/i.test(e.message) && e.status !== 400) {
+        return setResellerError(e.message);
+      }
       applyServerErrors(
-        (path, opt) => setError(serverPath(path) as keyof SubscriberFormValues, opt),
+        (path, opt) =>
+          path === 'resellerId'
+            ? setResellerError(opt.message)
+            : setError(serverPath(path) as keyof SubscriberFormValues, opt),
         e,
         KNOWN,
       );
@@ -221,6 +242,26 @@ export function SubscriberForm({
               {...register('pppoePassword')}
             />
           </Field>
+          {can('resellers.read') ? (
+            <Field
+              label="Reseller"
+              htmlFor="resellerId"
+              error={resellerError}
+              hint="Empty = your ISP's own customer."
+              className="sm:col-span-2"
+            >
+              <ResellerPicker
+                id="resellerId"
+                value={reseller}
+                onChange={(r) => {
+                  setReseller(r);
+                  setResellerError(undefined);
+                }}
+                noneLabel="Direct customer"
+                invalid={!!resellerError}
+              />
+            </Field>
+          ) : null}
           <Field label="Plan" htmlFor="planId" error={err('planId')}>
             <Select id="planId" {...register('planId')}>
               <option value="">No plan</option>
@@ -344,7 +385,7 @@ export function SubscriberForm({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" loading={submitting} disabled={editing && !isDirty}>
+        <Button type="submit" loading={submitting} disabled={editing && !isDirty && !resellerChanged}>
           {editing ? 'Save changes' : 'Create subscriber'}
         </Button>
       </div>

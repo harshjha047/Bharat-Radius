@@ -1,7 +1,7 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { api, unwrap, type Item } from './api';
+import { api, unwrap, type ApiData, type Item } from './api';
 import { useCan } from './auth';
 
 export type Plan = Item<'/api/v1/plans'>;
@@ -9,6 +9,8 @@ export type Nas = Item<'/api/v1/nas'>;
 export type Subscriber = Item<'/api/v1/subscribers'>;
 export type Session = Item<'/api/v1/sessions/live'>;
 export type StaffUser = Item<'/api/v1/users'>;
+export type Reseller = Item<'/api/v1/resellers'>;
+export type ResellerDetail = ApiData<'/api/v1/resellers/{id}'>;
 
 /** All plans once (an ISP has tens, not thousands); shared by lists, forms and filters. */
 export function usePlans() {

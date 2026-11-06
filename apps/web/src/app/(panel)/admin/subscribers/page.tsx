@@ -12,7 +12,7 @@ import { ErrorState, PageHeader } from '@/components/ui/misc';
 import { useDebounced } from '@/hooks/use-debounced';
 import { api, unwrap } from '@/lib/api';
 import { useCan } from '@/lib/auth';
-import { usePlans } from '@/lib/queries';
+import { usePlans, type Subscriber } from '@/lib/queries';
 import { fmtDate } from '@/lib/utils';
 
 type Status = 'active' | 'suspended' | 'disabled' | 'expired';
@@ -157,6 +157,17 @@ function SubscribersList() {
               header: 'Plan',
               cell: (s) => (s.planId ? (byId.get(s.planId)?.name ?? '…') : '—'),
             },
+            ...(can('resellers.read')
+              ? [
+                  {
+                    key: 'reseller',
+                    header: 'Reseller',
+                    cell: (s: Subscriber) =>
+                      s.reseller?.name ?? <span className="text-muted-foreground">Direct</span>,
+                    hideOnMobile: true,
+                  },
+                ]
+              : []),
             {
               key: 'state',
               header: 'Status',
