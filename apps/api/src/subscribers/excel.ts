@@ -18,7 +18,7 @@ import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
-import { idParams } from '../http/schemas.js';
+import { hexId, idParams } from '../http/schemas.js';
 import { MONGO } from '../infra/infra.module.js';
 import { createBody, newPassword, toNewSubscriber } from './subscribers.js';
 
@@ -140,10 +140,7 @@ const importQuery = z.object({
 });
 const exportQuery = z.object({
   status: z.enum(['active', 'suspended', 'disabled']).optional(),
-  planId: z
-    .string()
-    .regex(/^[0-9a-f]{24}$/)
-    .optional(),
+  planId: hexId.optional(),
 });
 const batchView = z.object({
   id: z.string().nullable(),

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { toBody, type SubscriberFormValues } from '@/components/subscriber-form';
 import { changedOnly, endOfDayIst, istDateInput } from './forms';
 import { safeNext } from './nav';
-import { fmtBytes, fmtDuration, fmtKbps, fmtRupees } from './utils';
+import { actionLabel } from '@/components/audit-changes';
+import { fmtBytes, fmtDuration, fmtKbps, fmtRupees, plural } from './utils';
 
 describe('formatters', () => {
   it('bytes, speeds, durations and rupees the way staff read them', () => {
@@ -15,6 +16,15 @@ describe('formatters', () => {
     expect(fmtDuration(3 * 86400 + 4 * 3600)).toBe('3d 4h');
     expect(fmtDuration(600)).toBe('10m');
     expect(fmtRupees(49900)).toBe('₹499.00');
+    expect(plural(1, 'day')).toBe('1 day');
+    expect(plural(30, 'day')).toBe('30 days');
+    expect(plural(1000, 'day')).toBe('1,000 days');
+  });
+  it('action labels keep acronyms upper-case', () => {
+    expect(actionLabel('x.fup')).toBe('FUP');
+    expect(actionLabel('x.plan_change')).toBe('Plan change');
+    expect(actionLabel('auth.2fa_enable')).toBe('2FA enable');
+    expect(actionLabel('subscriber.password_reveal')).toBe('Password reveal');
   });
 });
 

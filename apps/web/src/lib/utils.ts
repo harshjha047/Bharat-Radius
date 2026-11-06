@@ -15,6 +15,7 @@ export const fmtDate = (iso: string | null | undefined) => (iso ? dateOnly.forma
 export const fmtDay = (iso: string) => shortDay.format(new Date(iso));
 export const fmtRupees = (paise: number) => inr.format(paise / 100);
 export const fmtNum = (n: number) => num.format(n);
+export const plural = (n: number, word: string) => `${fmtNum(n)} ${word}${n === 1 ? '' : 's'}`;
 
 export function fmtBytes(n: number | null | undefined): string {
   if (n == null) return '—';

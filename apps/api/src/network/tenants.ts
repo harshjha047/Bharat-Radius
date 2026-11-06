@@ -8,7 +8,18 @@ import type { AuthContext } from '../auth/context.js';
 import { SessionUsers } from '../auth/session-users.js';
 import { AppError, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
-import { compact, email, idParams, page, pageOf, pageQuery, phone } from '../http/schemas.js';
+import {
+  compact,
+  email,
+  gstin,
+  idParams,
+  page,
+  pageOf,
+  pageQuery,
+  phone,
+  pincode,
+  stateCode,
+} from '../http/schemas.js';
 import { MONGO } from '../infra/infra.module.js';
 import { Outbox } from '../sync/outbox.js';
 
@@ -19,22 +30,19 @@ const address = z.object({
   city: z.string().trim().min(1).max(80),
   district: z.string().trim().max(80).optional(),
   state: z.string().trim().min(1).max(80),
-  pincode: z.string().regex(/^\d{6}$/),
+  pincode: pincode,
 });
 const radius = z.object({
   expiredRate: rate,
-  expiredAddressList: z.string().regex(/^[\w-]{1,32}$/),
+  expiredAddressList: z.string().regex(/^[\w-]{1,32}$/, 'must be 1–32 letters, digits, _ -'),
   expiredSessionSecs: z.number().int().min(60).max(86_400),
   interimInterval: z.number().int().min(60).max(3600),
 });
 const editable = {
   name: z.string().trim().min(1).max(120),
   legalName: z.string().trim().min(1).max(200),
-  gstin: z
-    .string()
-    .regex(/^\d{2}[0-9A-Z]{13}$/)
-    .nullable(),
-  stateCode: z.string().regex(/^\d{2}$/),
+  gstin: gstin.nullable(),
+  stateCode: stateCode,
   address,
   contact: z.object({ phone: phone.optional(), email: email.optional() }),
   radius,
@@ -64,7 +72,7 @@ const platformUpdate = z
 const createBody = z.object({
   slug: z
     .string()
-    .regex(/^[a-z0-9][a-z0-9-]{1,39}$/)
+    .regex(/^[a-z0-9][a-z0-9-]{1,39}$/, 'must be 2–40 lower-case letters, digits, -')
     .refine((s) => s !== PLATFORM_SLUG, 'reserved'),
   name: editable.name,
   legalName: editable.legalName,

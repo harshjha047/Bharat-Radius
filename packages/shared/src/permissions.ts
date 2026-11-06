@@ -1,6 +1,7 @@
 export const PERMISSIONS = [
   'subscribers.read',
   'subscribers.write',
+  'subscribers.delete',
   'subscribers.kick',
   'subscribers.password.reveal',
   'subscribers.export',

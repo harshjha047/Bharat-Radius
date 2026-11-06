@@ -13,7 +13,7 @@ import { ErrorState, PageHeader } from '@/components/ui/misc';
 import { api, unwrap } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import { usePlans, type Plan } from '@/lib/queries';
-import { fmtBytes, fmtKbps, fmtRupees } from '@/lib/utils';
+import { fmtBytes, fmtKbps, fmtRupees, plural } from '@/lib/utils';
 
 export default function PlansPage() {
   const can = useCan();
@@ -120,7 +120,7 @@ export default function PlansPage() {
                   'Unlimited'
                 ),
             },
-            { key: 'validity', header: 'Validity', cell: (p) => `${p.validityDays} days` },
+            { key: 'validity', header: 'Validity', cell: (p) => plural(p.validityDays, 'day') },
             {
               key: 'price',
               header: 'Price',

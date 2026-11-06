@@ -6874,7 +6874,7 @@
             "session": []
           }
         ],
-        "x-permission": "subscribers.write",
+        "x-permission": "subscribers.delete",
         "parameters": [
           {
             "name": "id",
@@ -9298,6 +9298,7 @@
                       "enum": [
                         "subscribers.read",
                         "subscribers.write",
+                        "subscribers.delete",
                         "subscribers.kick",
                         "subscribers.password.reveal",
                         "subscribers.export",
@@ -9448,6 +9449,7 @@
                       "enum": [
                         "subscribers.read",
                         "subscribers.write",
+                        "subscribers.delete",
                         "subscribers.kick",
                         "subscribers.password.reveal",
                         "subscribers.export",

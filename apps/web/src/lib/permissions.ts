@@ -6,7 +6,8 @@ export const PERMISSION_GROUPS: { label: string; items: [Permission, string][] }
     label: 'Subscribers',
     items: [
       ['subscribers.read', 'View subscribers'],
-      ['subscribers.write', 'Create, edit, suspend, delete'],
+      ['subscribers.write', 'Create, edit, suspend'],
+      ['subscribers.delete', 'Delete subscribers'],
       ['subscribers.kick', 'Kick sessions'],
       ['subscribers.password.reveal', 'See PPPoE passwords'],
       ['subscribers.export', 'Export to Excel'],

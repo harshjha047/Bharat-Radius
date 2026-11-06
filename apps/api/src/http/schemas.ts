@@ -8,6 +8,12 @@ export const objectId = z
 
 export const idParams = z.object({ id: objectId });
 
+export const hexId = z.string().regex(/^[0-9a-f]{24}$/, 'must be a 24-character id');
+export const pincode = z.string().regex(/^\d{6}$/, 'must be a 6-digit PIN code');
+export const stateCode = z.string().regex(/^\d{2}$/, 'must be a 2-digit GST state code');
+export const gstin = z.string().regex(/^\d{2}[0-9A-Z]{13}$/, 'must be a 15-character GSTIN');
+export const isoDate = z.string().regex(/^\d{4}-\d\d-\d\d$/, 'must be a date in YYYY-MM-DD form');
+
 export const phone = z
   .string()
   .trim()
@@ -22,10 +28,7 @@ export const email = z
 
 /** Cursor = last seen _id (newest first). Stable under inserts, O(log n) per page via the _id index. */
 export const pageQuery = z.object({
-  cursor: z
-    .string()
-    .regex(/^[0-9a-f]{24}$/)
-    .optional(),
+  cursor: hexId.optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 

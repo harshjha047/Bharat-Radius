@@ -37,7 +37,7 @@ const burst = speeds.extend({
 const attribute = z.object({
   attribute: z
     .string()
-    .regex(/^[A-Za-z][A-Za-z0-9-]{1,63}$/)
+    .regex(/^[A-Za-z][A-Za-z0-9-]{1,63}$/, 'must be a RADIUS attribute name (letters, digits, -)')
     .refine((a) => !RESERVED_ATTRIBUTES.has(a.toLowerCase()), 'is set by the plan itself'),
   op: z.enum([':=', '=', '+=']).default(':='),
   value: z.string().min(1).max(253),
@@ -50,7 +50,7 @@ const fields = {
   fup: speeds,
   fupCycle: z.enum(['billing_cycle', 'calendar_month']),
   validityDays: z.number().int().min(1).max(3660),
-  ipPool: z.string().regex(/^[\w.-]{1,64}$/),
+  ipPool: z.string().regex(/^[\w.-]{1,64}$/, 'must be 1–64 letters, digits, . _ -'),
   simUse: z.number().int().min(1).max(10),
   billingTypes: z
     .array(z.enum(['prepaid', 'postpaid']))
@@ -58,7 +58,7 @@ const fields = {
     .max(2),
   pricePaise: z.number().int().min(0).max(2_000_000_000),
   gstRatePercent: z.union([z.literal(0), z.literal(5), z.literal(12), z.literal(18), z.literal(28)]),
-  hsnSac: z.string().regex(/^\d{4,8}$/),
+  hsnSac: z.string().regex(/^\d{4,8}$/, 'must be a 4–8 digit HSN/SAC code'),
   extraAttributes: z.array(attribute).max(20),
 };
 const createBody = speeds.extend({

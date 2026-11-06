@@ -30,7 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api, unwrap } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import { usePlans, type Subscriber } from '@/lib/queries';
-import { fmtBytes, fmtDate, fmtDateTime, fmtDuration, fmtKbps, relTime } from '@/lib/utils';
+import { fmtBytes, fmtDate, fmtDateTime, fmtDuration, fmtKbps, plural, relTime } from '@/lib/utils';
 
 const UsageChart = dynamic(() => import('@/components/usage-chart'), {
   ssr: false,
@@ -148,6 +148,7 @@ function Actions({ s }: { s: Subscriber }) {
   });
 
   const write = can('subscribers.write');
+  const del = can('subscribers.delete');
   return (
     <>
       {write ? (
@@ -162,7 +163,7 @@ function Actions({ s }: { s: Subscriber }) {
           <Unplug /> Kick
         </Button>
       ) : null}
-      {write || can('subscribers.password.reveal') ? (
+      {write || del || can('subscribers.password.reveal') ? (
         <Menu>
           <MenuTrigger asChild>
             <Button variant="outline" size="icon" aria-label="More actions">
@@ -185,9 +186,9 @@ function Actions({ s }: { s: Subscriber }) {
                 <PlayCircle /> Activate
               </MenuItem>
             ) : null}
-            {write ? (
+            {del ? (
               <>
-                <MenuSeparator />
+                {write || can('subscribers.password.reveal') ? <MenuSeparator /> : null}
                 <MenuItem destructive onSelect={() => setOpen('delete')}>
                   <Trash2 /> Delete
                 </MenuItem>
@@ -451,7 +452,7 @@ function Usage({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Downloaded" value={fmtBytes(down)} hint={`${days.length} days`} />
+        <Stat label="Downloaded" value={fmtBytes(down)} hint={plural(days.length, 'day')} />
         <Stat label="Uploaded" value={fmtBytes(up)} />
         {cycle ? (
           <div className="col-span-2 rounded-lg border bg-card p-4">

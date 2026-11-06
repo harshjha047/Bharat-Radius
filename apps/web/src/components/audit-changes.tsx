@@ -61,5 +61,5 @@ export const actionLabel = (a: string) =>
   a
     .replace(/^[a-z]+\./, '')
     .replace(/_/g, ' ')
-    .replace(/^2fa/, '2FA')
+    .replace(/\b(2fa|fup|pppoe|ip|mac)\b/g, (w) => w.toUpperCase())
     .replace(/^./, (c) => c.toUpperCase());
