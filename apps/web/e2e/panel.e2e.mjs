@@ -193,6 +193,12 @@ step('Support sees only what the role allows', async () => {
   await page.goto(`${BASE}/admin/routers`);
   await page.getByRole('cell', { name: 'E2E POP-1', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Add router' }).count(), 0);
+  await page.goto(`${BASE}/admin/subscribers?q=ramesh`);
+  await page.getByRole('link', { name: 'Ramesh Kumar E2E' }).click();
+  await page.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Suspend' }).waitFor();
+  assert.equal(await page.getByRole('menuitem', { name: 'Delete' }).count(), 0, 'Support must not delete');
+  await page.keyboard.press('Escape');
 });
 
 step('no uncaught page errors', async () => {

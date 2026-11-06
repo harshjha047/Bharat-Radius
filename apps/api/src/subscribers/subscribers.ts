@@ -35,6 +35,8 @@ import { Ctx, Endpoint } from '../http/endpoint.js';
 import {
   compact,
   email,
+  gstin,
+  hexId,
   idParams,
   objectId,
   okResponse,
@@ -42,6 +44,8 @@ import {
   pageOf,
   pageQuery,
   phone,
+  pincode,
+  stateCode,
 } from '../http/schemas.js';
 import { MONGO } from '../infra/infra.module.js';
 import { Outbox } from '../sync/outbox.js';
@@ -69,11 +73,8 @@ const address = z.object({
   city: z.string().trim().min(1).max(80),
   district: z.string().trim().max(80).optional(),
   state: z.string().trim().min(1).max(80),
-  stateCode: z
-    .string()
-    .regex(/^\d{2}$/)
-    .optional(),
-  pincode: z.string().regex(/^\d{6}$/),
+  stateCode: stateCode.optional(),
+  pincode: pincode,
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
 });
@@ -92,10 +93,7 @@ export const createBody = z.object({
   altPhone: phone.optional(),
   email: email.optional(),
   address,
-  gstin: z
-    .string()
-    .regex(/^\d{2}[0-9A-Z]{13}$/)
-    .optional(),
+  gstin: gstin.optional(),
   billingType: z.enum(['prepaid', 'postpaid']).default('prepaid'),
   planId: objectId.optional(),
   expiresAt: z.coerce.date().optional(),
@@ -111,11 +109,7 @@ const updateBody = z
     altPhone: phone.nullable().optional(),
     email: email.nullable().optional(),
     address: address.optional(),
-    gstin: z
-      .string()
-      .regex(/^\d{2}[0-9A-Z]{13}$/)
-      .nullable()
-      .optional(),
+    gstin: gstin.nullable().optional(),
     billingType: z.enum(['prepaid', 'postpaid']).optional(),
     planId: objectId.nullable().optional(),
     expiresAt: z.coerce.date().nullable().optional(),
@@ -127,10 +121,7 @@ const updateBody = z
 const listQuery = pageQuery.extend({
   q: z.string().trim().min(1).max(64).optional(),
   status: z.enum(['active', 'suspended', 'disabled', 'expired']).optional(),
-  planId: z
-    .string()
-    .regex(/^[0-9a-f]{24}$/)
-    .optional(),
+  planId: hexId.optional(),
 });
 
 const subscriberView = z.object({
@@ -548,7 +539,7 @@ export class SubscribersController {
     summary: 'Delete (disconnects; username and static IP become free; history kept)',
     tags: ['subscribers'],
     audit: 'subscriber.delete',
-    permission: 'subscribers.write',
+    permission: 'subscribers.delete',
     params: idParams,
     response: okResponse,
   })

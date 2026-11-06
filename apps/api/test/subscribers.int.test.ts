@@ -112,6 +112,16 @@ describe('subscribers', () => {
         })
       ).status,
     ).toBe(400);
+    const pin = await admin.req('POST', '/api/v1/subscribers', {
+      ...base,
+      username: 'bad-pin',
+      address: { ...base.address, pincode: '1234' },
+    });
+    expect(pin.body.error.details.issues).toContainEqual({
+      in: 'body',
+      path: 'address.pincode',
+      message: 'must be a 6-digit PIN code',
+    });
     const archived = (
       await admin.req('POST', '/api/v1/plans', {
         name: 'Old',
@@ -173,10 +183,11 @@ describe('subscribers', () => {
     expect((await outbox(planB)).at(-1)?.coa).toEqual({ action: 'update', reason: 'plan_change' });
   });
 
-  it('permissions: support edits and kicks but cannot read PPPoE passwords', async () => {
+  it('permissions: support edits and kicks but cannot read PPPoE passwords or delete', async () => {
     expect((await support.req('PATCH', `/api/v1/subscribers/${id}`, { notes: 'called' })).status).toBe(200);
     expect((await support.req('POST', `/api/v1/subscribers/${id}/kick`)).status).toBe(200);
     expect((await support.req('GET', `/api/v1/subscribers/${id}/password`)).status).toBe(403);
+    expect((await support.req('DELETE', `/api/v1/subscribers/${id}`)).status).toBe(403);
   });
 
   it('delete disconnects and frees the username and static IP', async () => {

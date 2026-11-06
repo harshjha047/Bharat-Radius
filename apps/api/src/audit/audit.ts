@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { ScopedDb, type AuditLogDoc, type MongoHandle } from '@isp/db-mongo';
 import type { AuthContext } from '../auth/context.js';
 import { ENDPOINT, Ctx, Endpoint, type EndpointOptions } from '../http/endpoint.js';
-import { pageOf, pageQuery, page } from '../http/schemas.js';
+import { hexId, pageOf, pageQuery, page } from '../http/schemas.js';
 import { MONGO } from '../infra/infra.module.js';
 import { changes, redact } from './diff.js';
 
@@ -164,10 +164,7 @@ const auditQuery = pageQuery.extend({
     .regex(/^[a-z_]{2,32}$/)
     .optional(),
   entityId: z.string().max(64).optional(),
-  actorId: z
-    .string()
-    .regex(/^[0-9a-f]{24}$/)
-    .optional(),
+  actorId: hexId.optional(),
   action: z
     .string()
     .regex(/^[a-z0-9_.-]{2,64}$/)

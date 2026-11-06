@@ -7,18 +7,12 @@ import { ScopedDb, type MongoHandle, type PlanDoc, type SubscriberDoc } from '@i
 import type { AuthContext } from '../auth/context.js';
 import { AppError, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
-import { idParams } from '../http/schemas.js';
+import { hexId, idParams, isoDate } from '../http/schemas.js';
 import { MONGO, RADIUS_DB } from '../infra/infra.module.js';
 
 const usageQuery = z.object({
-  from: z
-    .string()
-    .regex(/^\d{4}-\d\d-\d\d$/)
-    .optional(),
-  to: z
-    .string()
-    .regex(/^\d{4}-\d\d-\d\d$/)
-    .optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
 });
 const usageView = z.object({
   days: z.array(
@@ -41,10 +35,7 @@ const usageView = z.object({
 
 const tenantQuery = z.object({
   /** Super-admin only: which ISP to read. Ignored for staff (always their own). */
-  tenantId: z
-    .string()
-    .regex(/^[0-9a-f]{24}$/)
-    .optional(),
+  tenantId: hexId.optional(),
 });
 const keysetCursor = z
   .string()
