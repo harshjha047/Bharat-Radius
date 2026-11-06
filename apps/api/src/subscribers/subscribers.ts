@@ -25,12 +25,14 @@ import {
   type MongoHandle,
   type OutboxDoc,
   type PlanDoc,
+  type ResellerDoc,
   type SubscriberDoc,
   type TenantDoc,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
+import { ResellersService } from '../resellers/resellers.js';
 import type { AuthContext } from '../auth/context.js';
-import { AppError, conflict, notFound } from '../errors.js';
+import { AppError, conflict, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import {
   compact,
@@ -100,6 +102,8 @@ export const createBody = z.object({
   network: network.optional(),
   tags: z.array(z.string().trim().min(1).max(30)).max(20).default([]),
   notes: z.string().max(2000).optional(),
+  /** Owning reseller; null = direct ISP customer. A reseller's own customers default to that reseller. */
+  resellerId: objectId.nullable().optional(),
 });
 const updateBody = z
   .object({
@@ -116,12 +120,17 @@ const updateBody = z
     network: network.optional(),
     tags: z.array(z.string().trim().min(1).max(30)).max(20).optional(),
     notes: z.string().max(2000).nullable().optional(),
+    resellerId: objectId.nullable().optional(),
   })
   .refine((b) => Object.keys(b).length > 0, 'nothing to change');
 const listQuery = pageQuery.extend({
   q: z.string().trim().min(1).max(64).optional(),
   status: z.enum(['active', 'suspended', 'disabled', 'expired']).optional(),
   planId: hexId.optional(),
+  /** Customers owned directly by this reseller; `none` = direct ISP customers. */
+  resellerId: z.union([hexId, z.literal('none')]).optional(),
+  /** Customers anywhere in this reseller's branch. */
+  under: hexId.optional(),
 });
 
 const subscriberView = z.object({
@@ -151,13 +160,20 @@ const subscriberView = z.object({
   tags: z.array(z.string()),
   notes: z.string().nullable(),
   syncStatus: z.enum(['synced', 'pending', 'error']),
+  reseller: z.object({ id: z.string(), code: z.string(), name: z.string() }).nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
   /** Present only in the response that created the subscriber with a generated password. */
   pppoePassword: z.string().optional(),
 });
 
-const toView = (s: SubscriberDoc, revealed?: string): z.output<typeof subscriberView> => ({
+type ResellerRefs = ReadonlyMap<string, Pick<ResellerDoc, '_id' | 'code' | 'name'>>;
+
+const toView = (
+  s: SubscriberDoc,
+  refs: ResellerRefs,
+  revealed?: string,
+): z.output<typeof subscriberView> => ({
   id: s._id.toHexString(),
   customerNo: s.customerNo,
   username: s.username ?? s.deletedUsername ?? '',
@@ -184,10 +200,16 @@ const toView = (s: SubscriberDoc, revealed?: string): z.output<typeof subscriber
   tags: s.tags,
   notes: s.notes ?? null,
   syncStatus: s.syncStatus,
+  reseller: refOf(s, refs),
   createdAt: s.createdAt.toISOString(),
   updatedAt: s.updatedAt.toISOString(),
   ...(revealed ? { pppoePassword: revealed } : {}),
 });
+
+function refOf(s: SubscriberDoc, refs: ResellerRefs) {
+  const r = s.resellerId ? refs.get(s.resellerId.toHexString()) : undefined;
+  return r ? { id: r._id.toHexString(), code: r.code, name: r.name } : null;
+}
 
 const coaLogView = z.object({
   type: z.enum(['coa', 'disconnect']),
@@ -246,7 +268,34 @@ export class SubscribersService {
     @Inject(MONGO) private readonly mongo: MongoHandle,
     @Inject(Outbox) private readonly outbox: Outbox,
     @Inject(FieldCrypto) private readonly crypto: FieldCrypto,
+    @Inject(ResellersService) private readonly resellers: ResellersService,
   ) {}
+
+  /** Owning resellers of these subscribers in one query. */
+  private async refs(ctx: AuthContext, docs: SubscriberDoc[]): Promise<ResellerRefs> {
+    const ids = [...new Set(docs.flatMap((d) => (d.resellerId ? [d.resellerId.toHexString()] : [])))];
+    if (!ids.length) return new Map();
+    const rows = await new ScopedDb(this.mongo.db, ctx.scope)
+      .collection<ResellerDoc>('resellers')
+      .find({ _id: { $in: ids.map((i) => new ObjectId(i)) } }, { projection: { code: 1, name: 1 } })
+      .toArray();
+    return new Map(rows.map((r) => [r._id.toHexString(), r]));
+  }
+
+  private view = async (ctx: AuthContext, s: SubscriberDoc, revealed?: string) =>
+    toView(s, await this.refs(ctx, [s]), revealed);
+
+  /** Owner and ancestors for a subscriber placed under `resellerId` (undefined = the caller's own reseller). */
+  private async owner(ctx: AuthContext, resellerId: ObjectId | null | undefined) {
+    const self = ctx.scope.kind === 'branch' ? ctx.scope.resellerId : null;
+    const id = resellerId === undefined ? self : resellerId;
+    if (!id) {
+      if (self) throw forbidden('A reseller cannot make a direct ISP customer');
+      return { resellerId: null, ancestors: [] as ObjectId[] };
+    }
+    const r = await this.resellers.assertOpenParent(ctx, id);
+    return { resellerId: r._id, ancestors: [...r.ancestors, r._id] };
+  }
 
   private col(ctx: AuthContext) {
     return new ScopedDb(this.mongo.db, ctx.scope).collection<SubscriberDoc>('subscribers');
@@ -275,6 +324,9 @@ export class SubscribersService {
     if (q.status === 'expired') Object.assign(f, { status: 'active', expiresAt: { $lte: now } });
     else if (q.status) f.status = q.status;
     if (q.planId) f.planId = new ObjectId(q.planId);
+    if (q.resellerId === 'none') f.resellerId = null;
+    else if (q.resellerId) f.resellerId = new ObjectId(q.resellerId);
+    if (q.under) f.ancestors = new ObjectId(q.under);
     if (q.cursor) f._id = { $lt: new ObjectId(q.cursor) };
     if (q.q) {
       const term = q.q.toLowerCase().replace(/^\+?91(?=\d{10}$)/, '');
@@ -283,15 +335,17 @@ export class SubscribersService {
     const docs = await this.col(ctx)
       .find(f, { sort: { _id: -1 }, limit: q.limit + 1 })
       .toArray();
-    return pageOf(docs, q.limit, (d) => toView(d));
+    const refs = await this.refs(ctx, docs.slice(0, q.limit));
+    return pageOf(docs, q.limit, (d) => toView(d, refs));
   }
 
-  get = async (ctx: AuthContext, id: ObjectId) => toView(await this.find(ctx, id));
+  get = async (ctx: AuthContext, id: ObjectId) => this.view(ctx, await this.find(ctx, id));
 
   async create(ctx: AuthContext, b: z.output<typeof createBody>) {
     if (!ctx.tenantId)
       throw new AppError(400, 'VALIDATION_FAILED', 'Subscribers belong to an ISP; sign in as its staff');
     if (b.planId) await this.assertPlan(ctx, b.planId, b.billingType);
+    const owner = await this.owner(ctx, b.resellerId);
     const tenant = await this.mongo.db
       .collection<TenantDoc>('tenants')
       .findOne({ _id: ctx.tenantId }, { projection: { stateCode: 1 } });
@@ -304,13 +358,12 @@ export class SubscribersService {
         {
           tenantId: ctx.tenantId,
           actor: ctx.userId.toHexString(),
-          resellerId: ctx.resellerId ?? null,
-          ancestors: ctx.resellerId ? [ctx.resellerId] : [],
+          ...owner,
         },
         toNewSubscriber(b, plain, tenant?.stateCode),
       );
       noteChange({ after: doc, entityId: doc._id });
-      return toView(doc, b.pppoePassword ? undefined : plain);
+      return this.view(ctx, doc, b.pppoePassword ? undefined : plain);
     } catch (e) {
       if ((e as { code?: number }).code === 11000) duplicate(e);
       throw e;
@@ -378,6 +431,12 @@ export class SubscribersService {
       }
     }
     if (b.pppoePassword) set.pppoePassword = this.crypto.encrypt(b.pppoePassword, pwAad(id));
+    if (b.resellerId !== undefined && String(b.resellerId) !== String(cur.resellerId)) {
+      if (b.resellerId === null && ctx.scope.kind === 'branch') {
+        throw forbidden('A reseller cannot make a direct ISP customer');
+      }
+      Object.assign(set, await this.owner(ctx, b.resellerId));
+    }
     if (b.name || b.phone || b.altPhone !== undefined) {
       set.search = searchTokens({
         name: b.name ?? cur.name,
@@ -387,17 +446,17 @@ export class SubscribersService {
         customerNo: cur.customerNo,
       });
     }
-    return toView(await this.apply(ctx, cur, set, unset));
+    return this.view(ctx, await this.apply(ctx, cur, set, unset));
   }
 
   async setStatus(ctx: AuthContext, id: ObjectId, status: 'active' | 'suspended', reason?: string) {
     const cur = await this.find(ctx, id);
-    if (cur.status === status) return toView(cur);
+    if (cur.status === status) return this.view(ctx, cur);
     const set: Record<string, unknown> = { status };
     const unset: Record<string, ''> = {};
     if (status === 'suspended') set.suspendReason = reason ?? 'manual';
     else unset.suspendReason = '';
-    return toView(await this.apply(ctx, cur, set, unset));
+    return this.view(ctx, await this.apply(ctx, cur, set, unset));
   }
 
   async remove(ctx: AuthContext, id: ObjectId) {

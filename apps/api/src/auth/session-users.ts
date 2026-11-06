@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { ObjectId } from 'mongodb';
 import { PERMISSIONS, isPermission, type Permission } from '@isp/shared';
-import type { MongoHandle, RoleDoc, TenantDoc, UserDoc } from '@isp/db-mongo';
+import type { MongoHandle, ResellerDoc, RoleDoc, TenantDoc, UserDoc } from '@isp/db-mongo';
 import { CONFIG, type Config } from '../config.js';
 import { MONGO } from '../infra/infra.module.js';
 
@@ -9,7 +9,8 @@ export interface SessionUser {
   user: UserDoc;
   permissions: ReadonlySet<Permission>;
   requireMfa: boolean;
-  tenantActive: boolean;
+  /** Tenant active and, for a reseller user, its reseller and every reseller above it active. */
+  active: boolean;
 }
 
 const MAX_ENTRIES = 10_000;
@@ -51,10 +52,10 @@ export class SessionUsers {
     const db = this.mongo.db;
     const user = await db.collection<UserDoc>('users').findOne({ _id: userId });
     if (!user) return null;
-    if (user.type === 'superadmin') return { user, permissions: ALL, requireMfa: true, tenantActive: true };
+    if (user.type === 'superadmin') return { user, permissions: ALL, requireMfa: true, active: true };
     if (!user.tenantId) return null;
 
-    const [roles, tenant] = await Promise.all([
+    const [roles, tenant, branchActive] = await Promise.all([
       user.roleIds.length
         ? db
             .collection<RoleDoc>('roles')
@@ -62,6 +63,7 @@ export class SessionUsers {
             .toArray()
         : Promise.resolve([]),
       db.collection<TenantDoc>('tenants').findOne({ _id: user.tenantId }, { projection: { status: 1 } }),
+      user.type === 'reseller' ? this.branchActive(user.tenantId, user.resellerId) : Promise.resolve(true),
     ]);
     const wantScope = user.type === 'reseller' ? 'reseller' : 'tenant';
     const permissions = new Set<Permission>();
@@ -71,6 +73,21 @@ export class SessionUsers {
       requireMfa ||= r.requireMfa;
       for (const p of r.permissions) if (isPermission(p)) permissions.add(p);
     }
-    return { user, permissions, requireMfa, tenantActive: tenant?.status === 'active' };
+    return { user, permissions, requireMfa, active: tenant?.status === 'active' && branchActive };
+  }
+
+  private async branchActive(tenantId: ObjectId, resellerId: ObjectId | undefined): Promise<boolean> {
+    if (!resellerId) return false;
+    const resellers = this.mongo.db.collection<ResellerDoc>('resellers');
+    const r = await resellers.findOne(
+      { _id: resellerId, tenantId },
+      { projection: { status: 1, ancestors: 1 } },
+    );
+    if (r?.status !== 'active') return false;
+    if (!r.ancestors.length) return true;
+    return !(await resellers.findOne(
+      { _id: { $in: r.ancestors }, tenantId, status: { $ne: 'active' } },
+      { projection: { _id: 1 } },
+    ));
   }
 }

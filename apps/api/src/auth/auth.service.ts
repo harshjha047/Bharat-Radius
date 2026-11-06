@@ -130,7 +130,7 @@ export class AuthService {
     }
 
     const su = await this.sessions.resolve(user._id);
-    if (!su || user.status !== 'active' || !su.tenantActive) {
+    if (!su || user.status !== 'active' || !su.active) {
       throw new AppError(403, 'ACCOUNT_DISABLED', 'This account is disabled. Contact your administrator.');
     }
 
@@ -256,7 +256,7 @@ export class AuthService {
     }
     if (doc.familyExpiresAt <= now) throw unauthenticated('Session ended. Sign in again.');
     const su = await this.sessions.resolve(doc.userId);
-    if (!su || su.user.status !== 'active' || !su.tenantActive || su.user.tokenVersion !== doc.tokenVersion) {
+    if (!su || su.user.status !== 'active' || !su.active || su.user.tokenVersion !== doc.tokenVersion) {
       await this.revokeFamily(doc.familyId, 'admin');
       throw unauthenticated('Session ended. Sign in again.');
     }

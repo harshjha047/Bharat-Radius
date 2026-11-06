@@ -1524,6 +1524,713 @@ export interface paths {
     };
     trace?: never;
   };
+  '/api/v1/resellers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Resellers (a reseller sees itself and its branch) */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          parentId?: string | 'none';
+          status?: 'active' | 'suspended';
+          q?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                code: string;
+                name: string;
+                ownerName: string;
+                phone: string | null;
+                email: string | null;
+                gstin: string | null;
+                address: {
+                  line1?: string;
+                  city?: string;
+                  district?: string;
+                  state?: string;
+                  pincode?: string;
+                } | null;
+                parentId: string | null;
+                level: number;
+                creditLimitPaise: number;
+                canCreateSubResellers: boolean;
+                /** @enum {string} */
+                status: 'active' | 'suspended' | 'deleted';
+                suspendReason: string | null;
+                blockedBy: {
+                  id: string;
+                  code: string;
+                  name: string;
+                } | null;
+                counts: {
+                  subResellers: number;
+                  directCustomers: number;
+                  totalCustomers: number;
+                };
+                updatedAt: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Add a reseller (top level, or under a reseller) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            parentId?: string | null;
+            name: string;
+            ownerName: string;
+            phone?: string;
+            /** Format: email */
+            email?: string;
+            gstin?: string;
+            address?: {
+              line1?: string;
+              city?: string;
+              district?: string;
+              state?: string;
+              pincode?: string;
+            };
+            /** @default 0 */
+            creditLimitPaise?: number;
+            /** @default true */
+            canCreateSubResellers?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              code: string;
+              name: string;
+              ownerName: string;
+              phone: string | null;
+              email: string | null;
+              gstin: string | null;
+              address: {
+                line1?: string;
+                city?: string;
+                district?: string;
+                state?: string;
+                pincode?: string;
+              } | null;
+              parentId: string | null;
+              level: number;
+              creditLimitPaise: number;
+              canCreateSubResellers: boolean;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'deleted';
+              suspendReason: string | null;
+              blockedBy: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              counts: {
+                subResellers: number;
+                directCustomers: number;
+                totalCustomers: number;
+              };
+              updatedAt: string;
+              path: {
+                id: string;
+                code: string;
+                name: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/resellers/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One reseller with counts and the path above it */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              code: string;
+              name: string;
+              ownerName: string;
+              phone: string | null;
+              email: string | null;
+              gstin: string | null;
+              address: {
+                line1?: string;
+                city?: string;
+                district?: string;
+                state?: string;
+                pincode?: string;
+              } | null;
+              parentId: string | null;
+              level: number;
+              creditLimitPaise: number;
+              canCreateSubResellers: boolean;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'deleted';
+              suspendReason: string | null;
+              blockedBy: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              counts: {
+                subResellers: number;
+                directCustomers: number;
+                totalCustomers: number;
+              };
+              updatedAt: string;
+              path: {
+                id: string;
+                code: string;
+                name: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    /** Delete an empty reseller (no sub-resellers or customers); its sign-ins are disabled */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @constant */
+              ok: true;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Edit a reseller (credit limit: ISP staff only) */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            name?: string;
+            ownerName?: string;
+            phone?: string | null;
+            email?: string | null;
+            gstin?: string | null;
+            address?: {
+              line1?: string;
+              city?: string;
+              district?: string;
+              state?: string;
+              pincode?: string;
+            } | null;
+            creditLimitPaise?: number;
+            canCreateSubResellers?: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              code: string;
+              name: string;
+              ownerName: string;
+              phone: string | null;
+              email: string | null;
+              gstin: string | null;
+              address: {
+                line1?: string;
+                city?: string;
+                district?: string;
+                state?: string;
+                pincode?: string;
+              } | null;
+              parentId: string | null;
+              level: number;
+              creditLimitPaise: number;
+              canCreateSubResellers: boolean;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'deleted';
+              suspendReason: string | null;
+              blockedBy: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              counts: {
+                subResellers: number;
+                directCustomers: number;
+                totalCustomers: number;
+              };
+              updatedAt: string;
+              path: {
+                id: string;
+                code: string;
+                name: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/v1/resellers/{id}/suspend': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Suspend: the branch cannot sign in or recharge; customers stay online */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            reason?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              code: string;
+              name: string;
+              ownerName: string;
+              phone: string | null;
+              email: string | null;
+              gstin: string | null;
+              address: {
+                line1?: string;
+                city?: string;
+                district?: string;
+                state?: string;
+                pincode?: string;
+              } | null;
+              parentId: string | null;
+              level: number;
+              creditLimitPaise: number;
+              canCreateSubResellers: boolean;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'deleted';
+              suspendReason: string | null;
+              blockedBy: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              counts: {
+                subResellers: number;
+                directCustomers: number;
+                totalCustomers: number;
+              };
+              updatedAt: string;
+              path: {
+                id: string;
+                code: string;
+                name: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/resellers/{id}/activate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Lift a suspension */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              code: string;
+              name: string;
+              ownerName: string;
+              phone: string | null;
+              email: string | null;
+              gstin: string | null;
+              address: {
+                line1?: string;
+                city?: string;
+                district?: string;
+                state?: string;
+                pincode?: string;
+              } | null;
+              parentId: string | null;
+              level: number;
+              creditLimitPaise: number;
+              canCreateSubResellers: boolean;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'deleted';
+              suspendReason: string | null;
+              blockedBy: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              counts: {
+                subResellers: number;
+                directCustomers: number;
+                totalCustomers: number;
+              };
+              updatedAt: string;
+              path: {
+                id: string;
+                code: string;
+                name: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/resellers/{id}/move': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Move a reseller and its whole branch under another parent (null = top level) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            parentId: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              code: string;
+              name: string;
+              ownerName: string;
+              phone: string | null;
+              email: string | null;
+              gstin: string | null;
+              address: {
+                line1?: string;
+                city?: string;
+                district?: string;
+                state?: string;
+                pincode?: string;
+              } | null;
+              parentId: string | null;
+              level: number;
+              creditLimitPaise: number;
+              canCreateSubResellers: boolean;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'deleted';
+              suspendReason: string | null;
+              blockedBy: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              counts: {
+                subResellers: number;
+                directCustomers: number;
+                totalCustomers: number;
+              };
+              updatedAt: string;
+              path: {
+                id: string;
+                code: string;
+                name: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/tenant': {
     parameters: {
       query?: never;
@@ -2511,6 +3218,8 @@ export interface paths {
           q?: string;
           status?: 'active' | 'suspended' | 'disabled' | 'expired';
           planId?: string;
+          resellerId?: string | 'none';
+          under?: string;
         };
         header?: never;
         path?: never;
@@ -2558,6 +3267,11 @@ export interface paths {
                 notes: string | null;
                 /** @enum {string} */
                 syncStatus: 'synced' | 'pending' | 'error';
+                reseller: {
+                  id: string;
+                  code: string;
+                  name: string;
+                } | null;
                 createdAt: string;
                 updatedAt: string;
                 pppoePassword?: string;
@@ -2631,6 +3345,7 @@ export interface paths {
             /** @default [] */
             tags?: string[];
             notes?: string;
+            resellerId?: string | null;
           };
         };
       };
@@ -2674,6 +3389,11 @@ export interface paths {
               notes: string | null;
               /** @enum {string} */
               syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
               createdAt: string;
               updatedAt: string;
               pppoePassword?: string;
@@ -2762,6 +3482,11 @@ export interface paths {
               notes: string | null;
               /** @enum {string} */
               syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
               createdAt: string;
               updatedAt: string;
               pppoePassword?: string;
@@ -2874,6 +3599,7 @@ export interface paths {
             };
             tags?: string[];
             notes?: string | null;
+            resellerId?: string | null;
           };
         };
       };
@@ -2917,6 +3643,11 @@ export interface paths {
               notes: string | null;
               /** @enum {string} */
               syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
               createdAt: string;
               updatedAt: string;
               pppoePassword?: string;
@@ -3009,6 +3740,11 @@ export interface paths {
               notes: string | null;
               /** @enum {string} */
               syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
               createdAt: string;
               updatedAt: string;
               pppoePassword?: string;
@@ -3099,6 +3835,11 @@ export interface paths {
               notes: string | null;
               /** @enum {string} */
               syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
               createdAt: string;
               updatedAt: string;
               pppoePassword?: string;

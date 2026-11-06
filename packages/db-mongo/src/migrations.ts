@@ -428,4 +428,48 @@ const audit: Migration = {
   },
 };
 
-export const MIGRATIONS: readonly Migration[] = [identity, config, subscribers, imports, audit];
+const resellers: Migration = {
+  id: '006_resellers',
+  async up(db) {
+    await ensureCollection(db, 'resellers', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'parentId',
+        'ancestors',
+        'level',
+        'code',
+        'name',
+        'ownerName',
+        'creditLimitPaise',
+        'canCreateSubResellers',
+        'status',
+        'version',
+        ...standardRequired,
+      ],
+      properties: {
+        tenantId: oid,
+        parentId: oidOrNull,
+        ancestors: { bsonType: 'array', items: oid },
+        level: { bsonType: ['int', 'long'], minimum: 1 },
+        code: { bsonType: 'string', pattern: '^R-[0-9]{4,}$' },
+        name: str,
+        ownerName: str,
+        walletId: oid,
+        creditLimitPaise: { bsonType: ['int', 'long'], minimum: 0 },
+        canCreateSubResellers: { bsonType: 'bool' },
+        status: { enum: ['active', 'suspended', 'deleted'] },
+        version: int,
+        ...standard,
+      },
+    });
+    await ensureIndexes(db, 'resellers', [
+      { key: { tenantId: 1, code: 1 }, unique: true },
+      { key: { tenantId: 1, parentId: 1, _id: -1 } },
+      { key: { tenantId: 1, ancestors: 1 } },
+      { key: { tenantId: 1, _id: -1 } },
+    ]);
+  },
+};
+
+export const MIGRATIONS: readonly Migration[] = [identity, config, subscribers, imports, audit, resellers];

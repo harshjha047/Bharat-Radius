@@ -46,6 +46,10 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/subscribers/:id/auth-log': 'subA',
   '/api/v1/subscribers/:id/usage': 'subA',
   '/api/v1/subscribers/imports/:id': 'importA',
+  '/api/v1/resellers/:id': 'resellerA',
+  '/api/v1/resellers/:id/suspend': 'resellerA',
+  '/api/v1/resellers/:id/activate': 'resellerA',
+  '/api/v1/resellers/:id/move': 'resellerA',
   '/api/v1/subscribers/imports/:id/errors': 'importA',
 };
 
@@ -58,6 +62,9 @@ const BODIES: Record<string, unknown> = {
   'PATCH /api/v1/plans/:id': { name: 'Changed by B' },
   'PATCH /api/v1/subscribers/:id': { name: 'Changed by B' },
   'POST /api/v1/subscribers/:id/suspend': {},
+  'PATCH /api/v1/resellers/:id': { name: 'Changed by B' },
+  'POST /api/v1/resellers/:id/suspend': {},
+  'POST /api/v1/resellers/:id/move': { parentId: null },
 };
 
 beforeAll(async () => {
@@ -100,6 +107,26 @@ beforeAll(async () => {
     createdAt: new Date(),
   });
   ids.importA = importA.toHexString();
+  const resellerA = new ObjectId();
+  await h.db.collection('resellers').insertOne({
+    _id: resellerA,
+    tenantId: a,
+    parentId: null,
+    ancestors: [],
+    level: 1,
+    code: 'R-0001',
+    name: 'Alpha reseller',
+    ownerName: 'A',
+    creditLimitPaise: 0,
+    canCreateSubResellers: true,
+    status: 'active',
+    version: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    createdBy: 'test',
+    updatedBy: 'test',
+  });
+  ids.resellerA = resellerA.toHexString();
   const adminB = await seedUser(h, { tenantId: b, email: 'admin@bravo.in', roles: [adminRole], totp: true });
   bAdmin = await signIn(h, adminB, 'bravo');
 });
@@ -202,6 +229,7 @@ async function snapshot() {
         ['nas_devices', 'nasA'],
         ['plans', 'planA'],
         ['subscribers', 'subA'],
+        ['resellers', 'resellerA'],
       ] as const
     ).map(([c, k]) => h.db.collection(c).findOne({ _id: new ObjectId(ids[k]) })),
   );

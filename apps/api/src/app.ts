@@ -24,6 +24,7 @@ import { InfraModule } from './infra/infra.module.js';
 import { createLogger, NestPinoLogger } from './logger.js';
 import { NasController, NasService } from './network/nas.js';
 import { PlansController, PlansService } from './network/plans.js';
+import { ResellersController, ResellersService } from './resellers/resellers.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
 import { SessionsController, SessionsService } from './sessions/sessions.js';
 import {
@@ -68,6 +69,7 @@ class AppModule {
         TenantsController,
         NasController,
         PlansController,
+        ResellersController,
         SubscribersController,
         SessionsController,
         SubscriberExcelController,
@@ -84,6 +86,7 @@ class AppModule {
         TenantsService,
         NasService,
         PlansService,
+        ResellersService,
         SubscribersService,
         SessionsService,
         SubscriberExcel,

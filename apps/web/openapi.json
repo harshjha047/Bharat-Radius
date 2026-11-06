@@ -3379,6 +3379,1907 @@
         }
       }
     },
+    "/api/v1/resellers": {
+      "get": {
+        "summary": "Resellers (a reseller sees itself and its branch)",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.read",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "parentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{24}$"
+                },
+                {
+                  "type": "string",
+                  "const": "none"
+                }
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["active", "suspended"]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "ownerName": {
+                            "type": "string"
+                          },
+                          "phone": {
+                            "type": ["string", "null"]
+                          },
+                          "email": {
+                            "type": ["string", "null"]
+                          },
+                          "gstin": {
+                            "type": ["string", "null"]
+                          },
+                          "address": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "line1": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "city": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "district": {
+                                    "type": "string",
+                                    "maxLength": 80
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 80
+                                  },
+                                  "pincode": {
+                                    "type": "string",
+                                    "pattern": "^\\d{6}$"
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "parentId": {
+                            "type": ["string", "null"]
+                          },
+                          "level": {
+                            "type": "number"
+                          },
+                          "creditLimitPaise": {
+                            "type": "number"
+                          },
+                          "canCreateSubResellers": {
+                            "type": "boolean"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["active", "suspended", "deleted"]
+                          },
+                          "suspendReason": {
+                            "type": ["string", "null"]
+                          },
+                          "blockedBy": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "code", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "counts": {
+                            "type": "object",
+                            "properties": {
+                              "subResellers": {
+                                "type": "number"
+                              },
+                              "directCustomers": {
+                                "type": "number"
+                              },
+                              "totalCustomers": {
+                                "type": "number"
+                              }
+                            },
+                            "required": ["subResellers", "directCustomers", "totalCustomers"],
+                            "additionalProperties": false
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "name",
+                          "ownerName",
+                          "phone",
+                          "email",
+                          "gstin",
+                          "address",
+                          "parentId",
+                          "level",
+                          "creditLimitPaise",
+                          "canCreateSubResellers",
+                          "status",
+                          "suspendReason",
+                          "blockedBy",
+                          "counts",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a reseller (top level, or under a reseller)",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.write",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "parentId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{24}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "ownerName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "gstin": {
+                    "type": "string",
+                    "pattern": "^\\d{2}[0-9A-Z]{13}$"
+                  },
+                  "address": {
+                    "type": "object",
+                    "properties": {
+                      "line1": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "city": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "district": {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      "state": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "pincode": {
+                        "type": "string",
+                        "pattern": "^\\d{6}$"
+                      }
+                    }
+                  },
+                  "creditLimitPaise": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2000000000
+                  },
+                  "canCreateSubResellers": {
+                    "default": true,
+                    "type": "boolean"
+                  }
+                },
+                "required": ["name", "ownerName"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "ownerName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": ["string", "null"]
+                    },
+                    "email": {
+                      "type": ["string", "null"]
+                    },
+                    "gstin": {
+                      "type": ["string", "null"]
+                    },
+                    "address": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "line1": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "district": {
+                              "type": "string",
+                              "maxLength": 80
+                            },
+                            "state": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "pincode": {
+                              "type": "string",
+                              "pattern": "^\\d{6}$"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "parentId": {
+                      "type": ["string", "null"]
+                    },
+                    "level": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "canCreateSubResellers": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["active", "suspended", "deleted"]
+                    },
+                    "suspendReason": {
+                      "type": ["string", "null"]
+                    },
+                    "blockedBy": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "subResellers": {
+                          "type": "number"
+                        },
+                        "directCustomers": {
+                          "type": "number"
+                        },
+                        "totalCustomers": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["subResellers", "directCustomers", "totalCustomers"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "code", "name"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "name",
+                    "ownerName",
+                    "phone",
+                    "email",
+                    "gstin",
+                    "address",
+                    "parentId",
+                    "level",
+                    "creditLimitPaise",
+                    "canCreateSubResellers",
+                    "status",
+                    "suspendReason",
+                    "blockedBy",
+                    "counts",
+                    "updatedAt",
+                    "path"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resellers/{id}": {
+      "get": {
+        "summary": "One reseller with counts and the path above it",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "ownerName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": ["string", "null"]
+                    },
+                    "email": {
+                      "type": ["string", "null"]
+                    },
+                    "gstin": {
+                      "type": ["string", "null"]
+                    },
+                    "address": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "line1": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "district": {
+                              "type": "string",
+                              "maxLength": 80
+                            },
+                            "state": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "pincode": {
+                              "type": "string",
+                              "pattern": "^\\d{6}$"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "parentId": {
+                      "type": ["string", "null"]
+                    },
+                    "level": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "canCreateSubResellers": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["active", "suspended", "deleted"]
+                    },
+                    "suspendReason": {
+                      "type": ["string", "null"]
+                    },
+                    "blockedBy": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "subResellers": {
+                          "type": "number"
+                        },
+                        "directCustomers": {
+                          "type": "number"
+                        },
+                        "totalCustomers": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["subResellers", "directCustomers", "totalCustomers"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "code", "name"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "name",
+                    "ownerName",
+                    "phone",
+                    "email",
+                    "gstin",
+                    "address",
+                    "parentId",
+                    "level",
+                    "creditLimitPaise",
+                    "canCreateSubResellers",
+                    "status",
+                    "suspendReason",
+                    "blockedBy",
+                    "counts",
+                    "updatedAt",
+                    "path"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit a reseller (credit limit: ISP staff only)",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "ownerName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": ["string", "null"]
+                  },
+                  "email": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 254,
+                        "format": "email",
+                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "gstin": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d{2}[0-9A-Z]{13}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "address": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "line1": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "city": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "district": {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          "state": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "pincode": {
+                            "type": "string",
+                            "pattern": "^\\d{6}$"
+                          }
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "creditLimitPaise": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2000000000
+                  },
+                  "canCreateSubResellers": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "ownerName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": ["string", "null"]
+                    },
+                    "email": {
+                      "type": ["string", "null"]
+                    },
+                    "gstin": {
+                      "type": ["string", "null"]
+                    },
+                    "address": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "line1": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "district": {
+                              "type": "string",
+                              "maxLength": 80
+                            },
+                            "state": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "pincode": {
+                              "type": "string",
+                              "pattern": "^\\d{6}$"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "parentId": {
+                      "type": ["string", "null"]
+                    },
+                    "level": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "canCreateSubResellers": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["active", "suspended", "deleted"]
+                    },
+                    "suspendReason": {
+                      "type": ["string", "null"]
+                    },
+                    "blockedBy": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "subResellers": {
+                          "type": "number"
+                        },
+                        "directCustomers": {
+                          "type": "number"
+                        },
+                        "totalCustomers": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["subResellers", "directCustomers", "totalCustomers"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "code", "name"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "name",
+                    "ownerName",
+                    "phone",
+                    "email",
+                    "gstin",
+                    "address",
+                    "parentId",
+                    "level",
+                    "creditLimitPaise",
+                    "canCreateSubResellers",
+                    "status",
+                    "suspendReason",
+                    "blockedBy",
+                    "counts",
+                    "updatedAt",
+                    "path"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an empty reseller (no sub-resellers or customers); its sign-ins are disabled",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": ["ok"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resellers/{id}/suspend": {
+      "post": {
+        "summary": "Suspend: the branch cannot sign in or recharge; customers stay online",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "ownerName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": ["string", "null"]
+                    },
+                    "email": {
+                      "type": ["string", "null"]
+                    },
+                    "gstin": {
+                      "type": ["string", "null"]
+                    },
+                    "address": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "line1": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "district": {
+                              "type": "string",
+                              "maxLength": 80
+                            },
+                            "state": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "pincode": {
+                              "type": "string",
+                              "pattern": "^\\d{6}$"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "parentId": {
+                      "type": ["string", "null"]
+                    },
+                    "level": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "canCreateSubResellers": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["active", "suspended", "deleted"]
+                    },
+                    "suspendReason": {
+                      "type": ["string", "null"]
+                    },
+                    "blockedBy": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "subResellers": {
+                          "type": "number"
+                        },
+                        "directCustomers": {
+                          "type": "number"
+                        },
+                        "totalCustomers": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["subResellers", "directCustomers", "totalCustomers"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "code", "name"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "name",
+                    "ownerName",
+                    "phone",
+                    "email",
+                    "gstin",
+                    "address",
+                    "parentId",
+                    "level",
+                    "creditLimitPaise",
+                    "canCreateSubResellers",
+                    "status",
+                    "suspendReason",
+                    "blockedBy",
+                    "counts",
+                    "updatedAt",
+                    "path"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resellers/{id}/activate": {
+      "post": {
+        "summary": "Lift a suspension",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "ownerName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": ["string", "null"]
+                    },
+                    "email": {
+                      "type": ["string", "null"]
+                    },
+                    "gstin": {
+                      "type": ["string", "null"]
+                    },
+                    "address": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "line1": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "district": {
+                              "type": "string",
+                              "maxLength": 80
+                            },
+                            "state": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "pincode": {
+                              "type": "string",
+                              "pattern": "^\\d{6}$"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "parentId": {
+                      "type": ["string", "null"]
+                    },
+                    "level": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "canCreateSubResellers": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["active", "suspended", "deleted"]
+                    },
+                    "suspendReason": {
+                      "type": ["string", "null"]
+                    },
+                    "blockedBy": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "subResellers": {
+                          "type": "number"
+                        },
+                        "directCustomers": {
+                          "type": "number"
+                        },
+                        "totalCustomers": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["subResellers", "directCustomers", "totalCustomers"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "code", "name"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "name",
+                    "ownerName",
+                    "phone",
+                    "email",
+                    "gstin",
+                    "address",
+                    "parentId",
+                    "level",
+                    "creditLimitPaise",
+                    "canCreateSubResellers",
+                    "status",
+                    "suspendReason",
+                    "blockedBy",
+                    "counts",
+                    "updatedAt",
+                    "path"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resellers/{id}/move": {
+      "post": {
+        "summary": "Move a reseller and its whole branch under another parent (null = top level)",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "parentId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{24}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["parentId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "ownerName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": ["string", "null"]
+                    },
+                    "email": {
+                      "type": ["string", "null"]
+                    },
+                    "gstin": {
+                      "type": ["string", "null"]
+                    },
+                    "address": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "line1": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "city": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "district": {
+                              "type": "string",
+                              "maxLength": 80
+                            },
+                            "state": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "pincode": {
+                              "type": "string",
+                              "pattern": "^\\d{6}$"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "parentId": {
+                      "type": ["string", "null"]
+                    },
+                    "level": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "canCreateSubResellers": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["active", "suspended", "deleted"]
+                    },
+                    "suspendReason": {
+                      "type": ["string", "null"]
+                    },
+                    "blockedBy": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "subResellers": {
+                          "type": "number"
+                        },
+                        "directCustomers": {
+                          "type": "number"
+                        },
+                        "totalCustomers": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["subResellers", "directCustomers", "totalCustomers"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "code", "name"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "name",
+                    "ownerName",
+                    "phone",
+                    "email",
+                    "gstin",
+                    "address",
+                    "parentId",
+                    "level",
+                    "creditLimitPaise",
+                    "canCreateSubResellers",
+                    "status",
+                    "suspendReason",
+                    "blockedBy",
+                    "counts",
+                    "updatedAt",
+                    "path"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tenant": {
       "get": {
         "summary": "Own ISP settings",
@@ -5792,6 +7693,32 @@
               "type": "string",
               "pattern": "^[0-9a-f]{24}$"
             }
+          },
+          {
+            "name": "resellerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{24}$"
+                },
+                {
+                  "type": "string",
+                  "const": "none"
+                }
+              ]
+            }
+          },
+          {
+            "name": "under",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
           }
         ],
         "responses": {
@@ -5898,6 +7825,29 @@
                             "type": "string",
                             "enum": ["synced", "pending", "error"]
                           },
+                          "reseller": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "code", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "createdAt": {
                             "type": "string"
                           },
@@ -5930,6 +7880,7 @@
                           "tags",
                           "notes",
                           "syncStatus",
+                          "reseller",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -6128,6 +8079,17 @@
                   "notes": {
                     "type": "string",
                     "maxLength": 2000
+                  },
+                  "resellerId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{24}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": ["username", "name", "phone", "address"]
@@ -6234,6 +8196,29 @@
                       "type": "string",
                       "enum": ["synced", "pending", "error"]
                     },
+                    "reseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -6266,6 +8251,7 @@
                     "tags",
                     "notes",
                     "syncStatus",
+                    "reseller",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -6427,6 +8413,29 @@
                       "type": "string",
                       "enum": ["synced", "pending", "error"]
                     },
+                    "reseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -6459,6 +8468,7 @@
                     "tags",
                     "notes",
                     "syncStatus",
+                    "reseller",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -6689,6 +8699,17 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "resellerId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{24}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 }
               }
@@ -6794,6 +8815,29 @@
                       "type": "string",
                       "enum": ["synced", "pending", "error"]
                     },
+                    "reseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -6826,6 +8870,7 @@
                     "tags",
                     "notes",
                     "syncStatus",
+                    "reseller",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -7077,6 +9122,29 @@
                       "type": "string",
                       "enum": ["synced", "pending", "error"]
                     },
+                    "reseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -7109,6 +9177,7 @@
                     "tags",
                     "notes",
                     "syncStatus",
+                    "reseller",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -7270,6 +9339,29 @@
                       "type": "string",
                       "enum": ["synced", "pending", "error"]
                     },
+                    "reseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -7302,6 +9394,7 @@
                     "tags",
                     "notes",
                     "syncStatus",
+                    "reseller",
                     "createdAt",
                     "updatedAt"
                   ],
