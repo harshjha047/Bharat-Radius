@@ -28,10 +28,10 @@ let keyN = 0;
 const key = () => ({ 'idempotency-key': `test-key-${Date.now()}-${keyN++}` });
 const RS = 100; // paise per rupee
 
-const wallet = async (ownerId: string) =>
-  (await h.db.collection<WalletDoc>('wallets').findOne({ ownerId: new ObjectId(ownerId) }))!;
-const sub = async (x: string) =>
-  (await h.db.collection<SubscriberDoc>('subscribers').findOne({ _id: new ObjectId(x) }))!;
+const wallet = async (ownerId?: string) =>
+  (await h.db.collection<WalletDoc>('wallets').findOne({ ownerId: new ObjectId(ownerId!) }))!;
+const sub = async (x?: string) =>
+  (await h.db.collection<SubscriberDoc>('subscribers').findOne({ _id: new ObjectId(x!) }))!;
 const customer = (username: string, extra: object = {}) => ({
   username,
   name: `Cust ${username}`,
@@ -39,7 +39,7 @@ const customer = (username: string, extra: object = {}) => ({
   address: { line1: '1 Main Rd', city: 'Delhi', state: 'Delhi', pincode: '110001' },
   ...extra,
 });
-const resellerUser = async (email: string, resellerId: string) => {
+const resellerUser = async (email: string, resellerId?: string) => {
   const u = await seedUser(h, {
     tenantId: tenant,
     email,
@@ -48,7 +48,7 @@ const resellerUser = async (email: string, resellerId: string) => {
   });
   await h.db
     .collection('users')
-    .updateOne({ _id: u._id }, { $set: { resellerId: new ObjectId(resellerId) } });
+    .updateOne({ _id: u._id }, { $set: { resellerId: new ObjectId(resellerId!) } });
   return signIn(h, u);
 };
 
