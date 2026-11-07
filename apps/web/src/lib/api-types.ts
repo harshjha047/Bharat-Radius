@@ -1689,6 +1689,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -1779,6 +1780,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -1921,6 +1923,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -2015,6 +2018,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -2107,6 +2111,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -2205,6 +2210,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -4366,9 +4372,9 @@ export interface paths {
     /** Date-wise credits and debits (IST days) */
     get: {
       parameters: {
-        query: {
-          from: string;
-          to: string;
+        query?: {
+          from?: string;
+          to?: string;
         };
         header?: never;
         path: {

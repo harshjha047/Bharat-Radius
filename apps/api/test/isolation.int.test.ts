@@ -51,7 +51,28 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/resellers/:id/activate': 'resellerA',
   '/api/v1/resellers/:id/move': 'resellerA',
   '/api/v1/subscribers/imports/:id/errors': 'importA',
+  '/api/v1/resellers/:id/rates': 'resellerA',
+  '/api/v1/wallets/:id': 'walletA',
+  '/api/v1/wallets/:id/ledger': 'walletA',
+  '/api/v1/wallets/:id/report': 'walletA',
+  '/api/v1/wallets/:id/adjust': 'walletA',
+  '/api/v1/recharges/:id': 'rechargeA',
+  '/api/v1/recharges/:id/refund': 'rechargeA',
+  '/api/v1/invoices/:id': 'invoiceA',
+  '/api/v1/invoices/:id/pdf': 'invoiceA',
+  '/api/v1/invoices/:id/credit-note': 'invoiceA',
+  '/api/v1/payments/:id': 'paymentA',
 };
+
+/**
+ * Path parameters that are not records of a tenant: webhooks (public; the id names the ISP and the signature
+ * gates them, tested in money.int.test.ts) and SMS templates (:key is a template name in the caller's own ISP).
+ */
+const NOT_RECORD_ROUTES = new Set([
+  '/api/v1/webhooks/razorpay/:id',
+  '/api/v1/webhooks/cashfree/:id',
+  '/api/v1/billing/templates/:key',
+]);
 
 const BODIES: Record<string, unknown> = {
   'PATCH /api/v1/users/:id': { name: 'Changed by B' },
@@ -65,6 +86,14 @@ const BODIES: Record<string, unknown> = {
   'PATCH /api/v1/resellers/:id': { name: 'Changed by B' },
   'POST /api/v1/resellers/:id/suspend': {},
   'POST /api/v1/resellers/:id/move': { parentId: null },
+  'PUT /api/v1/resellers/:id/rates': { rates: [{ planId: '0123456789abcdef01234567', walletPricePaise: 1 }] },
+  'POST /api/v1/wallets/:id/adjust': { amountPaise: 100, reason: 'B adjusting A' },
+  'PATCH /api/v1/wallets/:id': { lowBalanceThresholdPaise: 1 },
+  'POST /api/v1/recharges/:id/refund': { reason: 'B refunding A' },
+  'POST /api/v1/invoices/:id/credit-note': { reason: 'B crediting A' },
+};
+const HEADERS: Record<string, Record<string, string>> = {
+  'POST /api/v1/wallets/:id/adjust': { 'idempotency-key': 'isolation-test-key' },
 };
 
 beforeAll(async () => {
@@ -127,13 +156,101 @@ beforeAll(async () => {
     updatedBy: 'test',
   });
   ids.resellerA = resellerA.toHexString();
+  const walletA = new ObjectId();
+  await h.db.collection('wallets').insertOne({
+    _id: walletA,
+    tenantId: a,
+    ownerType: 'reseller',
+    ownerId: resellerA,
+    walletType: 'L1',
+    parentWalletId: new ObjectId(),
+    balancePaise: 5000,
+    creditLimitPaise: 0,
+    lowBalanceThresholdPaise: 100,
+    isActive: true,
+    frozen: false,
+    totals: { receivedPaise: 0, allocatedPaise: 0, rechargedPaise: 0, refundedPaise: 0 },
+    version: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  ids.walletA = walletA.toHexString();
+  const subA = new ObjectId(ids.subA);
+  const invoiceA = new ObjectId();
+  const party = { name: 'x', stateCode: '07', address: 'x' };
+  const rechargeA = await h.db.collection('recharges').insertOne({
+    tenantId: a,
+    subscriberId: subA,
+    planId: new ObjectId(ids.planA),
+    siteResellerId: null,
+    ancestors: [],
+    walletId: null,
+    walletTxnId: null,
+    amountPaise: 0,
+    customerPricePaise: 100,
+    taxPaise: 18,
+    channel: 'cash',
+    status: 'SUCCESS',
+    rechargeDate: new Date(),
+    oldExpiresAt: null,
+    newExpiresAt: new Date(),
+    oldPlanId: null,
+    actorId: 'test',
+    idempotencyKey: 'alpha-recharge',
+    createdAt: new Date(),
+  });
+  await h.db.collection('invoices').insertOne({
+    _id: invoiceA,
+    tenantId: a,
+    subscriberId: subA,
+    ancestors: [],
+    number: 'INV/2627/00001',
+    financialYear: '2026-27',
+    type: 'postpaid_monthly',
+    issueDate: new Date(),
+    dueDate: new Date(),
+    seller: party,
+    buyer: party,
+    placeOfSupply: '07',
+    lines: [],
+    taxablePaise: 100,
+    cgstPaise: 9,
+    sgstPaise: 9,
+    igstPaise: 0,
+    roundOffPaise: -18,
+    totalPaise: 100,
+    paidPaise: 0,
+    creditedPaise: 0,
+    balancePaise: 100,
+    status: 'issued',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    createdBy: 'test',
+  });
+  const paymentA = await h.db.collection('payments').insertOne({
+    tenantId: a,
+    subscriberId: subA,
+    ancestors: [],
+    method: 'cash',
+    amountPaise: 100,
+    status: 'captured',
+    purpose: { type: 'invoice', invoiceId: invoiceA },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    createdBy: 'test',
+  });
+  ids.rechargeA = rechargeA.insertedId.toHexString();
+  ids.invoiceA = invoiceA.toHexString();
+  ids.paymentA = paymentA.insertedId.toHexString();
   const adminB = await seedUser(h, { tenantId: b, email: 'admin@bravo.in', roles: [adminRole], totp: true });
   bAdmin = await signIn(h, adminB, 'bravo');
 });
 afterAll(() => h?.close());
 
 describe('tenant isolation', () => {
-  const routes = listRoutes(API_PREFIX).filter((r) => r.path.includes('/:'));
+  const routes = listRoutes(API_PREFIX).filter(
+    (r) => r.path.includes('/:') && !NOT_RECORD_ROUTES.has(r.path),
+  );
 
   it('every :id route has a fixture', () => {
     const missing = routes.map((r) => r.path).filter((p) => !FIXTURES[p]);
@@ -148,6 +265,7 @@ describe('tenant isolation', () => {
         r.method as 'GET',
         r.path.replace(':id', id),
         BODIES[`${r.method} ${r.path}`],
+        HEADERS[`${r.method} ${r.path}`],
       );
       expect(res.status, JSON.stringify(res.body)).toBe(404);
       expect(await snapshot()).toEqual(before);
@@ -230,6 +348,10 @@ async function snapshot() {
         ['plans', 'planA'],
         ['subscribers', 'subA'],
         ['resellers', 'resellerA'],
+        ['wallets', 'walletA'],
+        ['recharges', 'rechargeA'],
+        ['invoices', 'invoiceA'],
+        ['payments', 'paymentA'],
       ] as const
     ).map(([c, k]) => h.db.collection(c).findOne({ _id: new ObjectId(ids[k]) })),
   );

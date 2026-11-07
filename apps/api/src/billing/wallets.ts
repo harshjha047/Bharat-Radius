@@ -100,7 +100,8 @@ const ledgerQuery = pageQuery.extend({
   from: isoDay.optional(),
   to: isoDay.optional(),
 });
-const reportQuery = z.object({ from: isoDay, to: isoDay });
+/** Defaults: the last 30 IST days. */
+const reportQuery = z.object({ from: isoDay.optional(), to: isoDay.optional() });
 const reportView = z.object({
   rows: z.array(
     z.object({
@@ -338,9 +339,12 @@ export class WalletsService {
   async report(ctx: AuthContext, id: ObjectId, q: z.output<typeof reportQuery>) {
     const { w, own } = await this.visible(ctx, id);
     if (!own && ctx.scope.kind === 'branch') throw forbidden('You can see only your own wallet report');
+    const day = (msAgo: number) => new Date(Date.now() + 330 * 60_000 - msAgo).toISOString().slice(0, 10);
+    const to = q.to ?? day(0);
+    const from = q.from ?? day(30 * 86_400_000);
     const rows = await walletTxns(this.db)
       .aggregate<{ _id: { day: string; type: string; dir: string }; sum: number; n: number }>([
-        { $match: { walletId: w._id, tenantId: w.tenantId, createdAt: istDayRange(q.from, q.to) } },
+        { $match: { walletId: w._id, tenantId: w.tenantId, createdAt: istDayRange(from, to) } },
         {
           $group: {
             _id: {

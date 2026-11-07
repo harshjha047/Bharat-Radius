@@ -14,6 +14,11 @@ export const fmtDateTime = (iso: string | null | undefined) => (iso ? dateTime.f
 export const fmtDate = (iso: string | null | undefined) => (iso ? dateOnly.format(new Date(iso)) : '—');
 export const fmtDay = (iso: string) => shortDay.format(new Date(iso));
 export const fmtRupees = (paise: number) => inr.format(paise / 100);
+/** Price + GST rounded to the rupee (matches the API's invoice total). */
+export const grossPaise = (paise: number, gstPercent: number) => {
+  const half = Math.floor((paise * gstPercent) / 200 + 0.5);
+  return Math.floor((paise + 2 * half) / 100 + 0.5) * 100;
+};
 export const fmtNum = (n: number) => num.format(n);
 export const plural = (n: number, word: string) => `${fmtNum(n)} ${word}${n === 1 ? '' : 's'}`;
 

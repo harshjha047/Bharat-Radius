@@ -3888,6 +3888,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -3908,7 +3911,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -4114,6 +4118,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -4134,7 +4141,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -4431,6 +4439,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -4451,7 +4462,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -4747,6 +4759,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -4767,7 +4782,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -4973,6 +4989,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -4993,7 +5012,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -5224,6 +5244,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -5244,7 +5267,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -9988,7 +10012,7 @@
           {
             "name": "from",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
@@ -9997,7 +10021,7 @@
           {
             "name": "to",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "pattern": "^\\d{4}-\\d{2}-\\d{2}$"

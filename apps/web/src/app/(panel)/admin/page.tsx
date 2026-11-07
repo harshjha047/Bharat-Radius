@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { api, unwrap } from '@/lib/api';
 import { useCan, useMe } from '@/lib/auth';
 import { usePlans } from '@/lib/queries';
-import { fmtNum } from '@/lib/utils';
+import { fmtNum, fmtRupees } from '@/lib/utils';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -29,6 +29,17 @@ export default function Dashboard() {
     enabled: can('nas.read'),
   });
 
+  const staff = me.data?.user.type !== 'reseller';
+  const wallet = useQuery({
+    queryKey: ['wallet', 'mine'],
+    queryFn: () => unwrap(api.GET('/api/v1/wallets/mine')),
+    enabled: can('billing.read') && !staff,
+  });
+  const billing = useQuery({
+    queryKey: ['billing', 'summary'],
+    queryFn: () => unwrap(api.GET('/api/v1/billing/summary')),
+    enabled: can('billing.read') && staff,
+  });
   const routers = nas.data?.items ?? [];
   const onlineByIp = new Map((summary.data?.byNas ?? []).map((n) => [n.nasIp, n.online]));
 
@@ -62,6 +73,38 @@ export default function Dashboard() {
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {can('billing.read') && !staff ? (
+          wallet.isLoading ? (
+            <Skeleton className="h-24" />
+          ) : wallet.data ? (
+            <Link href="/admin/wallets" className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring">
+              <Stat
+                label="Wallet balance"
+                value={fmtRupees(wallet.data.balancePaise)}
+                hint={
+                  wallet.data.state === 'normal'
+                    ? `${fmtNum(wallet.data.customers)} customers`
+                    : wallet.data.state === 'empty'
+                      ? 'Empty: recharges blocked'
+                      : 'Low balance'
+                }
+              />
+            </Link>
+          ) : null
+        ) : null}
+        {can('billing.read') && staff ? (
+          billing.isLoading ? (
+            <Skeleton className="h-24" />
+          ) : billing.data ? (
+            <Link href="/admin/recharges" className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring">
+              <Stat
+                label="Recharges today"
+                value={fmtNum(billing.data.today.recharges)}
+                hint={`${fmtRupees(billing.data.unpaid.balancePaise)} unpaid · ${billing.data.unpaid.overdue} overdue`}
+              />
+            </Link>
+          ) : null
+        ) : null}
         {can('sessions.read') ? (
           summary.isLoading ? (
             <Skeleton className="h-24" />

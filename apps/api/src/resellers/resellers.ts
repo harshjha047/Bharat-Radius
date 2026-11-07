@@ -119,6 +119,7 @@ const resellerView = z.object({
 const detailView = resellerView.extend({
   /** Resellers above this one that the caller may see, top first. */
   path: z.array(ref),
+  walletId: z.string().nullable(),
 });
 
 type Counts = z.output<typeof resellerView>['counts'];
@@ -292,17 +293,18 @@ export class ResellersService {
   }
 
   async detail(ctx: AuthContext, r: ResellerDoc) {
-    const [view, path] = await Promise.all([
+    const [view, path, wallet] = await Promise.all([
       this.views(ctx, [r]),
       r.ancestors.length
         ? this.col(ctx)
             .find({ _id: { $in: r.ancestors } }, { projection: { code: 1, name: 1 } })
             .toArray()
         : Promise.resolve([]),
+      wallets(this.mongo.db).findOne({ ownerId: r._id, tenantId: r.tenantId }, { projection: { _id: 1 } }),
     ]);
     const order = new Map(r.ancestors.map((id, i) => [id.toHexString(), i]));
     path.sort((a, b) => order.get(a._id.toHexString())! - order.get(b._id.toHexString())!);
-    return { ...view(r), path: path.map(toRef) };
+    return { ...view(r), path: path.map(toRef), walletId: wallet?._id.toHexString() ?? null };
   }
 
   get = async (ctx: AuthContext, id: ObjectId) => this.detail(ctx, await this.find(ctx, id));

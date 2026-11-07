@@ -1,8 +1,10 @@
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageSkeleton } from '@/components/shell';
 import { TenantForm } from '@/components/tenant-form';
+import { Button } from '@/components/ui/button';
 import { ErrorState, PageHeader } from '@/components/ui/misc';
 import { api, unwrap } from '@/lib/api';
 
@@ -21,7 +23,15 @@ export default function SettingsPage() {
   if (t.isError) return <ErrorState error={t.error} onRetry={() => void t.refetch()} />;
   return (
     <>
-      <PageHeader title="ISP settings" description={`Organisation ID: ${t.data!.slug}`} />
+      <PageHeader
+        title="ISP settings"
+        description={`Organisation ID: ${t.data!.slug}`}
+        actions={
+          <Button variant="outline" asChild>
+            <Link href="/admin/settings/billing">Billing, gateways & SMS</Link>
+          </Button>
+        }
+      />
       <TenantForm
         key={t.data!.updatedAt}
         tenant={t.data!}
