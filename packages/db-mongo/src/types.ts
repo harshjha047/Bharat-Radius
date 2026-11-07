@@ -1,5 +1,6 @@
 import type { ObjectId } from 'mongodb';
 import type { EncryptedField, RoleScope } from '@isp/shared';
+import type { TenantBilling, TenantGateways, TenantSms } from './billing/types.js';
 
 export type UserType = 'superadmin' | 'staff' | 'reseller' | 'customer';
 export type UserStatus = 'active' | 'locked' | 'disabled';
@@ -29,8 +30,11 @@ export interface TenantDoc extends Standard {
     interimInterval: number;
   };
   radiusId?: number;
-  /** Required from Step 3 (wallets); optional until then. */
+  /** The Master wallet (also found by `wallets.ownerId`). */
   walletId?: ObjectId;
+  billing?: Partial<TenantBilling>;
+  gateways?: TenantGateways;
+  sms?: TenantSms;
   version: number;
 }
 

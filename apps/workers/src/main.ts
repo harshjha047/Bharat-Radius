@@ -2,7 +2,18 @@ import { createServer } from 'node:http';
 import pg from 'pg';
 import { pino } from 'pino';
 import { z } from 'zod';
-import { connectMongo, pendingMigrations, type OutboxDoc } from '@isp/db-mongo';
+import {
+  connectMongo,
+  expiryReminders,
+  notifications,
+  pendingMigrations,
+  postpaidInvoices,
+  postpaidOverdue,
+  reconcileWallets,
+  wallets,
+  type OutboxDoc,
+} from '@isp/db-mongo';
+import { SmsSender, gatewayReconcile } from './billing.js';
 import { FieldCrypto } from '@isp/shared';
 import { RadiusCoaClient } from '@isp/radius-client';
 import { CoaSender } from './coa.js';
@@ -57,12 +68,23 @@ const worker = new OutboxWorker(
 );
 
 const usage = new UsageJob(pool, client, db, log);
+const sms = new SmsSender(db, fieldCrypto, log);
 const imports = new ImportJob(client, db, fieldCrypto, log);
 const scheduler = new Scheduler(
   db,
   [
     { name: 'usage', periodMs: 15 * 60_000, run: () => usage.run() },
     { name: 'imports', periodMs: 5_000, run: () => imports.run() },
+    { name: 'notifications', periodMs: 10_000, run: () => sms.run() },
+    { name: 'postpaid-invoice', periodMs: 30 * 60_000, run: () => postpaidInvoices(client, db) },
+    { name: 'postpaid-overdue', periodMs: 60 * 60_000, run: () => postpaidOverdue(client, db) },
+    { name: 'expiry-reminders', periodMs: 60 * 60_000, run: () => expiryReminders(db) },
+    { name: 'reconcile-wallets', periodMs: 24 * 3600_000, run: () => reconcileWallets(db) },
+    {
+      name: 'gateway-reconcile',
+      periodMs: 60 * 60_000,
+      run: () => gatewayReconcile(client, db, fieldCrypto, log),
+    },
   ],
   log,
 );
@@ -91,6 +113,25 @@ async function metrics(): Promise<string> {
     '# TYPE isp_outbox_errors_total counter',
     ...Object.entries(s.errors).map(([e, n]) => `isp_outbox_errors_total{entity="${e}"} ${n}`),
   ];
+  const [frozen, smsQueued, smsFailed] = await Promise.all([
+    wallets(db).countDocuments({ frozen: true }),
+    notifications(db).countDocuments({ status: 'queued' }),
+    notifications(db).countDocuments({
+      status: 'failed',
+      createdAt: { $gte: new Date(Date.now() - 86_400_000) },
+    }),
+  ]);
+  lines.push(
+    '# HELP isp_wallets_frozen Wallets frozen by reconciliation (balance ≠ ledger).',
+    '# TYPE isp_wallets_frozen gauge',
+    `isp_wallets_frozen ${frozen}`,
+    '# HELP isp_sms_queued SMS waiting to be sent.',
+    '# TYPE isp_sms_queued gauge',
+    `isp_sms_queued ${smsQueued}`,
+    '# HELP isp_sms_failed_24h SMS that failed after all retries in the last 24 hours.',
+    '# TYPE isp_sms_failed_24h gauge',
+    `isp_sms_failed_24h ${smsFailed}`,
+  );
   const jobs = await db.collection<JobDoc>('_jobs').find({}).toArray();
   lines.push(
     '# HELP isp_job_last_success_timestamp_seconds Last successful run of a periodic job.',

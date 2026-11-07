@@ -5,7 +5,7 @@ import { PERMISSIONS } from '@isp/shared';
 import type { AuthContext } from '../auth/context.js';
 import { passwordSchema } from '../auth/passwords.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
-import { email, idParams, objectId, okResponse, page, pageQuery, phone } from '../http/schemas.js';
+import { email, hexId, idParams, objectId, okResponse, page, pageQuery, phone } from '../http/schemas.js';
 import { UsersService } from './users.service.js';
 import { roleView, toUserView, userView } from './views.js';
 
@@ -13,6 +13,8 @@ const name = z.string().trim().min(1).max(120);
 const listQuery = pageQuery.extend({
   q: z.string().trim().min(1).max(60).optional(),
   status: z.enum(['active', 'locked', 'disabled']).optional(),
+  /** Sign-ins of this reseller; without it, staff accounts only. */
+  resellerId: hexId.optional(),
 });
 const createBody = z.object({
   tenantId: objectId.optional(),
@@ -21,6 +23,7 @@ const createBody = z.object({
   phone: phone.optional(),
   password: passwordSchema,
   roleIds: z.array(objectId).max(10).default([]),
+  resellerId: objectId.optional(),
 });
 const updateBody = z
   .object({

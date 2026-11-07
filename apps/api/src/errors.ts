@@ -13,6 +13,11 @@ export type ErrorCode =
   | 'CONFLICT'
   | 'UNSUPPORTED_MEDIA_TYPE'
   | 'PAYLOAD_TOO_LARGE'
+  | 'WALLET_INSUFFICIENT'
+  | 'WALLET_FROZEN'
+  | 'WALLET_INACTIVE'
+  | 'BRANCH_SUSPENDED'
+  | 'GATEWAY_ERROR'
   | 'INTERNAL';
 
 /** The only error type services throw on purpose; anything else becomes INTERNAL with the request id. */

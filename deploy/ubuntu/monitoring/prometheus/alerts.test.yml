@@ -70,3 +70,19 @@ tests:
             exp_annotations:
               summary: 'Usage roll-up has not succeeded for 45+ minutes: usage graphs and FUP are behind'
               runbook: docs/runbooks/usage.md
+
+  - interval: 1m
+    input_series:
+      - series: 'isp_wallets_frozen{job="workers"}'
+        values: '0 0 1x10'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: WalletFrozen
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: WalletFrozen
+        exp_alerts:
+          - exp_labels: { severity: critical, job: workers }
+            exp_annotations:
+              summary: '1 wallet(s) frozen: balance does not match the ledger'
+              runbook: docs/runbooks/billing.md

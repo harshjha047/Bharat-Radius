@@ -122,3 +122,27 @@ groups:
         annotations:
           summary: 'Usage roll-up has not succeeded for 45+ minutes: usage graphs and FUP are behind'
           runbook: docs/runbooks/usage.md
+
+      - alert: WalletFrozen
+        expr: isp_wallets_frozen > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: '{{ $value }} wallet(s) frozen: balance does not match the ledger'
+          runbook: docs/runbooks/billing.md
+
+      - alert: BillingJobFailing
+        expr: isp_job_failing{job=~"postpaid-invoice|postpaid-overdue|reconcile-wallets|gateway-reconcile|notifications"} == 1
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Billing job {{ $labels.job }} is failing'
+          runbook: docs/runbooks/billing.md
+
+      - alert: SmsFailing
+        expr: isp_sms_failed_24h > 20
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $value }} SMS failed in the last 24 hours'
+          runbook: docs/runbooks/billing.md

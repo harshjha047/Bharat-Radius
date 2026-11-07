@@ -54,6 +54,20 @@ export const POLICIES: Record<string, CollectionPolicy> = {
   coa_log: { tenantField: 'tenantId', branch: 'deny' },
   audit_logs: { tenantField: 'tenantId', branch: 'deny' },
   import_batches: { tenantField: 'tenantId', branch: 'deny' },
+  recharges: {
+    tenantField: 'tenantId',
+    branch: { ownerField: 'siteResellerId', ancestorsField: 'ancestors' },
+  },
+  invoices: { tenantField: 'tenantId', branch: { ownerField: 'ancestors', ancestorsField: 'ancestors' } },
+  credit_notes: { tenantField: 'tenantId', branch: { ownerField: 'ancestors', ancestorsField: 'ancestors' } },
+  payments: { tenantField: 'tenantId', branch: { ownerField: 'ancestors', ancestorsField: 'ancestors' } },
+  // Wallets: a reseller sees its own and its direct children's (checked in the wallet service on the raw collection).
+  wallets: { tenantField: 'tenantId', branch: 'deny' },
+  wallet_txns: { tenantField: 'tenantId', branch: 'deny' },
+  wallet_transfers: { tenantField: 'tenantId', branch: 'deny' },
+  reseller_rates: { tenantField: 'tenantId', branch: 'deny' },
+  message_templates: { tenantField: 'tenantId', branch: 'deny' },
+  notifications: { tenantField: 'tenantId', branch: 'deny' },
 };
 
 export class ScopeViolation extends Error {

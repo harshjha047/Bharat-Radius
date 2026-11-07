@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ObjectId, type Filter } from 'mongodb';
 import { RESELLER_PERMISSIONS, isPermission, type Permission } from '@isp/shared';
-import { ScopedDb, type MongoHandle, type RoleDoc, type UserDoc } from '@isp/db-mongo';
+import { ScopedDb, type MongoHandle, type ResellerDoc, type RoleDoc, type UserDoc } from '@isp/db-mongo';
 import { AuthService } from '../auth/auth.service.js';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
@@ -15,6 +15,7 @@ import { toRoleView, toUserView } from './views.js';
 export interface UserListQuery {
   q?: string | undefined;
   status?: UserDoc['status'] | undefined;
+  resellerId?: string | undefined;
   cursor?: string | undefined;
   limit: number;
 }
@@ -26,6 +27,8 @@ export interface CreateUserInput {
   phone?: string | undefined;
   password: string;
   roleIds: ObjectId[];
+  /** A reseller sign-in (reseller roles only). */
+  resellerId?: ObjectId | undefined;
 }
 
 export interface UpdateUserInput {
@@ -65,7 +68,12 @@ export class UsersService {
     }
   }
 
-  private async loadRoles(ctx: AuthContext, ids: ObjectId[], tenantId: ObjectId): Promise<RoleDoc[]> {
+  private async loadRoles(
+    ctx: AuthContext,
+    ids: ObjectId[],
+    tenantId: ObjectId,
+    scope: 'tenant' | 'reseller' = 'tenant',
+  ): Promise<RoleDoc[]> {
     if (!ids.length) return [];
     const roles = await this.db(ctx)
       .collection<RoleDoc>('roles')
@@ -73,8 +81,14 @@ export class UsersService {
       .toArray();
     if (roles.length !== new Set(ids.map(String)).size)
       throw new AppError(400, 'VALIDATION_FAILED', 'Unknown role');
-    if (roles.some((r) => r.scope !== 'tenant')) {
-      throw new AppError(400, 'VALIDATION_FAILED', 'Reseller roles can only be given to reseller users');
+    if (roles.some((r) => r.scope !== scope)) {
+      throw new AppError(
+        400,
+        'VALIDATION_FAILED',
+        scope === 'tenant'
+          ? 'Reseller roles can only be given to reseller users'
+          : 'A reseller sign-in can only have reseller roles',
+      );
     }
     return roles;
   }
@@ -82,6 +96,8 @@ export class UsersService {
   async list(ctx: AuthContext, q: UserListQuery) {
     const filter: Filter<UserDoc> = { type: { $in: ['staff', 'reseller', 'superadmin'] } };
     if (q.status) filter.status = q.status;
+    if (q.resellerId) filter.resellerId = new ObjectId(q.resellerId);
+    else if (ctx.scope.kind !== 'branch') filter.type = { $in: ['staff', 'superadmin'] };
     if (q.cursor) filter._id = { $lt: new ObjectId(q.cursor) };
     if (q.q) {
       const re = new RegExp(`^${escapeRegex(q.q.trim())}`, 'i');
@@ -107,7 +123,20 @@ export class UsersService {
     if (!tenantId) throw new AppError(400, 'VALIDATION_FAILED', 'tenantId is required');
     if (!input.email && !input.phone)
       throw new AppError(400, 'VALIDATION_FAILED', 'Give an email or a phone number');
-    const roles = await this.loadRoles(ctx, input.roleIds, tenantId);
+    const self = ctx.scope.kind === 'branch' ? ctx.scope.resellerId : null;
+    const resellerId = input.resellerId ?? self ?? undefined;
+    if (resellerId) {
+      const r = await this.db(ctx)
+        .collection<ResellerDoc>('resellers')
+        .findOne({ _id: resellerId, status: { $ne: 'deleted' } });
+      if (!r) throw notFound('Reseller');
+      if (self && !r._id.equals(self) && !r.parentId?.equals(self)) {
+        throw forbidden('You can add sign-ins for yourself and resellers directly below you');
+      }
+    }
+    const roles = await this.loadRoles(ctx, input.roleIds, tenantId, resellerId ? 'reseller' : 'tenant');
+    if (resellerId && !roles.length)
+      throw new AppError(400, 'VALIDATION_FAILED', 'Give the sign-in a reseller role');
     this.assertCanGrant(
       ctx,
       roles.flatMap((r) => r.permissions),
@@ -118,7 +147,8 @@ export class UsersService {
     const doc: UserDoc = {
       _id: new ObjectId(),
       tenantId,
-      type: 'staff',
+      type: resellerId ? 'reseller' : 'staff',
+      ...(resellerId ? { resellerId } : {}),
       name: input.name,
       ...(input.email ? { email: input.email } : {}),
       ...(input.phone ? { phone: input.phone } : {}),
@@ -132,7 +162,10 @@ export class UsersService {
       createdBy: actor,
       updatedBy: actor,
     };
-    await this.db(ctx).collection<UserDoc>('users').insertOne(doc);
+    // A parent reseller adding a sign-in for a direct child writes outside its own user scope (checked above).
+    if (self && resellerId && !resellerId.equals(self))
+      await this.mongo.db.collection<UserDoc>('users').insertOne(doc);
+    else await this.db(ctx).collection<UserDoc>('users').insertOne(doc);
     noteChange({ after: toUserView(doc), entityId: doc._id });
     return toUserView(doc);
   }
@@ -155,7 +188,12 @@ export class UsersService {
       throw new AppError(400, 'VALIDATION_FAILED', 'Keep an email or a phone number');
     }
     if (input.roleIds) {
-      const roles = await this.loadRoles(ctx, input.roleIds, target.tenantId!);
+      const roles = await this.loadRoles(
+        ctx,
+        input.roleIds,
+        target.tenantId!,
+        target.type === 'reseller' ? 'reseller' : 'tenant',
+      );
       this.assertCanGrant(
         ctx,
         roles.flatMap((r) => r.permissions),
