@@ -182,13 +182,16 @@ step('resellers: tree, drill-down and a customer added from a reseller', async (
   await page.waitForURL(/\/admin\/subscribers\/new\?reseller=/);
   await page.getByText(/E2E Sector 62 · R-\d{4}/).waitFor();
   await page.goto(`${BASE}/admin/resellers`);
-  await page
-    .getByRole('row', { name: /E2E Noida Net/ })
-    .getByRole('cell')
-    .nth(3)
-    .click();
+  await page.getByRole('link', { name: '1 sub-reseller of E2E Noida Net' }).click();
   await page.waitForURL(/parent=/);
   await page.getByRole('link', { name: 'E2E Sector 62' }).waitFor();
+  await page
+    .getByRole('row', { name: /E2E Sector 62/ })
+    .getByRole('cell')
+    .nth(1)
+    .click();
+  await page.waitForURL(/\/admin\/resellers\/[0-9a-f]{24}$/);
+  await page.getByRole('heading', { name: /E2E Sector 62/ }).waitFor();
 });
 
 step('phone layout: cards, no sideways scrolling, menu works', async () => {

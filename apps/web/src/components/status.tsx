@@ -1,7 +1,11 @@
 import { Badge } from '@/components/ui/badge';
 import type { Reseller, Subscriber } from '@/lib/queries';
 
-export function SubscriberState({ s }: { s: Pick<Subscriber, 'status' | 'radiusState' | 'suspendReason'> }) {
+export function SubscriberState({
+  s,
+}: {
+  s: Pick<Subscriber, 'status' | 'radiusState' | 'suspendReason' | 'planId'>;
+}) {
   if (s.status === 'suspended')
     return (
       <Badge tone="danger" title={s.suspendReason ?? undefined}>
@@ -9,7 +13,14 @@ export function SubscriberState({ s }: { s: Pick<Subscriber, 'status' | 'radiusS
       </Badge>
     );
   if (s.status === 'disabled') return <Badge tone="danger">Disabled</Badge>;
-  if (s.radiusState === 'expired') return <Badge tone="warning">Expired</Badge>;
+  if (s.radiusState === 'expired')
+    return s.planId ? (
+      <Badge tone="warning">Expired</Badge>
+    ) : (
+      <Badge tone="warning" title="No plan: gets the expired-user speed and the pay page">
+        No plan
+      </Badge>
+    );
   if (s.radiusState === 'fup') return <Badge tone="warning">FUP speed</Badge>;
   return <Badge tone="success">Active</Badge>;
 }

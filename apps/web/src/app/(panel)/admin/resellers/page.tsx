@@ -15,7 +15,7 @@ import { ErrorState, PageHeader } from '@/components/ui/misc';
 import { useDebounced } from '@/hooks/use-debounced';
 import { api, unwrap } from '@/lib/api';
 import { useCan, useMe } from '@/lib/auth';
-import { fmtNum } from '@/lib/utils';
+import { fmtNum, plural } from '@/lib/utils';
 
 function ResellersList() {
   const router = useRouter();
@@ -146,11 +146,7 @@ function ResellersList() {
           loading={list.isLoading || (!staff && me.isLoading)}
           rows={rows}
           rowKey={(r) => r.id}
-          onRowClick={(r) =>
-            router.push(
-              r.counts.subResellers && !dq ? `/admin/resellers?parent=${r.id}` : `/admin/resellers/${r.id}`,
-            )
-          }
+          onRowClick={(r) => router.push(`/admin/resellers/${r.id}`)}
           hasMore={list.hasNextPage}
           loadingMore={list.isFetchingNextPage}
           onLoadMore={() => void list.fetchNextPage()}
@@ -182,10 +178,14 @@ function ResellersList() {
               header: 'Sub-resellers',
               cell: (r) =>
                 r.counts.subResellers ? (
-                  <span className="inline-flex items-center gap-1">
-                    {fmtNum(r.counts.subResellers)}{' '}
-                    <ChevronRight className="size-3.5 text-muted-foreground" />
-                  </span>
+                  <Link
+                    href={`/admin/resellers?parent=${r.id}`}
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                    aria-label={`${plural(r.counts.subResellers, 'sub-reseller')} of ${r.name}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {fmtNum(r.counts.subResellers)} <ChevronRight className="size-3.5" aria-hidden />
+                  </Link>
                 ) : (
                   '—'
                 ),
