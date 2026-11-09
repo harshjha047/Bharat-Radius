@@ -50,3 +50,15 @@ Settings → SMS: the provider's HTTP GET URL with placeholders `{apiKey} {sende
 - Recharges are refused with "Insufficient Wallet Balance" when the balance (plus credit limit) is short; nothing is deducted.
 - Refund: REFUND ledger entry, credit note, expiry rolled back if it was the latest recharge. Nothing is deleted.
 - Invoice numbers: `PREFIX/2627/00001`, consecutive per financial year; CGST+SGST when the customer's state is the ISP's GST state, otherwise IGST.
+
+## Run a billing job by hand
+
+```bash
+cd ~/isp-platform
+C="docker compose -f deploy/ubuntu/app/docker-compose.yml exec api node dist/cli.js"
+$C run-job reconcile-wallets                                   # balance = Σ ledger for every wallet
+$C run-job postpaid-invoice --at 2026-12-01T10:00:00+05:30     # bill last month as if it were the 1st
+$C run-job postpaid-overdue --at 2026-12-11T10:00:00+05:30     # past due (7th) + grace (3 days)
+```
+
+`--at` only changes the clock the job sees; use it on staging only.

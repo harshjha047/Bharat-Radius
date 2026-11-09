@@ -6,6 +6,9 @@ import {
   connectMongo,
   migrate,
   pendingMigrations,
+  postpaidInvoices,
+  postpaidOverdue,
+  reconcileWallets,
   type AuditLogDoc,
   type RefreshTokenDoc,
   type RoleDoc,
@@ -29,7 +32,9 @@ const USAGE = `usage: node dist/cli.js <command> [options]   (MONGO_URL from the
   seed-scale     --tenant <slug> --bench        time the panel's subscriber search
   seed-scale     --tenant <slug> --remove       delete scale-test subscribers (and their RADIUS rows)
   reset-password --tenant <slug|platform> (--email <e> | --phone <p>) [--reset-2fa]
-                 new password prompted (or stdin); unlocks the account and signs it out everywhere`;
+                 new password prompted (or stdin); unlocks the account and signs it out everywhere
+  run-job        <postpaid-invoice|postpaid-overdue|reconcile-wallets> [--at <ISO date>]
+                 run a billing job now (all ISPs); --at pretends it is that time (staging tests)`;
 
 async function readPassword(): Promise<string> {
   if (!process.stdin.isTTY) {
@@ -59,7 +64,7 @@ async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   const flags = new Set(rest.filter((a) => ['--reset-2fa', '--remove', '--bench'].includes(a)));
   const resetMfa = flags.has('--reset-2fa');
-  const { values: v } = parseArgs({
+  const { values: v, positionals } = parseArgs({
     args: rest.filter((a) => !flags.has(a)),
     options: Object.fromEntries(
       [
@@ -78,9 +83,11 @@ async function main() {
         'role',
         'count',
         'plan',
+        'at',
       ].map((k) => [k, { type: 'string' as const }]),
     ),
-  }) as { values: Record<string, string | undefined> };
+    allowPositionals: true,
+  }) as { values: Record<string, string | undefined>; positionals: string[] };
   if (!cmd || !process.env.MONGO_URL) throw new Error(USAGE);
 
   const { client, db } = await connectMongo(process.env.MONGO_URL, 2);
@@ -177,6 +184,21 @@ async function main() {
       if (!Number.isInteger(count) || count < 1 || count > 500_000)
         throw new Error('--count must be 1..500000');
       await seedScale(db, v.tenant!, count, v.plan ?? 'Home 50', out);
+      return;
+    }
+
+    if (cmd === 'run-job') {
+      const [job] = positionals;
+      const at = v.at ? new Date(v.at) : new Date();
+      if (Number.isNaN(at.getTime()))
+        throw new Error('--at must be an ISO date, e.g. 2026-12-01T10:00:00+05:30');
+      const run: Record<string, () => Promise<unknown>> = {
+        'postpaid-invoice': () => postpaidInvoices(client, db, at),
+        'postpaid-overdue': () => postpaidOverdue(client, db, at),
+        'reconcile-wallets': () => reconcileWallets(db),
+      };
+      if (!job || !run[job]) throw new Error(`run-job needs one of: ${Object.keys(run).join(', ')}`);
+      console.log(JSON.stringify(await run[job]()));
       return;
     }
 
