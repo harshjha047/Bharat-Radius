@@ -608,6 +608,10 @@ describe('payment gateways', () => {
       },
     };
     expect((await rzpHook(event, 'wrong-secret')).statusCode).toBe(401);
+    // A dashboard test delivery (signed, no payment link) is acknowledged.
+    const ping = await rzpHook({ event: 'ping', payload: {} });
+    expect(ping.statusCode).toBe(200);
+    expect(JSON.parse(ping.body).action).toBe('ignored');
     // Paid only once the gateway says so.
     expect(JSON.parse((await rzpHook(event)).body).action).toBe('not_paid');
     links.get(linkId)!.paid = true;
