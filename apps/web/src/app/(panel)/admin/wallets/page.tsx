@@ -112,7 +112,7 @@ export default function WalletsPage() {
             <Stat label="Received" value={fmtRupees(m.totals.receivedPaise)} />
             <Stat
               label="Used for recharges"
-              value={fmtRupees(m.totals.rechargedPaise)}
+              value={fmtRupees(m.totals.rechargedPaise - m.totals.refundedPaise)}
               hint={`${fmtNum(m.customers)} customers`}
             />
             <Stat
@@ -182,7 +182,7 @@ export default function WalletsPage() {
             {
               key: 'used',
               header: 'Recharges',
-              cell: (w) => fmtRupees(w.totals.rechargedPaise),
+              cell: (w) => fmtRupees(w.totals.rechargedPaise - w.totals.refundedPaise),
               className: 'text-right tabular-nums',
               hideOnMobile: true,
             },
