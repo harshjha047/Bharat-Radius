@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api, ApiError, unwrap } from '@/lib/api';
 import { useCan, useMe } from '@/lib/auth';
 import type { WalletDashboard } from '@/lib/queries';
-import { fmtDateTime, fmtNum, fmtRupees } from '@/lib/utils';
+import { fmtDateTime, fmtNum, fmtRupees, plural } from '@/lib/utils';
 
 const TYPES = ['TOPUP', 'ALLOCATE', 'RECHARGE', 'REFUND', 'ADJUSTMENT'] as const;
 const TYPE_LABEL: Record<(typeof TYPES)[number], string> = {
@@ -88,8 +88,12 @@ export default function WalletPage() {
         <Stat label="Received" value={fmtRupees(d.totals.receivedPaise)} />
         <Stat
           label="Recharges"
-          value={fmtRupees(d.totals.rechargedPaise)}
-          hint={`${fmtNum(d.customers)} customers`}
+          value={fmtRupees(d.totals.rechargedPaise - d.totals.refundedPaise)}
+          hint={
+            d.totals.refundedPaise
+              ? `${fmtRupees(d.totals.refundedPaise)} refunded · ${plural(d.customers, 'customer')}`
+              : plural(d.customers, 'customer')
+          }
         />
         <Stat
           label="Sent down"
