@@ -371,13 +371,16 @@ export class WebhooksService {
     if (!valid) throw new AppError(401, 'UNAUTHENTICATED', 'Bad webhook signature');
 
     const e = method === 'razorpay' ? parseRazorpay(req.body) : parseCashfree(req.body);
+    const refs = [
+      ...(e.ref && ObjectId.isValid(e.ref) ? [{ _id: new ObjectId(e.ref) }] : []),
+      ...(e.linkId ? [{ 'gateway.linkId': e.linkId }] : []),
+    ];
+    // Dashboard "test" deliveries and unrelated events carry no link: acknowledge them.
+    if (!refs.length) return { ok: true as const, action: 'ignored' };
     const p = await payments(this.mongo.db).findOne({
       tenantId,
       method,
-      $or: [
-        ...(e.ref && ObjectId.isValid(e.ref) ? [{ _id: new ObjectId(e.ref) }] : []),
-        ...(e.linkId ? [{ 'gateway.linkId': e.linkId }] : []),
-      ],
+      $or: refs,
     });
     if (!p) return { ok: true as const, action: 'ignored' };
     if (!e.success) {
