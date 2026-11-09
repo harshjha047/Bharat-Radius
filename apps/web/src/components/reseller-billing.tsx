@@ -57,7 +57,11 @@ export function ResellerWallet({ walletId }: { walletId: string | null }) {
           hint={`Low at ${fmtRupees(d.lowBalanceThresholdPaise)}`}
         />
         <Stat label="Received" value={fmtRupees(d.totals.receivedPaise)} />
-        <Stat label="Recharges" value={fmtRupees(d.totals.rechargedPaise)} />
+        <Stat
+          label="Recharges"
+          value={fmtRupees(d.totals.rechargedPaise - d.totals.refundedPaise)}
+          hint={d.totals.refundedPaise ? `${fmtRupees(d.totals.refundedPaise)} refunded` : undefined}
+        />
         <Stat
           label="Sent down"
           value={fmtRupees(d.totals.allocatedPaise)}
