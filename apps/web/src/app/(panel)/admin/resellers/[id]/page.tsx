@@ -16,6 +16,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AuditChanges, actionLabel } from '@/components/audit-changes';
+import { ResellerLogins, ResellerRates, ResellerWallet } from '@/components/reseller-billing';
 import { ResellerForm } from '@/components/reseller-form';
 import { ResellerPicker, type ResellerRef } from '@/components/reseller-picker';
 import { PageSkeleton } from '@/components/shell';
@@ -91,6 +92,9 @@ export default function ResellerPage() {
         <TabsList>
           <TabsTrigger value="children">Sub-resellers</TabsTrigger>
           {can('subscribers.read') ? <TabsTrigger value="customers">Customers</TabsTrigger> : null}
+          {can('billing.read') ? <TabsTrigger value="wallet">Wallet</TabsTrigger> : null}
+          <TabsTrigger value="rates">Prices</TabsTrigger>
+          {can('users.read') ? <TabsTrigger value="logins">Sign-ins</TabsTrigger> : null}
           <TabsTrigger value="details">Details</TabsTrigger>
           {can('audit.view') ? <TabsTrigger value="history">History</TabsTrigger> : null}
         </TabsList>
@@ -99,6 +103,15 @@ export default function ResellerPage() {
         </TabsContent>
         <TabsContent value="customers">
           <Customers d={d} />
+        </TabsContent>
+        <TabsContent value="wallet">
+          <ResellerWallet walletId={d.walletId} />
+        </TabsContent>
+        <TabsContent value="rates">
+          <ResellerRates resellerId={id} />
+        </TabsContent>
+        <TabsContent value="logins">
+          <ResellerLogins resellerId={id} />
         </TabsContent>
         <TabsContent value="details">
           <Details d={d} />

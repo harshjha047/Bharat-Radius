@@ -11,6 +11,11 @@ export type Session = Item<'/api/v1/sessions/live'>;
 export type StaffUser = Item<'/api/v1/users'>;
 export type Reseller = Item<'/api/v1/resellers'>;
 export type ResellerDetail = ApiData<'/api/v1/resellers/{id}'>;
+export type Wallet = Item<'/api/v1/wallets'>;
+export type WalletDashboard = ApiData<'/api/v1/wallets/{id}'>;
+export type Recharge = Item<'/api/v1/recharges'>;
+export type Invoice = Item<'/api/v1/invoices'>;
+export type Payment = Item<'/api/v1/payments'>;
 
 /** All plans once (an ISP has tens, not thousands); shared by lists, forms and filters. */
 export function usePlans() {

@@ -472,4 +472,341 @@ const resellers: Migration = {
   },
 };
 
-export const MIGRATIONS: readonly Migration[] = [identity, config, subscribers, imports, audit, resellers];
+const money = { bsonType: ['int', 'long', 'double'] };
+
+const billing: Migration = {
+  id: '007_billing',
+  async up(db) {
+    await ensureCollection(db, 'wallets', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'ownerType',
+        'ownerId',
+        'walletType',
+        'parentWalletId',
+        'balancePaise',
+        'creditLimitPaise',
+        'isActive',
+        'frozen',
+        'version',
+      ],
+      properties: {
+        tenantId: oid,
+        ownerType: { enum: ['tenant', 'reseller'] },
+        ownerId: oid,
+        walletType: { bsonType: 'string', pattern: '^(MASTER|L[0-9]+)$' },
+        parentWalletId: oidOrNull,
+        balancePaise: money,
+        creditLimitPaise: money,
+        lowBalanceThresholdPaise: money,
+        isActive: { bsonType: 'bool' },
+        frozen: { bsonType: 'bool' },
+        version: int,
+      },
+    });
+    await ensureIndexes(db, 'wallets', [
+      { key: { ownerId: 1 }, unique: true },
+      { key: { tenantId: 1, parentWalletId: 1 } },
+      { key: { tenantId: 1, balancePaise: 1 } },
+    ]);
+    await ensureCollection(db, 'wallet_txns', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'walletId',
+        'type',
+        'direction',
+        'amountPaise',
+        'balanceBeforePaise',
+        'balanceAfterPaise',
+        'referenceId',
+        'description',
+        'createdAt',
+        'createdBy',
+      ],
+      properties: {
+        tenantId: oid,
+        walletId: oid,
+        type: { enum: ['TOPUP', 'ALLOCATE', 'RECHARGE', 'REFUND', 'ADJUSTMENT'] },
+        direction: { enum: ['credit', 'debit'] },
+        amountPaise: { ...money, minimum: 1 },
+        balanceBeforePaise: money,
+        balanceAfterPaise: money,
+        referenceId: oid,
+        description: { bsonType: 'string', minLength: 1 },
+        createdAt: date,
+      },
+    });
+    await ensureIndexes(db, 'wallet_txns', [
+      { key: { walletId: 1, createdAt: -1, _id: -1 } },
+      { key: { referenceId: 1 } },
+      { key: { tenantId: 1, type: 1, createdAt: -1 } },
+      { key: { tenantId: 1, createdAt: -1 } },
+    ]);
+    await ensureCollection(db, 'wallet_transfers', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'fromWalletId',
+        'toWalletId',
+        'amountPaise',
+        'status',
+        'idempotencyKey',
+        'createdAt',
+      ],
+      properties: {
+        tenantId: oid,
+        fromWalletId: oid,
+        toWalletId: oid,
+        amountPaise: { ...money, minimum: 1 },
+        idempotencyKey: str,
+      },
+    });
+    await ensureIndexes(db, 'wallet_transfers', [
+      { key: { idempotencyKey: 1 }, unique: true },
+      { key: { tenantId: 1, fromWalletId: 1, createdAt: -1 } },
+      { key: { tenantId: 1, toWalletId: 1, createdAt: -1 } },
+    ]);
+    await ensureCollection(db, 'reseller_rates', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'buyerId',
+        'setById',
+        'planId',
+        'walletPricePaise',
+        'active',
+        ...standardRequired,
+      ],
+      properties: {
+        tenantId: oid,
+        buyerId: oid,
+        setById: oid,
+        planId: oid,
+        walletPricePaise: { ...money, minimum: 0 },
+        active: { bsonType: 'bool' },
+        ...standard,
+      },
+    });
+    await ensureIndexes(db, 'reseller_rates', [
+      { key: { buyerId: 1, planId: 1 }, unique: true },
+      { key: { tenantId: 1, setById: 1 } },
+    ]);
+    await ensureCollection(db, 'recharges', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'subscriberId',
+        'planId',
+        'ancestors',
+        'amountPaise',
+        'channel',
+        'status',
+        'newExpiresAt',
+        'idempotencyKey',
+        'createdAt',
+      ],
+      properties: {
+        tenantId: oid,
+        subscriberId: oid,
+        planId: oid,
+        ancestors: { bsonType: 'array', items: oid },
+        amountPaise: money,
+        channel: { enum: ['online', 'reseller_wallet', 'cash', 'staff', 'import'] },
+        status: { enum: ['SUCCESS', 'REVERSED'] },
+        idempotencyKey: str,
+      },
+    });
+    await ensureIndexes(db, 'recharges', [
+      { key: { idempotencyKey: 1 }, unique: true },
+      { key: { tenantId: 1, subscriberId: 1, _id: -1 } },
+      { key: { tenantId: 1, _id: -1 } },
+      { key: { tenantId: 1, ancestors: 1, _id: -1 } },
+      { key: { tenantId: 1, siteResellerId: 1, _id: -1 } },
+    ]);
+    await ensureCollection(db, 'invoices', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'subscriberId',
+        'ancestors',
+        'number',
+        'financialYear',
+        'type',
+        'issueDate',
+        'dueDate',
+        'seller',
+        'buyer',
+        'lines',
+        'totalPaise',
+        'paidPaise',
+        'balancePaise',
+        'status',
+      ],
+      properties: {
+        tenantId: oid,
+        subscriberId: oid,
+        number: { bsonType: 'string', maxLength: 16 },
+        type: { enum: ['prepaid_recharge', 'postpaid_monthly'] },
+        status: { enum: ['issued', 'partially_paid', 'paid', 'overdue', 'cancelled'] },
+        totalPaise: money,
+      },
+    });
+    await ensureIndexes(db, 'invoices', [
+      { key: { tenantId: 1, financialYear: 1, number: 1 }, unique: true },
+      { key: { tenantId: 1, subscriberId: 1, issueDate: -1 } },
+      { key: { tenantId: 1, status: 1, dueDate: 1 } },
+      { key: { tenantId: 1, _id: -1 } },
+      { key: { tenantId: 1, ancestors: 1, _id: -1 } },
+      {
+        key: { subscriberId: 1, periodStart: 1 },
+        unique: true,
+        partialFilterExpression: { type: 'postpaid_monthly' },
+        name: 'one_postpaid_invoice_per_period',
+      },
+    ]);
+    await ensureCollection(db, 'credit_notes', {
+      bsonType: 'object',
+      required: ['tenantId', 'invoiceId', 'subscriberId', 'number', 'financialYear', 'reason', 'totalPaise'],
+      properties: {
+        tenantId: oid,
+        invoiceId: oid,
+        number: { bsonType: 'string', maxLength: 16 },
+        reason: { bsonType: 'string', minLength: 1 },
+      },
+    });
+    await ensureIndexes(db, 'credit_notes', [
+      { key: { tenantId: 1, financialYear: 1, number: 1 }, unique: true },
+      { key: { invoiceId: 1 }, unique: true },
+    ]);
+    await ensureCollection(db, 'payments', {
+      bsonType: 'object',
+      required: ['tenantId', 'subscriberId', 'method', 'amountPaise', 'status', 'purpose', 'createdAt'],
+      properties: {
+        tenantId: oid,
+        subscriberId: oid,
+        method: { enum: ['razorpay', 'cashfree', 'cash', 'wallet', 'bank_transfer'] },
+        amountPaise: { ...money, minimum: 1 },
+        status: { enum: ['created', 'pending', 'captured', 'failed', 'refunded'] },
+      },
+    });
+    await ensureIndexes(db, 'payments', [
+      {
+        key: { method: 1, 'gateway.paymentId': 1 },
+        unique: true,
+        partialFilterExpression: { 'gateway.paymentId': { $type: 'string' } },
+      },
+      { key: { 'gateway.linkId': 1 }, partialFilterExpression: { 'gateway.linkId': { $type: 'string' } } },
+      {
+        key: { idempotencyKey: 1 },
+        unique: true,
+        partialFilterExpression: { idempotencyKey: { $type: 'string' } },
+      },
+      { key: { tenantId: 1, subscriberId: 1, _id: -1 } },
+      { key: { tenantId: 1, _id: -1 } },
+      { key: { tenantId: 1, ancestors: 1, _id: -1 } },
+      { key: { status: 1, method: 1, createdAt: 1 } },
+    ]);
+    await ensureCollection(db, 'message_templates', {
+      bsonType: 'object',
+      required: ['tenantId', 'key', 'channel', 'dltTemplateId', 'body', 'active'],
+      properties: { tenantId: oid, key: str, dltTemplateId: str, body: str, active: { bsonType: 'bool' } },
+    });
+    await ensureIndexes(db, 'message_templates', [
+      { key: { tenantId: 1, key: 1, channel: 1 }, unique: true },
+    ]);
+    await ensureCollection(db, 'notifications', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'channel',
+        'to',
+        'templateKey',
+        'vars',
+        'status',
+        'attempts',
+        'nextAttemptAt',
+        'createdAt',
+      ],
+      properties: { tenantId: oid, status: { enum: ['queued', 'sent', 'failed', 'skipped'] } },
+    });
+    await ensureIndexes(db, 'notifications', [
+      { key: { status: 1, nextAttemptAt: 1 } },
+      { key: { tenantId: 1, _id: -1 } },
+      { key: { dedupeKey: 1 }, unique: true, partialFilterExpression: { dedupeKey: { $type: 'string' } } },
+      { key: { createdAt: 1 }, expireAfterSeconds: 180 * 86_400 },
+    ]);
+
+    // Wallets for everything that exists already: Master per ISP, then resellers top-down.
+    const now = new Date();
+    const blank = { receivedPaise: 0, allocatedPaise: 0, rechargedPaise: 0, refundedPaise: 0 };
+    for (const t of await db
+      .collection('tenants')
+      .find({ slug: { $ne: 'platform' } })
+      .toArray()) {
+      await db.collection('wallets').updateOne(
+        { ownerId: t._id },
+        {
+          $setOnInsert: {
+            tenantId: t._id,
+            ownerType: 'tenant',
+            ownerId: t._id,
+            walletType: 'MASTER',
+            parentWalletId: null,
+            balancePaise: 0,
+            creditLimitPaise: 0,
+            lowBalanceThresholdPaise: 0,
+            isActive: true,
+            frozen: false,
+            totals: blank,
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+        { upsert: true },
+      );
+    }
+    for (const r of await db
+      .collection('resellers')
+      .find({ status: { $ne: 'deleted' } })
+      .sort({ level: 1 })
+      .toArray()) {
+      const parent = await db.collection('wallets').findOne({ ownerId: r.parentId ?? r.tenantId });
+      if (!parent) continue;
+      await db.collection('wallets').updateOne(
+        { ownerId: r._id },
+        {
+          $setOnInsert: {
+            tenantId: r.tenantId,
+            ownerType: 'reseller',
+            ownerId: r._id,
+            walletType: `L${r.level}`,
+            parentWalletId: parent._id,
+            balancePaise: 0,
+            creditLimitPaise: r.creditLimitPaise ?? 0,
+            lowBalanceThresholdPaise: 500_000,
+            isActive: true,
+            frozen: false,
+            totals: blank,
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+        { upsert: true },
+      );
+    }
+  },
+};
+
+export const MIGRATIONS: readonly Migration[] = [
+  identity,
+  config,
+  subscribers,
+  imports,
+  audit,
+  resellers,
+  billing,
+];

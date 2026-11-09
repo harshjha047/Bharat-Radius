@@ -1,12 +1,13 @@
 'use client';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Eye, MoreHorizontal, Pencil, PlayCircle, Trash2, Unplug } from 'lucide-react';
+import { Ban, Eye, Link2, MoreHorizontal, Pencil, PlayCircle, RefreshCw, Trash2, Unplug } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { actionLabel, AuditChanges } from '@/components/audit-changes';
+import { PaymentLinkDialog, RechargeDialog, SubscriberBilling } from '@/components/billing';
 import { PageSkeleton } from '@/components/shell';
 import { SubscriberState, SyncState } from '@/components/status';
 import { Badge } from '@/components/ui/badge';
@@ -74,6 +75,7 @@ export default function SubscriberPage() {
           {can('sessions.read') ? <TabsTrigger value="auth">Login log</TabsTrigger> : null}
           <TabsTrigger value="usage">Usage</TabsTrigger>
           <TabsTrigger value="coa">Router actions</TabsTrigger>
+          {can('billing.read') ? <TabsTrigger value="billing">Billing</TabsTrigger> : null}
           {can('audit.view') ? <TabsTrigger value="history">History</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="overview">
@@ -90,6 +92,9 @@ export default function SubscriberPage() {
         </TabsContent>
         <TabsContent value="coa">
           <CoaLog id={id} />
+        </TabsContent>
+        <TabsContent value="billing">
+          <SubscriberBilling subscriberId={id} />
         </TabsContent>
         <TabsContent value="history">
           <History id={id} />
@@ -149,8 +154,30 @@ function Actions({ s }: { s: Subscriber }) {
 
   const write = can('subscribers.write');
   const del = can('subscribers.delete');
+  const [billing, setBilling] = useState<'recharge' | 'link' | null>(null);
+  const prepaid = s.billingType === 'prepaid';
   return (
     <>
+      {can('recharges.create') && prepaid ? (
+        <Button onClick={() => setBilling('recharge')}>
+          <RefreshCw /> Recharge
+        </Button>
+      ) : null}
+      {can('recharges.create') && prepaid ? (
+        <Button variant="outline" onClick={() => setBilling('link')} aria-label="Payment link">
+          <Link2 /> <span className="hidden sm:inline">Pay link</span>
+        </Button>
+      ) : null}
+      <RechargeDialog
+        subscriber={s}
+        open={billing === 'recharge'}
+        onOpenChange={(o) => setBilling(o ? 'recharge' : null)}
+      />
+      <PaymentLinkDialog
+        subscriber={s}
+        open={billing === 'link'}
+        onOpenChange={(o) => setBilling(o ? 'link' : null)}
+      />
       {write ? (
         <Button variant="outline" asChild>
           <Link href={`/admin/subscribers/${s.id}/edit`}>

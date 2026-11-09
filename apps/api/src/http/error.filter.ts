@@ -1,6 +1,6 @@
 import { Catch, HttpException, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { ScopeViolation } from '@isp/db-mongo';
+import { MoneyError, ScopeViolation } from '@isp/db-mongo';
 import { AppError, type ErrorCode } from '../errors.js';
 
 const BY_STATUS: Record<number, ErrorCode> = {
@@ -29,6 +29,10 @@ export class ErrorFilter implements ExceptionFilter {
     if (err instanceof AppError) {
       ({ status, code, message, details } = err);
       for (const [k, v] of Object.entries(err.headers ?? {})) reply.header(k, v);
+    } else if (err instanceof MoneyError) {
+      status = err.status;
+      code = err.code;
+      message = err.message;
     } else if (err instanceof ScopeViolation) {
       req.log.error({ err }, 'scope violation');
       status = 403;

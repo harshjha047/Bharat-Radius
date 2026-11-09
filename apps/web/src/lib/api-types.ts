@@ -1689,6 +1689,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -1779,6 +1780,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -1921,6 +1923,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -2015,6 +2018,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -2107,6 +2111,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -2205,6 +2210,7 @@ export interface paths {
                 code: string;
                 name: string;
               }[];
+              walletId: string | null;
             };
           };
         };
@@ -2226,6 +2232,2532 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/invoices': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** GST invoices (a reseller sees its branch) */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          subscriberId?: string;
+          status?: 'issued' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled' | 'unpaid';
+          type?: 'prepaid_recharge' | 'postpaid_monthly';
+          from?: string;
+          to?: string;
+          q?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                number: string;
+                /** @enum {string} */
+                type: 'prepaid_recharge' | 'postpaid_monthly';
+                subscriber: {
+                  id: string;
+                  name: string;
+                  customerNo: string;
+                };
+                issueDate: string;
+                dueDate: string;
+                periodStart: string | null;
+                periodEnd: string | null;
+                taxablePaise: number;
+                cgstPaise: number;
+                sgstPaise: number;
+                igstPaise: number;
+                roundOffPaise: number;
+                totalPaise: number;
+                paidPaise: number;
+                creditedPaise: number;
+                balancePaise: number;
+                /** @enum {string} */
+                status: 'issued' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/invoices/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One invoice */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              /** @enum {string} */
+              type: 'prepaid_recharge' | 'postpaid_monthly';
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+              };
+              issueDate: string;
+              dueDate: string;
+              periodStart: string | null;
+              periodEnd: string | null;
+              taxablePaise: number;
+              cgstPaise: number;
+              sgstPaise: number;
+              igstPaise: number;
+              roundOffPaise: number;
+              totalPaise: number;
+              paidPaise: number;
+              creditedPaise: number;
+              balancePaise: number;
+              /** @enum {string} */
+              status: 'issued' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
+              seller: {
+                name: string;
+                gstin?: string;
+                stateCode: string;
+                address: string;
+              };
+              buyer: {
+                name: string;
+                gstin?: string;
+                stateCode: string;
+                address: string;
+              };
+              placeOfSupply: string;
+              lines: {
+                description: string;
+                hsnSac: string;
+                qty: number;
+                ratePaise: number;
+                taxablePaise: number;
+                gstRatePercent: number;
+                cgstPaise: number;
+                sgstPaise: number;
+                igstPaise: number;
+                totalPaise: number;
+              }[];
+              creditNote: {
+                id: string;
+                number: string;
+                reason: string;
+                createdAt: string;
+              } | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/invoices/{id}/pdf': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Invoice as PDF */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/invoices/{id}/credit-note': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cancel a postpaid invoice with a credit note (ISP staff) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            reason: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              /** @enum {string} */
+              type: 'prepaid_recharge' | 'postpaid_monthly';
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+              };
+              issueDate: string;
+              dueDate: string;
+              periodStart: string | null;
+              periodEnd: string | null;
+              taxablePaise: number;
+              cgstPaise: number;
+              sgstPaise: number;
+              igstPaise: number;
+              roundOffPaise: number;
+              totalPaise: number;
+              paidPaise: number;
+              creditedPaise: number;
+              balancePaise: number;
+              /** @enum {string} */
+              status: 'issued' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
+              seller: {
+                name: string;
+                gstin?: string;
+                stateCode: string;
+                address: string;
+              };
+              buyer: {
+                name: string;
+                gstin?: string;
+                stateCode: string;
+                address: string;
+              };
+              placeOfSupply: string;
+              lines: {
+                description: string;
+                hsnSac: string;
+                qty: number;
+                ratePaise: number;
+                taxablePaise: number;
+                gstRatePercent: number;
+                cgstPaise: number;
+                sgstPaise: number;
+                igstPaise: number;
+                totalPaise: number;
+              }[];
+              creditNote: {
+                id: string;
+                number: string;
+                reason: string;
+                createdAt: string;
+              } | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/payments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Payments: cash and online (a reseller sees its branch) */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          subscriberId?: string;
+          method?: 'razorpay' | 'cashfree' | 'cash' | 'wallet' | 'bank_transfer';
+          status?: 'created' | 'pending' | 'captured' | 'failed' | 'refunded';
+          from?: string;
+          to?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                subscriber: {
+                  id: string;
+                  name: string;
+                  customerNo: string;
+                };
+                /** @enum {string} */
+                method: 'razorpay' | 'cashfree' | 'cash' | 'wallet' | 'bank_transfer';
+                amountPaise: number;
+                /** @enum {string} */
+                status: 'created' | 'pending' | 'captured' | 'failed' | 'refunded';
+                purpose: {
+                  /** @enum {string} */
+                  type: 'recharge' | 'invoice';
+                  planId: string | null;
+                  invoiceId: string | null;
+                };
+                linkUrl: string | null;
+                gatewayPaymentId: string | null;
+                receiptNo: string | null;
+                failureReason: string | null;
+                rechargeId: string | null;
+                invoiceId: string | null;
+                capturedAt: string | null;
+                createdAt: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/payments/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One payment */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+              };
+              /** @enum {string} */
+              method: 'razorpay' | 'cashfree' | 'cash' | 'wallet' | 'bank_transfer';
+              amountPaise: number;
+              /** @enum {string} */
+              status: 'created' | 'pending' | 'captured' | 'failed' | 'refunded';
+              purpose: {
+                /** @enum {string} */
+                type: 'recharge' | 'invoice';
+                planId: string | null;
+                invoiceId: string | null;
+              };
+              linkUrl: string | null;
+              gatewayPaymentId: string | null;
+              receiptNo: string | null;
+              failureReason: string | null;
+              rechargeId: string | null;
+              invoiceId: string | null;
+              capturedAt: string | null;
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/payments/cash': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cash received against an invoice. Idempotency-Key header required */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            invoiceId: string;
+            amountPaise: number;
+            receiptNo?: string;
+            note?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+              };
+              /** @enum {string} */
+              method: 'razorpay' | 'cashfree' | 'cash' | 'wallet' | 'bank_transfer';
+              amountPaise: number;
+              /** @enum {string} */
+              status: 'created' | 'pending' | 'captured' | 'failed' | 'refunded';
+              purpose: {
+                /** @enum {string} */
+                type: 'recharge' | 'invoice';
+                planId: string | null;
+                invoiceId: string | null;
+              };
+              linkUrl: string | null;
+              gatewayPaymentId: string | null;
+              receiptNo: string | null;
+              failureReason: string | null;
+              rechargeId: string | null;
+              invoiceId: string | null;
+              capturedAt: string | null;
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/payments/link': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Online payment link (Razorpay or Cashfree) for a recharge or an invoice */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            subscriberId: string;
+            /** @enum {string} */
+            gateway: 'razorpay' | 'cashfree';
+            planId?: string;
+            invoiceId?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+              };
+              /** @enum {string} */
+              method: 'razorpay' | 'cashfree' | 'cash' | 'wallet' | 'bank_transfer';
+              amountPaise: number;
+              /** @enum {string} */
+              status: 'created' | 'pending' | 'captured' | 'failed' | 'refunded';
+              purpose: {
+                /** @enum {string} */
+                type: 'recharge' | 'invoice';
+                planId: string | null;
+                invoiceId: string | null;
+              };
+              linkUrl: string | null;
+              gatewayPaymentId: string | null;
+              receiptNo: string | null;
+              failureReason: string | null;
+              rechargeId: string | null;
+              invoiceId: string | null;
+              capturedAt: string | null;
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/webhooks/razorpay/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Razorpay webhook (signature verified; :id = the ISP id shown in billing settings) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/webhooks/cashfree/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cashfree webhook (signature verified; :id = the ISP id shown in billing settings) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/recharges/quote': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** What a recharge would cost and the new expiry, before doing it */
+    get: {
+      parameters: {
+        query: {
+          subscriberId: string;
+          planId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              plan: {
+                id: string;
+                name: string;
+                validityDays: number;
+              };
+              walletPricePaise: number;
+              walletBalancePaise: number | null;
+              customerPricePaise: number;
+              customerTotalPaise: number;
+              newExpiresAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/recharges': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Recharge history (a reseller sees its branch) */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          subscriberId?: string;
+          siteResellerId?: string;
+          channel?: 'online' | 'reseller_wallet' | 'cash' | 'staff' | 'import';
+          status?: 'SUCCESS' | 'REVERSED';
+          from?: string;
+          to?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                subscriber: {
+                  id: string;
+                  name: string;
+                  username: string | null;
+                  customerNo: string;
+                };
+                plan: {
+                  id: string;
+                  name: string;
+                } | null;
+                siteReseller: {
+                  id: string;
+                  code: string;
+                  name: string;
+                } | null;
+                amountPaise: number;
+                customerPricePaise: number;
+                taxPaise: number;
+                /** @enum {string} */
+                channel: 'online' | 'reseller_wallet' | 'cash' | 'staff' | 'import';
+                /** @enum {string} */
+                status: 'SUCCESS' | 'REVERSED';
+                oldExpiresAt: string | null;
+                newExpiresAt: string;
+                invoiceId: string | null;
+                paymentId: string | null;
+                reversal: {
+                  reason: string;
+                  at: string;
+                  creditNoteId: string | null;
+                } | null;
+                replayed?: boolean;
+                createdAt: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Prepaid recharge. Reseller: debits its own wallet. Staff: cash or complimentary. Idempotency-Key required */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            subscriberId: string;
+            planId?: string;
+            /** @enum {string} */
+            payment?: 'cash' | 'none';
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              subscriber: {
+                id: string;
+                name: string;
+                username: string | null;
+                customerNo: string;
+              };
+              plan: {
+                id: string;
+                name: string;
+              } | null;
+              siteReseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              amountPaise: number;
+              customerPricePaise: number;
+              taxPaise: number;
+              /** @enum {string} */
+              channel: 'online' | 'reseller_wallet' | 'cash' | 'staff' | 'import';
+              /** @enum {string} */
+              status: 'SUCCESS' | 'REVERSED';
+              oldExpiresAt: string | null;
+              newExpiresAt: string;
+              invoiceId: string | null;
+              paymentId: string | null;
+              reversal: {
+                reason: string;
+                at: string;
+                creditNoteId: string | null;
+              } | null;
+              replayed?: boolean;
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/recharges/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One recharge */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              subscriber: {
+                id: string;
+                name: string;
+                username: string | null;
+                customerNo: string;
+              };
+              plan: {
+                id: string;
+                name: string;
+              } | null;
+              siteReseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              amountPaise: number;
+              customerPricePaise: number;
+              taxPaise: number;
+              /** @enum {string} */
+              channel: 'online' | 'reseller_wallet' | 'cash' | 'staff' | 'import';
+              /** @enum {string} */
+              status: 'SUCCESS' | 'REVERSED';
+              oldExpiresAt: string | null;
+              newExpiresAt: string;
+              invoiceId: string | null;
+              paymentId: string | null;
+              reversal: {
+                reason: string;
+                at: string;
+                creditNoteId: string | null;
+              } | null;
+              replayed?: boolean;
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/recharges/{id}/refund': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reverse a recharge: REFUND entry, credit note, expiry rolled back (ISP staff) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            reason: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              subscriber: {
+                id: string;
+                name: string;
+                username: string | null;
+                customerNo: string;
+              };
+              plan: {
+                id: string;
+                name: string;
+              } | null;
+              siteReseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              amountPaise: number;
+              customerPricePaise: number;
+              taxPaise: number;
+              /** @enum {string} */
+              channel: 'online' | 'reseller_wallet' | 'cash' | 'staff' | 'import';
+              /** @enum {string} */
+              status: 'SUCCESS' | 'REVERSED';
+              oldExpiresAt: string | null;
+              newExpiresAt: string;
+              invoiceId: string | null;
+              paymentId: string | null;
+              reversal: {
+                reason: string;
+                at: string;
+                creditNoteId: string | null;
+              } | null;
+              replayed?: boolean;
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/billing/settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Billing, gateway and SMS settings (secrets never returned) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              billing: {
+                invoicePrefix: string;
+                reminderDaysBefore: number[];
+                dueDays: number;
+                graceDays: number;
+                lowBalancePaise: number;
+              };
+              razorpay: {
+                enabled: boolean;
+                keyId: string;
+                webhookUrl: string;
+              } | null;
+              cashfree: {
+                enabled: boolean;
+                sandbox: boolean;
+                appId: string;
+                webhookUrl: string;
+              } | null;
+              sms: {
+                enabled: boolean;
+                urlTemplate: string;
+                senderId: string;
+                entityId: string | null;
+                successPattern: string | null;
+                apiKeySet: boolean;
+              } | null;
+              webhookUrls: {
+                razorpay: string;
+                cashfree: string;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Change billing, gateway and SMS settings; null removes a gateway / SMS */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            billing?: {
+              invoicePrefix?: string;
+              reminderDaysBefore?: number[];
+              dueDays?: number;
+              graceDays?: number;
+              lowBalancePaise?: number;
+            };
+            razorpay?: {
+              enabled?: boolean;
+              keyId?: string;
+              keySecret?: string;
+              webhookSecret?: string;
+            } | null;
+            cashfree?: {
+              enabled?: boolean;
+              sandbox?: boolean;
+              appId?: string;
+              secretKey?: string;
+            } | null;
+            sms?: {
+              enabled?: boolean;
+              /** Format: uri */
+              urlTemplate?: string;
+              apiKey?: string;
+              senderId?: string;
+              entityId?: string;
+              successPattern?: string;
+            } | null;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              billing: {
+                invoicePrefix: string;
+                reminderDaysBefore: number[];
+                dueDays: number;
+                graceDays: number;
+                lowBalancePaise: number;
+              };
+              razorpay: {
+                enabled: boolean;
+                keyId: string;
+                webhookUrl: string;
+              } | null;
+              cashfree: {
+                enabled: boolean;
+                sandbox: boolean;
+                appId: string;
+                webhookUrl: string;
+              } | null;
+              sms: {
+                enabled: boolean;
+                urlTemplate: string;
+                senderId: string;
+                entityId: string | null;
+                successPattern: string | null;
+                apiKeySet: boolean;
+              } | null;
+              webhookUrls: {
+                razorpay: string;
+                cashfree: string;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/v1/billing/templates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** SMS templates (DLT) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {string} */
+              key:
+                | 'expiry_reminder'
+                | 'expired'
+                | 'payment_receipt'
+                | 'invoice_issued'
+                | 'overdue_suspended'
+                | 'otp';
+              variables: string[];
+              dltTemplateId: string | null;
+              body: string | null;
+              active: boolean;
+            }[];
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/billing/templates/{key}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Set one SMS template */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          key:
+            | 'expiry_reminder'
+            | 'expired'
+            | 'payment_receipt'
+            | 'invoice_issued'
+            | 'overdue_suspended'
+            | 'otp';
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            dltTemplateId: string;
+            body: string;
+            active: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {string} */
+              key:
+                | 'expiry_reminder'
+                | 'expired'
+                | 'payment_receipt'
+                | 'invoice_issued'
+                | 'overdue_suspended'
+                | 'otp';
+              variables: string[];
+              dltTemplateId: string | null;
+              body: string | null;
+              active: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/billing/notifications': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** SMS log */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          status?: 'queued' | 'sent' | 'failed' | 'skipped';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                to: string;
+                /** @enum {string} */
+                templateKey:
+                  | 'expiry_reminder'
+                  | 'expired'
+                  | 'payment_receipt'
+                  | 'invoice_issued'
+                  | 'overdue_suspended'
+                  | 'otp';
+                /** @enum {string} */
+                status: 'queued' | 'sent' | 'failed' | 'skipped';
+                attempts: number;
+                error: string | null;
+                createdAt: string;
+                sentAt: string | null;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/billing/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** ISP billing overview */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              today: {
+                recharges: number;
+                rechargePaise: number;
+              };
+              month: {
+                recharges: number;
+                invoicedPaise: number;
+                collectedPaise: number;
+              };
+              unpaid: {
+                count: number;
+                balancePaise: number;
+                overdue: number;
+              };
+              wallets: {
+                resellerBalancePaise: number;
+                low: number;
+                frozen: number;
+              };
+              sms: {
+                queued: number;
+                failed24h: number;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Wallet accounts (staff: all; reseller: its direct children) */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          parentWalletId?: string;
+          state?: 'low' | 'empty' | 'frozen';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                /** @enum {string} */
+                ownerType: 'tenant' | 'reseller';
+                owner: {
+                  id: string;
+                  code: string;
+                  name: string;
+                };
+                walletType: string;
+                parentWalletId: string | null;
+                balancePaise: number;
+                creditLimitPaise: number;
+                lowBalanceThresholdPaise: number;
+                /** @enum {string} */
+                state: 'normal' | 'low' | 'empty' | 'frozen' | 'inactive';
+                frozenReason: string | null;
+                totals: {
+                  receivedPaise: number;
+                  allocatedPaise: number;
+                  rechargedPaise: number;
+                  refundedPaise: number;
+                };
+                updatedAt: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets/mine': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The caller’s wallet dashboard (Master for ISP staff) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              /** @enum {string} */
+              ownerType: 'tenant' | 'reseller';
+              owner: {
+                id: string;
+                code: string;
+                name: string;
+              };
+              walletType: string;
+              parentWalletId: string | null;
+              balancePaise: number;
+              creditLimitPaise: number;
+              lowBalanceThresholdPaise: number;
+              /** @enum {string} */
+              state: 'normal' | 'low' | 'empty' | 'frozen' | 'inactive';
+              frozenReason: string | null;
+              totals: {
+                receivedPaise: number;
+                allocatedPaise: number;
+                rechargedPaise: number;
+                refundedPaise: number;
+              };
+              updatedAt: string;
+              children: number;
+              lowChildren: number;
+              customers: number;
+              canTopUp: boolean;
+              canViewLedger: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Wallet dashboard */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              /** @enum {string} */
+              ownerType: 'tenant' | 'reseller';
+              owner: {
+                id: string;
+                code: string;
+                name: string;
+              };
+              walletType: string;
+              parentWalletId: string | null;
+              balancePaise: number;
+              creditLimitPaise: number;
+              lowBalanceThresholdPaise: number;
+              /** @enum {string} */
+              state: 'normal' | 'low' | 'empty' | 'frozen' | 'inactive';
+              frozenReason: string | null;
+              totals: {
+                receivedPaise: number;
+                allocatedPaise: number;
+                rechargedPaise: number;
+                refundedPaise: number;
+              };
+              updatedAt: string;
+              children: number;
+              lowChildren: number;
+              customers: number;
+              canTopUp: boolean;
+              canViewLedger: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Low-balance level (parent or staff); unfreeze after a reconciliation check (staff) */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            lowBalanceThresholdPaise?: number;
+            /** @constant */
+            unfreeze?: true;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              /** @enum {string} */
+              ownerType: 'tenant' | 'reseller';
+              owner: {
+                id: string;
+                code: string;
+                name: string;
+              };
+              walletType: string;
+              parentWalletId: string | null;
+              balancePaise: number;
+              creditLimitPaise: number;
+              lowBalanceThresholdPaise: number;
+              /** @enum {string} */
+              state: 'normal' | 'low' | 'empty' | 'frozen' | 'inactive';
+              frozenReason: string | null;
+              totals: {
+                receivedPaise: number;
+                allocatedPaise: number;
+                rechargedPaise: number;
+                refundedPaise: number;
+              };
+              updatedAt: string;
+              children: number;
+              lowChildren: number;
+              customers: number;
+              canTopUp: boolean;
+              canViewLedger: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/v1/wallets/{id}/ledger': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Ledger: every credit and debit with balances before and after */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          type?: 'TOPUP' | 'ALLOCATE' | 'RECHARGE' | 'REFUND' | 'ADJUSTMENT';
+          from?: string;
+          to?: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                /** @enum {string} */
+                type: 'TOPUP' | 'ALLOCATE' | 'RECHARGE' | 'REFUND' | 'ADJUSTMENT';
+                /** @enum {string} */
+                direction: 'credit' | 'debit';
+                amountPaise: number;
+                balanceBeforePaise: number;
+                balanceAfterPaise: number;
+                referenceId: string;
+                description: string;
+                createdAt: string;
+                createdBy: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets/{id}/report': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Date-wise credits and debits (IST days) */
+    get: {
+      parameters: {
+        query?: {
+          from?: string;
+          to?: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              rows: {
+                day: string;
+                creditsPaise: number;
+                debitsPaise: number;
+                byType: {
+                  [key: string]: number;
+                };
+                count: number;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets/transfer': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Top-up (ISP → level 1) or allocation (reseller → direct child). Idempotency-Key header required */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            toWalletId: string;
+            amountPaise: number;
+            /** @enum {string} */
+            receivedVia?: 'cash' | 'upi' | 'bank';
+            reference?: string;
+            note?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              replayed: boolean;
+              from: {
+                id: string;
+                /** @enum {string} */
+                ownerType: 'tenant' | 'reseller';
+                owner: {
+                  id: string;
+                  code: string;
+                  name: string;
+                };
+                walletType: string;
+                parentWalletId: string | null;
+                balancePaise: number;
+                creditLimitPaise: number;
+                lowBalanceThresholdPaise: number;
+                /** @enum {string} */
+                state: 'normal' | 'low' | 'empty' | 'frozen' | 'inactive';
+                frozenReason: string | null;
+                totals: {
+                  receivedPaise: number;
+                  allocatedPaise: number;
+                  rechargedPaise: number;
+                  refundedPaise: number;
+                };
+                updatedAt: string;
+              };
+              to: {
+                id: string;
+                /** @enum {string} */
+                ownerType: 'tenant' | 'reseller';
+                owner: {
+                  id: string;
+                  code: string;
+                  name: string;
+                };
+                walletType: string;
+                parentWalletId: string | null;
+                balancePaise: number;
+                creditLimitPaise: number;
+                lowBalanceThresholdPaise: number;
+                /** @enum {string} */
+                state: 'normal' | 'low' | 'empty' | 'frozen' | 'inactive';
+                frozenReason: string | null;
+                totals: {
+                  receivedPaise: number;
+                  allocatedPaise: number;
+                  rechargedPaise: number;
+                  refundedPaise: number;
+                };
+                updatedAt: string;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets/{id}/adjust': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Manual correction with a reason (ISP staff). Idempotency-Key header required */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            amountPaise: number;
+            reason: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              /** @enum {string} */
+              ownerType: 'tenant' | 'reseller';
+              owner: {
+                id: string;
+                code: string;
+                name: string;
+              };
+              walletType: string;
+              parentWalletId: string | null;
+              balancePaise: number;
+              creditLimitPaise: number;
+              lowBalanceThresholdPaise: number;
+              /** @enum {string} */
+              state: 'normal' | 'low' | 'empty' | 'frozen' | 'inactive';
+              frozenReason: string | null;
+              totals: {
+                receivedPaise: number;
+                allocatedPaise: number;
+                rechargedPaise: number;
+                refundedPaise: number;
+              };
+              updatedAt: string;
+              children: number;
+              lowChildren: number;
+              customers: number;
+              canTopUp: boolean;
+              canViewLedger: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/resellers/{id}/rates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Per-plan wallet price, customer price and sell-ability of a reseller */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              canSetWalletPrices: boolean;
+              canSetCustomerPrices: boolean;
+              items: {
+                planId: string;
+                planName: string;
+                planPricePaise: number;
+                gstRatePercent: number;
+                walletPricePaise: number;
+                customerPricePaise: number;
+                active: boolean;
+                custom: boolean;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    /** Set rates: wallet price / sell-ability (parent or staff), customer price (the reseller or staff) */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            rates: {
+              planId: string;
+              walletPricePaise?: number;
+              customerPricePaise?: number | null;
+              active?: boolean;
+            }[];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              canSetWalletPrices: boolean;
+              canSetCustomerPrices: boolean;
+              items: {
+                planId: string;
+                planName: string;
+                planPricePaise: number;
+                gstRatePercent: number;
+                walletPricePaise: number;
+                customerPricePaise: number;
+                active: boolean;
+                custom: boolean;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -4435,6 +6967,7 @@ export interface paths {
           limit?: number;
           q?: string;
           status?: 'active' | 'locked' | 'disabled';
+          resellerId?: string;
         };
         header?: never;
         path?: never;
@@ -4507,6 +7040,7 @@ export interface paths {
             phone?: string;
             password: string;
             roleIds?: string[];
+            resellerId?: string;
           };
         };
       };
@@ -4994,6 +7528,8 @@ export interface paths {
               | 'plans.write'
               | 'resellers.read'
               | 'resellers.write'
+              | 'billing.read'
+              | 'recharges.create'
               | 'wallets.transfer'
               | 'wallets.refund'
               | 'wallets.adjust'
@@ -5136,6 +7672,8 @@ export interface paths {
               | 'plans.write'
               | 'resellers.read'
               | 'resellers.write'
+              | 'billing.read'
+              | 'recharges.create'
               | 'wallets.transfer'
               | 'wallets.refund'
               | 'wallets.adjust'

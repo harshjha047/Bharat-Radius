@@ -25,6 +25,11 @@ import { createLogger, NestPinoLogger } from './logger.js';
 import { NasController, NasService } from './network/nas.js';
 import { PlansController, PlansService } from './network/plans.js';
 import { ResellersController, ResellersService } from './resellers/resellers.js';
+import { InvoicesController, InvoicesService } from './billing/invoices.js';
+import { PaymentsController, PaymentsService, WebhooksService } from './billing/payments.js';
+import { RechargesController, RechargesService } from './billing/recharges.js';
+import { BillingSettingsController, BillingSettingsService } from './billing/settings.js';
+import { WalletsController, WalletsService } from './billing/wallets.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
 import { SessionsController, SessionsService } from './sessions/sessions.js';
 import {
@@ -70,6 +75,11 @@ class AppModule {
         NasController,
         PlansController,
         ResellersController,
+        WalletsController,
+        RechargesController,
+        InvoicesController,
+        PaymentsController,
+        BillingSettingsController,
         SubscribersController,
         SessionsController,
         SubscriberExcelController,
@@ -87,6 +97,12 @@ class AppModule {
         NasService,
         PlansService,
         ResellersService,
+        WalletsService,
+        RechargesService,
+        InvoicesService,
+        PaymentsService,
+        WebhooksService,
+        BillingSettingsService,
         SubscribersService,
         SessionsService,
         SubscriberExcel,
@@ -119,6 +135,8 @@ export async function createApp(
   const app = await NestFactory.create<NestFastifyApplication>(AppModule.forRoot(config), adapter, {
     logger: new NestPinoLogger(logger),
     bufferLogs: false,
+    // Webhook signatures are computed over the exact bytes received.
+    rawBody: true,
   });
   await app.register(fastifyCookie);
   app.setGlobalPrefix(API_PREFIX, { exclude: ['healthz', 'api/healthz', 'livez'] });

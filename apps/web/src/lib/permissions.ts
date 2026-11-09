@@ -1,6 +1,6 @@
 import type { Permission } from './auth';
 
-/** Grouped and named the way staff think about them. Wallet/billing ones arrive with Step 3. */
+/** Grouped and named the way staff think about them. */
 export const PERMISSION_GROUPS: { label: string; items: [Permission, string][] }[] = [
   {
     label: 'Subscribers',
@@ -29,8 +29,10 @@ export const PERMISSION_GROUPS: { label: string; items: [Permission, string][] }
     items: [
       ['resellers.read', 'View resellers'],
       ['resellers.write', 'Manage resellers'],
-      ['wallets.transfer', 'Wallet transfers'],
-      ['wallets.refund', 'Wallet refunds'],
+      ['billing.read', 'View wallets, recharges, invoices, payments'],
+      ['recharges.create', 'Recharge subscribers'],
+      ['wallets.transfer', 'Wallet top-ups and transfers'],
+      ['wallets.refund', 'Refunds and credit notes'],
       ['wallets.adjust', 'Wallet adjustments'],
       ['billing.cash', 'Record cash payments'],
       ['reports.view', 'Reports'],

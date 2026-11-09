@@ -3888,6 +3888,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -3908,7 +3911,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -4114,6 +4118,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -4134,7 +4141,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -4431,6 +4439,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -4451,7 +4462,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -4747,6 +4759,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -4767,7 +4782,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -4973,6 +4989,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -4993,7 +5012,8 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
                   "additionalProperties": false
                 }
@@ -5224,6 +5244,9 @@
                         "required": ["id", "code", "name"],
                         "additionalProperties": false
                       }
+                    },
+                    "walletId": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -5244,8 +5267,5562 @@
                     "blockedBy",
                     "counts",
                     "updatedAt",
-                    "path"
+                    "path",
+                    "walletId"
                   ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices": {
+      "get": {
+        "summary": "GST invoices (a reseller sees its branch)",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "subscriberId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["issued", "partially_paid", "paid", "overdue", "cancelled", "unpaid"]
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["prepaid_recharge", "postpaid_monthly"]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "number": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": ["prepaid_recharge", "postpaid_monthly"]
+                          },
+                          "subscriber": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "customerNo": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "name", "customerNo"],
+                            "additionalProperties": false
+                          },
+                          "issueDate": {
+                            "type": "string"
+                          },
+                          "dueDate": {
+                            "type": "string"
+                          },
+                          "periodStart": {
+                            "type": ["string", "null"]
+                          },
+                          "periodEnd": {
+                            "type": ["string", "null"]
+                          },
+                          "taxablePaise": {
+                            "type": "number"
+                          },
+                          "cgstPaise": {
+                            "type": "number"
+                          },
+                          "sgstPaise": {
+                            "type": "number"
+                          },
+                          "igstPaise": {
+                            "type": "number"
+                          },
+                          "roundOffPaise": {
+                            "type": "number"
+                          },
+                          "totalPaise": {
+                            "type": "number"
+                          },
+                          "paidPaise": {
+                            "type": "number"
+                          },
+                          "creditedPaise": {
+                            "type": "number"
+                          },
+                          "balancePaise": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["issued", "partially_paid", "paid", "overdue", "cancelled"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "number",
+                          "type",
+                          "subscriber",
+                          "issueDate",
+                          "dueDate",
+                          "periodStart",
+                          "periodEnd",
+                          "taxablePaise",
+                          "cgstPaise",
+                          "sgstPaise",
+                          "igstPaise",
+                          "roundOffPaise",
+                          "totalPaise",
+                          "paidPaise",
+                          "creditedPaise",
+                          "balancePaise",
+                          "status"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}": {
+      "get": {
+        "summary": "One invoice",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": ["prepaid_recharge", "postpaid_monthly"]
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "dueDate": {
+                      "type": "string"
+                    },
+                    "periodStart": {
+                      "type": ["string", "null"]
+                    },
+                    "periodEnd": {
+                      "type": ["string", "null"]
+                    },
+                    "taxablePaise": {
+                      "type": "number"
+                    },
+                    "cgstPaise": {
+                      "type": "number"
+                    },
+                    "sgstPaise": {
+                      "type": "number"
+                    },
+                    "igstPaise": {
+                      "type": "number"
+                    },
+                    "roundOffPaise": {
+                      "type": "number"
+                    },
+                    "totalPaise": {
+                      "type": "number"
+                    },
+                    "paidPaise": {
+                      "type": "number"
+                    },
+                    "creditedPaise": {
+                      "type": "number"
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["issued", "partially_paid", "paid", "overdue", "cancelled"]
+                    },
+                    "seller": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "gstin": {
+                          "type": "string"
+                        },
+                        "stateCode": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["name", "stateCode", "address"],
+                      "additionalProperties": false
+                    },
+                    "buyer": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "gstin": {
+                          "type": "string"
+                        },
+                        "stateCode": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["name", "stateCode", "address"],
+                      "additionalProperties": false
+                    },
+                    "placeOfSupply": {
+                      "type": "string"
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "description": {
+                            "type": "string"
+                          },
+                          "hsnSac": {
+                            "type": "string"
+                          },
+                          "qty": {
+                            "type": "number"
+                          },
+                          "ratePaise": {
+                            "type": "number"
+                          },
+                          "taxablePaise": {
+                            "type": "number"
+                          },
+                          "gstRatePercent": {
+                            "type": "number"
+                          },
+                          "cgstPaise": {
+                            "type": "number"
+                          },
+                          "sgstPaise": {
+                            "type": "number"
+                          },
+                          "igstPaise": {
+                            "type": "number"
+                          },
+                          "totalPaise": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "description",
+                          "hsnSac",
+                          "qty",
+                          "ratePaise",
+                          "taxablePaise",
+                          "gstRatePercent",
+                          "cgstPaise",
+                          "sgstPaise",
+                          "igstPaise",
+                          "totalPaise"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "creditNote": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "number": {
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "number", "reason", "createdAt"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "type",
+                    "subscriber",
+                    "issueDate",
+                    "dueDate",
+                    "periodStart",
+                    "periodEnd",
+                    "taxablePaise",
+                    "cgstPaise",
+                    "sgstPaise",
+                    "igstPaise",
+                    "roundOffPaise",
+                    "totalPaise",
+                    "paidPaise",
+                    "creditedPaise",
+                    "balancePaise",
+                    "status",
+                    "seller",
+                    "buyer",
+                    "placeOfSupply",
+                    "lines",
+                    "creditNote"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}/pdf": {
+      "get": {
+        "summary": "Invoice as PDF",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}/credit-note": {
+      "post": {
+        "summary": "Cancel a postpaid invoice with a credit note (ISP staff)",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "wallets.refund",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 200
+                  }
+                },
+                "required": ["reason"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": ["prepaid_recharge", "postpaid_monthly"]
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "dueDate": {
+                      "type": "string"
+                    },
+                    "periodStart": {
+                      "type": ["string", "null"]
+                    },
+                    "periodEnd": {
+                      "type": ["string", "null"]
+                    },
+                    "taxablePaise": {
+                      "type": "number"
+                    },
+                    "cgstPaise": {
+                      "type": "number"
+                    },
+                    "sgstPaise": {
+                      "type": "number"
+                    },
+                    "igstPaise": {
+                      "type": "number"
+                    },
+                    "roundOffPaise": {
+                      "type": "number"
+                    },
+                    "totalPaise": {
+                      "type": "number"
+                    },
+                    "paidPaise": {
+                      "type": "number"
+                    },
+                    "creditedPaise": {
+                      "type": "number"
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["issued", "partially_paid", "paid", "overdue", "cancelled"]
+                    },
+                    "seller": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "gstin": {
+                          "type": "string"
+                        },
+                        "stateCode": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["name", "stateCode", "address"],
+                      "additionalProperties": false
+                    },
+                    "buyer": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "gstin": {
+                          "type": "string"
+                        },
+                        "stateCode": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["name", "stateCode", "address"],
+                      "additionalProperties": false
+                    },
+                    "placeOfSupply": {
+                      "type": "string"
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "description": {
+                            "type": "string"
+                          },
+                          "hsnSac": {
+                            "type": "string"
+                          },
+                          "qty": {
+                            "type": "number"
+                          },
+                          "ratePaise": {
+                            "type": "number"
+                          },
+                          "taxablePaise": {
+                            "type": "number"
+                          },
+                          "gstRatePercent": {
+                            "type": "number"
+                          },
+                          "cgstPaise": {
+                            "type": "number"
+                          },
+                          "sgstPaise": {
+                            "type": "number"
+                          },
+                          "igstPaise": {
+                            "type": "number"
+                          },
+                          "totalPaise": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "description",
+                          "hsnSac",
+                          "qty",
+                          "ratePaise",
+                          "taxablePaise",
+                          "gstRatePercent",
+                          "cgstPaise",
+                          "sgstPaise",
+                          "igstPaise",
+                          "totalPaise"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "creditNote": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "number": {
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "number", "reason", "createdAt"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "type",
+                    "subscriber",
+                    "issueDate",
+                    "dueDate",
+                    "periodStart",
+                    "periodEnd",
+                    "taxablePaise",
+                    "cgstPaise",
+                    "sgstPaise",
+                    "igstPaise",
+                    "roundOffPaise",
+                    "totalPaise",
+                    "paidPaise",
+                    "creditedPaise",
+                    "balancePaise",
+                    "status",
+                    "seller",
+                    "buyer",
+                    "placeOfSupply",
+                    "lines",
+                    "creditNote"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments": {
+      "get": {
+        "summary": "Payments: cash and online (a reseller sees its branch)",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "subscriberId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["razorpay", "cashfree", "cash", "wallet", "bank_transfer"]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["created", "pending", "captured", "failed", "refunded"]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "subscriber": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "customerNo": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "name", "customerNo"],
+                            "additionalProperties": false
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": ["razorpay", "cashfree", "cash", "wallet", "bank_transfer"]
+                          },
+                          "amountPaise": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["created", "pending", "captured", "failed", "refunded"]
+                          },
+                          "purpose": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["recharge", "invoice"]
+                              },
+                              "planId": {
+                                "type": ["string", "null"]
+                              },
+                              "invoiceId": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": ["type", "planId", "invoiceId"],
+                            "additionalProperties": false
+                          },
+                          "linkUrl": {
+                            "type": ["string", "null"]
+                          },
+                          "gatewayPaymentId": {
+                            "type": ["string", "null"]
+                          },
+                          "receiptNo": {
+                            "type": ["string", "null"]
+                          },
+                          "failureReason": {
+                            "type": ["string", "null"]
+                          },
+                          "rechargeId": {
+                            "type": ["string", "null"]
+                          },
+                          "invoiceId": {
+                            "type": ["string", "null"]
+                          },
+                          "capturedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "subscriber",
+                          "method",
+                          "amountPaise",
+                          "status",
+                          "purpose",
+                          "linkUrl",
+                          "gatewayPaymentId",
+                          "receiptNo",
+                          "failureReason",
+                          "rechargeId",
+                          "invoiceId",
+                          "capturedAt",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{id}": {
+      "get": {
+        "summary": "One payment",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": ["razorpay", "cashfree", "cash", "wallet", "bank_transfer"]
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["created", "pending", "captured", "failed", "refunded"]
+                    },
+                    "purpose": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["recharge", "invoice"]
+                        },
+                        "planId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoiceId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["type", "planId", "invoiceId"],
+                      "additionalProperties": false
+                    },
+                    "linkUrl": {
+                      "type": ["string", "null"]
+                    },
+                    "gatewayPaymentId": {
+                      "type": ["string", "null"]
+                    },
+                    "receiptNo": {
+                      "type": ["string", "null"]
+                    },
+                    "failureReason": {
+                      "type": ["string", "null"]
+                    },
+                    "rechargeId": {
+                      "type": ["string", "null"]
+                    },
+                    "invoiceId": {
+                      "type": ["string", "null"]
+                    },
+                    "capturedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subscriber",
+                    "method",
+                    "amountPaise",
+                    "status",
+                    "purpose",
+                    "linkUrl",
+                    "gatewayPaymentId",
+                    "receiptNo",
+                    "failureReason",
+                    "rechargeId",
+                    "invoiceId",
+                    "capturedAt",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/cash": {
+      "post": {
+        "summary": "Cash received against an invoice. Idempotency-Key header required",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.cash",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "invoiceId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "amountPaise": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000000000
+                  },
+                  "receiptNo": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "required": ["invoiceId", "amountPaise"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": ["razorpay", "cashfree", "cash", "wallet", "bank_transfer"]
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["created", "pending", "captured", "failed", "refunded"]
+                    },
+                    "purpose": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["recharge", "invoice"]
+                        },
+                        "planId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoiceId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["type", "planId", "invoiceId"],
+                      "additionalProperties": false
+                    },
+                    "linkUrl": {
+                      "type": ["string", "null"]
+                    },
+                    "gatewayPaymentId": {
+                      "type": ["string", "null"]
+                    },
+                    "receiptNo": {
+                      "type": ["string", "null"]
+                    },
+                    "failureReason": {
+                      "type": ["string", "null"]
+                    },
+                    "rechargeId": {
+                      "type": ["string", "null"]
+                    },
+                    "invoiceId": {
+                      "type": ["string", "null"]
+                    },
+                    "capturedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subscriber",
+                    "method",
+                    "amountPaise",
+                    "status",
+                    "purpose",
+                    "linkUrl",
+                    "gatewayPaymentId",
+                    "receiptNo",
+                    "failureReason",
+                    "rechargeId",
+                    "invoiceId",
+                    "capturedAt",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/link": {
+      "post": {
+        "summary": "Online payment link (Razorpay or Cashfree) for a recharge or an invoice",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "recharges.create",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "subscriberId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "gateway": {
+                    "type": "string",
+                    "enum": ["razorpay", "cashfree"]
+                  },
+                  "planId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "invoiceId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  }
+                },
+                "required": ["subscriberId", "gateway"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": ["razorpay", "cashfree", "cash", "wallet", "bank_transfer"]
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["created", "pending", "captured", "failed", "refunded"]
+                    },
+                    "purpose": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["recharge", "invoice"]
+                        },
+                        "planId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoiceId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["type", "planId", "invoiceId"],
+                      "additionalProperties": false
+                    },
+                    "linkUrl": {
+                      "type": ["string", "null"]
+                    },
+                    "gatewayPaymentId": {
+                      "type": ["string", "null"]
+                    },
+                    "receiptNo": {
+                      "type": ["string", "null"]
+                    },
+                    "failureReason": {
+                      "type": ["string", "null"]
+                    },
+                    "rechargeId": {
+                      "type": ["string", "null"]
+                    },
+                    "invoiceId": {
+                      "type": ["string", "null"]
+                    },
+                    "capturedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subscriber",
+                    "method",
+                    "amountPaise",
+                    "status",
+                    "purpose",
+                    "linkUrl",
+                    "gatewayPaymentId",
+                    "receiptNo",
+                    "failureReason",
+                    "rechargeId",
+                    "invoiceId",
+                    "capturedAt",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/razorpay/{id}": {
+      "post": {
+        "summary": "Razorpay webhook (signature verified; :id = the ISP id shown in billing settings)",
+        "tags": ["webhooks"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/cashfree/{id}": {
+      "post": {
+        "summary": "Cashfree webhook (signature verified; :id = the ISP id shown in billing settings)",
+        "tags": ["webhooks"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recharges/quote": {
+      "get": {
+        "summary": "What a recharge would cost and the new expiry, before doing it",
+        "tags": ["recharges"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "recharges.create",
+        "parameters": [
+          {
+            "name": "subscriberId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "planId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "plan": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "validityDays": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["id", "name", "validityDays"],
+                      "additionalProperties": false
+                    },
+                    "walletPricePaise": {
+                      "type": "number"
+                    },
+                    "walletBalancePaise": {
+                      "type": ["number", "null"]
+                    },
+                    "customerPricePaise": {
+                      "type": "number"
+                    },
+                    "customerTotalPaise": {
+                      "type": "number"
+                    },
+                    "newExpiresAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "plan",
+                    "walletPricePaise",
+                    "walletBalancePaise",
+                    "customerPricePaise",
+                    "customerTotalPaise",
+                    "newExpiresAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recharges": {
+      "post": {
+        "summary": "Prepaid recharge. Reseller: debits its own wallet. Staff: cash or complimentary. Idempotency-Key required",
+        "tags": ["recharges"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "recharges.create",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "subscriberId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "planId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "payment": {
+                    "type": "string",
+                    "enum": ["cash", "none"]
+                  }
+                },
+                "required": ["subscriberId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": ["string", "null"]
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "username", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "plan": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "siteReseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "customerPricePaise": {
+                      "type": "number"
+                    },
+                    "taxPaise": {
+                      "type": "number"
+                    },
+                    "channel": {
+                      "type": "string",
+                      "enum": ["online", "reseller_wallet", "cash", "staff", "import"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["SUCCESS", "REVERSED"]
+                    },
+                    "oldExpiresAt": {
+                      "type": ["string", "null"]
+                    },
+                    "newExpiresAt": {
+                      "type": "string"
+                    },
+                    "invoiceId": {
+                      "type": ["string", "null"]
+                    },
+                    "paymentId": {
+                      "type": ["string", "null"]
+                    },
+                    "reversal": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "reason": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string"
+                            },
+                            "creditNoteId": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["reason", "at", "creditNoteId"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subscriber",
+                    "plan",
+                    "siteReseller",
+                    "amountPaise",
+                    "customerPricePaise",
+                    "taxPaise",
+                    "channel",
+                    "status",
+                    "oldExpiresAt",
+                    "newExpiresAt",
+                    "invoiceId",
+                    "paymentId",
+                    "reversal",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Recharge history (a reseller sees its branch)",
+        "tags": ["recharges"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "subscriberId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "siteResellerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["online", "reseller_wallet", "cash", "staff", "import"]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["SUCCESS", "REVERSED"]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "subscriber": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "username": {
+                                "type": ["string", "null"]
+                              },
+                              "customerNo": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "name", "username", "customerNo"],
+                            "additionalProperties": false
+                          },
+                          "plan": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "siteReseller": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "code", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "amountPaise": {
+                            "type": "number"
+                          },
+                          "customerPricePaise": {
+                            "type": "number"
+                          },
+                          "taxPaise": {
+                            "type": "number"
+                          },
+                          "channel": {
+                            "type": "string",
+                            "enum": ["online", "reseller_wallet", "cash", "staff", "import"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["SUCCESS", "REVERSED"]
+                          },
+                          "oldExpiresAt": {
+                            "type": ["string", "null"]
+                          },
+                          "newExpiresAt": {
+                            "type": "string"
+                          },
+                          "invoiceId": {
+                            "type": ["string", "null"]
+                          },
+                          "paymentId": {
+                            "type": ["string", "null"]
+                          },
+                          "reversal": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "reason": {
+                                    "type": "string"
+                                  },
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "creditNoteId": {
+                                    "type": ["string", "null"]
+                                  }
+                                },
+                                "required": ["reason", "at", "creditNoteId"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "replayed": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "subscriber",
+                          "plan",
+                          "siteReseller",
+                          "amountPaise",
+                          "customerPricePaise",
+                          "taxPaise",
+                          "channel",
+                          "status",
+                          "oldExpiresAt",
+                          "newExpiresAt",
+                          "invoiceId",
+                          "paymentId",
+                          "reversal",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recharges/{id}": {
+      "get": {
+        "summary": "One recharge",
+        "tags": ["recharges"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": ["string", "null"]
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "username", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "plan": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "siteReseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "customerPricePaise": {
+                      "type": "number"
+                    },
+                    "taxPaise": {
+                      "type": "number"
+                    },
+                    "channel": {
+                      "type": "string",
+                      "enum": ["online", "reseller_wallet", "cash", "staff", "import"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["SUCCESS", "REVERSED"]
+                    },
+                    "oldExpiresAt": {
+                      "type": ["string", "null"]
+                    },
+                    "newExpiresAt": {
+                      "type": "string"
+                    },
+                    "invoiceId": {
+                      "type": ["string", "null"]
+                    },
+                    "paymentId": {
+                      "type": ["string", "null"]
+                    },
+                    "reversal": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "reason": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string"
+                            },
+                            "creditNoteId": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["reason", "at", "creditNoteId"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subscriber",
+                    "plan",
+                    "siteReseller",
+                    "amountPaise",
+                    "customerPricePaise",
+                    "taxPaise",
+                    "channel",
+                    "status",
+                    "oldExpiresAt",
+                    "newExpiresAt",
+                    "invoiceId",
+                    "paymentId",
+                    "reversal",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recharges/{id}/refund": {
+      "post": {
+        "summary": "Reverse a recharge: REFUND entry, credit note, expiry rolled back (ISP staff)",
+        "tags": ["recharges"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "wallets.refund",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 200
+                  }
+                },
+                "required": ["reason"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": ["string", "null"]
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "username", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "plan": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "siteReseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "customerPricePaise": {
+                      "type": "number"
+                    },
+                    "taxPaise": {
+                      "type": "number"
+                    },
+                    "channel": {
+                      "type": "string",
+                      "enum": ["online", "reseller_wallet", "cash", "staff", "import"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["SUCCESS", "REVERSED"]
+                    },
+                    "oldExpiresAt": {
+                      "type": ["string", "null"]
+                    },
+                    "newExpiresAt": {
+                      "type": "string"
+                    },
+                    "invoiceId": {
+                      "type": ["string", "null"]
+                    },
+                    "paymentId": {
+                      "type": ["string", "null"]
+                    },
+                    "reversal": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "reason": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string"
+                            },
+                            "creditNoteId": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["reason", "at", "creditNoteId"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subscriber",
+                    "plan",
+                    "siteReseller",
+                    "amountPaise",
+                    "customerPricePaise",
+                    "taxPaise",
+                    "channel",
+                    "status",
+                    "oldExpiresAt",
+                    "newExpiresAt",
+                    "invoiceId",
+                    "paymentId",
+                    "reversal",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/settings": {
+      "get": {
+        "summary": "Billing, gateway and SMS settings (secrets never returned)",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tenant.settings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "billing": {
+                      "type": "object",
+                      "properties": {
+                        "invoicePrefix": {
+                          "type": "string"
+                        },
+                        "reminderDaysBefore": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "dueDays": {
+                          "type": "number"
+                        },
+                        "graceDays": {
+                          "type": "number"
+                        },
+                        "lowBalancePaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "invoicePrefix",
+                        "reminderDaysBefore",
+                        "dueDays",
+                        "graceDays",
+                        "lowBalancePaise"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "razorpay": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "keyId": {
+                              "type": "string"
+                            },
+                            "webhookUrl": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["enabled", "keyId", "webhookUrl"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "cashfree": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "sandbox": {
+                              "type": "boolean"
+                            },
+                            "appId": {
+                              "type": "string"
+                            },
+                            "webhookUrl": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["enabled", "sandbox", "appId", "webhookUrl"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sms": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "urlTemplate": {
+                              "type": "string"
+                            },
+                            "senderId": {
+                              "type": "string"
+                            },
+                            "entityId": {
+                              "type": ["string", "null"]
+                            },
+                            "successPattern": {
+                              "type": ["string", "null"]
+                            },
+                            "apiKeySet": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "enabled",
+                            "urlTemplate",
+                            "senderId",
+                            "entityId",
+                            "successPattern",
+                            "apiKeySet"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "webhookUrls": {
+                      "type": "object",
+                      "properties": {
+                        "razorpay": {
+                          "type": "string"
+                        },
+                        "cashfree": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["razorpay", "cashfree"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["billing", "razorpay", "cashfree", "sms", "webhookUrls"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Change billing, gateway and SMS settings; null removes a gateway / SMS",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tenant.settings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "billing": {
+                    "type": "object",
+                    "properties": {
+                      "invoicePrefix": {
+                        "type": "string",
+                        "pattern": "^[A-Z0-9]{1,3}$"
+                      },
+                      "reminderDaysBefore": {
+                        "maxItems": 5,
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 30
+                        }
+                      },
+                      "dueDays": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 60
+                      },
+                      "graceDays": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 60
+                      },
+                      "lowBalancePaise": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      }
+                    }
+                  },
+                  "razorpay": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "keyId": {
+                            "type": "string",
+                            "minLength": 5,
+                            "maxLength": 80
+                          },
+                          "keySecret": {
+                            "type": "string",
+                            "minLength": 8,
+                            "maxLength": 200
+                          },
+                          "webhookSecret": {
+                            "type": "string",
+                            "minLength": 8,
+                            "maxLength": 200
+                          }
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cashfree": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "sandbox": {
+                            "type": "boolean"
+                          },
+                          "appId": {
+                            "type": "string",
+                            "minLength": 5,
+                            "maxLength": 120
+                          },
+                          "secretKey": {
+                            "type": "string",
+                            "minLength": 8,
+                            "maxLength": 200
+                          }
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sms": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "urlTemplate": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "apiKey": {
+                            "type": "string",
+                            "minLength": 8,
+                            "maxLength": 200
+                          },
+                          "senderId": {
+                            "type": "string",
+                            "pattern": "^[A-Z]{6}$"
+                          },
+                          "entityId": {
+                            "type": "string",
+                            "maxLength": 30
+                          },
+                          "successPattern": {
+                            "type": "string",
+                            "maxLength": 100
+                          }
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "billing": {
+                      "type": "object",
+                      "properties": {
+                        "invoicePrefix": {
+                          "type": "string"
+                        },
+                        "reminderDaysBefore": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "dueDays": {
+                          "type": "number"
+                        },
+                        "graceDays": {
+                          "type": "number"
+                        },
+                        "lowBalancePaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "invoicePrefix",
+                        "reminderDaysBefore",
+                        "dueDays",
+                        "graceDays",
+                        "lowBalancePaise"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "razorpay": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "keyId": {
+                              "type": "string"
+                            },
+                            "webhookUrl": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["enabled", "keyId", "webhookUrl"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "cashfree": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "sandbox": {
+                              "type": "boolean"
+                            },
+                            "appId": {
+                              "type": "string"
+                            },
+                            "webhookUrl": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["enabled", "sandbox", "appId", "webhookUrl"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sms": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "urlTemplate": {
+                              "type": "string"
+                            },
+                            "senderId": {
+                              "type": "string"
+                            },
+                            "entityId": {
+                              "type": ["string", "null"]
+                            },
+                            "successPattern": {
+                              "type": ["string", "null"]
+                            },
+                            "apiKeySet": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "enabled",
+                            "urlTemplate",
+                            "senderId",
+                            "entityId",
+                            "successPattern",
+                            "apiKeySet"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "webhookUrls": {
+                      "type": "object",
+                      "properties": {
+                        "razorpay": {
+                          "type": "string"
+                        },
+                        "cashfree": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["razorpay", "cashfree"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["billing", "razorpay", "cashfree", "sms", "webhookUrls"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/templates": {
+      "get": {
+        "summary": "SMS templates (DLT)",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tenant.settings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "enum": [
+                          "expiry_reminder",
+                          "expired",
+                          "payment_receipt",
+                          "invoice_issued",
+                          "overdue_suspended",
+                          "otp"
+                        ]
+                      },
+                      "variables": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "dltTemplateId": {
+                        "type": ["string", "null"]
+                      },
+                      "body": {
+                        "type": ["string", "null"]
+                      },
+                      "active": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": ["key", "variables", "dltTemplateId", "body", "active"],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/templates/{key}": {
+      "put": {
+        "summary": "Set one SMS template",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tenant.settings",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "expiry_reminder",
+                "expired",
+                "payment_receipt",
+                "invoice_issued",
+                "overdue_suspended",
+                "otp"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "dltTemplateId": {
+                    "type": "string",
+                    "pattern": "^\\d{10,25}$"
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 1000
+                  },
+                  "active": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["dltTemplateId", "body", "active"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "enum": [
+                        "expiry_reminder",
+                        "expired",
+                        "payment_receipt",
+                        "invoice_issued",
+                        "overdue_suspended",
+                        "otp"
+                      ]
+                    },
+                    "variables": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "dltTemplateId": {
+                      "type": ["string", "null"]
+                    },
+                    "body": {
+                      "type": ["string", "null"]
+                    },
+                    "active": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["key", "variables", "dltTemplateId", "body", "active"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/notifications": {
+      "get": {
+        "summary": "SMS log",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["queued", "sent", "failed", "skipped"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          },
+                          "templateKey": {
+                            "type": "string",
+                            "enum": [
+                              "expiry_reminder",
+                              "expired",
+                              "payment_receipt",
+                              "invoice_issued",
+                              "overdue_suspended",
+                              "otp"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["queued", "sent", "failed", "skipped"]
+                          },
+                          "attempts": {
+                            "type": "number"
+                          },
+                          "error": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "sentAt": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "to",
+                          "templateKey",
+                          "status",
+                          "attempts",
+                          "error",
+                          "createdAt",
+                          "sentAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/summary": {
+      "get": {
+        "summary": "ISP billing overview",
+        "tags": ["billing"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "today": {
+                      "type": "object",
+                      "properties": {
+                        "recharges": {
+                          "type": "number"
+                        },
+                        "rechargePaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["recharges", "rechargePaise"],
+                      "additionalProperties": false
+                    },
+                    "month": {
+                      "type": "object",
+                      "properties": {
+                        "recharges": {
+                          "type": "number"
+                        },
+                        "invoicedPaise": {
+                          "type": "number"
+                        },
+                        "collectedPaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["recharges", "invoicedPaise", "collectedPaise"],
+                      "additionalProperties": false
+                    },
+                    "unpaid": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "number"
+                        },
+                        "balancePaise": {
+                          "type": "number"
+                        },
+                        "overdue": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["count", "balancePaise", "overdue"],
+                      "additionalProperties": false
+                    },
+                    "wallets": {
+                      "type": "object",
+                      "properties": {
+                        "resellerBalancePaise": {
+                          "type": "number"
+                        },
+                        "low": {
+                          "type": "number"
+                        },
+                        "frozen": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["resellerBalancePaise", "low", "frozen"],
+                      "additionalProperties": false
+                    },
+                    "sms": {
+                      "type": "object",
+                      "properties": {
+                        "queued": {
+                          "type": "number"
+                        },
+                        "failed24h": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["queued", "failed24h"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["today", "month", "unpaid", "wallets", "sms"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets": {
+      "get": {
+        "summary": "Wallet accounts (staff: all; reseller: its direct children)",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "parentWalletId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["low", "empty", "frozen"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "ownerType": {
+                            "type": "string",
+                            "enum": ["tenant", "reseller"]
+                          },
+                          "owner": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "code", "name"],
+                            "additionalProperties": false
+                          },
+                          "walletType": {
+                            "type": "string"
+                          },
+                          "parentWalletId": {
+                            "type": ["string", "null"]
+                          },
+                          "balancePaise": {
+                            "type": "number"
+                          },
+                          "creditLimitPaise": {
+                            "type": "number"
+                          },
+                          "lowBalanceThresholdPaise": {
+                            "type": "number"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": ["normal", "low", "empty", "frozen", "inactive"]
+                          },
+                          "frozenReason": {
+                            "type": ["string", "null"]
+                          },
+                          "totals": {
+                            "type": "object",
+                            "properties": {
+                              "receivedPaise": {
+                                "type": "number"
+                              },
+                              "allocatedPaise": {
+                                "type": "number"
+                              },
+                              "rechargedPaise": {
+                                "type": "number"
+                              },
+                              "refundedPaise": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "receivedPaise",
+                              "allocatedPaise",
+                              "rechargedPaise",
+                              "refundedPaise"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "ownerType",
+                          "owner",
+                          "walletType",
+                          "parentWalletId",
+                          "balancePaise",
+                          "creditLimitPaise",
+                          "lowBalanceThresholdPaise",
+                          "state",
+                          "frozenReason",
+                          "totals",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/mine": {
+      "get": {
+        "summary": "The caller’s wallet dashboard (Master for ISP staff)",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ownerType": {
+                      "type": "string",
+                      "enum": ["tenant", "reseller"]
+                    },
+                    "owner": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "code", "name"],
+                      "additionalProperties": false
+                    },
+                    "walletType": {
+                      "type": "string"
+                    },
+                    "parentWalletId": {
+                      "type": ["string", "null"]
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "lowBalanceThresholdPaise": {
+                      "type": "number"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": ["normal", "low", "empty", "frozen", "inactive"]
+                    },
+                    "frozenReason": {
+                      "type": ["string", "null"]
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "receivedPaise": {
+                          "type": "number"
+                        },
+                        "allocatedPaise": {
+                          "type": "number"
+                        },
+                        "rechargedPaise": {
+                          "type": "number"
+                        },
+                        "refundedPaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["receivedPaise", "allocatedPaise", "rechargedPaise", "refundedPaise"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "children": {
+                      "type": "number"
+                    },
+                    "lowChildren": {
+                      "type": "number"
+                    },
+                    "customers": {
+                      "type": "number"
+                    },
+                    "canTopUp": {
+                      "type": "boolean"
+                    },
+                    "canViewLedger": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ownerType",
+                    "owner",
+                    "walletType",
+                    "parentWalletId",
+                    "balancePaise",
+                    "creditLimitPaise",
+                    "lowBalanceThresholdPaise",
+                    "state",
+                    "frozenReason",
+                    "totals",
+                    "updatedAt",
+                    "children",
+                    "lowChildren",
+                    "customers",
+                    "canTopUp",
+                    "canViewLedger"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/{id}": {
+      "get": {
+        "summary": "Wallet dashboard",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ownerType": {
+                      "type": "string",
+                      "enum": ["tenant", "reseller"]
+                    },
+                    "owner": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "code", "name"],
+                      "additionalProperties": false
+                    },
+                    "walletType": {
+                      "type": "string"
+                    },
+                    "parentWalletId": {
+                      "type": ["string", "null"]
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "lowBalanceThresholdPaise": {
+                      "type": "number"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": ["normal", "low", "empty", "frozen", "inactive"]
+                    },
+                    "frozenReason": {
+                      "type": ["string", "null"]
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "receivedPaise": {
+                          "type": "number"
+                        },
+                        "allocatedPaise": {
+                          "type": "number"
+                        },
+                        "rechargedPaise": {
+                          "type": "number"
+                        },
+                        "refundedPaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["receivedPaise", "allocatedPaise", "rechargedPaise", "refundedPaise"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "children": {
+                      "type": "number"
+                    },
+                    "lowChildren": {
+                      "type": "number"
+                    },
+                    "customers": {
+                      "type": "number"
+                    },
+                    "canTopUp": {
+                      "type": "boolean"
+                    },
+                    "canViewLedger": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ownerType",
+                    "owner",
+                    "walletType",
+                    "parentWalletId",
+                    "balancePaise",
+                    "creditLimitPaise",
+                    "lowBalanceThresholdPaise",
+                    "state",
+                    "frozenReason",
+                    "totals",
+                    "updatedAt",
+                    "children",
+                    "lowChildren",
+                    "customers",
+                    "canTopUp",
+                    "canViewLedger"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Low-balance level (parent or staff); unfreeze after a reconciliation check (staff)",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "wallets.transfer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "lowBalanceThresholdPaise": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000000
+                  },
+                  "unfreeze": {
+                    "type": "boolean",
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ownerType": {
+                      "type": "string",
+                      "enum": ["tenant", "reseller"]
+                    },
+                    "owner": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "code", "name"],
+                      "additionalProperties": false
+                    },
+                    "walletType": {
+                      "type": "string"
+                    },
+                    "parentWalletId": {
+                      "type": ["string", "null"]
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "lowBalanceThresholdPaise": {
+                      "type": "number"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": ["normal", "low", "empty", "frozen", "inactive"]
+                    },
+                    "frozenReason": {
+                      "type": ["string", "null"]
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "receivedPaise": {
+                          "type": "number"
+                        },
+                        "allocatedPaise": {
+                          "type": "number"
+                        },
+                        "rechargedPaise": {
+                          "type": "number"
+                        },
+                        "refundedPaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["receivedPaise", "allocatedPaise", "rechargedPaise", "refundedPaise"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "children": {
+                      "type": "number"
+                    },
+                    "lowChildren": {
+                      "type": "number"
+                    },
+                    "customers": {
+                      "type": "number"
+                    },
+                    "canTopUp": {
+                      "type": "boolean"
+                    },
+                    "canViewLedger": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ownerType",
+                    "owner",
+                    "walletType",
+                    "parentWalletId",
+                    "balancePaise",
+                    "creditLimitPaise",
+                    "lowBalanceThresholdPaise",
+                    "state",
+                    "frozenReason",
+                    "totals",
+                    "updatedAt",
+                    "children",
+                    "lowChildren",
+                    "customers",
+                    "canTopUp",
+                    "canViewLedger"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/{id}/ledger": {
+      "get": {
+        "summary": "Ledger: every credit and debit with balances before and after",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["TOPUP", "ALLOCATE", "RECHARGE", "REFUND", "ADJUSTMENT"]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": ["TOPUP", "ALLOCATE", "RECHARGE", "REFUND", "ADJUSTMENT"]
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": ["credit", "debit"]
+                          },
+                          "amountPaise": {
+                            "type": "number"
+                          },
+                          "balanceBeforePaise": {
+                            "type": "number"
+                          },
+                          "balanceAfterPaise": {
+                            "type": "number"
+                          },
+                          "referenceId": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "createdBy": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "direction",
+                          "amountPaise",
+                          "balanceBeforePaise",
+                          "balanceAfterPaise",
+                          "referenceId",
+                          "description",
+                          "createdAt",
+                          "createdBy"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/{id}/report": {
+      "get": {
+        "summary": "Date-wise credits and debits (IST days)",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "day": {
+                            "type": "string"
+                          },
+                          "creditsPaise": {
+                            "type": "number"
+                          },
+                          "debitsPaise": {
+                            "type": "number"
+                          },
+                          "byType": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "number"
+                            }
+                          },
+                          "count": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["day", "creditsPaise", "debitsPaise", "byType", "count"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["rows"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/transfer": {
+      "post": {
+        "summary": "Top-up (ISP → level 1) or allocation (reseller → direct child). Idempotency-Key header required",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "wallets.transfer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "toWalletId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "amountPaise": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000000000
+                  },
+                  "receivedVia": {
+                    "type": "string",
+                    "enum": ["cash", "upi", "bank"]
+                  },
+                  "reference": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "required": ["toWalletId", "amountPaise"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "from": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "ownerType": {
+                          "type": "string",
+                          "enum": ["tenant", "reseller"]
+                        },
+                        "owner": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        "walletType": {
+                          "type": "string"
+                        },
+                        "parentWalletId": {
+                          "type": ["string", "null"]
+                        },
+                        "balancePaise": {
+                          "type": "number"
+                        },
+                        "creditLimitPaise": {
+                          "type": "number"
+                        },
+                        "lowBalanceThresholdPaise": {
+                          "type": "number"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": ["normal", "low", "empty", "frozen", "inactive"]
+                        },
+                        "frozenReason": {
+                          "type": ["string", "null"]
+                        },
+                        "totals": {
+                          "type": "object",
+                          "properties": {
+                            "receivedPaise": {
+                              "type": "number"
+                            },
+                            "allocatedPaise": {
+                              "type": "number"
+                            },
+                            "rechargedPaise": {
+                              "type": "number"
+                            },
+                            "refundedPaise": {
+                              "type": "number"
+                            }
+                          },
+                          "required": ["receivedPaise", "allocatedPaise", "rechargedPaise", "refundedPaise"],
+                          "additionalProperties": false
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "ownerType",
+                        "owner",
+                        "walletType",
+                        "parentWalletId",
+                        "balancePaise",
+                        "creditLimitPaise",
+                        "lowBalanceThresholdPaise",
+                        "state",
+                        "frozenReason",
+                        "totals",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "to": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "ownerType": {
+                          "type": "string",
+                          "enum": ["tenant", "reseller"]
+                        },
+                        "owner": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        "walletType": {
+                          "type": "string"
+                        },
+                        "parentWalletId": {
+                          "type": ["string", "null"]
+                        },
+                        "balancePaise": {
+                          "type": "number"
+                        },
+                        "creditLimitPaise": {
+                          "type": "number"
+                        },
+                        "lowBalanceThresholdPaise": {
+                          "type": "number"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": ["normal", "low", "empty", "frozen", "inactive"]
+                        },
+                        "frozenReason": {
+                          "type": ["string", "null"]
+                        },
+                        "totals": {
+                          "type": "object",
+                          "properties": {
+                            "receivedPaise": {
+                              "type": "number"
+                            },
+                            "allocatedPaise": {
+                              "type": "number"
+                            },
+                            "rechargedPaise": {
+                              "type": "number"
+                            },
+                            "refundedPaise": {
+                              "type": "number"
+                            }
+                          },
+                          "required": ["receivedPaise", "allocatedPaise", "rechargedPaise", "refundedPaise"],
+                          "additionalProperties": false
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "ownerType",
+                        "owner",
+                        "walletType",
+                        "parentWalletId",
+                        "balancePaise",
+                        "creditLimitPaise",
+                        "lowBalanceThresholdPaise",
+                        "state",
+                        "frozenReason",
+                        "totals",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["id", "replayed", "from", "to"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/{id}/adjust": {
+      "post": {
+        "summary": "Manual correction with a reason (ISP staff). Idempotency-Key header required",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "wallets.adjust",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "amountPaise": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 200
+                  }
+                },
+                "required": ["amountPaise", "reason"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "ownerType": {
+                      "type": "string",
+                      "enum": ["tenant", "reseller"]
+                    },
+                    "owner": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "code", "name"],
+                      "additionalProperties": false
+                    },
+                    "walletType": {
+                      "type": "string"
+                    },
+                    "parentWalletId": {
+                      "type": ["string", "null"]
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "creditLimitPaise": {
+                      "type": "number"
+                    },
+                    "lowBalanceThresholdPaise": {
+                      "type": "number"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": ["normal", "low", "empty", "frozen", "inactive"]
+                    },
+                    "frozenReason": {
+                      "type": ["string", "null"]
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "receivedPaise": {
+                          "type": "number"
+                        },
+                        "allocatedPaise": {
+                          "type": "number"
+                        },
+                        "rechargedPaise": {
+                          "type": "number"
+                        },
+                        "refundedPaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["receivedPaise", "allocatedPaise", "rechargedPaise", "refundedPaise"],
+                      "additionalProperties": false
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "children": {
+                      "type": "number"
+                    },
+                    "lowChildren": {
+                      "type": "number"
+                    },
+                    "customers": {
+                      "type": "number"
+                    },
+                    "canTopUp": {
+                      "type": "boolean"
+                    },
+                    "canViewLedger": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ownerType",
+                    "owner",
+                    "walletType",
+                    "parentWalletId",
+                    "balancePaise",
+                    "creditLimitPaise",
+                    "lowBalanceThresholdPaise",
+                    "state",
+                    "frozenReason",
+                    "totals",
+                    "updatedAt",
+                    "children",
+                    "lowChildren",
+                    "customers",
+                    "canTopUp",
+                    "canViewLedger"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resellers/{id}/rates": {
+      "get": {
+        "summary": "Per-plan wallet price, customer price and sell-ability of a reseller",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "canSetWalletPrices": {
+                      "type": "boolean"
+                    },
+                    "canSetCustomerPrices": {
+                      "type": "boolean"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "planId": {
+                            "type": "string"
+                          },
+                          "planName": {
+                            "type": "string"
+                          },
+                          "planPricePaise": {
+                            "type": "number"
+                          },
+                          "gstRatePercent": {
+                            "type": "number"
+                          },
+                          "walletPricePaise": {
+                            "type": "number"
+                          },
+                          "customerPricePaise": {
+                            "type": "number"
+                          },
+                          "active": {
+                            "type": "boolean"
+                          },
+                          "custom": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "planId",
+                          "planName",
+                          "planPricePaise",
+                          "gstRatePercent",
+                          "walletPricePaise",
+                          "customerPricePaise",
+                          "active",
+                          "custom"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["canSetWalletPrices", "canSetCustomerPrices", "items"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Set rates: wallet price / sell-ability (parent or staff), customer price (the reseller or staff)",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "rates": {
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "planId": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{24}$"
+                        },
+                        "walletPricePaise": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10000000000
+                        },
+                        "customerPricePaise": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10000000000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "active": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["planId"]
+                    }
+                  }
+                },
+                "required": ["rates"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "canSetWalletPrices": {
+                      "type": "boolean"
+                    },
+                    "canSetCustomerPrices": {
+                      "type": "boolean"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "planId": {
+                            "type": "string"
+                          },
+                          "planName": {
+                            "type": "string"
+                          },
+                          "planPricePaise": {
+                            "type": "number"
+                          },
+                          "gstRatePercent": {
+                            "type": "number"
+                          },
+                          "walletPricePaise": {
+                            "type": "number"
+                          },
+                          "customerPricePaise": {
+                            "type": "number"
+                          },
+                          "active": {
+                            "type": "boolean"
+                          },
+                          "custom": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "planId",
+                          "planName",
+                          "planPricePaise",
+                          "gstRatePercent",
+                          "walletPricePaise",
+                          "customerPricePaise",
+                          "active",
+                          "custom"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["canSetWalletPrices", "canSetCustomerPrices", "items"],
                   "additionalProperties": false
                 }
               }
@@ -10314,6 +15891,15 @@
               "type": "string",
               "enum": ["active", "locked", "disabled"]
             }
+          },
+          {
+            "name": "resellerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
           }
         ],
         "responses": {
@@ -10482,6 +16068,10 @@
                       "type": "string",
                       "pattern": "^[0-9a-f]{24}$"
                     }
+                  },
+                  "resellerId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
                   }
                 },
                 "required": ["name", "password"]
@@ -11434,6 +17024,8 @@
                         "plans.write",
                         "resellers.read",
                         "resellers.write",
+                        "billing.read",
+                        "recharges.create",
                         "wallets.transfer",
                         "wallets.refund",
                         "wallets.adjust",
@@ -11585,6 +17177,8 @@
                         "plans.write",
                         "resellers.read",
                         "resellers.write",
+                        "billing.read",
+                        "recharges.create",
                         "wallets.transfer",
                         "wallets.refund",
                         "wallets.adjust",

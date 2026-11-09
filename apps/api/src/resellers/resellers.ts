@@ -15,6 +15,8 @@ import { ObjectId, type ClientSession, type Filter } from 'mongodb';
 import { z } from 'zod';
 import {
   ScopedDb,
+  wallets,
+  createResellerWallet,
   type MongoHandle,
   type ResellerDoc,
   type SubscriberDoc,
@@ -117,6 +119,7 @@ const resellerView = z.object({
 const detailView = resellerView.extend({
   /** Resellers above this one that the caller may see, top first. */
   path: z.array(ref),
+  walletId: z.string().nullable(),
 });
 
 type Counts = z.output<typeof resellerView>['counts'];
@@ -290,17 +293,18 @@ export class ResellersService {
   }
 
   async detail(ctx: AuthContext, r: ResellerDoc) {
-    const [view, path] = await Promise.all([
+    const [view, path, wallet] = await Promise.all([
       this.views(ctx, [r]),
       r.ancestors.length
         ? this.col(ctx)
             .find({ _id: { $in: r.ancestors } }, { projection: { code: 1, name: 1 } })
             .toArray()
         : Promise.resolve([]),
+      wallets(this.mongo.db).findOne({ ownerId: r._id, tenantId: r.tenantId }, { projection: { _id: 1 } }),
     ]);
     const order = new Map(r.ancestors.map((id, i) => [id.toHexString(), i]));
     path.sort((a, b) => order.get(a._id.toHexString())! - order.get(b._id.toHexString())!);
-    return { ...view(r), path: path.map(toRef) };
+    return { ...view(r), path: path.map(toRef), walletId: wallet?._id.toHexString() ?? null };
   }
 
   get = async (ctx: AuthContext, id: ObjectId) => this.detail(ctx, await this.find(ctx, id));
@@ -352,6 +356,7 @@ export class ResellersService {
         updatedBy: actor,
       };
       await this.col(ctx).insertOne(d, { session });
+      await createResellerWallet(this.mongo.db, d, session);
       return d;
     });
     noteChange({ after: doc, entityId: doc._id });
@@ -376,6 +381,12 @@ export class ResellersService {
       { returnDocument: 'after' },
     );
     if (!u) throw notFound('Reseller');
+    if (b.creditLimitPaise !== undefined) {
+      await wallets(this.mongo.db).updateOne(
+        { ownerId: id, tenantId: u.tenantId },
+        { $set: { creditLimitPaise: b.creditLimitPaise, updatedAt: new Date() } },
+      );
+    }
     noteChange({ before: cur, after: u, entityId: id });
     return this.detail(ctx, u);
   }
@@ -457,6 +468,20 @@ export class ResellersService {
           { $set: { ancestors: [...ancestors, r._id], updatedAt: now, updatedBy: actor } },
           { session },
         );
+        const parentWallet = isTarget
+          ? await wallets(this.mongo.db).findOne({ ownerId: parentId ?? target.tenantId }, { session })
+          : null;
+        await wallets(this.mongo.db).updateOne(
+          { ownerId: r._id, tenantId: target.tenantId },
+          {
+            $set: {
+              walletType: `L${ancestors.length + 1}`,
+              updatedAt: now,
+              ...(parentWallet ? { parentWalletId: parentWallet._id } : {}),
+            },
+          },
+          { session },
+        );
       }
       return (await resellers.findOne({ _id: id }, { session }))!;
     });
@@ -477,6 +502,9 @@ export class ResellersService {
     ]);
     if (children) throw conflict('Move or delete its sub-resellers first');
     if (customers) throw conflict('Move or delete its customers first');
+    const w = await wallets(this.mongo.db).findOne({ ownerId: id, tenantId: cur.tenantId });
+    if (w && w.balancePaise !== 0)
+      throw conflict('Its wallet is not empty: move the balance back to the parent first');
     const now = new Date();
     const actor = ctx.userId.toHexString();
     await this.outbox.tx(async (session) => {
@@ -490,6 +518,11 @@ export class ResellersService {
       );
       if (!u) throw notFound('Reseller');
       noteChange({ before: cur, after: u, entityId: id });
+      await wallets(this.mongo.db).updateOne(
+        { ownerId: id, tenantId: cur.tenantId },
+        { $set: { isActive: false, updatedAt: now } },
+        { session },
+      );
       await this.mongo.db
         .collection<UserDoc>('users')
         .updateMany(

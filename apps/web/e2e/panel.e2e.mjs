@@ -182,13 +182,46 @@ step('resellers: tree, drill-down and a customer added from a reseller', async (
   await page.waitForURL(/\/admin\/subscribers\/new\?reseller=/);
   await page.getByText(/E2E Sector 62 · R-\d{4}/).waitFor();
   await page.goto(`${BASE}/admin/resellers`);
-  await page
-    .getByRole('row', { name: /E2E Noida Net/ })
-    .getByRole('cell')
-    .nth(3)
-    .click();
+  await page.getByRole('link', { name: '1 sub-reseller of E2E Noida Net' }).click();
   await page.waitForURL(/parent=/);
   await page.getByRole('link', { name: 'E2E Sector 62' }).waitFor();
+  await page
+    .getByRole('row', { name: /E2E Sector 62/ })
+    .getByRole('cell')
+    .nth(1)
+    .click();
+  await page.waitForURL(/\/admin\/resellers\/[0-9a-f]{24}$/);
+  await page.getByRole('heading', { name: /E2E Sector 62/ }).waitFor();
+});
+
+step('billing: top up a reseller, cash recharge, GST invoice', async () => {
+  await page.getByRole('link', { name: 'Wallets' }).click();
+  await page
+    .getByRole('row', { name: /E2E Noida Net/ })
+    .getByRole('button', { name: 'Top up' })
+    .click();
+  await page.fill('#t-amount', '1000');
+  await page.getByRole('button', { name: /^Send/ }).click();
+  await page.getByText(/E2E Noida Net now has/).waitFor();
+  await page
+    .getByRole('row', { name: /E2E Noida Net/ })
+    .getByText('₹1,000.00')
+    .first()
+    .waitFor();
+
+  await page.goto(`${BASE}/admin/subscribers?q=ramesh`);
+  await page.getByRole('link', { name: 'Ramesh Kumar E2E' }).click();
+  await page.getByRole('button', { name: 'Recharge' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByText('Customer pays (incl. GST)').waitFor();
+  await dialog.getByText('₹589.00').waitFor();
+  await dialog.getByRole('button', { name: 'Recharge' }).click();
+  await page.getByText(/Recharged\. Valid until/).waitFor();
+  await page.getByRole('tab', { name: 'Billing' }).click();
+  await page.getByRole('tab', { name: 'Invoices' }).click();
+  await page.getByText(/^INV\/\d{4}\/\d{5}$/).waitFor();
+  await page.getByRole('tab', { name: 'Payments' }).click();
+  await page.getByText('Cash').first().waitFor();
 });
 
 step('phone layout: cards, no sideways scrolling, menu works', async () => {
@@ -225,6 +258,8 @@ step('Support sees only what the role allows', async () => {
   assert.equal(await page.getByRole('button', { name: 'Add router' }).count(), 0);
   await page.goto(`${BASE}/admin/subscribers?q=ramesh`);
   await page.getByRole('link', { name: 'Ramesh Kumar E2E' }).click();
+  await page.getByRole('tab', { name: 'Billing' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Recharge' }).count(), 0, 'Support must not recharge');
   await page.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Suspend' }).waitFor();
   assert.equal(await page.getByRole('menuitem', { name: 'Delete' }).count(), 0, 'Support must not delete');
