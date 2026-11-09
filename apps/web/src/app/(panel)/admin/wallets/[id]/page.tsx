@@ -251,7 +251,11 @@ function Actions({ d }: { d: WalletDashboard }) {
               <Button type="button" variant="outline" onClick={() => setOpen(null)}>
                 Cancel
               </Button>
-              <Button type="submit" loading={adjust.isPending} disabled={!paise || !sign || reason.trim().length < 5}>
+              <Button
+                type="submit"
+                loading={adjust.isPending}
+                disabled={!paise || !sign || reason.trim().length < 5}
+              >
                 {paise && sign
                   ? `${sign === '-' ? 'Debit' : 'Credit'} ${fmtRupees(paise)} → ${fmtRupees(d.balancePaise + (sign === '-' ? -paise : paise))}`
                   : 'Record'}
