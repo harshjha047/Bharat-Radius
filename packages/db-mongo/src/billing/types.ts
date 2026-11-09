@@ -22,7 +22,8 @@ export interface TenantGateways {
 export interface TenantSms {
   enabled: boolean;
   /**
-   * HTTP GET URL of the SMS provider with placeholders {apiKey} {sender} {entityId} {templateId} {to} {message}
+   * HTTP GET URL of the SMS provider with placeholders {apiKey} {sender} {entityId} {templateId} {to} (919876543210)
+   * {mobile} (9876543210) {message}
    * (each URL-encoded when filled in). RapidSMS panels give this URL under "HTTP API".
    */
   urlTemplate: string;

@@ -54,7 +54,7 @@ beforeAll(async () => {
     sms: {
       enabled: true,
       urlTemplate:
-        'https://sms.example/api?key={apiKey}&sender={sender}&tid={templateId}&to={to}&msg={message}',
+        'https://sms.example/api?key={apiKey}&sender={sender}&tid={templateId}&to={to}&m={mobile}&msg={message}',
       apiKey: crypto.encrypt('k-secret', `tenants.sms:${tenantId.toHexString()}:apiKey`),
       senderId: 'BRADUS',
       successPattern: '^OK',
@@ -98,6 +98,7 @@ describe('SMS queue', () => {
     const u = new URL(calls.at(-1)!);
     expect(u.searchParams.get('key')).toBe('k-secret');
     expect(u.searchParams.get('to')).toBe('919876543210');
+    expect(u.searchParams.get('m')).toBe('9876543210');
     expect(u.searchParams.get('tid')).toBe('1107160000000000001');
     expect(u.searchParams.get('msg')).toBe(
       'Dear Ravi Kumar, received Rs. 118.00 for Basic 100. Valid till 06 Dec 2026. Inv INV/2627/00001 -BRADUS',

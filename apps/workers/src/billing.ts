@@ -85,19 +85,20 @@ export class SmsSender {
       ? this.crypto.decrypt(sms.apiKey, `tenants.sms:${n.tenantId.toHexString()}:apiKey`)
       : '';
     const to = n.to.replace(/^\+/, '');
+    // Indian 10-digit number for providers that want it without the country code (RapidSMS `mobileno`).
+    const mobile = to.replace(/^91(?=\d{10}$)/, '');
+    const values: Record<string, string> = {
+      apiKey,
+      sender: sms.senderId,
+      entityId: sms.entityId ?? '',
+      templateId: tpl.dltTemplateId,
+      to,
+      mobile,
+      message,
+    };
     const url = sms.urlTemplate.replace(
-      /\{(apiKey|sender|entityId|templateId|to|message)\}/g,
-      (_m, k: string) =>
-        encodeURIComponent(
-          {
-            apiKey,
-            sender: sms.senderId,
-            entityId: sms.entityId ?? '',
-            templateId: tpl.dltTemplateId,
-            to,
-            message,
-          }[k] ?? '',
-        ),
+      /\{(apiKey|sender|entityId|templateId|to|mobile|message)\}/g,
+      (_m, k: string) => encodeURIComponent(values[k] ?? ''),
     );
     const attempts = n.attempts + 1;
     try {

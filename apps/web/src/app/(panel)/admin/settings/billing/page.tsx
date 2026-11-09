@@ -319,7 +319,7 @@ function SmsForm({ s }: { s: Settings }) {
             label="Provider HTTP API URL"
             htmlFor="s-url"
             className="sm:col-span-2"
-            hint="From your RapidSMS panel. Placeholders: {apiKey} {sender} {entityId} {templateId} {to} {message}"
+            hint="From your RapidSMS panel. Placeholders: {apiKey} {sender} {entityId} {templateId} {to} (91…) {mobile} (10 digits) {message}"
           >
             <Textarea
               id="s-url"

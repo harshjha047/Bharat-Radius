@@ -83,7 +83,10 @@ const settingsBody = z
           .trim()
           .url()
           .refine((u) => u.startsWith('https://') || u.startsWith('http://'), 'must be an http(s) URL')
-          .refine((u) => u.includes('{to}') && u.includes('{message}'), 'must contain {to} and {message}'),
+          .refine(
+            (u) => (u.includes('{to}') || u.includes('{mobile}')) && u.includes('{message}'),
+            'must contain {to} or {mobile}, and {message}',
+          ),
         apiKey: secret,
         senderId: z
           .string()
