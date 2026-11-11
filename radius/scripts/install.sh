@@ -351,7 +351,15 @@ done
 # ---------------------------------------------------------------- firewall (only if already active)
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   log "ufw active: adding rules"
-  for inst in "${INSTANCES[@]}"; do instance_vars "$inst"; ufw allow "$AUTH_PORT,$ACCT_PORT/udp" comment "isp-radius $inst" >/dev/null; done
+  # RADIUS ports: only routers listed in $ETC_DIR/<instance>.allow (managed with scripts/nas-allow.sh).
+  # First install: production starts closed (add each POP router at cutover), staging stays open for the lab.
+  for inst in "${INSTANCES[@]}"; do
+    if [[ ! -f "$ETC_DIR/$inst.allow" ]]; then
+      if [[ $inst == staging ]]; then echo "any staging-lab" >"$ETC_DIR/$inst.allow"; else : >"$ETC_DIR/$inst.allow"; fi
+      chmod 0644 "$ETC_DIR/$inst.allow"
+    fi
+    "$OPT_DIR/scripts/nas-allow.sh" "$inst" apply | sed "s/^/[$inst] /"
+  done
   [[ -n "$WINDOWS_IP" ]] && ufw allow from "$WINDOWS_IP" to any port 5432 proto tcp comment "isp-radius pg" >/dev/null
   [[ -n "$APP_SUBNET" ]] && ufw allow from "$APP_SUBNET" to any port 5432 proto tcp comment "isp-radius pg (app containers)" >/dev/null
 fi
