@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { gstLine, gstTotals } from '@isp/db-mongo';
 import { roleId, seedTenant, seedUser, signIn, startHarness, type Client, type Harness } from './harness.js';
 
@@ -197,7 +197,10 @@ describe('reports', () => {
     const p = await admin.req('GET', `/api/v1/reports/subscribers/download${q({ ...dec, format: 'pdf' })}`);
     expect(p.status).toBe(200);
     expect(p.raw.subarray(0, 4).toString()).toBe('%PDF');
-    expect(await h.db.collection('audit_logs').countDocuments({ action: 'report.export' })).toBe(2);
+    // Audit rows of file downloads are written right after the response is sent.
+    await vi.waitFor(async () =>
+      expect(await h.db.collection('audit_logs').countDocuments({ action: 'report.export' })).toBe(2),
+    );
   });
 
   it('GSTR-1: b2b for the registered buyer, b2cs for the rest, docs series', async () => {
