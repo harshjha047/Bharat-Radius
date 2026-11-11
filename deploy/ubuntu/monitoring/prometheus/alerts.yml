@@ -146,3 +146,70 @@ groups:
         annotations:
           summary: '{{ $value }} SMS failed in the last 24 hours'
           runbook: docs/runbooks/billing.md
+
+      # ---- WP 4.9 ----
+      - alert: OutboxErrors
+        expr: increase(isp_outbox_errors_total[15m]) > 10
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: 'RADIUS sync keeps failing ({{ $value | humanize }} errors in 15 min); changes retry with backoff'
+          runbook: docs/runbooks/outbox.md
+
+      - alert: ReconcileStale
+        expr: time() - isp_job_last_success_timestamp_seconds{job="reconcile-wallets"} > 26 * 3600
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Nightly wallet reconciliation has not succeeded for over 26 hours'
+          runbook: docs/runbooks/billing.md
+
+  - name: synthetic
+    rules:
+      - alert: RadiusLoginProbeFailing
+        expr: isp_radius_probe_success{instance_name="production"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Synthetic PPPoE login to production RADIUS fails: customers may not be able to connect'
+          runbook: docs/runbooks/radius-down.md
+
+      - alert: RadiusStagingLoginProbeFailing
+        expr: isp_radius_probe_success{instance_name="staging"} == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Synthetic login to staging RADIUS fails'
+
+      - alert: RadiusLoginSlow
+        expr: isp_radius_probe_seconds{instance_name="production"} > 1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Production login takes {{ $value | humanizeDuration }} (synthetic probe)'
+          runbook: docs/runbooks/radius-down.md
+
+      - alert: RadiusProbeStale
+        expr: time() - isp_radius_probe_timestamp_seconds > 300
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Synthetic login probe has not run for 5 minutes (isp-radius-probe.timer)'
+
+  - name: backups
+    rules:
+      - alert: BackupMissing
+        expr: time() - isp_backup_last_success_timestamp_seconds > 26 * 3600
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: 'No successful {{ $labels.kind }} backup for over 26 hours'
+          runbook: docs/runbooks/backups.md
+
+      - alert: BackupNeverRan
+        expr: absent(isp_backup_last_success_timestamp_seconds)
+        for: 26h
+        labels: { severity: warning }
+        annotations:
+          summary: 'No backup has ever reported success on this host'
+          runbook: docs/runbooks/backups.md

@@ -86,3 +86,80 @@ tests:
             exp_annotations:
               summary: '1 wallet(s) frozen: balance does not match the ledger'
               runbook: docs/runbooks/billing.md
+
+  - interval: 15s
+    input_series:
+      - series: 'isp_radius_probe_success{instance_name="production"}'
+        values: '1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0'
+      - series: 'isp_radius_probe_seconds{instance_name="production"}'
+        values: '0.01x15'
+      - series: 'isp_radius_probe_timestamp_seconds{instance_name="production"}'
+        values: '0+15x15'
+    alert_rule_test:
+      - eval_time: 1m30s
+        alertname: RadiusLoginProbeFailing
+        exp_alerts: []
+      - eval_time: 3m15s
+        alertname: RadiusLoginProbeFailing
+        exp_alerts:
+          - exp_labels: { severity: critical, instance_name: production }
+            exp_annotations:
+              summary: 'Synthetic PPPoE login to production RADIUS fails: customers may not be able to connect'
+              runbook: docs/runbooks/radius-down.md
+      - eval_time: 3m15s
+        alertname: RadiusProbeStale
+        exp_alerts: []
+      - eval_time: 3m15s
+        alertname: RadiusLoginSlow
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'isp_job_last_success_timestamp_seconds{job="reconcile-wallets"}'
+        values: '0x1700'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: ReconcileStale
+        exp_alerts: []
+      - eval_time: 26h30m
+        alertname: ReconcileStale
+        exp_alerts:
+          - exp_labels: { severity: warning, job: reconcile-wallets }
+            exp_annotations:
+              summary: 'Nightly wallet reconciliation has not succeeded for over 26 hours'
+              runbook: docs/runbooks/billing.md
+
+  - interval: 1m
+    input_series:
+      - series: 'isp_backup_last_success_timestamp_seconds{kind="mongo"}'
+        values: '0x1700'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: BackupMissing
+        exp_alerts: []
+      - eval_time: 26h30m
+        alertname: BackupMissing
+        exp_alerts:
+          - exp_labels: { severity: critical, kind: mongo }
+            exp_annotations:
+              summary: 'No successful mongo backup for over 26 hours'
+              runbook: docs/runbooks/backups.md
+      - eval_time: 26h30m
+        alertname: BackupNeverRan
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'isp_outbox_errors_total'
+        values: '0+2x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: OutboxErrors
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: OutboxErrors
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations:
+              summary: 'RADIUS sync keeps failing (30 errors in 15 min); changes retry with backoff'
+              runbook: docs/runbooks/outbox.md

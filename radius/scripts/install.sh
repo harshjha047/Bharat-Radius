@@ -250,7 +250,7 @@ install -d -m 0755 "$OPT_DIR"
 # Only these two are owned here; other tools keep their files elsewhere under $OPT_DIR (e.g. monitoring/).
 rm -rf "$OPT_DIR/scripts" "$OPT_DIR/sql"
 cp -r "$SRC_DIR/scripts" "$SRC_DIR/sql" "$OPT_DIR/"
-chmod 0755 "$OPT_DIR"/scripts/*.sh
+chmod 0755 "$OPT_DIR"/scripts/*.sh "$OPT_DIR"/scripts/*.py
 
 render() { sed -e "s|@DB_NAME@|$DB|g" -e "s|@FR_ROLE@|$FR_ROLE|g" -e "s|@AUTH_PORT@|$AUTH_PORT|g" \
                -e "s|@ACCT_PORT@|$ACCT_PORT|g" -e "s|@STATUS_PORT@|$STATUS_PORT|g" "$1" >"$2"; }
@@ -334,6 +334,11 @@ EOF
     systemctl restart "$SERVICE"
     for t in stale partitions nas-watch; do systemctl enable -q --now "isp-radius-$t@$inst.timer"; done
   done
+  # Synthetic login (WP 4.9): needs the node exporter's textfile directory.
+  if [[ -d /var/lib/prometheus/node-exporter ]]; then
+    "$OPT_DIR/scripts/probe.sh" setup && systemctl enable -q --now isp-radius-probe.timer \
+      || log "synthetic probe setup failed; RADIUS itself is fine (run $OPT_DIR/scripts/probe.sh setup)"
+  fi
 else
   log "no systemd: starting services directly (CI/sandbox mode)"
   for inst in "${INSTANCES[@]}"; do "$OPT_DIR/scripts/frctl.sh" "$inst" restart; done
