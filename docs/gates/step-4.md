@@ -10,7 +10,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | 4.1 Customer portal | 🔀 PR | Password sign-in (PPPoE password until a portal password is set), home/usage/bills/account, online pay + plan change (prepaid). OTP sign-in waits on O-7. Runbook `docs/runbooks/portal.md` |
 | 4.2 Walled-garden pay page | ⏳ O-12, O-7 | `/pay` links to the portal meanwhile |
 | 4.3 Tickets | 🔀 PR (stacked on 4.1) | Staff list/detail with assign, internal notes, status; portal Help; reseller branch scope; new Technician role. Runbook `docs/runbooks/tickets.md` |
-| 4.4 Reports + GSTR export | ⏳ | |
+| 4.4 Reports + GSTR export | 🔀 PR (stacked on 4.3) | Revenue, collections, subscribers, reseller sales, usage, tickets; Excel/PDF; GSTR-1 workbook (offline-tool layout). Runbook `docs/runbooks/reports.md`. Accountant to check the first GSTR-1 (O-9) |
 | 4.5 KYC/CAF | ⏳ O-18 | |
 | 4.6 Compliance logs | ⏳ O-12, O-11 | |
 | 4.7 Importer | ⏳ O-10 | |
@@ -40,3 +40,13 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 5. Portal: reply → panel shows status back to Open. Panel: Resolved. Portal: *close ticket* → Closed; reply box gone.
 6. Sign in as Test L2 (reseller): Tickets shows only its customers' tickets; New ticket requires a customer from its branch.
 7. Staff & roles: a user with the *Technician* role sees Tickets and Subscribers (read) only, and cannot assign.
+
+## Staging checks — 4.4
+
+1. Reports → Revenue → *This month*: totals match Invoices for the same days (sum of the Total column).
+2. Collections: matches Payments filtered to Paid for the same days.
+3. Subscribers: Active + Expired + Suspended + Disabled = subscriber count.
+4. Reseller sales → *Last 7 days*: Test L2's wallet debits match its wallet ledger RECHARGE entries.
+5. Excel and PDF buttons download; the Excel opens with numbers (sum a column in Excel).
+6. GSTR-1 → previous month → Download: open it; `b2cs` has one row per state/rate; `docs` shows the INV series. Accountant reviews.
+7. Sign in as Test L2: Reports show only its branch; no Usage tab, no GSTR-1 card.

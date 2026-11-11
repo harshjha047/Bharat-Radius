@@ -80,6 +80,8 @@ const NOT_RECORD_ROUTES = new Set([
   '/api/v1/portal/tickets/:id',
   '/api/v1/portal/tickets/:id/reply',
   '/api/v1/portal/tickets/:id/close',
+  '/api/v1/reports/:name',
+  '/api/v1/reports/:name/download',
 ]);
 
 const BODIES: Record<string, unknown> = {
