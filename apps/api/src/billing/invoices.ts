@@ -58,7 +58,7 @@ const totals = {
   roundOffPaise: z.number(),
   totalPaise: z.number(),
 };
-const invoiceView = z.object({
+export const invoiceView = z.object({
   id: z.string(),
   number: z.string(),
   type: z.enum(['prepaid_recharge', 'postpaid_monthly']),
@@ -104,7 +104,7 @@ export class InvoicesService {
     return new Map(rows.map((r) => [r._id.toHexString(), r]));
   }
 
-  private view(d: InvoiceDoc, s?: Pick<SubscriberDoc, 'name' | 'customerNo'>): z.output<typeof invoiceView> {
+  view(d: InvoiceDoc, s?: Pick<SubscriberDoc, 'name' | 'customerNo'>): z.output<typeof invoiceView> {
     return {
       id: d._id.toHexString(),
       number: d.number,
@@ -205,7 +205,10 @@ export class InvoicesService {
 
   /** A4 GST tax invoice (or credit note) rendered on demand from the stored snapshot. */
   async pdf(ctx: AuthContext, id: ObjectId): Promise<{ name: string; data: Buffer }> {
-    const d = await this.find(ctx, id);
+    return this.pdfOf(await this.find(ctx, id));
+  }
+
+  async pdfOf(d: InvoiceDoc): Promise<{ name: string; data: Buffer }> {
     const cn = await this.mongo.db.collection<CreditNoteDoc>('credit_notes').findOne({ invoiceId: d._id });
     return { name: `${d.number.replace(/\//g, '-')}.pdf`, data: await renderPdf(d, cn) };
   }

@@ -17,15 +17,19 @@ export class ApiError extends Error {
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 // Calls that must not trigger a refresh-and-retry.
-const NO_RETRY = /\/api\/v1\/auth\/(login|refresh|logout|2fa\/verify)$/;
+const NO_RETRY = /\/api\/v1\/(auth\/(login|refresh|logout|2fa\/verify)|portal\/auth\/login)$/;
 
-function csrfToken(): string | undefined {
-  const m = /(?:^|;\s*)isp_csrf=([^;]*)/.exec(document.cookie);
+/** Customer portal calls: own session cookie and CSRF cookie; a 401 means "sign in to the portal", never a staff refresh. */
+const PORTAL = /^\/api\/v1\/portal\//;
+
+function csrfToken(portal: boolean): string | undefined {
+  const re = portal ? /(?:^|;\s*)isp_pcsrf=([^;]*)/ : /(?:^|;\s*)isp_csrf=([^;]*)/;
+  const m = re.exec(document.cookie);
   return m ? decodeURIComponent(m[1]!) : undefined;
 }
 
 function withCsrf(req: Request): Request {
-  const t = csrfToken();
+  const t = csrfToken(PORTAL.test(new URL(req.url).pathname));
   if (t && UNSAFE.has(req.method)) req.headers.set('x-csrf-token', t);
   return req;
 }
@@ -48,11 +52,22 @@ export const onSignedOut = (fn: () => void) => {
   return () => void signedOutListeners.delete(fn);
 };
 
+const portalSignedOutListeners = new Set<() => void>();
+export const onPortalSignedOut = (fn: () => void) => {
+  portalSignedOutListeners.add(fn);
+  return () => void portalSignedOutListeners.delete(fn);
+};
+
 /** fetch with CSRF header and one silent refresh when the 15-minute access token has lapsed. */
 export async function authFetch(input: Request): Promise<Response> {
   const retry = input.clone();
   const res = await fetch(withCsrf(input));
-  if (res.status !== 401 || NO_RETRY.test(new URL(input.url).pathname)) return res;
+  const path = new URL(input.url).pathname;
+  if (res.status !== 401 || NO_RETRY.test(path)) return res;
+  if (PORTAL.test(path)) {
+    portalSignedOutListeners.forEach((fn) => fn());
+    return res;
+  }
   if (!(await refreshSession())) {
     signedOutListeners.forEach((fn) => fn());
     return res;

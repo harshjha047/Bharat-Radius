@@ -8,6 +8,8 @@ export interface AuthContext {
   type: UserType;
   name: string;
   resellerId?: ObjectId;
+  /** Portal sessions only: the signed-in customer. Every portal query filters on it. */
+  subscriberId?: ObjectId;
   permissions: ReadonlySet<Permission>;
   familyId: string;
   mfa: 'ok' | 'enroll';

@@ -39,6 +39,8 @@ import {
   SubscriberExcelController,
   XLSX_MIME,
 } from './subscribers/excel.js';
+import { PortalAuth } from './portal/portal-auth.js';
+import { PortalAdminController, PortalController, PortalService } from './portal/portal.js';
 import { SubscribersController, SubscribersService } from './subscribers/subscribers.js';
 import { Outbox } from './sync/outbox.js';
 import { RolesController, UsersController } from './users/users.controller.js';
@@ -84,6 +86,8 @@ class AppModule {
         SessionsController,
         SubscriberExcelController,
         AuditController,
+        PortalController,
+        PortalAdminController,
       ],
       providers: [
         Tokens,
@@ -107,6 +111,8 @@ class AppModule {
         SessionsService,
         SubscriberExcel,
         AuditService,
+        PortalAuth,
+        PortalService,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: ValidationInterceptor },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

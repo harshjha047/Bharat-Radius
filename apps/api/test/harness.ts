@@ -144,7 +144,7 @@ export class Client {
   ) {}
 
   async req(method: Method, url: string, body?: unknown, headers: Record<string, string> = {}) {
-    const csrf = this.jar.get('isp_csrf');
+    const csrf = this.jar.get(url.startsWith('/api/v1/portal/') ? 'isp_pcsrf' : 'isp_csrf');
     const res = await this.h.app.inject({
       method,
       url,

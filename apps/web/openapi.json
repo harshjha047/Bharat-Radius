@@ -15842,6 +15842,1394 @@
         }
       }
     },
+    "/api/v1/portal/auth/login": {
+      "post": {
+        "summary": "Customer sign-in: PPPoE username (or customer no.) and portal password, else the PPPoE password",
+        "tags": ["portal"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "tenant": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9-]{1,39}$"
+                  },
+                  "login": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 64
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "required": ["login", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "csrfToken": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["ok", "csrfToken"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/auth/logout": {
+      "post": {
+        "summary": "Sign out of the portal on this device",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": ["ok"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/password": {
+      "post": {
+        "summary": "Set or change the portal password (signs out other devices)",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "currentPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": ["currentPassword", "newPassword"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": ["ok"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/me": {
+      "get": {
+        "summary": "The signed-in customer",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "customerNo": {
+                      "type": "string"
+                    },
+                    "username": {
+                      "type": ["string", "null"]
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": ["string", "null"]
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "billingType": {
+                      "type": "string",
+                      "enum": ["prepaid", "postpaid"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["active", "suspended", "disabled", "deleted"]
+                    },
+                    "expired": {
+                      "type": "boolean"
+                    },
+                    "suspendReason": {
+                      "type": ["string", "null"]
+                    },
+                    "expiresAt": {
+                      "type": ["string", "null"]
+                    },
+                    "plan": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": ["string", "null"]
+                            },
+                            "downloadKbps": {
+                              "type": "number"
+                            },
+                            "uploadKbps": {
+                              "type": "number"
+                            },
+                            "dataCapBytes": {
+                              "type": ["number", "null"]
+                            },
+                            "validityDays": {
+                              "type": "number"
+                            },
+                            "pricePaise": {
+                              "type": "number"
+                            },
+                            "current": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "description",
+                            "downloadKbps",
+                            "uploadKbps",
+                            "dataCapBytes",
+                            "validityDays",
+                            "pricePaise",
+                            "current"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "dueInvoices": {
+                      "type": "number"
+                    },
+                    "duePaise": {
+                      "type": "number"
+                    },
+                    "gateways": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["razorpay", "cashfree"]
+                      }
+                    },
+                    "hasPortalPassword": {
+                      "type": "boolean"
+                    },
+                    "isp": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": ["string", "null"]
+                        },
+                        "email": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["name", "phone", "email"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "customerNo",
+                    "username",
+                    "phone",
+                    "email",
+                    "city",
+                    "billingType",
+                    "status",
+                    "expired",
+                    "suspendReason",
+                    "expiresAt",
+                    "plan",
+                    "dueInvoices",
+                    "duePaise",
+                    "gateways",
+                    "hasPortalPassword",
+                    "isp"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/plans": {
+      "get": {
+        "summary": "Plans this customer can recharge with (price incl. GST)",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "downloadKbps": {
+                            "type": "number"
+                          },
+                          "uploadKbps": {
+                            "type": "number"
+                          },
+                          "dataCapBytes": {
+                            "type": ["number", "null"]
+                          },
+                          "validityDays": {
+                            "type": "number"
+                          },
+                          "pricePaise": {
+                            "type": "number"
+                          },
+                          "current": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "description",
+                          "downloadKbps",
+                          "uploadKbps",
+                          "dataCapBytes",
+                          "validityDays",
+                          "pricePaise",
+                          "current"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["items"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/usage": {
+      "get": {
+        "summary": "Daily data usage (last 31 IST days) and data-cap cycle",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "days": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "day": {
+                            "type": "string"
+                          },
+                          "uploadBytes": {
+                            "type": "number"
+                          },
+                          "downloadBytes": {
+                            "type": "number"
+                          },
+                          "sessionSecs": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["day", "uploadBytes", "downloadBytes", "sessionSecs"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "cycle": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": ["string", "null"]
+                            },
+                            "usedBytes": {
+                              "type": "number"
+                            },
+                            "capBytes": {
+                              "type": "number"
+                            },
+                            "fupActive": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["start", "usedBytes", "capBytes", "fupActive"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["days", "cycle"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/sessions": {
+      "get": {
+        "summary": "Last 10 connections",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "start": {
+                            "type": "string"
+                          },
+                          "stop": {
+                            "type": ["string", "null"]
+                          },
+                          "ip": {
+                            "type": ["string", "null"]
+                          },
+                          "uploadBytes": {
+                            "type": "number"
+                          },
+                          "downloadBytes": {
+                            "type": "number"
+                          },
+                          "online": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": ["start", "stop", "ip", "uploadBytes", "downloadBytes", "online"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["items"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/invoices": {
+      "get": {
+        "summary": "Own invoices, newest first",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "number": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": ["prepaid_recharge", "postpaid_monthly"]
+                          },
+                          "subscriber": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "customerNo": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "name", "customerNo"],
+                            "additionalProperties": false
+                          },
+                          "issueDate": {
+                            "type": "string"
+                          },
+                          "dueDate": {
+                            "type": "string"
+                          },
+                          "periodStart": {
+                            "type": ["string", "null"]
+                          },
+                          "periodEnd": {
+                            "type": ["string", "null"]
+                          },
+                          "taxablePaise": {
+                            "type": "number"
+                          },
+                          "cgstPaise": {
+                            "type": "number"
+                          },
+                          "sgstPaise": {
+                            "type": "number"
+                          },
+                          "igstPaise": {
+                            "type": "number"
+                          },
+                          "roundOffPaise": {
+                            "type": "number"
+                          },
+                          "totalPaise": {
+                            "type": "number"
+                          },
+                          "paidPaise": {
+                            "type": "number"
+                          },
+                          "creditedPaise": {
+                            "type": "number"
+                          },
+                          "balancePaise": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["issued", "partially_paid", "paid", "overdue", "cancelled"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "number",
+                          "type",
+                          "subscriber",
+                          "issueDate",
+                          "dueDate",
+                          "periodStart",
+                          "periodEnd",
+                          "taxablePaise",
+                          "cgstPaise",
+                          "sgstPaise",
+                          "igstPaise",
+                          "roundOffPaise",
+                          "totalPaise",
+                          "paidPaise",
+                          "creditedPaise",
+                          "balancePaise",
+                          "status"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/invoices/{id}/pdf": {
+      "get": {
+        "summary": "Own invoice as PDF",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/payments": {
+      "get": {
+        "summary": "Own payments, newest first",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "subscriber": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "customerNo": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "name", "customerNo"],
+                            "additionalProperties": false
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": ["razorpay", "cashfree", "cash", "wallet", "bank_transfer"]
+                          },
+                          "amountPaise": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["created", "pending", "captured", "failed", "refunded"]
+                          },
+                          "purpose": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["recharge", "invoice"]
+                              },
+                              "planId": {
+                                "type": ["string", "null"]
+                              },
+                              "invoiceId": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": ["type", "planId", "invoiceId"],
+                            "additionalProperties": false
+                          },
+                          "linkUrl": {
+                            "type": ["string", "null"]
+                          },
+                          "gatewayPaymentId": {
+                            "type": ["string", "null"]
+                          },
+                          "receiptNo": {
+                            "type": ["string", "null"]
+                          },
+                          "failureReason": {
+                            "type": ["string", "null"]
+                          },
+                          "rechargeId": {
+                            "type": ["string", "null"]
+                          },
+                          "invoiceId": {
+                            "type": ["string", "null"]
+                          },
+                          "capturedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "subscriber",
+                          "method",
+                          "amountPaise",
+                          "status",
+                          "purpose",
+                          "linkUrl",
+                          "gatewayPaymentId",
+                          "receiptNo",
+                          "failureReason",
+                          "rechargeId",
+                          "invoiceId",
+                          "capturedAt",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/pay": {
+      "post": {
+        "summary": "Online payment link: recharge (prepaid, any allowed plan) or an invoice",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "planId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "invoiceId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "gateway": {
+                    "type": "string",
+                    "enum": ["razorpay", "cashfree"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": ["razorpay", "cashfree", "cash", "wallet", "bank_transfer"]
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["created", "pending", "captured", "failed", "refunded"]
+                    },
+                    "purpose": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["recharge", "invoice"]
+                        },
+                        "planId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoiceId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["type", "planId", "invoiceId"],
+                      "additionalProperties": false
+                    },
+                    "linkUrl": {
+                      "type": ["string", "null"]
+                    },
+                    "gatewayPaymentId": {
+                      "type": ["string", "null"]
+                    },
+                    "receiptNo": {
+                      "type": ["string", "null"]
+                    },
+                    "failureReason": {
+                      "type": ["string", "null"]
+                    },
+                    "rechargeId": {
+                      "type": ["string", "null"]
+                    },
+                    "invoiceId": {
+                      "type": ["string", "null"]
+                    },
+                    "capturedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subscriber",
+                    "method",
+                    "amountPaise",
+                    "status",
+                    "purpose",
+                    "linkUrl",
+                    "gatewayPaymentId",
+                    "receiptNo",
+                    "failureReason",
+                    "rechargeId",
+                    "invoiceId",
+                    "capturedAt",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/{id}/portal-reset": {
+      "post": {
+        "summary": "Portal sign-in back to the PPPoE password; signs the customer out of the portal everywhere",
+        "tags": ["subscribers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "subscribers.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": ["ok"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users": {
       "get": {
         "summary": "List staff accounts",

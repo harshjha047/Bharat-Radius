@@ -1,6 +1,17 @@
 'use client';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ban, Eye, Link2, MoreHorizontal, Pencil, PlayCircle, RefreshCw, Trash2, Unplug } from 'lucide-react';
+import {
+  Ban,
+  Eye,
+  KeyRound,
+  Link2,
+  MoreHorizontal,
+  Pencil,
+  PlayCircle,
+  RefreshCw,
+  Trash2,
+  Unplug,
+} from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -38,7 +49,7 @@ const UsageChart = dynamic(() => import('@/components/usage-chart'), {
   loading: () => <Skeleton className="h-64 w-full" />,
 });
 
-type Action = 'kick' | 'suspend' | 'activate' | 'delete' | 'reveal' | null;
+type Action = 'kick' | 'suspend' | 'activate' | 'delete' | 'reveal' | 'portal' | null;
 
 export default function SubscriberPage() {
   const { id } = useParams<{ id: string }>();
@@ -144,6 +155,10 @@ function Actions({ s }: { s: Subscriber }) {
       router.replace('/admin/subscribers');
     },
   });
+  const portalReset = useMutation({
+    mutationFn: () => unwrap(api.POST('/api/v1/subscribers/{id}/portal-reset', path)),
+    onSuccess: () => done('Portal sign-in reset. The customer signs in with the PPPoE password.')(),
+  });
   const reveal = useMutation({
     mutationFn: () => unwrap(api.GET('/api/v1/subscribers/{id}/password', path)),
     onSuccess: (r) => {
@@ -203,6 +218,11 @@ function Actions({ s }: { s: Subscriber }) {
                 <Eye /> Show PPPoE password
               </MenuItem>
             ) : null}
+            {write ? (
+              <MenuItem onSelect={() => setOpen('portal')}>
+                <KeyRound /> Reset portal password
+              </MenuItem>
+            ) : null}
             {write && s.status === 'active' ? (
               <MenuItem onSelect={() => setOpen('suspend')}>
                 <Ban /> Suspend
@@ -225,6 +245,15 @@ function Actions({ s }: { s: Subscriber }) {
         </Menu>
       ) : null}
 
+      <ConfirmDialog
+        open={open === 'portal'}
+        onOpenChange={(o) => setOpen(o ? 'portal' : null)}
+        title="Reset portal password?"
+        description="The customer is signed out of the portal and signs in again with the PPPoE username and password. Their internet is not affected."
+        confirmLabel="Reset"
+        loading={portalReset.isPending}
+        onConfirm={() => portalReset.mutate()}
+      />
       <ConfirmDialog
         open={open === 'kick'}
         onOpenChange={(o) => setOpen(o ? 'kick' : null)}

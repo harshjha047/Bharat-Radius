@@ -801,6 +801,38 @@ const billing: Migration = {
   },
 };
 
+const portal: Migration = {
+  id: '008_portal',
+  async up(db) {
+    await ensureCollection(db, 'portal_sessions', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'subscriberId',
+        'tokenHash',
+        'tokenVersion',
+        'createdAt',
+        'lastSeenAt',
+        'expiresAt',
+      ],
+      properties: {
+        tenantId: oid,
+        subscriberId: oid,
+        tokenHash: { bsonType: 'string', pattern: '^[0-9a-f]{64}$' },
+        tokenVersion: int,
+        createdAt: date,
+        lastSeenAt: date,
+        expiresAt: date,
+      },
+    });
+    await ensureIndexes(db, 'portal_sessions', [
+      { key: { tokenHash: 1 }, unique: true },
+      { key: { subscriberId: 1 } },
+      { key: { expiresAt: 1 }, expireAfterSeconds: 0 },
+    ]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -809,4 +841,5 @@ export const MIGRATIONS: readonly Migration[] = [
   audit,
   resellers,
   billing,
+  portal,
 ];

@@ -246,8 +246,34 @@ export interface SubscriberDoc extends Standard {
   radiusId?: number;
   syncStatus: 'synced' | 'pending' | 'error';
   importBatchId?: ObjectId;
+  /** Customer portal (Step 4). No passwordHash = sign in with the PPPoE password until one is set. */
+  portal?: SubscriberPortal;
   deletedAt?: Date;
   version: number;
+}
+
+export interface SubscriberPortal {
+  passwordHash?: string;
+  /** Bumped on password set/reset; ends every portal session. */
+  tokenVersion: number;
+  failedLogins?: number;
+  lockedUntil?: Date;
+  lastLoginAt?: Date;
+}
+
+/** One signed-in portal browser. The cookie holds a random token; only its peppered HMAC is stored. */
+export interface PortalSessionDoc {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  subscriberId: ObjectId;
+  tokenHash: string;
+  tokenVersion: number;
+  ip: string;
+  userAgent?: string;
+  createdAt: Date;
+  lastSeenAt: Date;
+  /** Sliding idle expiry, capped at createdAt + absolute lifetime; TTL index removes the row. */
+  expiresAt: Date;
 }
 
 export type CoaReason =

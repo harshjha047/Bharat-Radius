@@ -40,6 +40,7 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/subscribers/:id/suspend': 'subA',
   '/api/v1/subscribers/:id/activate': 'subA',
   '/api/v1/subscribers/:id/kick': 'subA',
+  '/api/v1/subscribers/:id/portal-reset': 'subA',
   '/api/v1/subscribers/:id/password': 'subA',
   '/api/v1/subscribers/:id/coa-log': 'subA',
   '/api/v1/subscribers/:id/sessions': 'subA',
@@ -72,6 +73,8 @@ const NOT_RECORD_ROUTES = new Set([
   '/api/v1/webhooks/razorpay/:id',
   '/api/v1/webhooks/cashfree/:id',
   '/api/v1/billing/templates/:key',
+  // Customer-only (portal cookie); ownership is covered in portal.int.test.ts.
+  '/api/v1/portal/invoices/:id/pdf',
 ]);
 
 const BODIES: Record<string, unknown> = {
