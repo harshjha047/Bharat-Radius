@@ -129,7 +129,7 @@ function Actions({ d }: { d: WalletDashboard }) {
   const staff = useMe().data?.user.type !== 'reseller';
   const [open, setOpen] = useState<'topup' | 'adjust' | 'threshold' | null>(null);
   const [amount, setAmount] = useState('');
-  const [sign, setSign] = useState<'+' | '-'>('+');
+  const [sign, setSign] = useState<'' | '+' | '-'>('');
   const [reason, setReason] = useState('');
   const [key, newKey] = useIdemKey();
   const done = (msg: string) => {
@@ -182,6 +182,7 @@ function Actions({ d }: { d: WalletDashboard }) {
           variant="outline"
           onClick={() => {
             newKey();
+            setSign('');
             setOpen('adjust');
           }}
         >
@@ -207,12 +208,15 @@ function Actions({ d }: { d: WalletDashboard }) {
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              if (paise) adjust.mutate();
+              if (paise && sign) adjust.mutate();
             }}
           >
             <div className="grid grid-cols-[7rem_1fr] gap-3">
               <Field label="Direction" htmlFor="a-sign">
-                <Select id="a-sign" value={sign} onChange={(e) => setSign(e.target.value as '+' | '-')}>
+                <Select id="a-sign" value={sign} onChange={(e) => setSign(e.target.value as '' | '+' | '-')}>
+                  <option value="" disabled>
+                    Choose
+                  </option>
                   <option value="+">Credit +</option>
                   <option value="-">Debit −</option>
                 </Select>
@@ -247,8 +251,14 @@ function Actions({ d }: { d: WalletDashboard }) {
               <Button type="button" variant="outline" onClick={() => setOpen(null)}>
                 Cancel
               </Button>
-              <Button type="submit" loading={adjust.isPending} disabled={!paise || reason.trim().length < 5}>
-                Record
+              <Button
+                type="submit"
+                loading={adjust.isPending}
+                disabled={!paise || !sign || reason.trim().length < 5}
+              >
+                {paise && sign
+                  ? `${sign === '-' ? 'Debit' : 'Credit'} ${fmtRupees(paise)} → ${fmtRupees(d.balancePaise + (sign === '-' ? -paise : paise))}`
+                  : 'Record'}
               </Button>
             </div>
           </form>
