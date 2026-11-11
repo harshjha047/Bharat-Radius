@@ -276,6 +276,55 @@ export interface PortalSessionDoc {
   expiresAt: Date;
 }
 
+export type TicketStatus = 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+export type TicketCategory =
+  'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+export type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface TicketActor {
+  type: 'staff' | 'reseller' | 'customer' | 'superadmin' | 'system';
+  id: string;
+  name: string;
+}
+
+/** Support ticket (WP 4.3). `ancestors` = the customer's reseller chain, so a reseller sees its branch's tickets. */
+export interface TicketDoc {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  number: string;
+  subscriberId: ObjectId | null;
+  ancestors: ObjectId[];
+  subject: string;
+  category: TicketCategory;
+  priority: TicketPriority;
+  status: TicketStatus;
+  assignee: { id: ObjectId; name: string } | null;
+  source: 'portal' | 'staff' | 'reseller';
+  openedBy: TicketActor;
+  messageCount: number;
+  lastActivityAt: Date;
+  /** First reply visible to the customer from staff or a reseller (response-time reports). */
+  firstResponseAt?: Date;
+  resolvedAt?: Date;
+  closedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  version: number;
+}
+
+/** Ticket timeline: messages, internal notes and status/assignment changes. Customers never see internal rows. */
+export interface TicketEventDoc {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  ticketId: ObjectId;
+  kind: 'message' | 'note' | 'status' | 'assign' | 'priority';
+  body?: string;
+  from?: string;
+  to?: string;
+  author: TicketActor;
+  createdAt: Date;
+}
+
 export type CoaReason =
   'plan_change' | 'renewal' | 'fup' | 'kick' | 'suspend' | 'network' | 'password' | 'delete';
 

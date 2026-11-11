@@ -39,6 +39,14 @@ export const PERMISSION_GROUPS: { label: string; items: [Permission, string][] }
     ],
   },
   {
+    label: 'Support',
+    items: [
+      ['tickets.read', 'View tickets'],
+      ['tickets.write', 'Create and reply to tickets'],
+      ['tickets.assign', 'Assign tickets to staff'],
+    ],
+  },
+  {
     label: 'Administration',
     items: [
       ['users.read', 'View staff'],

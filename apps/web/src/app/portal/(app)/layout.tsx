@@ -1,6 +1,6 @@
 'use client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Gauge, Home, LogOut, UserRound } from 'lucide-react';
+import { FileText, Gauge, Home, LifeBuoy, LogOut, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
@@ -14,6 +14,7 @@ const NAV = [
   { href: '/portal', label: 'Home', icon: Home },
   { href: '/portal/usage', label: 'Usage', icon: Gauge },
   { href: '/portal/bills', label: 'Bills', icon: FileText },
+  { href: '/portal/support', label: 'Help', icon: LifeBuoy },
   { href: '/portal/account', label: 'Account', icon: UserRound },
 ] as const;
 
@@ -63,7 +64,8 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                 href={n.href}
                 className={cn(
                   'rounded-md px-3 py-1.5 text-sm hover:bg-muted',
-                  path === n.href && 'bg-muted font-medium',
+                  (n.href === '/portal' ? path === n.href : path.startsWith(n.href)) &&
+                    'bg-muted font-medium',
                 )}
               >
                 {n.label}
@@ -84,7 +86,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
       <main className="mx-auto max-w-3xl space-y-4 px-4 py-5">{children}</main>
       <nav
         aria-label="Portal"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t bg-card sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-card sm:hidden"
       >
         {NAV.map((n) => (
           <Link
@@ -92,7 +94,8 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
             href={n.href}
             className={cn(
               'flex flex-col items-center gap-0.5 py-2 text-xs text-muted-foreground',
-              path === n.href && 'font-medium text-foreground',
+              (n.href === '/portal' ? path === n.href : path.startsWith(n.href)) &&
+                'font-medium text-foreground',
             )}
           >
             <n.icon className="size-5" aria-hidden />

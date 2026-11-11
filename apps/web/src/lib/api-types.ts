@@ -7772,6 +7772,1119 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/tickets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Tickets, most recently active first (a reseller sees its branch) */
+    get: {
+      parameters: {
+        query?: {
+          status?: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed' | 'active';
+          assignee?: 'me' | 'none' | string;
+          subscriberId?: string;
+          category?: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+          q?: string;
+          cursor?: string;
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                number: string;
+                subject: string;
+                /** @enum {string} */
+                category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+                /** @enum {string} */
+                priority: 'low' | 'normal' | 'high' | 'urgent';
+                /** @enum {string} */
+                status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+                assignee: {
+                  id: string;
+                  name: string;
+                } | null;
+                subscriber: {
+                  id: string;
+                  name: string;
+                  customerNo: string;
+                  username: string | null;
+                  phone: string;
+                } | null;
+                /** @enum {string} */
+                source: 'portal' | 'staff' | 'reseller';
+                openedBy: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                messageCount: number;
+                lastActivityAt: string;
+                firstResponseAt: string | null;
+                resolvedAt: string | null;
+                createdAt: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Open a ticket (for a customer, or an internal one without a customer: ISP staff only) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            subscriberId?: string;
+            subject: string;
+            /** @enum {string} */
+            category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+            /**
+             * @default normal
+             * @enum {string}
+             */
+            priority?: 'low' | 'normal' | 'high' | 'urgent';
+            body: string;
+            assigneeId?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              subject: string;
+              /** @enum {string} */
+              category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+              /** @enum {string} */
+              priority: 'low' | 'normal' | 'high' | 'urgent';
+              /** @enum {string} */
+              status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+              assignee: {
+                id: string;
+                name: string;
+              } | null;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+                username: string | null;
+                phone: string;
+              } | null;
+              /** @enum {string} */
+              source: 'portal' | 'staff' | 'reseller';
+              openedBy: {
+                type: string;
+                id: string;
+                name: string;
+              };
+              messageCount: number;
+              lastActivityAt: string;
+              firstResponseAt: string | null;
+              resolvedAt: string | null;
+              createdAt: string;
+              events: {
+                id: string;
+                /** @enum {string} */
+                kind: 'message' | 'note' | 'status' | 'assign' | 'priority';
+                body: string | null;
+                from: string | null;
+                to: string | null;
+                author: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/tickets/counts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Ticket counts by status, plus active ones assigned to me / unassigned */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              open: number;
+              in_progress: number;
+              waiting_customer: number;
+              resolved: number;
+              closed: number;
+              mine: number;
+              unassigned: number;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/tickets/assignees': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Staff who can be assigned tickets */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                name: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/tickets/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One ticket with its timeline (incl. internal notes) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              subject: string;
+              /** @enum {string} */
+              category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+              /** @enum {string} */
+              priority: 'low' | 'normal' | 'high' | 'urgent';
+              /** @enum {string} */
+              status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+              assignee: {
+                id: string;
+                name: string;
+              } | null;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+                username: string | null;
+                phone: string;
+              } | null;
+              /** @enum {string} */
+              source: 'portal' | 'staff' | 'reseller';
+              openedBy: {
+                type: string;
+                id: string;
+                name: string;
+              };
+              messageCount: number;
+              lastActivityAt: string;
+              firstResponseAt: string | null;
+              resolvedAt: string | null;
+              createdAt: string;
+              events: {
+                id: string;
+                /** @enum {string} */
+                kind: 'message' | 'note' | 'status' | 'assign' | 'priority';
+                body: string | null;
+                from: string | null;
+                to: string | null;
+                author: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Status, priority, category or assignee (assigning needs tickets.assign) */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            status?: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+            /** @enum {string} */
+            priority?: 'low' | 'normal' | 'high' | 'urgent';
+            /** @enum {string} */
+            category?: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+            assigneeId?: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              subject: string;
+              /** @enum {string} */
+              category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+              /** @enum {string} */
+              priority: 'low' | 'normal' | 'high' | 'urgent';
+              /** @enum {string} */
+              status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+              assignee: {
+                id: string;
+                name: string;
+              } | null;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+                username: string | null;
+                phone: string;
+              } | null;
+              /** @enum {string} */
+              source: 'portal' | 'staff' | 'reseller';
+              openedBy: {
+                type: string;
+                id: string;
+                name: string;
+              };
+              messageCount: number;
+              lastActivityAt: string;
+              firstResponseAt: string | null;
+              resolvedAt: string | null;
+              createdAt: string;
+              events: {
+                id: string;
+                /** @enum {string} */
+                kind: 'message' | 'note' | 'status' | 'assign' | 'priority';
+                body: string | null;
+                from: string | null;
+                to: string | null;
+                author: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/v1/tickets/{id}/reply': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reply to the customer or add an internal note; optionally change the status */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            body: string;
+            /** @default false */
+            internal?: boolean;
+            /** @enum {string} */
+            status?: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              subject: string;
+              /** @enum {string} */
+              category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+              /** @enum {string} */
+              priority: 'low' | 'normal' | 'high' | 'urgent';
+              /** @enum {string} */
+              status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+              assignee: {
+                id: string;
+                name: string;
+              } | null;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+                username: string | null;
+                phone: string;
+              } | null;
+              /** @enum {string} */
+              source: 'portal' | 'staff' | 'reseller';
+              openedBy: {
+                type: string;
+                id: string;
+                name: string;
+              };
+              messageCount: number;
+              lastActivityAt: string;
+              firstResponseAt: string | null;
+              resolvedAt: string | null;
+              createdAt: string;
+              events: {
+                id: string;
+                /** @enum {string} */
+                kind: 'message' | 'note' | 'status' | 'assign' | 'priority';
+                body: string | null;
+                from: string | null;
+                to: string | null;
+                author: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portal/tickets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Own tickets, most recently active first */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                number: string;
+                subject: string;
+                /** @enum {string} */
+                category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+                /** @enum {string} */
+                priority: 'low' | 'normal' | 'high' | 'urgent';
+                /** @enum {string} */
+                status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+                assignee: {
+                  id: string;
+                  name: string;
+                } | null;
+                subscriber: {
+                  id: string;
+                  name: string;
+                  customerNo: string;
+                  username: string | null;
+                  phone: string;
+                } | null;
+                /** @enum {string} */
+                source: 'portal' | 'staff' | 'reseller';
+                openedBy: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                messageCount: number;
+                lastActivityAt: string;
+                firstResponseAt: string | null;
+                resolvedAt: string | null;
+                createdAt: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Raise a ticket (5 per hour) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            subject: string;
+            /** @enum {string} */
+            category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+            body: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              subject: string;
+              /** @enum {string} */
+              category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+              /** @enum {string} */
+              priority: 'low' | 'normal' | 'high' | 'urgent';
+              /** @enum {string} */
+              status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+              assignee: {
+                id: string;
+                name: string;
+              } | null;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+                username: string | null;
+                phone: string;
+              } | null;
+              /** @enum {string} */
+              source: 'portal' | 'staff' | 'reseller';
+              openedBy: {
+                type: string;
+                id: string;
+                name: string;
+              };
+              messageCount: number;
+              lastActivityAt: string;
+              firstResponseAt: string | null;
+              resolvedAt: string | null;
+              createdAt: string;
+              events: {
+                id: string;
+                /** @enum {string} */
+                kind: 'message' | 'note' | 'status' | 'assign' | 'priority';
+                body: string | null;
+                from: string | null;
+                to: string | null;
+                author: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portal/tickets/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Own ticket with replies (no internal notes) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              subject: string;
+              /** @enum {string} */
+              category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+              /** @enum {string} */
+              priority: 'low' | 'normal' | 'high' | 'urgent';
+              /** @enum {string} */
+              status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+              assignee: {
+                id: string;
+                name: string;
+              } | null;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+                username: string | null;
+                phone: string;
+              } | null;
+              /** @enum {string} */
+              source: 'portal' | 'staff' | 'reseller';
+              openedBy: {
+                type: string;
+                id: string;
+                name: string;
+              };
+              messageCount: number;
+              lastActivityAt: string;
+              firstResponseAt: string | null;
+              resolvedAt: string | null;
+              createdAt: string;
+              events: {
+                id: string;
+                /** @enum {string} */
+                kind: 'message' | 'note' | 'status' | 'assign' | 'priority';
+                body: string | null;
+                from: string | null;
+                to: string | null;
+                author: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portal/tickets/{id}/reply': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reply to own ticket (reopens a resolved one) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            body: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              subject: string;
+              /** @enum {string} */
+              category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+              /** @enum {string} */
+              priority: 'low' | 'normal' | 'high' | 'urgent';
+              /** @enum {string} */
+              status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+              assignee: {
+                id: string;
+                name: string;
+              } | null;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+                username: string | null;
+                phone: string;
+              } | null;
+              /** @enum {string} */
+              source: 'portal' | 'staff' | 'reseller';
+              openedBy: {
+                type: string;
+                id: string;
+                name: string;
+              };
+              messageCount: number;
+              lastActivityAt: string;
+              firstResponseAt: string | null;
+              resolvedAt: string | null;
+              createdAt: string;
+              events: {
+                id: string;
+                /** @enum {string} */
+                kind: 'message' | 'note' | 'status' | 'assign' | 'priority';
+                body: string | null;
+                from: string | null;
+                to: string | null;
+                author: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portal/tickets/{id}/close': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Close own ticket */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              number: string;
+              subject: string;
+              /** @enum {string} */
+              category: 'no_internet' | 'slow_speed' | 'billing' | 'plan_change' | 'relocation' | 'other';
+              /** @enum {string} */
+              priority: 'low' | 'normal' | 'high' | 'urgent';
+              /** @enum {string} */
+              status: 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed';
+              assignee: {
+                id: string;
+                name: string;
+              } | null;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+                username: string | null;
+                phone: string;
+              } | null;
+              /** @enum {string} */
+              source: 'portal' | 'staff' | 'reseller';
+              openedBy: {
+                type: string;
+                id: string;
+                name: string;
+              };
+              messageCount: number;
+              lastActivityAt: string;
+              firstResponseAt: string | null;
+              resolvedAt: string | null;
+              createdAt: string;
+              events: {
+                id: string;
+                /** @enum {string} */
+                kind: 'message' | 'note' | 'status' | 'assign' | 'priority';
+                body: string | null;
+                from: string | null;
+                to: string | null;
+                author: {
+                  type: string;
+                  id: string;
+                  name: string;
+                };
+                createdAt: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/users': {
     parameters: {
       query?: never;
@@ -8355,6 +9468,9 @@ export interface paths {
               | 'wallets.adjust'
               | 'billing.cash'
               | 'reports.view'
+              | 'tickets.read'
+              | 'tickets.write'
+              | 'tickets.assign'
               | 'imports.run'
               | 'users.read'
               | 'users.write'
@@ -8499,6 +9615,9 @@ export interface paths {
               | 'wallets.adjust'
               | 'billing.cash'
               | 'reports.view'
+              | 'tickets.read'
+              | 'tickets.write'
+              | 'tickets.assign'
               | 'imports.run'
               | 'users.read'
               | 'users.write'

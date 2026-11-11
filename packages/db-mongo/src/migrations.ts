@@ -833,6 +833,68 @@ const portal: Migration = {
   },
 };
 
+const tickets: Migration = {
+  id: '009_tickets',
+  async up(db) {
+    await ensureCollection(db, 'tickets', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'number',
+        'subscriberId',
+        'ancestors',
+        'subject',
+        'category',
+        'priority',
+        'status',
+        'assignee',
+        'source',
+        'openedBy',
+        'messageCount',
+        'lastActivityAt',
+        'createdAt',
+        'updatedAt',
+        'version',
+      ],
+      properties: {
+        tenantId: oid,
+        number: { bsonType: 'string', pattern: '^T[0-9]{6,}$' },
+        subscriberId: oidOrNull,
+        ancestors: { bsonType: 'array', items: oid },
+        subject: { bsonType: 'string', minLength: 1, maxLength: 160 },
+        category: { enum: ['no_internet', 'slow_speed', 'billing', 'plan_change', 'relocation', 'other'] },
+        priority: { enum: ['low', 'normal', 'high', 'urgent'] },
+        status: { enum: ['open', 'in_progress', 'waiting_customer', 'resolved', 'closed'] },
+        assignee: { bsonType: ['object', 'null'] },
+        source: { enum: ['portal', 'staff', 'reseller'] },
+        messageCount: int,
+        version: int,
+      },
+    });
+    await ensureIndexes(db, 'tickets', [
+      { key: { tenantId: 1, number: 1 }, unique: true },
+      { key: { tenantId: 1, lastActivityAt: -1, _id: -1 } },
+      { key: { tenantId: 1, status: 1, lastActivityAt: -1, _id: -1 } },
+      { key: { tenantId: 1, 'assignee.id': 1, status: 1, lastActivityAt: -1, _id: -1 } },
+      { key: { tenantId: 1, subscriberId: 1, lastActivityAt: -1, _id: -1 } },
+      { key: { tenantId: 1, ancestors: 1, lastActivityAt: -1, _id: -1 } },
+    ]);
+    await ensureCollection(db, 'ticket_events', {
+      bsonType: 'object',
+      required: ['tenantId', 'ticketId', 'kind', 'author', 'createdAt'],
+      properties: {
+        tenantId: oid,
+        ticketId: oid,
+        kind: { enum: ['message', 'note', 'status', 'assign', 'priority'] },
+        body: { bsonType: 'string', maxLength: 4000 },
+        author: { bsonType: 'object', required: ['type', 'id', 'name'] },
+        createdAt: date,
+      },
+    });
+    await ensureIndexes(db, 'ticket_events', [{ key: { ticketId: 1, _id: 1 } }]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -842,4 +904,5 @@ export const MIGRATIONS: readonly Migration[] = [
   resellers,
   billing,
   portal,
+  tickets,
 ];
