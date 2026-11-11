@@ -96,6 +96,21 @@ const KNOWN = [
   'resellerId',
 ];
 
+/**
+ * `resellerId` for the request body: on create the chosen owner (or nothing); on edit only after the user changed the
+ * picker away from the owner the form opened with, so a refetch or untouched field never moves a customer.
+ */
+export function resellerPatch(
+  editing: boolean,
+  original: ResellerRef | null | undefined,
+  current: ResellerRef | null,
+  touched: boolean,
+): { resellerId?: string | null } {
+  if (!editing) return current ? { resellerId: current.id } : {};
+  if (!touched || (current?.id ?? null) === (original?.id ?? null)) return {};
+  return { resellerId: current?.id ?? null };
+}
+
 /** API body: on create everything filled in; on edit only what changed (nullable fields cleared with null). */
 export function toBody(
   v: SubscriberFormValues,
@@ -155,11 +170,11 @@ export function SubscriberForm({
   const editing = !!subscriber;
   const can = useCan();
   const { plans } = usePlans();
-  const [reseller, setReseller] = useState<ResellerRef | null>(
-    subscriber?.reseller ?? initialReseller ?? null,
-  );
+  const [original] = useState<ResellerRef | null>(() => subscriber?.reseller ?? null);
+  const [reseller, setReseller] = useState<ResellerRef | null>(original ?? initialReseller ?? null);
+  const [resellerTouched, setResellerTouched] = useState(false);
   const [resellerError, setResellerError] = useState<string>();
-  const resellerChanged = (reseller?.id ?? null) !== (subscriber?.reseller?.id ?? null);
+  const willBecomeDirect = editing && resellerTouched && !!original && !reseller;
   const form = useForm<SubscriberFormValues>({
     resolver: zodResolver(schema),
     defaultValues: defaults(subscriber),
@@ -179,7 +194,7 @@ export function SubscriberForm({
   const submit = handleSubmit(async (v) => {
     try {
       const body = toBody(v, editing ? (dirtyFields as Record<string, unknown>) : null);
-      if (editing ? resellerChanged : reseller) body.resellerId = reseller?.id ?? null;
+      Object.assign(body, resellerPatch(editing, original, reseller, resellerTouched));
       await onSubmit(body);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
@@ -247,7 +262,7 @@ export function SubscriberForm({
               label="Reseller"
               htmlFor="resellerId"
               error={resellerError}
-              hint="Empty = your ISP's own customer."
+              hint={willBecomeDirect ? undefined : "Empty = your ISP's own customer."}
               className="sm:col-span-2"
             >
               <ResellerPicker
@@ -255,11 +270,28 @@ export function SubscriberForm({
                 value={reseller}
                 onChange={(r) => {
                   setReseller(r);
+                  setResellerTouched(true);
                   setResellerError(undefined);
                 }}
                 noneLabel="Direct customer"
                 invalid={!!resellerError}
               />
+              {willBecomeDirect ? (
+                <p role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-destructive">
+                  Saving now moves this customer off {original!.name} and makes it a direct ISP customer.
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setReseller(original);
+                      setResellerTouched(false);
+                    }}
+                  >
+                    Keep {original!.name}
+                  </Button>
+                </p>
+              ) : null}
             </Field>
           ) : null}
           <Field label="Plan" htmlFor="planId" error={err('planId')}>
@@ -385,7 +417,13 @@ export function SubscriberForm({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" loading={submitting} disabled={editing && !isDirty && !resellerChanged}>
+        <Button
+          type="submit"
+          loading={submitting}
+          disabled={
+            editing && !isDirty && !('resellerId' in resellerPatch(true, original, reseller, resellerTouched))
+          }
+        >
           {editing ? 'Save changes' : 'Create subscriber'}
         </Button>
       </div>

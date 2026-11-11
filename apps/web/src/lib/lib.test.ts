@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toBody, type SubscriberFormValues } from '@/components/subscriber-form';
+import { resellerPatch, toBody, type SubscriberFormValues } from '@/components/subscriber-form';
 import { changedOnly, endOfDayIst, istDateInput } from './forms';
 import { safeNext } from './nav';
 import { actionLabel } from '@/components/audit-changes';
@@ -97,5 +97,24 @@ describe('PATCH bodies', () => {
       { name: true, staticIp: true, email: true },
     );
     expect(body).toEqual({ name: 'Ramesh Kumar', email: null, network: { staticIp: null } });
+  });
+});
+
+describe('resellerPatch', () => {
+  const a = { id: 'a1', code: 'R-0003', name: 'Test L1' };
+  const b = { id: 'b2', code: 'R-0004', name: 'Test L2' };
+  it('create sends the chosen owner or nothing', () => {
+    expect(resellerPatch(false, undefined, a, false)).toEqual({ resellerId: 'a1' });
+    expect(resellerPatch(false, undefined, null, false)).toEqual({});
+  });
+  it('edit never sends resellerId unless the picker was used and the owner changed', () => {
+    expect(resellerPatch(true, a, null, false)).toEqual({});
+    expect(resellerPatch(true, a, a, true)).toEqual({});
+    expect(resellerPatch(true, null, null, true)).toEqual({});
+  });
+  it('edit sends the new owner, or null only after an explicit clear', () => {
+    expect(resellerPatch(true, a, b, true)).toEqual({ resellerId: 'b2' });
+    expect(resellerPatch(true, a, null, true)).toEqual({ resellerId: null });
+    expect(resellerPatch(true, null, a, true)).toEqual({ resellerId: 'a1' });
   });
 });
