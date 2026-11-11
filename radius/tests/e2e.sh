@@ -100,6 +100,13 @@ r="$(python3 "$DIR/mschapv2.py" "$NAS_A" "$AUTH_PORT" "$SECRET_A" e2e-user Pa55-
 check "MS-CHAPv2 accepted with MS-CHAP2-Success and MPPE keys" has "$(tr '\n' ' ' <<<"$r")" "ACCEPT mppe-keys success-attr"
 r="$(python3 "$DIR/mschapv2.py" "$NAS_A" "$AUTH_PORT" "$SECRET_A" e2e-user wrong 2>&1)"
 check "MS-CHAPv2 wrong password rejected" has "$r" "REJECT"
+PROBE="$DIR/../scripts/probe.py"
+r="$(python3 "$PROBE" "$NAS_A" "$AUTH_PORT" "$NAS_A" "$SECRET_A" e2e-user Pa55-user 2>&1)"
+check "synthetic probe (WP 4.9): accept with verified reply authenticator" has "$r" "^accept [0-9.]+$"
+r="$(python3 "$PROBE" "$NAS_A" "$AUTH_PORT" "$NAS_A" "$SECRET_A" e2e-user wrong 2>&1)"
+check "synthetic probe: wrong password is a reject, not an accept" has "$r" "^reject "
+r="$(python3 "$PROBE" "$NAS_A" "$AUTH_PORT" "$NAS_A" "wrong-secret-123" e2e-user Pa55-user 1 2>&1)"
+check "synthetic probe: wrong secret fails" lacks "$r" "^accept"
 
 echo "[rejects with reasons]"
 r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-user,User-Password=nope')"

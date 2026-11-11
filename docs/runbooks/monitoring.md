@@ -38,3 +38,36 @@ The rule timing is also unit-tested in CI (`prometheus/alerts.test.yml`).
 docker compose -f deploy/ubuntu/monitoring/docker-compose.yml down      # -v also deletes history and Grafana data
 sudo systemctl disable --now isp-radius-status.timer prometheus-postgres-exporter
 ```
+
+## Alerts added in Step 4 (WP 4.9)
+
+| Alert | Fires when | First look |
+|---|---|---|
+| RadiusLoginProbeFailing (critical) | The synthetic PPPoE login to production is not accepted for 2 min | `journalctl -u isp-radius-probe -n 20`; then radius-down.md |
+| RadiusStagingLoginProbeFailing | Same on staging for 5 min | |
+| RadiusLoginSlow | Production synthetic login > 1 s for 5 min | PostgreSQL load, `RadiusLoginSqlSlow` |
+| RadiusProbeStale | Probe did not run for 5 min | `systemctl status isp-radius-probe.timer` |
+| OutboxErrors | > 10 RADIUS sync errors in 15 min, for 15 min | outbox.md (rows retry with backoff) |
+| OutboxStuck *(existing)* | Oldest unsynced change > 5 min | outbox.md |
+| WalletFrozen *(existing)* | Reconciliation found balance ≠ ledger and froze a wallet | billing.md |
+| ReconcileStale | Nightly reconciliation has not succeeded for 26 h | billing.md; `$C run-job reconcile-wallets` |
+| BackupMissing (critical) | A backup kind (`mongo`, `postgres`, `etc`) not successful for 26 h | backups.md |
+| BackupNeverRan | No backup metric at all for 26 h (backups not installed) | backups.md |
+
+### Synthetic login
+
+`/opt/isp-radius/scripts/probe.sh run` (timer `isp-radius-probe.timer`, every minute) sends one PAP Access-Request per instance from `127.0.0.2` for user `probe` in the hidden RADIUS tenant `zz-probe` (no `external_id`, so the app never syncs or deletes it) and verifies the reply authenticator. Metrics: `isp_radius_probe_success`, `isp_radius_probe_seconds`, `isp_radius_probe_timestamp_seconds`.
+
+Set up (done by `radius/scripts/install.sh` when the node exporter is installed; safe to repeat):
+
+```bash
+cd ~/isp-platform && git pull
+sudo bash radius/scripts/install.sh all          # or, without reinstalling:
+sudo install -m 0755 radius/scripts/probe.sh radius/scripts/probe.py /opt/isp-radius/scripts/
+sudo install -m 0644 radius/scripts/systemd/isp-radius-probe.* /etc/systemd/system/
+sudo systemctl daemon-reload && sudo /opt/isp-radius/scripts/probe.sh setup
+sudo systemctl enable --now isp-radius-probe.timer
+cat /var/lib/prometheus/node-exporter/isp_radius_probe.prom
+```
+
+`probe.sh setup` adds router `127.0.0.2` to each instance's `nas` table, so FreeRADIUS restarts once (nas-watch). Credentials: `/etc/isp-radius/probe.env` (root-only).

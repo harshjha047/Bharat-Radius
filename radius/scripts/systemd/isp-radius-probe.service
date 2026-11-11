@@ -1,0 +1,7 @@
+[Unit]
+Description=isp-radius synthetic PPPoE login (all instances)
+After=freeradius.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/isp-radius/scripts/probe.sh run
