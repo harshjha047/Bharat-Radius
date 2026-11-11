@@ -20,6 +20,7 @@ import {
   UserCog,
   Users,
   type LucideIcon,
+  LifeBuoy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -43,6 +44,7 @@ const STAFF_NAV: NavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: Gauge, any: ['sessions.read', 'subscribers.read'] },
   { href: '/admin/subscribers', label: 'Subscribers', icon: Users, any: ['subscribers.read'] },
   { href: '/admin/sessions', label: 'Online now', icon: Radio, any: ['sessions.read'] },
+  { href: '/admin/tickets', label: 'Tickets', icon: LifeBuoy, any: ['tickets.read'] },
   { href: '/admin/resellers', label: 'Resellers', icon: Network, any: ['resellers.read'] },
   { href: '/admin/wallets', label: 'Wallets', icon: Wallet, any: ['billing.read'] },
   { href: '/admin/recharges', label: 'Recharges', icon: RefreshCw, any: ['billing.read'] },

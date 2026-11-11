@@ -4,6 +4,7 @@ import {
   Ban,
   Eye,
   KeyRound,
+  LifeBuoy,
   Link2,
   MoreHorizontal,
   Pencil,
@@ -197,6 +198,13 @@ function Actions({ s }: { s: Subscriber }) {
         <Button variant="outline" asChild>
           <Link href={`/admin/subscribers/${s.id}/edit`}>
             <Pencil /> Edit
+          </Link>
+        </Button>
+      ) : null}
+      {can('tickets.read') ? (
+        <Button variant="outline" asChild>
+          <Link href={`/admin/tickets?subscriber=${s.id}`} aria-label="Tickets">
+            <LifeBuoy /> <span className="hidden sm:inline">Tickets</span>
           </Link>
         </Button>
       ) : null}

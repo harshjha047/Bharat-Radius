@@ -68,6 +68,9 @@ export const POLICIES: Record<string, CollectionPolicy> = {
   reseller_rates: { tenantField: 'tenantId', branch: 'deny' },
   message_templates: { tenantField: 'tenantId', branch: 'deny' },
   notifications: { tenantField: 'tenantId', branch: 'deny' },
+  tickets: { tenantField: 'tenantId', branch: { ownerField: 'ancestors', ancestorsField: 'ancestors' } },
+  // Read through the ticket (already scoped); resellers never query events directly.
+  ticket_events: { tenantField: 'tenantId', branch: 'deny' },
 };
 
 export class ScopeViolation extends Error {
