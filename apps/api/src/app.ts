@@ -31,6 +31,7 @@ import { RechargesController, RechargesService } from './billing/recharges.js';
 import { BillingSettingsController, BillingSettingsService } from './billing/settings.js';
 import { WalletsController, WalletsService } from './billing/wallets.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
+import { ReportsController, ReportsService } from './reports/reports.js';
 import { SessionsController, SessionsService } from './sessions/sessions.js';
 import {
   IMPORT_PATH,
@@ -43,6 +44,7 @@ import { PortalAuth } from './portal/portal-auth.js';
 import { PortalAdminController, PortalController, PortalService } from './portal/portal.js';
 import { SubscribersController, SubscribersService } from './subscribers/subscribers.js';
 import { Outbox } from './sync/outbox.js';
+import { PortalTicketsController, TicketsController, TicketsService } from './tickets/tickets.js';
 import { RolesController, UsersController } from './users/users.controller.js';
 import { UsersService } from './users/users.service.js';
 
@@ -88,6 +90,9 @@ class AppModule {
         AuditController,
         PortalController,
         PortalAdminController,
+        TicketsController,
+        PortalTicketsController,
+        ReportsController,
       ],
       providers: [
         Tokens,
@@ -113,6 +118,8 @@ class AppModule {
         AuditService,
         PortalAuth,
         PortalService,
+        TicketsService,
+        ReportsService,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: ValidationInterceptor },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

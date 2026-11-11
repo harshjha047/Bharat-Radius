@@ -41,6 +41,8 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/subscribers/:id/activate': 'subA',
   '/api/v1/subscribers/:id/kick': 'subA',
   '/api/v1/subscribers/:id/portal-reset': 'subA',
+  '/api/v1/tickets/:id': 'ticketA',
+  '/api/v1/tickets/:id/reply': 'ticketA',
   '/api/v1/subscribers/:id/password': 'subA',
   '/api/v1/subscribers/:id/coa-log': 'subA',
   '/api/v1/subscribers/:id/sessions': 'subA',
@@ -75,6 +77,11 @@ const NOT_RECORD_ROUTES = new Set([
   '/api/v1/billing/templates/:key',
   // Customer-only (portal cookie); ownership is covered in portal.int.test.ts.
   '/api/v1/portal/invoices/:id/pdf',
+  '/api/v1/portal/tickets/:id',
+  '/api/v1/portal/tickets/:id/reply',
+  '/api/v1/portal/tickets/:id/close',
+  '/api/v1/reports/:name',
+  '/api/v1/reports/:name/download',
 ]);
 
 const BODIES: Record<string, unknown> = {
@@ -85,6 +92,8 @@ const BODIES: Record<string, unknown> = {
   'PATCH /api/v1/nas/:id': { name: 'Changed by B' },
   'PATCH /api/v1/plans/:id': { name: 'Changed by B' },
   'PATCH /api/v1/subscribers/:id': { name: 'Changed by B' },
+  'PATCH /api/v1/tickets/:id': { status: 'closed' },
+  'POST /api/v1/tickets/:id/reply': { body: 'from tenant B' },
   'POST /api/v1/subscribers/:id/suspend': {},
   'PATCH /api/v1/resellers/:id': { name: 'Changed by B' },
   'POST /api/v1/resellers/:id/suspend': {},
@@ -245,6 +254,25 @@ beforeAll(async () => {
   ids.rechargeA = rechargeA.insertedId.toHexString();
   ids.invoiceA = invoiceA.toHexString();
   ids.paymentA = paymentA.insertedId.toHexString();
+  const ticketA = await h.db.collection('tickets').insertOne({
+    tenantId: a,
+    number: 'T000001',
+    subscriberId: subA,
+    ancestors: [],
+    subject: 'No internet',
+    category: 'no_internet',
+    priority: 'high',
+    status: 'open',
+    assignee: null,
+    source: 'portal',
+    openedBy: { type: 'customer', id: ids.subA, name: 'x' },
+    messageCount: 1,
+    lastActivityAt: new Date(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    version: 0,
+  });
+  ids.ticketA = ticketA.insertedId.toHexString();
   const adminB = await seedUser(h, { tenantId: b, email: 'admin@bravo.in', roles: [adminRole], totp: true });
   bAdmin = await signIn(h, adminB, 'bravo');
 });
@@ -355,9 +383,11 @@ async function snapshot() {
         ['recharges', 'rechargeA'],
         ['invoices', 'invoiceA'],
         ['payments', 'paymentA'],
+        ['tickets', 'ticketA'],
       ] as const
     ).map(([c, k]) => h.db.collection(c).findOne({ _id: new ObjectId(ids[k]) })),
   );
   const outbox = await h.db.collection('outbox').countDocuments({});
-  return JSON.stringify([docs, outbox]);
+  const events = await h.db.collection('ticket_events').countDocuments({});
+  return JSON.stringify([docs, outbox, events]);
 }
