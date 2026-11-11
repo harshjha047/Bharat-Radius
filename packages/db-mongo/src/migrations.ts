@@ -895,6 +895,30 @@ const tickets: Migration = {
   },
 };
 
+/** Date-range report scans (WP 4.4): tenant-wide and per reseller branch. */
+const reportIndexes: Migration = {
+  id: '010_report_indexes',
+  async up(db) {
+    await ensureIndexes(db, 'invoices', [
+      { key: { tenantId: 1, issueDate: 1 } },
+      { key: { tenantId: 1, ancestors: 1, issueDate: 1 } },
+    ]);
+    await ensureIndexes(db, 'credit_notes', [
+      { key: { tenantId: 1, createdAt: 1 } },
+      { key: { tenantId: 1, ancestors: 1, createdAt: 1 } },
+    ]);
+    await ensureIndexes(db, 'payments', [
+      { key: { tenantId: 1, status: 1, capturedAt: 1 } },
+      { key: { tenantId: 1, ancestors: 1, capturedAt: 1 } },
+    ]);
+    await ensureIndexes(db, 'recharges', [
+      { key: { tenantId: 1, rechargeDate: 1 } },
+      { key: { tenantId: 1, ancestors: 1, rechargeDate: 1 } },
+    ]);
+    await ensureIndexes(db, 'tickets', [{ key: { tenantId: 1, createdAt: 1 } }]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -905,4 +929,5 @@ export const MIGRATIONS: readonly Migration[] = [
   billing,
   portal,
   tickets,
+  reportIndexes,
 ];

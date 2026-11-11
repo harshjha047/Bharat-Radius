@@ -12349,6 +12349,432 @@
         }
       }
     },
+    "/api/v1/reports/gstr1": {
+      "get": {
+        "summary": "GSTR-1 summary for a month (row counts per sheet, totals); ISP staff only",
+        "tags": ["reports"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "reports.view",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "month": {
+                      "type": "string"
+                    },
+                    "sheets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "rows": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["name", "rows"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "invoices": {
+                          "type": "number"
+                        },
+                        "creditNotes": {
+                          "type": "number"
+                        },
+                        "taxablePaise": {
+                          "type": "number"
+                        },
+                        "igstPaise": {
+                          "type": "number"
+                        },
+                        "cgstPaise": {
+                          "type": "number"
+                        },
+                        "sgstPaise": {
+                          "type": "number"
+                        },
+                        "netTaxablePaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "invoices",
+                        "creditNotes",
+                        "taxablePaise",
+                        "igstPaise",
+                        "cgstPaise",
+                        "sgstPaise",
+                        "netTaxablePaise"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["month", "sheets", "summary"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/gstr1/download": {
+      "get": {
+        "summary": "GSTR-1 Excel in the GST offline tool layout (b2b, b2cl, b2cs, cdnr, cdnur, hsn, docs)",
+        "tags": ["reports"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "reports.view",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{name}": {
+      "get": {
+        "summary": "A report for a date range (IST days, default this month); a reseller sees its branch",
+        "tags": ["reports"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "reports.view",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["revenue", "collections", "subscribers", "reseller-sales", "usage", "tickets"]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "generatedAt": {
+                      "type": "string"
+                    },
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["text", "int", "money", "bytes", "hours", "pct"]
+                                }
+                              },
+                              "required": ["key", "label"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "rows": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": ["string", "number", "null"]
+                              }
+                            }
+                          },
+                          "totals": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": ["string", "number", "null"]
+                            }
+                          }
+                        },
+                        "required": ["title", "columns", "rows"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["name", "title", "from", "to", "generatedAt", "tables"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{name}/download": {
+      "get": {
+        "summary": "The same report as Excel or PDF",
+        "tags": ["reports"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "reports.view",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["revenue", "collections", "subscribers", "reseller-sales", "usage", "tickets"]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "xlsx",
+              "type": "string",
+              "enum": ["xlsx", "pdf"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sessions/live": {
       "get": {
         "summary": "Users online now (search username, IP or MAC prefix; filter by router)",

@@ -5308,6 +5308,261 @@ export interface paths {
     };
     trace?: never;
   };
+  '/api/v1/reports/gstr1': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** GSTR-1 summary for a month (row counts per sheet, totals); ISP staff only */
+    get: {
+      parameters: {
+        query: {
+          month: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              month: string;
+              sheets: {
+                name: string;
+                rows: number;
+              }[];
+              summary: {
+                invoices: number;
+                creditNotes: number;
+                taxablePaise: number;
+                igstPaise: number;
+                cgstPaise: number;
+                sgstPaise: number;
+                netTaxablePaise: number;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/gstr1/download': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** GSTR-1 Excel in the GST offline tool layout (b2b, b2cl, b2cs, cdnr, cdnur, hsn, docs) */
+    get: {
+      parameters: {
+        query: {
+          month: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/{name}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** A report for a date range (IST days, default this month); a reseller sees its branch */
+    get: {
+      parameters: {
+        query?: {
+          from?: string;
+          to?: string;
+        };
+        header?: never;
+        path: {
+          name: 'revenue' | 'collections' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              name: string;
+              title: string;
+              from: string;
+              to: string;
+              generatedAt: string;
+              tables: {
+                title: string;
+                columns: {
+                  key: string;
+                  label: string;
+                  /** @enum {string} */
+                  kind?: 'text' | 'int' | 'money' | 'bytes' | 'hours' | 'pct';
+                }[];
+                rows: {
+                  [key: string]: string | number | null;
+                }[];
+                totals?: {
+                  [key: string]: string | number | null;
+                };
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/{name}/download': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The same report as Excel or PDF */
+    get: {
+      parameters: {
+        query?: {
+          from?: string;
+          to?: string;
+          format?: 'xlsx' | 'pdf';
+        };
+        header?: never;
+        path: {
+          name: 'revenue' | 'collections' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/sessions/live': {
     parameters: {
       query?: never;
