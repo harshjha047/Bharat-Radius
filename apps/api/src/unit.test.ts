@@ -107,8 +107,17 @@ describe('route table', () => {
 
   it('every protected route declares a permission, except self-service auth routes', () => {
     for (const r of routes) {
-      if (r.opts.auth === 'public' || r.path.startsWith('/api/v1/auth/')) continue;
+      if (r.opts.auth === 'public' || r.opts.auth === 'portal' || r.path.startsWith('/api/v1/auth/'))
+        continue;
       expect(r.opts.permission, `${r.method} ${r.path}`).toBeDefined();
+    }
+  });
+
+  it('customer (portal) sessions reach only /portal routes, and /portal routes take only customers', () => {
+    for (const r of routes) {
+      const portalPath = r.path.startsWith('/api/v1/portal/');
+      if (r.opts.auth === 'portal') expect(portalPath, `${r.method} ${r.path}`).toBe(true);
+      if (portalPath) expect(['portal', 'public'], `${r.method} ${r.path}`).toContain(r.opts.auth);
     }
   });
 

@@ -8,8 +8,9 @@ import type { AuthContext } from '../auth/context.js';
  * public  — no session (login, refresh, health)
  * enroll  — session that still has to enrol 2FA may call it
  * session — full session (default)
+ * portal  — signed-in customer (portal cookie); ctx.subscriberId is the customer
  */
-export type AuthMode = 'public' | 'enroll' | 'session';
+export type AuthMode = 'public' | 'enroll' | 'session' | 'portal';
 
 export interface EndpointOptions {
   summary: string;

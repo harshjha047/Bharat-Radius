@@ -10,6 +10,7 @@ import {
   gatewayFor,
   grossPrice,
   payments,
+  rates,
   settlePayment,
   verifyCashfree,
   verifyRazorpay,
@@ -53,7 +54,7 @@ const listQuery = pageQuery.extend({
   from: isoDay.optional(),
   to: isoDay.optional(),
 });
-const paymentView = z.object({
+export const paymentView = z.object({
   id: z.string(),
   subscriber: z.object({ id: z.string(), name: z.string(), customerNo: z.string() }),
   method: z.enum(['razorpay', 'cashfree', 'cash', 'wallet', 'bank_transfer']),
@@ -74,7 +75,7 @@ const paymentView = z.object({
   createdAt: z.string(),
 });
 
-const toView = (
+export const toPaymentView = (
   p: PaymentDoc,
   s?: Pick<SubscriberDoc, 'name' | 'customerNo'>,
 ): z.output<typeof paymentView> => ({
@@ -120,7 +121,7 @@ export class PaymentsService {
       .find({ _id: { $in: ids } }, { projection: { name: 1, customerNo: 1 } })
       .toArray();
     const m = new Map(rows.map((r) => [r._id.toHexString(), r]));
-    return (p: PaymentDoc) => toView(p, m.get(p.subscriberId.toHexString()));
+    return (p: PaymentDoc) => toPaymentView(p, m.get(p.subscriberId.toHexString()));
   }
 
   async list(ctx: AuthContext, q: z.output<typeof listQuery>) {
@@ -197,11 +198,25 @@ export class PaymentsService {
 
   /** Razorpay / Cashfree payment link for a recharge or an invoice; settled by webhook or the hourly check. */
   async link(ctx: AuthContext, b: z.output<typeof linkBody>) {
-    const tenantId = requireTenant(ctx);
+    requireTenant(ctx);
     const s = await this.scoped(ctx)
       .collection<SubscriberDoc>('subscribers')
       .findOne({ _id: b.subscriberId, status: { $ne: 'deleted' } });
     if (!s) throw notFound('Subscriber');
+    const doc = await this.createLink(s, b, ctx.userId.toHexString());
+    return (await this.withSubs([doc]))(doc);
+  }
+
+  /**
+   * The link itself, for a subscriber the caller is already allowed to act for (staff scope or the signed-in
+   * customer). Invoices must belong to that subscriber.
+   */
+  async createLink(
+    s: SubscriberDoc,
+    b: { gateway: 'razorpay' | 'cashfree'; planId?: ObjectId | undefined; invoiceId?: ObjectId | undefined },
+    actor: string,
+  ): Promise<PaymentDoc> {
+    const tenantId = s.tenantId;
     const tenant = (await this.db.collection<BillingTenant>('tenants').findOne({ _id: tenantId }))!;
     let amount: number;
     let purposeText: string;
@@ -214,13 +229,20 @@ export class PaymentsService {
         .collection<PlanDoc>('plans')
         .findOne({ _id: b.planId, tenantId, status: 'active' });
       if (!plan || !plan.billingTypes.includes('prepaid')) throw notFound('Plan');
+      // Settlement debits the owner's wallet at its rate; refuse now rather than after the customer has paid.
+      if (
+        s.resellerId &&
+        (await rates(this.db).findOne({ buyerId: s.resellerId, planId: plan._id }))?.active === false
+      ) {
+        throw new AppError(403, 'FORBIDDEN', 'This plan is not sold to this customer');
+      }
       amount = grossPrice(await customerPrice(this.db, s.resellerId, plan), plan.gstRatePercent);
       purposeText = `${plan.name} recharge for ${s.username ?? s.customerNo}`;
       purpose = { type: 'recharge', planId: plan._id };
     } else {
-      const inv = await this.scoped(ctx)
+      const inv = await this.db
         .collection<InvoiceDoc>('invoices')
-        .findOne({ _id: b.invoiceId!, subscriberId: s._id });
+        .findOne({ _id: b.invoiceId!, tenantId, subscriberId: s._id });
       if (!inv || inv.balancePaise <= 0)
         throw new AppError(400, 'VALIDATION_FAILED', 'Nothing is due on this invoice');
       amount = inv.balancePaise;
@@ -249,11 +271,11 @@ export class PaymentsService {
       gateway: { linkId: link.linkId, linkUrl: link.url },
       createdAt: now,
       updatedAt: now,
-      createdBy: ctx.userId.toHexString(),
+      createdBy: actor,
     };
     await payments(this.db).insertOne(doc);
     noteChange({ after: doc, entityId: id });
-    return (await this.withSubs([doc]))(doc);
+    return doc;
   }
 }
 

@@ -30,6 +30,24 @@ const REFRESH_GRACE_MS = 10_000;
 /** Reserved login "tenant" for super-admins; no tenant may use this slug. */
 export const PLATFORM_SLUG = 'platform';
 
+/** Explicit slug → that tenant; else the request host → tenant with that branding domain; else platform (super-admin). */
+export async function resolveTenant(
+  db: import('mongodb').Db,
+  slug: string | undefined,
+  host: string,
+): Promise<ObjectId | null | undefined> {
+  const tenants = db.collection<TenantDoc>('tenants');
+  if (slug === PLATFORM_SLUG) return null;
+  if (slug)
+    return (await tenants.findOne({ slug: slug.toLowerCase(), status: 'active' }, { projection: { _id: 1 } }))
+      ?._id;
+  const byHost = await tenants.findOne(
+    { 'branding.domain': host.toLowerCase(), status: 'active' },
+    { projection: { _id: 1 } },
+  );
+  return byHost ? byHost._id : null;
+}
+
 const invalidCredentials = () => new AppError(401, 'INVALID_CREDENTIALS', 'Wrong login or password');
 
 const totpAad = (userId: ObjectId) => `users.totp:${userId.toHexString()}`;
@@ -63,19 +81,8 @@ export class AuthService {
     return this.mongo.db.collection<RefreshTokenDoc>('refresh_tokens');
   }
 
-  /** Explicit slug → that tenant; else the request host → tenant with that branding domain; else platform (super-admin). */
-  private async resolveTenant(slug: string | undefined, host: string): Promise<ObjectId | null | undefined> {
-    const tenants = this.mongo.db.collection<TenantDoc>('tenants');
-    if (slug === PLATFORM_SLUG) return null;
-    if (slug)
-      return (
-        await tenants.findOne({ slug: slug.toLowerCase(), status: 'active' }, { projection: { _id: 1 } })
-      )?._id;
-    const byHost = await tenants.findOne(
-      { 'branding.domain': host.toLowerCase(), status: 'active' },
-      { projection: { _id: 1 } },
-    );
-    return byHost ? byHost._id : null;
+  private resolveTenant(slug: string | undefined, host: string) {
+    return resolveTenant(this.mongo.db, slug, host);
   }
 
   private note(user: UserDoc, action: 'auth.login' | 'auth.login_failed' | 'auth.locked', meta: ClientMeta) {

@@ -5,6 +5,7 @@ import { ObjectId } from 'mongodb';
 import { CONFIG, type Config } from '../config.js';
 import { AppError, forbidden, notFound, unauthenticated } from '../errors.js';
 import { ENDPOINT, type EndpointOptions } from '../http/endpoint.js';
+import { PortalAuth } from '../portal/portal-auth.js';
 import { scopeFor } from './context.js';
 import { COOKIE, CSRF_HEADER, Cookies } from './cookies.js';
 import { SessionUsers } from './session-users.js';
@@ -25,6 +26,7 @@ export class AuthGuard implements CanActivate {
     @Inject(SessionUsers) private readonly sessions: SessionUsers,
     @Inject(Cookies) private readonly cookies: Cookies,
     @Inject(CONFIG) private readonly config: Config,
+    @Inject(PortalAuth) private readonly portal: PortalAuth,
   ) {}
 
   async canActivate(ec: ExecutionContext): Promise<boolean> {
@@ -41,6 +43,20 @@ export class AuthGuard implements CanActivate {
       }
     }
     if ((opts.auth ?? 'session') === 'public') return true;
+
+    if (opts.auth === 'portal') {
+      const p = await this.portal.load(req);
+      if (!p) throw unauthenticated('Session ended. Sign in again.');
+      if (unsafe && csrf && !this.portal.checkCsrf(p.sessionId, req.headers[CSRF_HEADER])) {
+        throw new AppError(403, 'CSRF_FAILED', 'Security token missing or stale. Reload the page.');
+      }
+      req.ctx = this.portal.contextFor(p);
+      req.log = req.log.child({
+        subscriberId: p.subscriberId.toHexString(),
+        tenantId: p.tenantId.toHexString(),
+      });
+      return true;
+    }
 
     const token = this.cookies.read(req, COOKIE.access);
     const claims = token ? await this.tokens.verifyAccess(token) : null;
