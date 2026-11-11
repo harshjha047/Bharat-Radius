@@ -58,3 +58,20 @@ sudo systemctl restart postgresql
 ```
 
 No router uses production RADIUS before Step 4, so nothing customer-facing changes.
+
+## Which routers may reach RADIUS (firewall)
+
+The list of routers allowed to send RADIUS packets lives in `/etc/isp-radius/<instance>.allow` (one `<ip or cidr> <name>` per line) and survives reinstalls; ufw is rebuilt from it. `install.sh` never opens production to everyone: on first install production starts **closed** and staging gets `any staging-lab` (open, for the CHR lab and tests).
+
+```bash
+S=/opt/isp-radius/scripts/nas-allow.sh
+sudo $S production list
+sudo $S production add 160.191.125.238 fab5          # at each POP cutover (runbook §8 step 4), the router's static public IP
+sudo $S production remove fab5                       # by name or IP
+sudo $S production add 103.170.81.119 owner-test     # temporary test access from your own connection
+sudo $S staging apply                                # rebuild ufw from the file
+```
+
+Managed rules carry the comment `isp-radius <instance>: <name>`. Rules with any other comment are left alone and listed as a note, so delete old manual rules yourself (`sudo ufw status numbered`, `sudo ufw delete <n>`). The panel's Routers list and this list are separate: a router must be in **both** (panel = which tenant it belongs to and its secret; this list = firewall).
+
+The synthetic probe (loopback) and the app's CoA (outbound to routers on 3799) do not need entries.
