@@ -1,6 +1,6 @@
 # Step 3 — Resellers, billing and payments
 
-Built 6–8 Nov 2026 (PRs #24, #25, #26). Defaults used where the owner's answers are still open (IMPLEMENTATION_PLAN §10, O-7/O-8/O-9).
+Built 6–8 Nov 2026 (PRs #24, #25, #26); staging fixes #27–#29. Defaults used where the owner's answers are still open (IMPLEMENTATION_PLAN §10, O-7/O-8/O-9).
 
 ## Work packages
 
@@ -27,17 +27,28 @@ Built 6–8 Nov 2026 (PRs #24, #25, #26). Defaults used where the owner's answer
 
 | # | Item | Automated proof (CI) | Staging check |
 |---|---|---|---|
-| 1 | Worked example gives exactly L1 30,000 / L2 65,000 | money: *accounts team worked example* | ⏳ |
-| 2 | Recharge/allocation above the balance refused, nothing deducted | money: *larger than the balance* | ⏳ |
-| 3 | Two simultaneous recharges cannot overspend; same key debits once | money: *simultaneous recharges* | ⏳ |
-| 4 | Refund adds REFUND, restores balance, marks REVERSED, deletes nothing | money: *refund* | ⏳ |
-| 5 | Low-balance warning at threshold; blocked at zero | money: *larger than the balance*, *blocked at zero* | ⏳ |
+| 1 | Worked example gives exactly L1 30,000 / L2 65,000 | money: *accounts team worked example* | ✅ 10 Nov (owner's variant: L1 50,000 / L2 69,900; issued 1,20,000 = held + recharges) |
+| 2 | Recharge/allocation above the balance refused, nothing deducted | money: *larger than the balance* | ◑ transfer above balance refused 10 Nov; recharge at zero ⏳ |
+| 3 | Two simultaneous recharges cannot overspend; same key debits once | money: *simultaneous recharges* | ✅ 10 Nov (double-click → one recharge, one ledger debit) |
+| 4 | Refund adds REFUND, restores balance, marks REVERSED, deletes nothing | money: *refund* | ◑ 10 Nov: REFUND entry, balance restored, invoice cancelled + CN; expiry rollback to confirm |
+| 5 | Low-balance warning at threshold; blocked at zero | money: *larger than the balance*, *blocked at zero* | ◑ warning at threshold 10 Nov (at or below); blocked at zero ⏳ |
 | 6 | Reseller sees/changes only its branch (API calls) | money: *scope*; resellers.int; isolation harness | ⏳ |
 | 7 | Reseller creates sub-retailers and customers; ISP moves a branch | resellers.int | ✅ (7 Nov, WP 3.1 staging) |
-| 8 | Prepaid renewal from the right date, speed back at once | money: *renewal* (CoA row) | ⏳ CHR lab |
-| 9 | Postpaid invoice on the 1st, right GST split in/out of state | money: *GST*, *postpaid* | ⏳ |
-| 10 | Overdue blocked + disconnected after grace; payment reactivates | money: *postpaid* | ⏳ CHR lab |
-| 11 | Webhook twice → one payment; failed payment changes nothing | money: *Razorpay*, *failed payment*, *Cashfree* | ⏳ |
-| 12 | Razorpay and Cashfree test payments end to end | mock gateway in CI | ⏳ needs O-8 sandbox keys |
-| 13 | SMS for reminder, invoice, receipt; failures retried and logged | workers billing.int | ⏳ needs O-7 DLT templates |
-| 14 | Every wallet balance equals the sum of its ledger | money: *reconciliation*; nightly job | ⏳ |
+| 8 | Prepaid renewal from the right date, speed back at once | money: *renewal* (CoA row) | ◑ dates ✅ 9 Nov (9 Nov → 8 Dec → 7 Jan); speed restore ⏳ CHR lab |
+| 9 | Postpaid invoice on the 1st, right GST split in/out of state | money: *GST*, *postpaid* | ⏳ run job on VPS |
+| 10 | Overdue blocked + disconnected after grace; payment reactivates | money: *postpaid* | ⏳ run job on VPS + CHR lab |
+| 11 | Webhook twice → one payment; failed payment changes nothing | money: *Razorpay*, *failed payment*, *Cashfree* | ◑ dashboard test events acknowledged (#27); Razorpay resend + failed payment ⏳ |
+| 12 | Razorpay and Cashfree test payments end to end | mock gateway in CI | ✅ 9 Nov: both ₹589 (499 + 18 %), channel Online, expiry extended |
+| 13 | SMS for reminder, invoice, receipt; failures retried and logged | workers billing.int | ⏸ deferred until DLT templates (O-7) |
+| 14 | Every wallet balance equals the sum of its ledger | money: *reconciliation*; nightly job | ⏳ run reconcile on VPS |
+
+## Staging findings (9–10 Nov)
+
+| Finding | Fix |
+|---|---|
+| Cashfree dashboard "Test" webhook → 500 (empty `$or`, no payment link) | #27: unknown/test events acknowledged and ignored |
+| Wallet Recharges card/column showed gross after a refund | #28: net of refunds, refunded amount as hint |
+| Adjust dialog defaulted to Credit, so an intended debit was credited | #29: direction must be chosen; button shows the effect and new balance |
+| Subscriber edit cleared its reseller (once, 7 Nov) | ⏳ not reproduced; needs that subscriber's History |
+
+Low balance is "at or below" the threshold (by design).
