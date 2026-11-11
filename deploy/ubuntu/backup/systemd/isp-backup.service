@@ -1,0 +1,10 @@
+[Unit]
+Description=isp-platform nightly backup (MongoDB, PostgreSQL, /etc secrets)
+After=docker.service postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/isp-backup/backup.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=2h

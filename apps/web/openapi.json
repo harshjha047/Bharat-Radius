@@ -12349,6 +12349,432 @@
         }
       }
     },
+    "/api/v1/reports/gstr1": {
+      "get": {
+        "summary": "GSTR-1 summary for a month (row counts per sheet, totals); ISP staff only",
+        "tags": ["reports"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "reports.view",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "month": {
+                      "type": "string"
+                    },
+                    "sheets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "rows": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["name", "rows"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "invoices": {
+                          "type": "number"
+                        },
+                        "creditNotes": {
+                          "type": "number"
+                        },
+                        "taxablePaise": {
+                          "type": "number"
+                        },
+                        "igstPaise": {
+                          "type": "number"
+                        },
+                        "cgstPaise": {
+                          "type": "number"
+                        },
+                        "sgstPaise": {
+                          "type": "number"
+                        },
+                        "netTaxablePaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "invoices",
+                        "creditNotes",
+                        "taxablePaise",
+                        "igstPaise",
+                        "cgstPaise",
+                        "sgstPaise",
+                        "netTaxablePaise"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["month", "sheets", "summary"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/gstr1/download": {
+      "get": {
+        "summary": "GSTR-1 Excel in the GST offline tool layout (b2b, b2cl, b2cs, cdnr, cdnur, hsn, docs)",
+        "tags": ["reports"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "reports.view",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{name}": {
+      "get": {
+        "summary": "A report for a date range (IST days, default this month); a reseller sees its branch",
+        "tags": ["reports"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "reports.view",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["revenue", "collections", "subscribers", "reseller-sales", "usage", "tickets"]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "generatedAt": {
+                      "type": "string"
+                    },
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["text", "int", "money", "bytes", "hours", "pct"]
+                                }
+                              },
+                              "required": ["key", "label"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "rows": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": ["string", "number", "null"]
+                              }
+                            }
+                          },
+                          "totals": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": ["string", "number", "null"]
+                            }
+                          }
+                        },
+                        "required": ["title", "columns", "rows"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["name", "title", "from", "to", "generatedAt", "tables"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{name}/download": {
+      "get": {
+        "summary": "The same report as Excel or PDF",
+        "tags": ["reports"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "reports.view",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["revenue", "collections", "subscribers", "reseller-sales", "usage", "tickets"]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "xlsx",
+              "type": "string",
+              "enum": ["xlsx", "pdf"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sessions/live": {
       "get": {
         "summary": "Users online now (search username, IP or MAC prefix; filter by router)",
@@ -17230,6 +17656,2684 @@
         }
       }
     },
+    "/api/v1/tickets": {
+      "get": {
+        "summary": "Tickets, most recently active first (a reseller sees its branch)",
+        "tags": ["tickets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tickets.read",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed", "active"]
+            }
+          },
+          {
+            "name": "assignee",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "me"
+                },
+                {
+                  "type": "string",
+                  "const": "none"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{24}$"
+                }
+              ]
+            }
+          },
+          {
+            "name": "subscriberId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^T?\\d{1,8}$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z_[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "number": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "no_internet",
+                              "slow_speed",
+                              "billing",
+                              "plan_change",
+                              "relocation",
+                              "other"
+                            ]
+                          },
+                          "priority": {
+                            "type": "string",
+                            "enum": ["low", "normal", "high", "urgent"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                          },
+                          "assignee": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "subscriber": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "customerNo": {
+                                    "type": "string"
+                                  },
+                                  "username": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "phone": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "name", "customerNo", "username", "phone"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": ["portal", "staff", "reseller"]
+                          },
+                          "openedBy": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "messageCount": {
+                            "type": "number"
+                          },
+                          "lastActivityAt": {
+                            "type": "string"
+                          },
+                          "firstResponseAt": {
+                            "type": ["string", "null"]
+                          },
+                          "resolvedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "number",
+                          "subject",
+                          "category",
+                          "priority",
+                          "status",
+                          "assignee",
+                          "subscriber",
+                          "source",
+                          "openedBy",
+                          "messageCount",
+                          "lastActivityAt",
+                          "firstResponseAt",
+                          "resolvedAt",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Open a ticket (for a customer, or an internal one without a customer: ISP staff only)",
+        "tags": ["tickets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tickets.write",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "subscriberId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                  },
+                  "priority": {
+                    "default": "normal",
+                    "type": "string",
+                    "enum": ["low", "normal", "high", "urgent"]
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  "assigneeId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  }
+                },
+                "required": ["subject", "category", "body"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": ["low", "normal", "high", "urgent"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                    },
+                    "assignee": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "customerNo", "username", "phone"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["portal", "staff", "reseller"]
+                    },
+                    "openedBy": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "id", "name"],
+                      "additionalProperties": false
+                    },
+                    "messageCount": {
+                      "type": "number"
+                    },
+                    "lastActivityAt": {
+                      "type": "string"
+                    },
+                    "firstResponseAt": {
+                      "type": ["string", "null"]
+                    },
+                    "resolvedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["message", "note", "status", "assign", "priority"]
+                          },
+                          "body": {
+                            "type": ["string", "null"]
+                          },
+                          "from": {
+                            "type": ["string", "null"]
+                          },
+                          "to": {
+                            "type": ["string", "null"]
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "kind", "body", "from", "to", "author", "createdAt"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "subject",
+                    "category",
+                    "priority",
+                    "status",
+                    "assignee",
+                    "subscriber",
+                    "source",
+                    "openedBy",
+                    "messageCount",
+                    "lastActivityAt",
+                    "firstResponseAt",
+                    "resolvedAt",
+                    "createdAt",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/counts": {
+      "get": {
+        "summary": "Ticket counts by status, plus active ones assigned to me / unassigned",
+        "tags": ["tickets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tickets.read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "open": {
+                      "type": "number"
+                    },
+                    "in_progress": {
+                      "type": "number"
+                    },
+                    "waiting_customer": {
+                      "type": "number"
+                    },
+                    "resolved": {
+                      "type": "number"
+                    },
+                    "closed": {
+                      "type": "number"
+                    },
+                    "mine": {
+                      "type": "number"
+                    },
+                    "unassigned": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "open",
+                    "in_progress",
+                    "waiting_customer",
+                    "resolved",
+                    "closed",
+                    "mine",
+                    "unassigned"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/assignees": {
+      "get": {
+        "summary": "Staff who can be assigned tickets",
+        "tags": ["tickets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tickets.assign",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "name"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["items"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{id}": {
+      "get": {
+        "summary": "One ticket with its timeline (incl. internal notes)",
+        "tags": ["tickets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tickets.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": ["low", "normal", "high", "urgent"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                    },
+                    "assignee": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "customerNo", "username", "phone"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["portal", "staff", "reseller"]
+                    },
+                    "openedBy": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "id", "name"],
+                      "additionalProperties": false
+                    },
+                    "messageCount": {
+                      "type": "number"
+                    },
+                    "lastActivityAt": {
+                      "type": "string"
+                    },
+                    "firstResponseAt": {
+                      "type": ["string", "null"]
+                    },
+                    "resolvedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["message", "note", "status", "assign", "priority"]
+                          },
+                          "body": {
+                            "type": ["string", "null"]
+                          },
+                          "from": {
+                            "type": ["string", "null"]
+                          },
+                          "to": {
+                            "type": ["string", "null"]
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "kind", "body", "from", "to", "author", "createdAt"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "subject",
+                    "category",
+                    "priority",
+                    "status",
+                    "assignee",
+                    "subscriber",
+                    "source",
+                    "openedBy",
+                    "messageCount",
+                    "lastActivityAt",
+                    "firstResponseAt",
+                    "resolvedAt",
+                    "createdAt",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Status, priority, category or assignee (assigning needs tickets.assign)",
+        "tags": ["tickets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tickets.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["low", "normal", "high", "urgent"]
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                  },
+                  "assigneeId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{24}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": ["low", "normal", "high", "urgent"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                    },
+                    "assignee": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "customerNo", "username", "phone"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["portal", "staff", "reseller"]
+                    },
+                    "openedBy": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "id", "name"],
+                      "additionalProperties": false
+                    },
+                    "messageCount": {
+                      "type": "number"
+                    },
+                    "lastActivityAt": {
+                      "type": "string"
+                    },
+                    "firstResponseAt": {
+                      "type": ["string", "null"]
+                    },
+                    "resolvedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["message", "note", "status", "assign", "priority"]
+                          },
+                          "body": {
+                            "type": ["string", "null"]
+                          },
+                          "from": {
+                            "type": ["string", "null"]
+                          },
+                          "to": {
+                            "type": ["string", "null"]
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "kind", "body", "from", "to", "author", "createdAt"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "subject",
+                    "category",
+                    "priority",
+                    "status",
+                    "assignee",
+                    "subscriber",
+                    "source",
+                    "openedBy",
+                    "messageCount",
+                    "lastActivityAt",
+                    "firstResponseAt",
+                    "resolvedAt",
+                    "createdAt",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{id}/reply": {
+      "post": {
+        "summary": "Reply to the customer or add an internal note; optionally change the status",
+        "tags": ["tickets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tickets.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  "internal": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                  }
+                },
+                "required": ["body"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": ["low", "normal", "high", "urgent"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                    },
+                    "assignee": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "customerNo", "username", "phone"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["portal", "staff", "reseller"]
+                    },
+                    "openedBy": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "id", "name"],
+                      "additionalProperties": false
+                    },
+                    "messageCount": {
+                      "type": "number"
+                    },
+                    "lastActivityAt": {
+                      "type": "string"
+                    },
+                    "firstResponseAt": {
+                      "type": ["string", "null"]
+                    },
+                    "resolvedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["message", "note", "status", "assign", "priority"]
+                          },
+                          "body": {
+                            "type": ["string", "null"]
+                          },
+                          "from": {
+                            "type": ["string", "null"]
+                          },
+                          "to": {
+                            "type": ["string", "null"]
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "kind", "body", "from", "to", "author", "createdAt"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "subject",
+                    "category",
+                    "priority",
+                    "status",
+                    "assignee",
+                    "subscriber",
+                    "source",
+                    "openedBy",
+                    "messageCount",
+                    "lastActivityAt",
+                    "firstResponseAt",
+                    "resolvedAt",
+                    "createdAt",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/tickets": {
+      "get": {
+        "summary": "Own tickets, most recently active first",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{3}Z_[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "number": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "no_internet",
+                              "slow_speed",
+                              "billing",
+                              "plan_change",
+                              "relocation",
+                              "other"
+                            ]
+                          },
+                          "priority": {
+                            "type": "string",
+                            "enum": ["low", "normal", "high", "urgent"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                          },
+                          "assignee": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "subscriber": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "customerNo": {
+                                    "type": "string"
+                                  },
+                                  "username": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "phone": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "name", "customerNo", "username", "phone"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": ["portal", "staff", "reseller"]
+                          },
+                          "openedBy": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "messageCount": {
+                            "type": "number"
+                          },
+                          "lastActivityAt": {
+                            "type": "string"
+                          },
+                          "firstResponseAt": {
+                            "type": ["string", "null"]
+                          },
+                          "resolvedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "number",
+                          "subject",
+                          "category",
+                          "priority",
+                          "status",
+                          "assignee",
+                          "subscriber",
+                          "source",
+                          "openedBy",
+                          "messageCount",
+                          "lastActivityAt",
+                          "firstResponseAt",
+                          "resolvedAt",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Raise a ticket (5 per hour)",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  }
+                },
+                "required": ["subject", "category", "body"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": ["low", "normal", "high", "urgent"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                    },
+                    "assignee": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "customerNo", "username", "phone"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["portal", "staff", "reseller"]
+                    },
+                    "openedBy": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "id", "name"],
+                      "additionalProperties": false
+                    },
+                    "messageCount": {
+                      "type": "number"
+                    },
+                    "lastActivityAt": {
+                      "type": "string"
+                    },
+                    "firstResponseAt": {
+                      "type": ["string", "null"]
+                    },
+                    "resolvedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["message", "note", "status", "assign", "priority"]
+                          },
+                          "body": {
+                            "type": ["string", "null"]
+                          },
+                          "from": {
+                            "type": ["string", "null"]
+                          },
+                          "to": {
+                            "type": ["string", "null"]
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "kind", "body", "from", "to", "author", "createdAt"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "subject",
+                    "category",
+                    "priority",
+                    "status",
+                    "assignee",
+                    "subscriber",
+                    "source",
+                    "openedBy",
+                    "messageCount",
+                    "lastActivityAt",
+                    "firstResponseAt",
+                    "resolvedAt",
+                    "createdAt",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/tickets/{id}": {
+      "get": {
+        "summary": "Own ticket with replies (no internal notes)",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": ["low", "normal", "high", "urgent"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                    },
+                    "assignee": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "customerNo", "username", "phone"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["portal", "staff", "reseller"]
+                    },
+                    "openedBy": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "id", "name"],
+                      "additionalProperties": false
+                    },
+                    "messageCount": {
+                      "type": "number"
+                    },
+                    "lastActivityAt": {
+                      "type": "string"
+                    },
+                    "firstResponseAt": {
+                      "type": ["string", "null"]
+                    },
+                    "resolvedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["message", "note", "status", "assign", "priority"]
+                          },
+                          "body": {
+                            "type": ["string", "null"]
+                          },
+                          "from": {
+                            "type": ["string", "null"]
+                          },
+                          "to": {
+                            "type": ["string", "null"]
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "kind", "body", "from", "to", "author", "createdAt"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "subject",
+                    "category",
+                    "priority",
+                    "status",
+                    "assignee",
+                    "subscriber",
+                    "source",
+                    "openedBy",
+                    "messageCount",
+                    "lastActivityAt",
+                    "firstResponseAt",
+                    "resolvedAt",
+                    "createdAt",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/tickets/{id}/reply": {
+      "post": {
+        "summary": "Reply to own ticket (reopens a resolved one)",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  }
+                },
+                "required": ["body"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": ["low", "normal", "high", "urgent"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                    },
+                    "assignee": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "customerNo", "username", "phone"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["portal", "staff", "reseller"]
+                    },
+                    "openedBy": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "id", "name"],
+                      "additionalProperties": false
+                    },
+                    "messageCount": {
+                      "type": "number"
+                    },
+                    "lastActivityAt": {
+                      "type": "string"
+                    },
+                    "firstResponseAt": {
+                      "type": ["string", "null"]
+                    },
+                    "resolvedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["message", "note", "status", "assign", "priority"]
+                          },
+                          "body": {
+                            "type": ["string", "null"]
+                          },
+                          "from": {
+                            "type": ["string", "null"]
+                          },
+                          "to": {
+                            "type": ["string", "null"]
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "kind", "body", "from", "to", "author", "createdAt"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "subject",
+                    "category",
+                    "priority",
+                    "status",
+                    "assignee",
+                    "subscriber",
+                    "source",
+                    "openedBy",
+                    "messageCount",
+                    "lastActivityAt",
+                    "firstResponseAt",
+                    "resolvedAt",
+                    "createdAt",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/tickets/{id}/close": {
+      "post": {
+        "summary": "Close own ticket",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "number": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": ["no_internet", "slow_speed", "billing", "plan_change", "relocation", "other"]
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": ["low", "normal", "high", "urgent"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["open", "in_progress", "waiting_customer", "resolved", "closed"]
+                    },
+                    "assignee": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name", "customerNo", "username", "phone"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": ["portal", "staff", "reseller"]
+                    },
+                    "openedBy": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "id", "name"],
+                      "additionalProperties": false
+                    },
+                    "messageCount": {
+                      "type": "number"
+                    },
+                    "lastActivityAt": {
+                      "type": "string"
+                    },
+                    "firstResponseAt": {
+                      "type": ["string", "null"]
+                    },
+                    "resolvedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["message", "note", "status", "assign", "priority"]
+                          },
+                          "body": {
+                            "type": ["string", "null"]
+                          },
+                          "from": {
+                            "type": ["string", "null"]
+                          },
+                          "to": {
+                            "type": ["string", "null"]
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "id", "name"],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "kind", "body", "from", "to", "author", "createdAt"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "subject",
+                    "category",
+                    "priority",
+                    "status",
+                    "assignee",
+                    "subscriber",
+                    "source",
+                    "openedBy",
+                    "messageCount",
+                    "lastActivityAt",
+                    "firstResponseAt",
+                    "resolvedAt",
+                    "createdAt",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users": {
       "get": {
         "summary": "List staff accounts",
@@ -18419,6 +21523,9 @@
                         "wallets.adjust",
                         "billing.cash",
                         "reports.view",
+                        "tickets.read",
+                        "tickets.write",
+                        "tickets.assign",
                         "imports.run",
                         "users.read",
                         "users.write",
@@ -18572,6 +21679,9 @@
                         "wallets.adjust",
                         "billing.cash",
                         "reports.view",
+                        "tickets.read",
+                        "tickets.write",
+                        "tickets.assign",
                         "imports.run",
                         "users.read",
                         "users.write",

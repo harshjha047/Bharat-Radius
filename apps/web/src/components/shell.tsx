@@ -20,6 +20,8 @@ import {
   UserCog,
   Users,
   type LucideIcon,
+  LifeBuoy,
+  BarChart3,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -43,11 +45,13 @@ const STAFF_NAV: NavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: Gauge, any: ['sessions.read', 'subscribers.read'] },
   { href: '/admin/subscribers', label: 'Subscribers', icon: Users, any: ['subscribers.read'] },
   { href: '/admin/sessions', label: 'Online now', icon: Radio, any: ['sessions.read'] },
+  { href: '/admin/tickets', label: 'Tickets', icon: LifeBuoy, any: ['tickets.read'] },
   { href: '/admin/resellers', label: 'Resellers', icon: Network, any: ['resellers.read'] },
   { href: '/admin/wallets', label: 'Wallets', icon: Wallet, any: ['billing.read'] },
   { href: '/admin/recharges', label: 'Recharges', icon: RefreshCw, any: ['billing.read'] },
   { href: '/admin/invoices', label: 'Invoices', icon: ReceiptText, any: ['billing.read'] },
   { href: '/admin/payments', label: 'Payments', icon: IndianRupee, any: ['billing.read'] },
+  { href: '/admin/reports', label: 'Reports', icon: BarChart3, any: ['reports.view'] },
   { href: '/admin/plans', label: 'Plans', icon: Package, any: ['plans.read'] },
   { href: '/admin/routers', label: 'Routers', icon: Router, any: ['nas.read'] },
   {

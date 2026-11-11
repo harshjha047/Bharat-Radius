@@ -1,5 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useState } from 'react';
 import {
   connectionState,
@@ -28,7 +29,7 @@ export default function PortalHome() {
     <>
       <StatusCard me={m} />
       {m.duePaise > 0 ? <Dues me={m} /> : null}
-      {m.billingType === 'prepaid' ? <Plans me={m} /> : <PostpaidPlan me={m} />}
+      {m.billingType === 'prepaid' ? <Plans me={m} /> : <PostpaidPlan />}
     </>
   );
 }
@@ -180,15 +181,17 @@ function Plans({ me }: { me: PortalMe }) {
   );
 }
 
-function PostpaidPlan({ me }: { me: PortalMe }) {
+function PostpaidPlan() {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Monthly billing</CardTitle>
       </CardHeader>
-      <CardContent className="text-sm text-muted-foreground">
-        Your invoice is issued on the 1st of each month. To change your plan, contact {me.isp.name}
-        {me.isp.phone ? ` on ${me.isp.phone}` : ''}.
+      <CardContent className="space-y-3 text-sm text-muted-foreground">
+        <p>Your invoice is issued on the 1st of each month.</p>
+        <Button variant="outline" asChild>
+          <Link href="/portal/support?category=plan_change">Request a plan change</Link>
+        </Button>
       </CardContent>
     </Card>
   );
