@@ -84,7 +84,12 @@ beforeAll(async () => {
   const b = await admin.req('POST', '/api/v1/subscribers', customer('sita.p', { planId: id.plan }));
   id.b = b.body.id;
   const s = await admin.req('PATCH', '/api/v1/billing/settings', {
-    razorpay: { enabled: true, keyId: 'rzp_test_key', keySecret: 'rzp-secret-1', webhookSecret: 'hook-1' },
+    razorpay: {
+      enabled: true,
+      keyId: 'rzp_test_key',
+      keySecret: 'rzp-secret-123',
+      webhookSecret: 'hook-secret-123',
+    },
   });
   expect(s.status, JSON.stringify(s.body)).toBe(200);
 });
