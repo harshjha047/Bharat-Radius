@@ -16,6 +16,9 @@ secrets.env
 *.jpeg
 *.png
 !docs/**/*.png
+# brand artwork (not customer data)
+!apps/web/public/brand/*.png
+!apps/web/src/app/icon.png
 uploads/
 kyc/
 *.sql.gz

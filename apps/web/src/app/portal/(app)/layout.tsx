@@ -54,7 +54,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     <div className="min-h-dvh bg-background pb-24 sm:pb-0">
       <header className="sticky top-0 z-30 border-b bg-card">
         <div className="mx-auto flex h-[60px] max-w-3xl items-center gap-2.5 px-4">
-          <BrandMark className="size-7 rounded-lg text-[10px]" />
+          <BrandMark className="h-7" />
           <div className="min-w-0 flex-1">
             {me.data ? (
               <>
