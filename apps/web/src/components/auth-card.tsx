@@ -48,7 +48,7 @@ export function AuthCard({
             </li>
           ))}
         </ul>
-        <PoweredBy className="text-[#c9d2f2]" />
+        <PoweredBy medium="login" className="text-[#c9d2f2] hover:text-white" />
       </section>
       <section className="flex flex-[1_1_420px] items-center justify-center px-6 py-14">
         <div className="flex w-full max-w-[400px] flex-col gap-6">

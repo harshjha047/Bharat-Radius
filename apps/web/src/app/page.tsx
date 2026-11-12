@@ -6,7 +6,7 @@ import '@fontsource/dm-sans/latin-500.css';
 import '@fontsource/outfit/latin-500.css';
 import '@fontsource/outfit/latin-600.css';
 import '@fontsource/outfit/latin-700.css';
-import { BrandLockup, BrandMark } from '@/components/brand';
+import { BrandLockup, BrandMark, DIV_PRODUCT_URL } from '@/components/brand';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
@@ -621,7 +621,9 @@ export default function Landing() {
             <Link href="/portal/login" className={link}>
               Customer login
             </Link>
-            <span>A product of DIV Pvt. Ltd.</span>
+            <a href={DIV_PRODUCT_URL} className={link}>
+              Bharat Radius by DIV
+            </a>
           </div>
         </div>
       </footer>

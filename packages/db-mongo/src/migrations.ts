@@ -919,6 +919,17 @@ const reportIndexes: Migration = {
   },
 };
 
+/** Dashboard renewal counts and the list's expiry filter: status + validity, tenant-wide and per branch. */
+const renewalIndexes: Migration = {
+  id: '011_renewal_indexes',
+  async up(db) {
+    await ensureIndexes(db, 'subscribers', [
+      { key: { tenantId: 1, status: 1, expiresAt: 1 } },
+      { key: { tenantId: 1, ancestors: 1, status: 1, expiresAt: 1 } },
+    ]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -930,4 +941,5 @@ export const MIGRATIONS: readonly Migration[] = [
   portal,
   tickets,
   reportIndexes,
+  renewalIndexes,
 ];
