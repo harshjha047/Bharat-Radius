@@ -1,18 +1,31 @@
 import { cn } from '@/lib/utils';
 
-/** Brand mark. Swap the tile for the logo image once it is in /public. */
+/** The "b" mark. Size it by height (`h-*`); width follows the 224×290 artwork. */
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <span
+    <img
+      src="/brand/mark.png"
+      alt=""
       aria-hidden
-      className={cn(
-        'relative grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-primary text-[11px] font-extrabold tracking-tight text-white',
-        className,
-      )}
-    >
-      BR
-      <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-card bg-brand" />
-    </span>
+      width={224}
+      height={290}
+      className={cn('h-[30px] w-auto shrink-0 select-none', className)}
+      draggable={false}
+    />
+  );
+}
+
+/** Full lockup: mark, "bharat radius" and "A product of DIV Pvt. Ltd." (900×453). */
+export function BrandLockup({ className }: { className?: string }) {
+  return (
+    <img
+      src="/brand/lockup.png"
+      alt="BharatRadius, a product of DIV Pvt. Ltd."
+      width={900}
+      height={453}
+      className={cn('h-[72px] w-auto shrink-0 select-none', className)}
+      draggable={false}
+    />
   );
 }
 

@@ -65,6 +65,10 @@ const step = (name, fn) =>
     }
   });
 
+// Dashboard KPI tiles also link to Plans/Routers ("Plans 0 active"), so click the sidebar entry.
+const sidebarLink = (name) =>
+  page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name, exact: true });
+
 step('signed-out visit goes to sign-in', async () => {
   await page.goto(`${BASE}/admin/subscribers`);
   await page.waitForURL(/\/login\?next=%2Fadmin%2Fsubscribers/);
@@ -82,7 +86,7 @@ step('ISP Admin must enrol 2FA, then lands on the dashboard', async () => {
 });
 
 step('create a plan', async () => {
-  await page.getByRole('link', { name: 'Plans' }).click();
+  await sidebarLink('Plans').click();
   await page.getByRole('button', { name: 'New plan' }).click();
   await page.fill('#p-name', 'E2E Home 50');
   await page.fill('#p-down', '50');
@@ -97,7 +101,7 @@ step('create a plan', async () => {
 });
 
 step('add a router; the generated secret is shown once', async () => {
-  await page.getByRole('link', { name: 'Routers' }).click();
+  await sidebarLink('Routers').click();
   await page.getByRole('button', { name: 'Add router' }).click();
   await page.fill('#n-name', 'E2E POP-1');
   await page.fill('#n-ip', '198.51.100.7');
@@ -109,7 +113,7 @@ step('add a router; the generated secret is shown once', async () => {
 });
 
 step('create a subscriber with a generated password', async () => {
-  await page.getByRole('link', { name: 'Subscribers' }).click();
+  await sidebarLink('Subscribers').click();
   await page.getByRole('link', { name: 'New subscriber' }).click();
   await page.fill('#username', 'e2e.ramesh');
   await page.selectOption('#planId', { label: 'E2E Home 50' });
@@ -260,8 +264,13 @@ step('Support sees only what the role allows', async () => {
   await page.getByRole('link', { name: 'Ramesh Kumar E2E' }).click();
   await page.getByRole('tab', { name: 'Billing' }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Recharge' }).count(), 0, 'Support must not recharge');
+  // Suspend / Activate sit in the header as buttons; the rest live under "More actions".
+  await page
+    .getByRole('button', { name: /^(Suspend|Activate)$/ })
+    .first()
+    .waitFor();
   await page.getByRole('button', { name: 'More actions' }).click();
-  await page.getByRole('menuitem', { name: 'Suspend' }).waitFor();
+  await page.getByRole('menuitem', { name: 'Reset portal password' }).waitFor();
   assert.equal(await page.getByRole('menuitem', { name: 'Delete' }).count(), 0, 'Support must not delete');
   await page.keyboard.press('Escape');
 });
