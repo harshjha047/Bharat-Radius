@@ -28,8 +28,13 @@ export default function PortalHome() {
   const m = me.data!;
   return (
     <>
-      <StatusCard me={m} />
-      <Tiles me={m} />
+      <h1 className="text-[30px] font-extrabold tracking-[-0.03em] max-sm:hidden">
+        Namaste, {m.name.split(' ')[0]}
+      </h1>
+      <div className="flex flex-col gap-3.5 lg:flex-row lg:items-stretch lg:gap-4">
+        <StatusCard me={m} />
+        <Tiles me={m} />
+      </div>
       {m.duePaise > 0 ? <Dues me={m} /> : null}
       {m.billingType === 'prepaid' ? <Plans me={m} /> : <PostpaidPlan />}
     </>
@@ -64,7 +69,7 @@ function DaysRing({ days, of }: { days: number; of: number }) {
     <div
       role="img"
       aria-label={`${days} of ${of} days left`}
-      className="relative size-[196px] rounded-full"
+      className="relative size-[196px] shrink-0 rounded-full sm:col-start-1! sm:row-span-6 sm:row-start-1 sm:size-[180px]"
       style={{ background: `conic-gradient(var(--primary) 0 ${pct}%, var(--accent) ${pct}% 100%)` }}
     >
       <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-card">
@@ -83,14 +88,16 @@ function StatusCard({ me }: { me: PortalMe }) {
   const canRenew = me.billingType === 'prepaid' && !!me.plan && me.gateways.length > 0;
   const days = me.billingType === 'prepaid' ? daysUntil(me.expiresAt) : null;
   return (
-    <section className="flex flex-col items-center gap-3.5 rounded-3xl border bg-card px-5 py-[22px] text-center">
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <h1 className="text-[22px] font-extrabold tracking-[-0.02em]">{me.plan?.name ?? 'No plan'}</h1>
+    <section className="flex flex-col items-center gap-3.5 rounded-3xl border bg-card px-5 py-[22px] text-center sm:grid sm:grid-cols-[auto_minmax(0,1fr)] sm:content-center sm:items-center sm:justify-items-start sm:gap-x-7 sm:rounded-[20px] sm:p-7 sm:text-left sm:*:col-start-2 lg:flex-[2_1_0]">
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+        <h2 className="text-[22px] font-extrabold tracking-[-0.02em] sm:text-[26px] sm:tracking-[-0.03em]">
+          {me.plan?.name ?? 'No plan'}
+        </h2>
         <Badge tone={st.tone} className="h-[26px] text-[13px] font-bold">
           {st.label}
         </Badge>
       </div>
-      <p className="-mt-1.5 text-[15px]">
+      <p className="-mt-1.5 text-[15px] sm:mt-0 sm:text-base">
         {me.plan ? speed(me.plan) : 'Ask your provider to set a plan.'}
         {me.plan
           ? ` · ${me.plan.dataCapBytes ? `${fmtBytes(me.plan.dataCapBytes)} data` : 'Unlimited data'}`
@@ -111,7 +118,7 @@ function StatusCard({ me }: { me: PortalMe }) {
           <>
             <Button
               variant="brand"
-              className="h-[60px] w-full text-[19px] sm:max-w-md [&_svg]:size-5"
+              className="h-[60px] w-full text-[19px] sm:h-14 sm:w-auto sm:px-8 sm:text-lg [&_svg]:size-5"
               loading={pay.isPending}
               disabled={!canRenew}
               onClick={() => pay.mutate({ planId: me.plan!.id })}
@@ -137,7 +144,7 @@ function Tiles({ me }: { me: PortalMe }) {
   const cycle = usage.data?.cycle;
   const used = cycle?.usedBytes ?? usage.data?.days.reduce((a, d) => a + d.downloadBytes + d.uploadBytes, 0);
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-3 lg:flex-[1_1_0] lg:grid-cols-1 lg:gap-4">
       <Link
         href="/portal/bills"
         className="flex flex-col gap-1 rounded-[20px] border bg-card p-4 text-inherit hover:border-input hover:text-inherit"
@@ -175,7 +182,7 @@ function Tiles({ me }: { me: PortalMe }) {
       </Link>
       <Link
         href="/portal/support"
-        className="col-span-2 flex min-h-14 items-center gap-3 rounded-[20px] bg-info-bg px-4 py-3.5 text-info-text hover:text-info-text"
+        className="col-span-2 flex min-h-14 lg:col-span-1 items-center gap-3 rounded-[20px] bg-info-bg px-4 py-3.5 text-info-text hover:text-info-text"
       >
         <span className="flex-1 text-[15px] font-semibold">Internet not working? Report a problem</span>
         <ChevronRight className="size-[18px]" aria-hidden />
@@ -241,48 +248,50 @@ function Plans({ me }: { me: PortalMe }) {
       <h2 id="change-plan" className="mt-2 text-xl font-extrabold">
         Change plan
       </h2>
-      {plans.isLoading
-        ? Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-20 w-full rounded-[20px]" />)
-        : null}
-      {items.map((p) => (
-        <div
-          key={p.id}
-          className={cn(
-            'flex items-center gap-3.5 rounded-[20px] border bg-card px-[18px] py-4',
-            p.current && 'border-2 border-primary',
-          )}
-        >
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[17px] font-extrabold text-foreground">{fmtKbps(p.downloadKbps)}</span>
-              {p.current ? (
-                <span className="inline-flex h-[22px] items-center rounded-full bg-accent px-2 text-xs font-bold text-primary">
-                  Your plan
-                </span>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {plans.isLoading
+          ? Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-20 w-full rounded-[20px]" />)
+          : null}
+        {items.map((p) => (
+          <div
+            key={p.id}
+            className={cn(
+              'flex items-center gap-3.5 rounded-[20px] border bg-card px-[18px] py-4 lg:flex-col lg:items-stretch lg:p-[22px]',
+              p.current && 'border-2 border-primary',
+            )}
+          >
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[17px] font-extrabold text-foreground">{fmtKbps(p.downloadKbps)}</span>
+                {p.current ? (
+                  <span className="inline-flex h-[22px] items-center rounded-full bg-accent px-2 text-xs font-bold text-primary">
+                    Your plan
+                  </span>
+                ) : null}
+              </div>
+              <span className="truncate text-sm text-body">
+                {p.name} · {p.validityDays} days
+                {p.dataCapBytes ? ` · ${fmtBytes(p.dataCapBytes)}` : ''}
+              </span>
+            </div>
+            <div className="flex flex-col items-end gap-1.5 lg:items-stretch">
+              <span className="text-[17px] font-extrabold text-foreground tabular-nums">
+                {fmtRupees(p.pricePaise)}
+              </span>
+              {!p.current ? (
+                <Button
+                  variant="outline"
+                  className="h-11 border-[1.5px] border-primary font-bold text-primary"
+                  disabled={!me.gateways.length}
+                  onClick={() => setPick(p)}
+                >
+                  Choose
+                </Button>
               ) : null}
             </div>
-            <span className="truncate text-sm text-body">
-              {p.name} · {p.validityDays} days
-              {p.dataCapBytes ? ` · ${fmtBytes(p.dataCapBytes)}` : ''}
-            </span>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
-            <span className="text-[17px] font-extrabold text-foreground tabular-nums">
-              {fmtRupees(p.pricePaise)}
-            </span>
-            {!p.current ? (
-              <Button
-                variant="outline"
-                className="h-11 border-[1.5px] border-primary font-bold text-primary"
-                disabled={!me.gateways.length}
-                onClick={() => setPick(p)}
-              >
-                Choose
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
       <ConfirmDialog
         open={!!pick}
         onOpenChange={(o) => !o && setPick(null)}
