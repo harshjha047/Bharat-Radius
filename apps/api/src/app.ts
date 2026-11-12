@@ -31,6 +31,7 @@ import { RechargesController, RechargesService } from './billing/recharges.js';
 import { BillingSettingsController, BillingSettingsService } from './billing/settings.js';
 import { WalletsController, WalletsService } from './billing/wallets.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
+import { FinancialInsightsService } from './reports/insights.js';
 import { ReportsController, ReportsService } from './reports/reports.js';
 import { SessionsController, SessionsService } from './sessions/sessions.js';
 import {
@@ -120,6 +121,7 @@ class AppModule {
         PortalService,
         TicketsService,
         ReportsService,
+        FinancialInsightsService,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: ValidationInterceptor },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

@@ -22,6 +22,7 @@ import {
   type LucideIcon,
   LifeBuoy,
   BarChart3,
+  Lightbulb,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -66,6 +67,7 @@ const STAFF_NAV: NavGroup[] = [
       { href: '/admin/recharges', label: 'Recharges', icon: RefreshCw, any: ['billing.read'] },
       { href: '/admin/invoices', label: 'Invoices', icon: ReceiptText, any: ['billing.read'] },
       { href: '/admin/payments', label: 'Payments', icon: IndianRupee, any: ['billing.read'] },
+      { href: '/admin/insights', label: 'Insights', icon: Lightbulb, any: ['reports.view'] },
       { href: '/admin/reports', label: 'Reports', icon: BarChart3, any: ['reports.view'] },
     ],
   },

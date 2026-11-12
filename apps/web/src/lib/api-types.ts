@@ -5312,6 +5312,138 @@ export interface paths {
     };
     trace?: never;
   };
+  '/api/v1/reports/insights': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Financial insights for a date range: key figures vs the previous period, alerts, receivables ageing, reseller margin, plan revenue, anomalies and a 30-day forecast; a reseller sees its branch */
+    get: {
+      parameters: {
+        query?: {
+          from?: string;
+          to?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              from: string;
+              to: string;
+              previous: {
+                from: string;
+                to: string;
+              };
+              generatedAt: string;
+              narrative: string[];
+              kpis: {
+                key: string;
+                label: string;
+                /** @enum {string} */
+                kind: 'money' | 'int' | 'pct';
+                value: number | null;
+                previous: number | null;
+                change: number | null;
+                higherIsBetter: boolean;
+              }[];
+              alerts: {
+                code: string;
+                /** @enum {string} */
+                severity: 'critical' | 'warning' | 'info' | 'positive';
+                title: string;
+                detail: string;
+              }[];
+              daily: {
+                day: string;
+                netPaise: number;
+                collectedPaise: number;
+              }[];
+              anomalies: {
+                day: string;
+                valuePaise: number;
+                expectedPaise: number;
+                /** @enum {string} */
+                kind: 'spike' | 'drop';
+              }[];
+              ageing: {
+                key: string;
+                label: string;
+                amountPaise: number;
+                invoices: number;
+              }[];
+              defaulters: {
+                subscriberId: string;
+                name: string;
+                customerNo: string | null;
+                invoices: number;
+                balancePaise: number;
+                daysOverdue: number;
+              }[];
+              resellers: {
+                reseller: string;
+                level: string;
+                recharges: number;
+                walletPaise: number;
+                customerPaise: number;
+                marginPaise: number;
+                marginPct: number | null;
+                share: number;
+              }[];
+              plans: {
+                plan: string;
+                recharges: number;
+                revenuePaise: number;
+                avgPaise: number;
+                share: number;
+              }[];
+              forecast: {
+                next30Paise: number;
+                renewalsDuePaise: number;
+                renewalsDueCount: number;
+                postpaidMonthlyPaise: number;
+                renewalRateUsed: number;
+                mrrPaise: number;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/reports/gstr1': {
     parameters: {
       query?: never;
@@ -5449,7 +5581,8 @@ export interface paths {
         };
         header?: never;
         path: {
-          name: 'revenue' | 'collections' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
+          name:
+            'financial' | 'revenue' | 'collections' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
         };
         cookie?: never;
       };
@@ -5528,7 +5661,8 @@ export interface paths {
         };
         header?: never;
         path: {
-          name: 'revenue' | 'collections' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
+          name:
+            'financial' | 'revenue' | 'collections' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
         };
         cookie?: never;
       };

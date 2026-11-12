@@ -10,6 +10,7 @@ import { ErrorState, PageHeader, Stat } from '@/components/ui/misc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, download, unwrap, type ApiData } from '@/lib/api';
 import { useMe } from '@/lib/auth';
+import { periodPresets as presets } from '@/lib/periods';
 import { cn, fmtBytes, fmtNum, fmtRupees } from '@/lib/utils';
 
 type ReportData = ApiData<'/api/v1/reports/{name}'>;
@@ -24,21 +25,6 @@ const REPORTS: { name: Name; label: string; staffOnly?: boolean }[] = [
   { name: 'usage', label: 'Usage', staffOnly: true },
   { name: 'tickets', label: 'Tickets' },
 ];
-
-const ist = (d: Date) => new Date(d.getTime() + 330 * 60_000).toISOString().slice(0, 10);
-function presets() {
-  const today = ist(new Date());
-  const [y, m] = today.split('-').map(Number) as [number, number];
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const lastMonthEnd = ist(new Date(Date.UTC(y, m - 1, 0, 12)));
-  const fyStart = m >= 4 ? `${y}-04-01` : `${y - 1}-04-01`;
-  return {
-    'This month': [`${y}-${pad(m)}-01`, today],
-    'Last month': [`${lastMonthEnd.slice(0, 8)}01`, lastMonthEnd],
-    'Last 7 days': [ist(new Date(Date.now() - 6 * 86_400_000)), today],
-    'This financial year': [fyStart, today],
-  } as Record<string, [string, string]>;
-}
 
 function fmt(v: string | number | null | undefined, kind?: string) {
   if (v === null || v === undefined || v === '') return '';

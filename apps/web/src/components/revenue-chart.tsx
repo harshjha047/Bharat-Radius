@@ -18,13 +18,17 @@ function axisRupees(paise: number): string {
 }
 
 /** Daily billed vs collected, overlapping areas. Loaded on demand (Recharts is the heaviest dependency). */
-export default function RevenueChart({ days }: { days: RevenueDay[] }) {
+export default function RevenueChart({
+  days,
+  label = 'Daily revenue billed and collected, last 30 days',
+  billedName = 'Billed',
+}: {
+  days: RevenueDay[];
+  label?: string;
+  billedName?: string;
+}) {
   return (
-    <div
-      className="h-[220px] w-full"
-      role="img"
-      aria-label="Daily revenue billed and collected, last 30 days"
-    >
+    <div className="h-[220px] w-full" role="img" aria-label={label}>
       <ResponsiveContainer>
         <AreaChart data={days} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--divider)" />
@@ -55,7 +59,10 @@ export default function RevenueChart({ days }: { days: RevenueDay[] }) {
             labelStyle={{ color: '#cfc7d3', fontFamily: 'var(--font-mono)', fontSize: 11 }}
             itemStyle={{ color: '#fff' }}
             labelFormatter={(d) => fmtDay(String(d))}
-            formatter={(v, name) => [fmtRupees0(Number(v)), name === 'billedPaise' ? 'Billed' : 'Collected']}
+            formatter={(v, name) => [
+              fmtRupees0(Number(v)),
+              name === 'billedPaise' ? billedName : 'Collected',
+            ]}
           />
           <Area
             type="monotone"
