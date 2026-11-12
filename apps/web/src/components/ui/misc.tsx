@@ -17,10 +17,10 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div className="min-w-0 space-y-1">
-        <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="min-w-0 space-y-0.5">
+        <h1 className="truncate text-[22px] font-extrabold tracking-[-0.03em] sm:text-[26px]">{title}</h1>
+        {description ? <p className="text-[13px] text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </div>
@@ -33,10 +33,14 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   return (
     <div
       role="alert"
-      className="flex flex-col items-center gap-3 rounded-lg border bg-card px-4 py-10 text-center"
+      className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-4 py-12 text-center"
     >
-      <AlertTriangle className="size-6 text-warning" aria-hidden />
-      <p className="text-sm">{forbidden ? 'Your role does not allow this.' : msg}</p>
+      <span className="grid size-11 place-items-center rounded-xl bg-warning-bg text-warning-text">
+        <AlertTriangle className="size-5" aria-hidden />
+      </span>
+      <p className="text-sm font-semibold text-foreground">
+        {forbidden ? 'Your role does not allow this.' : msg}
+      </p>
       {error instanceof ApiError && error.requestId ? (
         <p className="font-mono text-xs text-muted-foreground">ref {error.requestId}</p>
       ) : null}
@@ -104,7 +108,7 @@ export function SecretBox({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1.5">
       <p className="text-sm font-medium">{label}</p>
-      <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-1">
+      <div className="flex items-center gap-2 rounded-xl border bg-subtle px-3 py-1">
         <code className="flex-1 font-mono text-sm break-all">{value}</code>
         <CopyButton value={value} />
       </div>
@@ -150,12 +154,49 @@ export function ConfirmDialog({
   );
 }
 
-export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
+const DOT = {
+  success: 'bg-success',
+  primary: 'bg-chart-1',
+  danger: 'bg-destructive',
+  warning: 'bg-warning',
+  info: 'bg-chart-3',
+  teal: 'bg-chart-4',
+} as const;
+
+export function Stat({
+  label,
+  value,
+  hint,
+  dot,
+  hintTone,
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: ReactNode;
+  dot?: keyof typeof DOT;
+  hintTone?: 'success' | 'danger' | 'warning';
+}) {
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+    <div className="flex flex-col gap-1.5 rounded-2xl border bg-card px-[18px] py-4">
+      <p className="flex items-center gap-2 text-[13px] font-semibold text-body">
+        {dot ? <span className={cn('size-2 shrink-0 rounded-full', DOT[dot])} aria-hidden /> : null}
+        {label}
+      </p>
+      <p className="text-[clamp(22px,2.2vw,28px)] leading-tight font-extrabold tracking-[-0.03em] break-words text-foreground tabular-nums">
+        {value}
+      </p>
+      {hint ? (
+        <p
+          className={cn(
+            'text-xs font-semibold text-muted-foreground',
+            hintTone === 'success' && 'text-success-text',
+            hintTone === 'danger' && 'text-danger-text',
+            hintTone === 'warning' && 'text-warning-text',
+          )}
+        >
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -165,8 +206,8 @@ export function KeyValue({ items }: { items: [string, ReactNode][] }) {
     <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
       {items.map(([k, v]) => (
         <div key={k} className="min-w-0">
-          <dt className="text-xs text-muted-foreground">{k}</dt>
-          <dd className="mt-0.5 break-words">{v ?? '—'}</dd>
+          <dt className="eyebrow text-[10px]">{k}</dt>
+          <dd className="mt-1 font-medium break-words text-foreground">{v ?? '—'}</dd>
         </div>
       ))}
     </dl>

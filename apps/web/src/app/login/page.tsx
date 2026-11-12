@@ -2,9 +2,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, type FormEvent } from 'react';
-import { AuthCard } from '@/components/auth-card';
+import { AuthCard, FormError } from '@/components/auth-card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, PasswordInput } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { api, ApiError, unwrap } from '@/lib/api';
 import { safeNext } from '@/lib/nav';
@@ -96,13 +96,13 @@ function LoginForm() {
   }
 
   return (
-    <AuthCard title="Sign in" description="Staff and administrators.">
+    <AuthCard title="Sign in" description="For staff, administrators and resellers.">
       <form onSubmit={submitPassword} className="space-y-4">
         <Field label="Email or phone" htmlFor="login">
           <Input id="login" name="login" autoComplete="username" required minLength={3} autoFocus />
         </Field>
         <Field label="Password" htmlFor="password">
-          <Input id="password" name="password" type="password" autoComplete="current-password" required />
+          <PasswordInput id="password" name="password" autoComplete="current-password" required />
         </Field>
         {showTenant ? (
           <Field
@@ -113,11 +113,7 @@ function LoginForm() {
             <Input id="tenant" name="tenant" autoCapitalize="none" pattern="[a-z0-9][a-z0-9-]{1,39}" />
           </Field>
         ) : null}
-        {error ? (
-          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
-            {error}
-          </p>
-        ) : null}
+        {error ? <FormError>{error}</FormError> : null}
         <Button type="submit" className="w-full" loading={login.isPending}>
           Sign in
         </Button>

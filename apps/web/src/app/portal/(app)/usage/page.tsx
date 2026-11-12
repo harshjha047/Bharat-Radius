@@ -32,6 +32,10 @@ export default function PortalUsage() {
 
   return (
     <>
+      <div className="mt-1 space-y-0.5">
+        <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Usage</h1>
+        <p className="text-[15px] text-body">How much data you used, day by day.</p>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Downloaded (31 days)" value={usage.isLoading ? '…' : fmtBytes(down)} />
         <Stat label="Uploaded (31 days)" value={usage.isLoading ? '…' : fmtBytes(up)} />
@@ -61,8 +65,8 @@ export default function PortalUsage() {
           </CardContent>
         </Card>
       ) : null}
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b pb-4 sm:pb-4">
           <CardTitle>Daily usage</CardTitle>
         </CardHeader>
         <CardContent>
@@ -79,8 +83,9 @@ export default function PortalUsage() {
         <CardHeader>
           <CardTitle>Recent connections</CardTitle>
         </CardHeader>
-        <CardContent>
+        <div>
           <DataTable
+            bare
             caption="Recent connections"
             rows={sessions.data?.items}
             loading={sessions.isLoading}
@@ -102,7 +107,7 @@ export default function PortalUsage() {
               { key: 'up', header: 'Upload', cell: (r) => fmtBytes(r.uploadBytes), hideOnMobile: true },
             ]}
           />
-        </CardContent>
+        </div>
       </Card>
     </>
   );

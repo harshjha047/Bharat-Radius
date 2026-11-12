@@ -42,15 +42,15 @@ export default function PortalTicket() {
       <Link href="/portal/support" className="inline-flex items-center gap-1 text-sm text-muted-foreground">
         <ArrowLeft className="size-4" aria-hidden /> All tickets
       </Link>
-      <Card>
-        <CardHeader className="flex-row items-start justify-between gap-3">
+      <Card className="rounded-[20px]">
+        <CardHeader className="flex-row items-start justify-between gap-3 border-b pb-4 sm:pb-4">
           <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold">{d.subject}</h1>
-            <p className="text-xs text-muted-foreground">{d.number}</p>
+            <h1 className="text-xl font-extrabold tracking-[-0.02em]">{d.subject}</h1>
+            <p className="font-mono text-xs text-muted-foreground">{d.number}</p>
           </div>
           <TicketStatusBadge status={d.status} />
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-4 sm:pt-5">
           <TicketTimeline events={d.events} viewer="customer" />
           {d.status === 'closed' ? (
             <p className="text-sm text-muted-foreground">

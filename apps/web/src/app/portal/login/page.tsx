@@ -2,9 +2,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { AuthCard } from '@/components/auth-card';
+import { AuthCard, FormError } from '@/components/auth-card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, PasswordInput } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { api, ApiError, unwrap } from '@/lib/api';
 
@@ -38,12 +38,13 @@ export default function PortalLoginPage() {
   };
 
   return (
-    <AuthCard
-      title="My account"
-      description="Sign in with the username and password of your internet connection."
-    >
-      <form onSubmit={submit} className="space-y-4">
-        <Field label="Username or customer no." htmlFor="login">
+    <AuthCard audience="customer" title="Log in" description="Use the details on your welcome SMS.">
+      <form onSubmit={submit} className="space-y-5 [&_label]:text-[15px]">
+        <Field
+          label="Username or customer number"
+          htmlFor="login"
+          hint="Looks like C000123, or the username you chose"
+        >
           <Input
             id="login"
             name="login"
@@ -53,6 +54,7 @@ export default function PortalLoginPage() {
             required
             minLength={3}
             autoFocus
+            className="h-[52px] text-base font-medium"
           />
         </Field>
         <Field
@@ -60,15 +62,17 @@ export default function PortalLoginPage() {
           htmlFor="password"
           hint="Your PPPoE password, unless you set a portal password."
         >
-          <Input id="password" name="password" type="password" autoComplete="current-password" required />
+          <PasswordInput
+            id="password"
+            name="password"
+            autoComplete="current-password"
+            required
+            className="h-[52px] text-base font-medium"
+          />
         </Field>
-        {error ? (
-          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
-            {error}
-          </p>
-        ) : null}
-        <Button type="submit" className="w-full" loading={login.isPending}>
-          Sign in
+        {error ? <FormError>{error}</FormError> : null}
+        <Button type="submit" size="xl" loading={login.isPending}>
+          Log in
         </Button>
       </form>
     </AuthCard>

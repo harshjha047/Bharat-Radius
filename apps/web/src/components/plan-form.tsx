@@ -193,7 +193,7 @@ export function PlanForm({
         </Field>
       </div>
 
-      <fieldset className="space-y-3 rounded-lg border p-4">
+      <fieldset className="space-y-3 rounded-2xl border p-4">
         <legend className="px-1 text-sm font-medium">Data cap and FUP</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Data cap (GB)" htmlFor="p-cap" error={err('capGb')} hint="Empty = unlimited.">
@@ -220,7 +220,7 @@ export function PlanForm({
         </div>
       </fieldset>
 
-      <fieldset className="space-y-3 rounded-lg border p-4">
+      <fieldset className="space-y-3 rounded-2xl border p-4">
         <legend className="px-1 text-sm font-medium">Burst</legend>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox {...register('burst')} /> Allow short bursts above the plan speed
@@ -247,7 +247,7 @@ export function PlanForm({
         ) : null}
       </fieldset>
 
-      <details className="rounded-lg border p-4">
+      <details className="rounded-2xl border p-4">
         <summary className="cursor-pointer text-sm font-medium">
           More: billing, GST, IP pool, RADIUS attributes
         </summary>

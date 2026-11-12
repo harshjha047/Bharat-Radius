@@ -1,29 +1,78 @@
+import { Check } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { BrandMark, PoweredBy } from '@/components/brand';
+
+const COPY = {
+  staff: {
+    headline: 'Run your network, billing and partners from one panel.',
+    points: ['See who is online right now', 'Recharge and bill in seconds', 'Every change is audited'],
+  },
+  customer: {
+    headline: 'Your internet, your bills, your help — in one place.',
+    points: [
+      'Recharge in two taps with UPI',
+      'See how much data you used',
+      'Report a problem and track the reply',
+    ],
+  },
+} as const;
 
 export function AuthCard({
   title,
   description,
   children,
+  audience = 'staff',
+  footer,
 }: {
   title: string;
   description?: ReactNode;
   children: ReactNode;
+  audience?: keyof typeof COPY;
+  footer?: ReactNode;
 }) {
+  const c = COPY[audience];
   return (
-    <main className="grid min-h-dvh place-items-center bg-muted/40 px-4 py-10">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex items-center justify-center gap-2 text-lg font-semibold">
-          <span className="grid size-8 place-items-center rounded-md bg-primary text-sm text-primary-foreground">
-            BR
-          </span>
-          BharatRadius
+    <main className="flex min-h-dvh flex-wrap bg-background">
+      <section className="flex flex-[1_1_420px] flex-col gap-7 bg-primary p-8 text-white max-md:hidden lg:p-14">
+        <span className="flex items-center gap-3 self-start rounded-2xl bg-white px-4 py-3">
+          <BrandMark className="size-10 rounded-xl text-sm" />
+          <span className="text-xl font-extrabold tracking-[-0.03em] text-foreground">BharatRadius</span>
+        </span>
+        <h1 className="mt-auto max-w-[480px] text-[44px] leading-[1.1] font-extrabold tracking-[-0.04em] text-white">
+          {c.headline}
+        </h1>
+        <ul className="flex flex-col gap-3 text-base text-[#dce3f7]">
+          {c.points.map((p) => (
+            <li key={p} className="flex items-center gap-2.5">
+              <Check className="size-[18px] text-[#f7a23b]" strokeWidth={2.4} aria-hidden />
+              {p}
+            </li>
+          ))}
+        </ul>
+        <PoweredBy className="text-[#c9d2f2]" />
+      </section>
+      <section className="flex flex-[1_1_420px] items-center justify-center px-6 py-14">
+        <div className="flex w-full max-w-[400px] flex-col gap-6">
+          <div className="flex items-center gap-2.5 md:hidden">
+            <BrandMark />
+            <span className="text-lg font-extrabold tracking-[-0.03em] text-foreground">BharatRadius</span>
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-[30px] font-extrabold tracking-[-0.03em]">{title}</h2>
+            {description ? <p className="text-base text-body">{description}</p> : null}
+          </div>
+          {children}
+          {footer}
         </div>
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
-          <h1 className="text-lg font-semibold">{title}</h1>
-          {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
-          <div className="mt-5">{children}</div>
-        </div>
-      </div>
+      </section>
     </main>
+  );
+}
+
+export function FormError({ children }: { children: ReactNode }) {
+  return (
+    <p role="alert" className="rounded-xl bg-danger-bg px-3.5 py-2.5 text-sm font-semibold text-danger-text">
+      {children}
+    </p>
   );
 }

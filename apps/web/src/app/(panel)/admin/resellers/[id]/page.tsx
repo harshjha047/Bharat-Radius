@@ -78,7 +78,10 @@ export default function ResellerPage() {
         actions={can('resellers.write') ? <Actions d={d} /> : null}
       />
       {d.blockedBy ? (
-        <p role="status" className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+        <p
+          role="status"
+          className="mb-4 rounded-xl border border-[#f5d9a8] bg-warning-bg text-warning-text font-semibold px-3 py-2 text-sm"
+        >
           {d.blockedBy.name} ({d.blockedBy.code}) above this reseller is suspended, so this branch cannot sign
           in or recharge.
         </p>

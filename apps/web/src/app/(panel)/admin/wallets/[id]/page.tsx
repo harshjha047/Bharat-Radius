@@ -61,7 +61,7 @@ export default function WalletPage() {
       {d.state === 'frozen' ? (
         <p
           role="alert"
-          className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm"
+          className="mb-4 rounded-xl border border-danger-border bg-danger-bg text-danger-text px-3 py-2 text-sm"
         >
           Frozen by the nightly check: {d.frozenReason}. No money moves until ISP staff review and unfreeze
           it.

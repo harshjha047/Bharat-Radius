@@ -8,18 +8,25 @@ const dateTime = new Intl.DateTimeFormat('en-IN', { timeZone: TZ, dateStyle: 'me
 const dateOnly = new Intl.DateTimeFormat('en-IN', { timeZone: TZ, dateStyle: 'medium' });
 const shortDay = new Intl.DateTimeFormat('en-IN', { timeZone: TZ, day: 'numeric', month: 'short' });
 const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
+const inr0 = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 const num = new Intl.NumberFormat('en-IN');
 
 export const fmtDateTime = (iso: string | null | undefined) => (iso ? dateTime.format(new Date(iso)) : '—');
 export const fmtDate = (iso: string | null | undefined) => (iso ? dateOnly.format(new Date(iso)) : '—');
 export const fmtDay = (iso: string) => shortDay.format(new Date(iso));
 export const fmtRupees = (paise: number) => inr.format(paise / 100);
+/** Whole rupees, for headline figures. */
+export const fmtRupees0 = (paise: number) => inr0.format(Math.round(paise / 100));
 /** Price + GST rounded to the rupee (matches the API's invoice total). */
 export const grossPaise = (paise: number, gstPercent: number) => {
   const half = Math.floor((paise * gstPercent) / 200 + 0.5);
   return Math.floor((paise + 2 * half) / 100 + 0.5) * 100;
 };
 export const fmtNum = (n: number) => num.format(n);
+/** Whole days from now until `iso` (negative once past); null when there is no date. */
+export function daysUntil(iso: string | null | undefined): number | null {
+  return iso ? Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000) : null;
+}
 export const plural = (n: number, word: string) => `${fmtNum(n)} ${word}${n === 1 ? '' : 's'}`;
 
 export function fmtBytes(n: number | null | undefined): string {

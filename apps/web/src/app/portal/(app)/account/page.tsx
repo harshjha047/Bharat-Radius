@@ -1,5 +1,7 @@
 'use client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { portalKeys, usePortalMe } from '@/components/portal';
@@ -41,7 +43,32 @@ export default function PortalAccount() {
         </CardContent>
       </Card>
       <PasswordCard hasPortalPassword={m.hasPortalPassword} />
+      <SignOut />
     </>
+  );
+}
+
+function SignOut() {
+  const router = useRouter();
+  const qc = useQueryClient();
+  const logout = useMutation({
+    mutationFn: () => unwrap(api.POST('/api/v1/portal/auth/logout')),
+    onSettled: () => {
+      qc.removeQueries({ queryKey: ['portal'] });
+      router.replace('/portal/login');
+    },
+  });
+  return (
+    <Button
+      variant="destructive-outline"
+      size="lg"
+      className="w-full rounded-[14px]"
+      loading={logout.isPending}
+      onClick={() => logout.mutate()}
+    >
+      {logout.isPending ? null : <LogOut />}
+      Sign out
+    </Button>
   );
 }
 

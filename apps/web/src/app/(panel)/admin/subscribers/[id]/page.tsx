@@ -9,9 +9,9 @@ import {
   MoreHorizontal,
   Pencil,
   PlayCircle,
-  RefreshCw,
   Trash2,
   Unplug,
+  Zap,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -29,21 +29,24 @@ import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/dropdown';
 import { Input } from '@/components/ui/input';
-import {
-  ConfirmDialog,
-  ErrorState,
-  Field,
-  KeyValue,
-  PageHeader,
-  SecretBox,
-  Stat,
-} from '@/components/ui/misc';
+import { ConfirmDialog, ErrorState, Field, KeyValue, SecretBox, Stat } from '@/components/ui/misc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api, unwrap } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import { usePlans, type Subscriber } from '@/lib/queries';
-import { fmtBytes, fmtDate, fmtDateTime, fmtDuration, fmtKbps, plural, relTime } from '@/lib/utils';
+import {
+  daysUntil,
+  fmtBytes,
+  fmtDate,
+  fmtDateTime,
+  fmtDuration,
+  fmtKbps,
+  fmtRupees,
+  grossPaise,
+  plural,
+  relTime,
+} from '@/lib/utils';
 
 const UsageChart = dynamic(() => import('@/components/usage-chart'), {
   ssr: false,
@@ -67,20 +70,11 @@ export default function SubscriberPage() {
 
   return (
     <>
-      <PageHeader
-        title={
-          <span className="flex flex-wrap items-center gap-2">
-            {s.name} <SubscriberState s={s} /> <SyncState s={s} />
-          </span>
-        }
-        description={
-          <>
-            #{s.customerNo} · <span className="font-mono">{s.username}</span>
-          </>
-        }
-        actions={<Actions s={s} />}
-      />
-      <Tabs defaultValue="overview">
+      <nav aria-label="Breadcrumb" className="mb-4 text-[13px] text-muted-foreground">
+        <Link href="/admin/subscribers">Subscribers</Link> <span aria-hidden>/</span> {s.name}
+      </nav>
+      <Hero s={s} />
+      <Tabs defaultValue="overview" className="mt-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {can('sessions.read') ? <TabsTrigger value="sessions">Sessions</TabsTrigger> : null}
@@ -113,6 +107,95 @@ export default function SubscriberPage() {
         </TabsContent>
       </Tabs>
     </>
+  );
+}
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join('');
+
+function Hero({ s }: { s: Subscriber }) {
+  const { byId } = usePlans();
+  const plan = s.planId ? byId.get(s.planId) : undefined;
+  const days = daysUntil(s.expiresAt);
+  const facts: { k: string; v: React.ReactNode; sub?: React.ReactNode; tone?: string }[] = [
+    {
+      k: 'Plan',
+      v: plan?.name ?? (s.planId ? '…' : 'No plan'),
+      sub: plan
+        ? `${fmtRupees(grossPaise(plan.pricePaise, plan.gstRatePercent))} incl. GST · ${fmtKbps(plan.downloadKbps)}`
+        : undefined,
+    },
+    {
+      k: 'Valid until',
+      v: fmtDate(s.expiresAt),
+      sub:
+        days === null
+          ? undefined
+          : days < 0
+            ? `Expired ${plural(-days, 'day')} ago`
+            : days === 0
+              ? 'Expires today'
+              : `${plural(days, 'day')} left`,
+      tone:
+        days === null
+          ? undefined
+          : days < 0
+            ? 'text-danger-text'
+            : days <= 3
+              ? 'text-warning-text'
+              : 'text-success-text',
+    },
+    { k: 'Billing', v: s.billingType === 'prepaid' ? 'Prepaid' : 'Postpaid' },
+    { k: 'Customer since', v: fmtDate(s.createdAt) },
+    {
+      k: 'Reseller',
+      v: s.reseller ? (
+        <Link href={`/admin/resellers/${s.reseller.id}`} className="text-foreground hover:text-primary">
+          {s.reseller.name}
+        </Link>
+      ) : (
+        'Direct'
+      ),
+      sub: s.reseller?.code ?? s.network.popName ?? undefined,
+    },
+  ];
+  return (
+    <section className="flex flex-col gap-[18px] rounded-2xl border bg-card px-5 py-5 sm:px-6">
+      <div className="flex flex-wrap items-start gap-4">
+        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-accent text-xl font-extrabold text-accent-foreground">
+          {initials(s.name)}
+        </span>
+        <div className="mr-auto flex min-w-60 flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">{s.name}</h1>
+            <SubscriberState s={s} />
+            <SyncState s={s} />
+          </div>
+          <span className="font-mono text-[13px] text-muted-foreground">
+            {s.customerNo} · {s.username} · {s.phone}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Actions s={s} />
+        </div>
+      </div>
+      <dl className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3 border-t border-divider pt-4">
+        {facts.map((f) => (
+          <div key={f.k} className="flex flex-col gap-0.5">
+            <dt className="eyebrow tracking-[0.08em]">{f.k}</dt>
+            <dd className="text-base font-bold text-foreground">{f.v}</dd>
+            {f.sub ? (
+              <dd className={`text-xs font-semibold ${f.tone ?? 'text-muted-foreground'}`}>{f.sub}</dd>
+            ) : null}
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
@@ -174,16 +257,6 @@ function Actions({ s }: { s: Subscriber }) {
   const prepaid = s.billingType === 'prepaid';
   return (
     <>
-      {can('recharges.create') && prepaid ? (
-        <Button onClick={() => setBilling('recharge')}>
-          <RefreshCw /> Recharge
-        </Button>
-      ) : null}
-      {can('recharges.create') && prepaid ? (
-        <Button variant="outline" onClick={() => setBilling('link')} aria-label="Payment link">
-          <Link2 /> <span className="hidden sm:inline">Pay link</span>
-        </Button>
-      ) : null}
       <RechargeDialog
         subscriber={s}
         open={billing === 'recharge'}
@@ -195,7 +268,7 @@ function Actions({ s }: { s: Subscriber }) {
         onOpenChange={(o) => setBilling(o ? 'link' : null)}
       />
       {write ? (
-        <Button variant="outline" asChild>
+        <Button variant="ghost" asChild>
           <Link href={`/admin/subscribers/${s.id}/edit`}>
             <Pencil /> Edit
           </Link>
@@ -213,7 +286,17 @@ function Actions({ s }: { s: Subscriber }) {
           <Unplug /> Kick
         </Button>
       ) : null}
-      {write || del || can('subscribers.password.reveal') ? (
+      {write && s.status === 'active' ? (
+        <Button variant="destructive-outline" onClick={() => setOpen('suspend')}>
+          <Ban /> Suspend
+        </Button>
+      ) : null}
+      {write && s.status !== 'active' ? (
+        <Button variant="outline" onClick={() => setOpen('activate')}>
+          <PlayCircle /> Activate
+        </Button>
+      ) : null}
+      {write || del || can('subscribers.password.reveal') || (can('recharges.create') && prepaid) ? (
         <Menu>
           <MenuTrigger asChild>
             <Button variant="outline" size="icon" aria-label="More actions">
@@ -231,19 +314,14 @@ function Actions({ s }: { s: Subscriber }) {
                 <KeyRound /> Reset portal password
               </MenuItem>
             ) : null}
-            {write && s.status === 'active' ? (
-              <MenuItem onSelect={() => setOpen('suspend')}>
-                <Ban /> Suspend
-              </MenuItem>
-            ) : null}
-            {write && s.status !== 'active' ? (
-              <MenuItem onSelect={() => setOpen('activate')}>
-                <PlayCircle /> Activate
+            {can('recharges.create') && prepaid ? (
+              <MenuItem onSelect={() => setBilling('link')}>
+                <Link2 /> Send payment link
               </MenuItem>
             ) : null}
             {del ? (
               <>
-                {write || can('subscribers.password.reveal') ? <MenuSeparator /> : null}
+                <MenuSeparator />
                 <MenuItem destructive onSelect={() => setOpen('delete')}>
                   <Trash2 /> Delete
                 </MenuItem>
@@ -251,6 +329,11 @@ function Actions({ s }: { s: Subscriber }) {
             ) : null}
           </MenuContent>
         </Menu>
+      ) : null}
+      {can('recharges.create') && prepaid ? (
+        <Button onClick={() => setBilling('recharge')}>
+          <Zap /> Recharge
+        </Button>
       ) : null}
 
       <ConfirmDialog
@@ -407,7 +490,7 @@ function Overview({ s }: { s: Subscriber }) {
             ]}
           />
           {s.notes ? (
-            <p className="mt-4 rounded-md bg-muted p-3 text-sm whitespace-pre-wrap">{s.notes}</p>
+            <p className="mt-4 rounded-xl bg-muted p-3 text-sm whitespace-pre-wrap">{s.notes}</p>
           ) : null}
         </CardContent>
       </Card>
@@ -533,7 +616,7 @@ function Usage({ id }: { id: string }) {
         <Stat label="Downloaded" value={fmtBytes(down)} hint={plural(days.length, 'day')} />
         <Stat label="Uploaded" value={fmtBytes(up)} />
         {cycle ? (
-          <div className="col-span-2 rounded-lg border bg-card p-4">
+          <div className="col-span-2 rounded-2xl border bg-card p-4">
             <p className="text-xs font-medium text-muted-foreground">
               This cycle{cycle.start ? ` (since ${fmtDate(cycle.start)})` : ''}
             </p>
