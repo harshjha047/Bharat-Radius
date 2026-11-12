@@ -119,9 +119,10 @@ export function toPdf(r: Report, isp: string): Promise<Buffer> {
 
     for (const t of r.tables) {
       const n = t.columns.length;
-      const first = Math.min(200, Math.max(110, width / (n + 1)));
+      const first = n === 1 ? width : Math.min(200, Math.max(110, width / (n + 1)));
       const rest = (width - first) / Math.max(1, n - 1);
       const widths = t.columns.map((_, i) => (i === 0 ? first : rest));
+      const leftAligned = t.columns.map((c, i) => i === 0 || c.kind === 'text');
       const line = (cells: string[], bold: boolean) => {
         if (doc.y > bottom) doc.addPage();
         let x = left;
@@ -130,7 +131,7 @@ export function toPdf(r: Report, isp: string): Promise<Buffer> {
         let h = 0;
         cells.forEach((c, i) => {
           const w = widths[i]! - 4;
-          doc.text(c, x, y, { width: w, align: i === 0 ? 'left' : 'right' });
+          doc.text(c, x, y, { width: w, align: leftAligned[i] ? 'left' : 'right' });
           h = Math.max(h, doc.heightOfString(c, { width: w }));
           x += widths[i]!;
         });

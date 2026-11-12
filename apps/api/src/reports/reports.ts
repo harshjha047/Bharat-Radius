@@ -23,9 +23,12 @@ import { assertStaff, requireTenant } from '../billing/common.js';
 import { AppError } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import { MONGO, RADIUS_DB } from '../infra/infra.module.js';
+import { FinancialInsightsService, insightsTables, insightsView } from './insights.js';
+import { dayKey, istStart, period, rangeQuery, type Period } from './period.js';
 import { toPdf, toXlsx, type Report, type Table } from './render.js';
 
 export const REPORTS = {
+  financial: 'Financial insights',
   revenue: 'Revenue (invoices)',
   collections: 'Collections',
   subscribers: 'Active and expired subscribers',
@@ -36,10 +39,6 @@ export const REPORTS = {
 type ReportName = keyof typeof REPORTS;
 const NAMES = Object.keys(REPORTS) as [ReportName, ...ReportName[]];
 
-const TZ = 'Asia/Kolkata';
-const MAX_DAYS = 400;
-const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be a date in YYYY-MM-DD form');
-const rangeQuery = z.object({ from: isoDay.optional(), to: isoDay.optional() });
 const downloadQuery = rangeQuery.extend({ format: z.enum(['xlsx', 'pdf']).default('xlsx') });
 const nameParams = z.object({ name: z.enum(NAMES) });
 const monthQuery = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'must be YYYY-MM') });
@@ -79,23 +78,6 @@ const gstrView = z.object({
   }),
 });
 
-const istToday = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
-const istStart = (d: string) => new Date(`${d}T00:00:00+05:30`);
-const dayKey = (field: string) => ({ $dateToString: { format: '%Y-%m-%d', date: field, timezone: TZ } });
-
-/** Default: this month so far (IST). Inclusive days; at most 400. */
-function period(q: z.output<typeof rangeQuery>) {
-  const to = q.to ?? istToday();
-  const from = q.from ?? `${to.slice(0, 8)}01`;
-  const start = istStart(from);
-  const end = new Date(istStart(to).getTime() + 86_400_000);
-  if (end <= start) throw new AppError(400, 'VALIDATION_FAILED', '"from" must be on or before "to"');
-  if ((end.getTime() - start.getTime()) / 86_400_000 > MAX_DAYS) {
-    throw new AppError(400, 'VALIDATION_FAILED', `At most ${MAX_DAYS} days per report`);
-  }
-  return { from, to, start, end };
-}
-
 const sumRow = (rows: Record<string, unknown>[], keys: string[]) =>
   Object.fromEntries(keys.map((k) => [k, rows.reduce((n, r) => n + (Number(r[k]) || 0), 0)]));
 
@@ -104,6 +86,7 @@ export class ReportsService {
   constructor(
     @Inject(MONGO) private readonly mongo: MongoHandle,
     @Inject(RADIUS_DB) private readonly pool: pg.Pool | null,
+    @Inject(FinancialInsightsService) private readonly insights: FinancialInsightsService,
   ) {}
 
   private get db() {
@@ -124,17 +107,19 @@ export class ReportsService {
     requireTenant(ctx);
     const p = period(q);
     const tables =
-      name === 'revenue'
-        ? await this.revenue(ctx, p)
-        : name === 'collections'
-          ? await this.collections(ctx, p)
-          : name === 'subscribers'
-            ? await this.subscribers(ctx, p)
-            : name === 'reseller-sales'
-              ? await this.resellerSales(ctx, p)
-              : name === 'usage'
-                ? await this.usage(ctx, p)
-                : await this.tickets(ctx, p);
+      name === 'financial'
+        ? insightsTables(await this.insights.get(ctx, { from: p.from, to: p.to }))
+        : name === 'revenue'
+          ? await this.revenue(ctx, p)
+          : name === 'collections'
+            ? await this.collections(ctx, p)
+            : name === 'subscribers'
+              ? await this.subscribers(ctx, p)
+              : name === 'reseller-sales'
+                ? await this.resellerSales(ctx, p)
+                : name === 'usage'
+                  ? await this.usage(ctx, p)
+                  : await this.tickets(ctx, p);
     return {
       name,
       title: REPORTS[name],
@@ -145,7 +130,7 @@ export class ReportsService {
     };
   }
 
-  private async revenue(ctx: AuthContext, p: ReturnType<typeof period>): Promise<Table[]> {
+  private async revenue(ctx: AuthContext, p: Period): Promise<Table[]> {
     const sums = {
       n: { $sum: 1 },
       taxable: { $sum: '$taxablePaise' },
@@ -264,7 +249,7 @@ export class ReportsService {
     ];
   }
 
-  private async collections(ctx: AuthContext, p: ReturnType<typeof period>): Promise<Table[]> {
+  private async collections(ctx: AuthContext, p: Period): Promise<Table[]> {
     const rows = await this.scoped(ctx)
       .collection<PaymentDoc>('payments')
       .aggregate<{ _id: { day: string; method: string }; n: number; amount: number }>([
@@ -315,7 +300,7 @@ export class ReportsService {
     ];
   }
 
-  private async subscribers(ctx: AuthContext, p: ReturnType<typeof period>): Promise<Table[]> {
+  private async subscribers(ctx: AuthContext, p: Period): Promise<Table[]> {
     const now = new Date();
     const week = new Date(now.getTime() + 7 * 86_400_000);
     const expired = {
@@ -458,7 +443,7 @@ export class ReportsService {
     ];
   }
 
-  private async resellerSales(ctx: AuthContext, p: ReturnType<typeof period>): Promise<Table[]> {
+  private async resellerSales(ctx: AuthContext, p: Period): Promise<Table[]> {
     const rows = await this.scoped(ctx)
       .collection<RechargeDoc>('recharges')
       .aggregate<{
@@ -520,7 +505,7 @@ export class ReportsService {
     ];
   }
 
-  private async usage(ctx: AuthContext, p: ReturnType<typeof period>): Promise<Table[]> {
+  private async usage(ctx: AuthContext, p: Period): Promise<Table[]> {
     assertStaff(ctx, 'see the usage report');
     if (!this.pool) throw new AppError(503, 'INTERNAL', 'RADIUS database not configured');
     const tenantId = requireTenant(ctx);
@@ -589,7 +574,7 @@ export class ReportsService {
     ];
   }
 
-  private async tickets(ctx: AuthContext, p: ReturnType<typeof period>): Promise<Table[]> {
+  private async tickets(ctx: AuthContext, p: Period): Promise<Table[]> {
     const rows = await this.scoped(ctx)
       .collection<TicketDoc>('tickets')
       .aggregate<{
@@ -704,7 +689,24 @@ export class ReportsService {
 
 @Controller('reports')
 export class ReportsController {
-  constructor(@Inject(ReportsService) private readonly s: ReportsService) {}
+  constructor(
+    @Inject(ReportsService) private readonly s: ReportsService,
+    @Inject(FinancialInsightsService) private readonly fin: FinancialInsightsService,
+  ) {}
+
+  @Get('insights')
+  @Endpoint({
+    summary:
+      'Financial insights for a date range: key figures vs the previous period, alerts, receivables ageing, ' +
+      'reseller margin, plan revenue, anomalies and a 30-day forecast; a reseller sees its branch',
+    tags: ['reports'],
+    permission: 'reports.view',
+    query: rangeQuery,
+    response: insightsView,
+  })
+  insightsSummary(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof rangeQuery>) {
+    return this.fin.get(ctx, q);
+  }
 
   @Get('gstr1')
   @Endpoint({

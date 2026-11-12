@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ExpiringCard, NetworkRow, RenewalsSection, useExpiring } from '@/components/dashboard-widgets';
+import { InsightsCard } from '@/components/financial-insights';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBar } from '@/components/ui/card';
@@ -417,6 +418,7 @@ export default function Dashboard() {
       </div>
 
       {can('sessions.read') && staff ? <NetworkRow /> : null}
+      {can('reports.view') ? <InsightsCard from={istDay(29)} to={istDay()} /> : null}
       {can('reports.view') && staff ? <TrendsRow /> : null}
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 font-mono text-[11px] text-muted-foreground">

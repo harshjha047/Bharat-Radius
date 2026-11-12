@@ -930,6 +930,18 @@ const renewalIndexes: Migration = {
   },
 };
 
+/** Financial insights: new-subscriber counts by join date, and open receivables per reseller branch. */
+const insightIndexes: Migration = {
+  id: '012_insight_indexes',
+  async up(db) {
+    await ensureIndexes(db, 'subscribers', [
+      { key: { tenantId: 1, createdAt: 1 } },
+      { key: { tenantId: 1, ancestors: 1, createdAt: 1 } },
+    ]);
+    await ensureIndexes(db, 'invoices', [{ key: { tenantId: 1, ancestors: 1, status: 1, dueDate: 1 } }]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -942,4 +954,5 @@ export const MIGRATIONS: readonly Migration[] = [
   tickets,
   reportIndexes,
   renewalIndexes,
+  insightIndexes,
 ];

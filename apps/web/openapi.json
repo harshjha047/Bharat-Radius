@@ -12367,6 +12367,382 @@
         }
       }
     },
+    "/api/v1/reports/insights": {
+      "get": {
+        "summary": "Financial insights for a date range: key figures vs the previous period, alerts, receivables ageing, reseller margin, plan revenue, anomalies and a 30-day forecast; a reseller sees its branch",
+        "tags": ["reports"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "reports.view",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "previous": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string"
+                        },
+                        "to": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["from", "to"],
+                      "additionalProperties": false
+                    },
+                    "generatedAt": {
+                      "type": "string"
+                    },
+                    "narrative": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "kpis": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["money", "int", "pct"]
+                          },
+                          "value": {
+                            "type": ["number", "null"]
+                          },
+                          "previous": {
+                            "type": ["number", "null"]
+                          },
+                          "change": {
+                            "type": ["number", "null"]
+                          },
+                          "higherIsBetter": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": ["key", "label", "kind", "value", "previous", "change", "higherIsBetter"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "alerts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": ["critical", "warning", "info", "positive"]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "detail": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["code", "severity", "title", "detail"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "daily": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "day": {
+                            "type": "string"
+                          },
+                          "netPaise": {
+                            "type": "number"
+                          },
+                          "collectedPaise": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["day", "netPaise", "collectedPaise"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "anomalies": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "day": {
+                            "type": "string"
+                          },
+                          "valuePaise": {
+                            "type": "number"
+                          },
+                          "expectedPaise": {
+                            "type": "number"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["spike", "drop"]
+                          }
+                        },
+                        "required": ["day", "valuePaise", "expectedPaise", "kind"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "ageing": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "amountPaise": {
+                            "type": "number"
+                          },
+                          "invoices": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["key", "label", "amountPaise", "invoices"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "defaulters": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "subscriberId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "customerNo": {
+                            "type": ["string", "null"]
+                          },
+                          "invoices": {
+                            "type": "number"
+                          },
+                          "balancePaise": {
+                            "type": "number"
+                          },
+                          "daysOverdue": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "subscriberId",
+                          "name",
+                          "customerNo",
+                          "invoices",
+                          "balancePaise",
+                          "daysOverdue"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "resellers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "reseller": {
+                            "type": "string"
+                          },
+                          "level": {
+                            "type": "string"
+                          },
+                          "recharges": {
+                            "type": "number"
+                          },
+                          "walletPaise": {
+                            "type": "number"
+                          },
+                          "customerPaise": {
+                            "type": "number"
+                          },
+                          "marginPaise": {
+                            "type": "number"
+                          },
+                          "marginPct": {
+                            "type": ["number", "null"]
+                          },
+                          "share": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "reseller",
+                          "level",
+                          "recharges",
+                          "walletPaise",
+                          "customerPaise",
+                          "marginPaise",
+                          "marginPct",
+                          "share"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "plans": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "plan": {
+                            "type": "string"
+                          },
+                          "recharges": {
+                            "type": "number"
+                          },
+                          "revenuePaise": {
+                            "type": "number"
+                          },
+                          "avgPaise": {
+                            "type": "number"
+                          },
+                          "share": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["plan", "recharges", "revenuePaise", "avgPaise", "share"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "forecast": {
+                      "type": "object",
+                      "properties": {
+                        "next30Paise": {
+                          "type": "number"
+                        },
+                        "renewalsDuePaise": {
+                          "type": "number"
+                        },
+                        "renewalsDueCount": {
+                          "type": "number"
+                        },
+                        "postpaidMonthlyPaise": {
+                          "type": "number"
+                        },
+                        "renewalRateUsed": {
+                          "type": "number"
+                        },
+                        "mrrPaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "next30Paise",
+                        "renewalsDuePaise",
+                        "renewalsDueCount",
+                        "postpaidMonthlyPaise",
+                        "renewalRateUsed",
+                        "mrrPaise"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "to",
+                    "previous",
+                    "generatedAt",
+                    "narrative",
+                    "kpis",
+                    "alerts",
+                    "daily",
+                    "anomalies",
+                    "ageing",
+                    "defaulters",
+                    "resellers",
+                    "plans",
+                    "forecast"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reports/gstr1": {
       "get": {
         "summary": "GSTR-1 summary for a month (row counts per sheet, totals); ISP staff only",
@@ -12567,7 +12943,15 @@
             "required": true,
             "schema": {
               "type": "string",
-              "enum": ["revenue", "collections", "subscribers", "reseller-sales", "usage", "tickets"]
+              "enum": [
+                "financial",
+                "revenue",
+                "collections",
+                "subscribers",
+                "reseller-sales",
+                "usage",
+                "tickets"
+              ]
             }
           },
           {
@@ -12724,7 +13108,15 @@
             "required": true,
             "schema": {
               "type": "string",
-              "enum": ["revenue", "collections", "subscribers", "reseller-sales", "usage", "tickets"]
+              "enum": [
+                "financial",
+                "revenue",
+                "collections",
+                "subscribers",
+                "reseller-sales",
+                "usage",
+                "tickets"
+              ]
             }
           },
           {
