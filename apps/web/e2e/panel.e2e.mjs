@@ -260,8 +260,13 @@ step('Support sees only what the role allows', async () => {
   await page.getByRole('link', { name: 'Ramesh Kumar E2E' }).click();
   await page.getByRole('tab', { name: 'Billing' }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Recharge' }).count(), 0, 'Support must not recharge');
+  // Suspend / Activate sit in the header as buttons; the rest live under "More actions".
+  await page
+    .getByRole('button', { name: /^(Suspend|Activate)$/ })
+    .first()
+    .waitFor();
   await page.getByRole('button', { name: 'More actions' }).click();
-  await page.getByRole('menuitem', { name: 'Suspend' }).waitFor();
+  await page.getByRole('menuitem', { name: 'Reset portal password' }).waitFor();
   assert.equal(await page.getByRole('menuitem', { name: 'Delete' }).count(), 0, 'Support must not delete');
   await page.keyboard.press('Escape');
 });
