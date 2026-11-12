@@ -213,6 +213,25 @@ describe('accounts team worked example (exact numbers)', () => {
       balanceBeforePaise: 45_000 * RS,
       balanceAfterPaise: 65_000 * RS,
     });
+    const items = ledger.body.items as { direction: string }[];
+    const credits = await l2User.req(
+      'GET',
+      `/api/v1/wallets/${l2w._id.toHexString()}/ledger?limit=200&direction=credit`,
+    );
+    expect(credits.body.items).toHaveLength(items.filter((t) => t.direction === 'credit').length);
+    expect(credits.body.items.every((t: { direction: string }) => t.direction === 'credit')).toBe(true);
+
+    const report = await l2User.req('GET', `/api/v1/wallets/${l2w._id.toHexString()}/report`);
+    expect(report.status).toBe(200);
+    const rows = report.body.rows as { count: number; countByType: Record<string, number> }[];
+    expect(rows.reduce((a, r) => a + r.count, 0)).toBe(52);
+    for (const r of rows) expect(Object.values(r.countByType).reduce((a, b) => a + b, 0)).toBe(r.count);
+    const credit = rows.reduce(
+      (a, r) =>
+        a + Object.entries(r.countByType).reduce((s, [k, v]) => s + (k.endsWith('_credit') ? v : 0), 0),
+      0,
+    );
+    expect(credit).toBe(items.filter((t) => t.direction === 'credit').length);
   });
 
   it('every balance equals the sum of its ledger', async () => {

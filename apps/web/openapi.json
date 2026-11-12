@@ -9866,6 +9866,15 @@
             }
           },
           {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["credit", "debit"]
+            }
+          },
+          {
             "name": "from",
             "in": "query",
             "required": false,
@@ -10060,11 +10069,20 @@
                               "type": "number"
                             }
                           },
+                          "countByType": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "number"
+                            }
+                          },
                           "count": {
                             "type": "number"
                           }
                         },
-                        "required": ["day", "creditsPaise", "debitsPaise", "byType", "count"],
+                        "required": ["day", "creditsPaise", "debitsPaise", "byType", "countByType", "count"],
                         "additionalProperties": false
                       }
                     }
@@ -13052,6 +13070,114 @@
         }
       }
     },
+    "/api/v1/sessions/activity": {
+      "get": {
+        "summary": "Online users over the last 24 h vs last week, and logins vs rejects per hour",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "points": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "at": {
+                            "type": "string"
+                          },
+                          "online": {
+                            "type": "number"
+                          },
+                          "lastWeek": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["at", "online", "lastWeek"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hours": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "hour": {
+                            "type": "string"
+                          },
+                          "accepted": {
+                            "type": "number"
+                          },
+                          "rejected": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["hour", "accepted", "rejected"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["points", "hours"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sessions/lookup": {
       "get": {
         "summary": "Who used an IP address at a given time",
@@ -14262,6 +14388,249 @@
                     "createdAt",
                     "updatedAt"
                   ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/expiring": {
+      "get": {
+        "summary": "Active prepaid subscribers whose validity ends within N days (default 7), soonest first",
+        "tags": ["subscribers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "subscribers.read",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "number"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "customerNo": {
+                            "type": "string"
+                          },
+                          "username": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "phone": {
+                            "type": "string"
+                          },
+                          "altPhone": {
+                            "type": ["string", "null"]
+                          },
+                          "email": {
+                            "type": ["string", "null"]
+                          },
+                          "address": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "gstin": {
+                            "type": ["string", "null"]
+                          },
+                          "billingType": {
+                            "type": "string",
+                            "enum": ["prepaid", "postpaid"]
+                          },
+                          "planId": {
+                            "type": ["string", "null"]
+                          },
+                          "expiresAt": {
+                            "type": ["string", "null"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["active", "suspended", "disabled"]
+                          },
+                          "suspendReason": {
+                            "type": ["string", "null"]
+                          },
+                          "radiusState": {
+                            "type": "string",
+                            "enum": ["blocked", "expired", "fup", "active"]
+                          },
+                          "network": {
+                            "type": "object",
+                            "properties": {
+                              "staticIp": {
+                                "type": ["string", "null"]
+                              },
+                              "macLock": {
+                                "type": ["string", "null"]
+                              },
+                              "simUse": {
+                                "type": ["number", "null"]
+                              },
+                              "popName": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": ["staticIp", "macLock", "simUse", "popName"],
+                            "additionalProperties": false
+                          },
+                          "fupActive": {
+                            "type": "boolean"
+                          },
+                          "kycStatus": {
+                            "type": "string"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "notes": {
+                            "type": ["string", "null"]
+                          },
+                          "syncStatus": {
+                            "type": "string",
+                            "enum": ["synced", "pending", "error"]
+                          },
+                          "reseller": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "code", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          },
+                          "pppoePassword": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "customerNo",
+                          "username",
+                          "name",
+                          "phone",
+                          "altPhone",
+                          "email",
+                          "address",
+                          "gstin",
+                          "billingType",
+                          "planId",
+                          "expiresAt",
+                          "status",
+                          "suspendReason",
+                          "radiusState",
+                          "network",
+                          "fupActive",
+                          "kycStatus",
+                          "tags",
+                          "notes",
+                          "syncStatus",
+                          "reseller",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["total", "items"],
                   "additionalProperties": false
                 }
               }

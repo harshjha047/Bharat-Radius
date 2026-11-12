@@ -4300,6 +4300,7 @@ export interface paths {
           cursor?: string;
           limit?: number;
           type?: 'TOPUP' | 'ALLOCATE' | 'RECHARGE' | 'REFUND' | 'ADJUSTMENT';
+          direction?: 'credit' | 'debit';
           from?: string;
           to?: string;
         };
@@ -4396,6 +4397,9 @@ export interface paths {
                 creditsPaise: number;
                 debitsPaise: number;
                 byType: {
+                  [key: string]: number;
+                };
+                countByType: {
                   [key: string]: number;
                 };
                 count: number;
@@ -5702,6 +5706,71 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/sessions/activity': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Online users over the last 24 h vs last week, and logins vs rejects per hour */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              points: {
+                at: string;
+                online: number;
+                lastWeek: number;
+              }[];
+              hours: {
+                hour: string;
+                accepted: number;
+                rejected: number;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/sessions/lookup': {
     parameters: {
       query?: never;
@@ -6206,6 +6275,105 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/expiring': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Active prepaid subscribers whose validity ends within N days (default 7), soonest first */
+    get: {
+      parameters: {
+        query?: {
+          days?: number;
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              total: number;
+              items: {
+                id: string;
+                customerNo: string;
+                username: string;
+                name: string;
+                phone: string;
+                altPhone: string | null;
+                email: string | null;
+                address: {
+                  [key: string]: unknown;
+                };
+                gstin: string | null;
+                /** @enum {string} */
+                billingType: 'prepaid' | 'postpaid';
+                planId: string | null;
+                expiresAt: string | null;
+                /** @enum {string} */
+                status: 'active' | 'suspended' | 'disabled';
+                suspendReason: string | null;
+                /** @enum {string} */
+                radiusState: 'blocked' | 'expired' | 'fup' | 'active';
+                network: {
+                  staticIp: string | null;
+                  macLock: string | null;
+                  simUse: number | null;
+                  popName: string | null;
+                };
+                fupActive: boolean;
+                kycStatus: string;
+                tags: string[];
+                notes: string | null;
+                /** @enum {string} */
+                syncStatus: 'synced' | 'pending' | 'error';
+                reseller: {
+                  id: string;
+                  code: string;
+                  name: string;
+                } | null;
+                createdAt: string;
+                updatedAt: string;
+                pppoePassword?: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;

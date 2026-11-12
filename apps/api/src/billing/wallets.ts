@@ -97,6 +97,7 @@ const listQuery = pageQuery.extend({
 });
 const ledgerQuery = pageQuery.extend({
   type: z.enum(['TOPUP', 'ALLOCATE', 'RECHARGE', 'REFUND', 'ADJUSTMENT']).optional(),
+  direction: z.enum(['credit', 'debit']).optional(),
   from: isoDay.optional(),
   to: isoDay.optional(),
 });
@@ -108,7 +109,10 @@ const reportView = z.object({
       day: z.string(),
       creditsPaise: z.number(),
       debitsPaise: z.number(),
+      /** Paise per "<TYPE>_<direction>", e.g. RECHARGE_debit. */
       byType: z.record(z.string(), z.number()),
+      /** Entries per "<TYPE>_<direction>". */
+      countByType: z.record(z.string(), z.number()),
       count: z.number(),
     }),
   ),
@@ -315,6 +319,7 @@ export class WalletsService {
     if (!own && ctx.scope.kind === 'branch') throw forbidden('You can see only your own ledger');
     const f: Filter<WalletTxnDoc> = { walletId: w._id, tenantId: w.tenantId };
     if (q.type) f.type = q.type;
+    if (q.direction) f.direction = q.direction;
     const range = istDayRange(q.from, q.to);
     if (range) f.createdAt = range;
     if (q.cursor) f._id = { $lt: new ObjectId(q.cursor) };
@@ -366,12 +371,14 @@ export class WalletsService {
         creditsPaise: 0,
         debitsPaise: 0,
         byType: {},
+        countByType: {},
         count: 0,
       };
       if (r._id.dir === 'credit') d.creditsPaise += r.sum;
       else d.debitsPaise += r.sum;
       const key = `${r._id.type}_${r._id.dir}`;
       d.byType[key] = (d.byType[key] ?? 0) + r.sum;
+      d.countByType[key] = (d.countByType[key] ?? 0) + r.n;
       d.count += r.n;
       byDay.set(r._id.day, d);
     }

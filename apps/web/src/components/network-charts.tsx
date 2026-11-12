@@ -1,0 +1,231 @@
+'use client';
+import {
+  Area,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { fmtNum } from '@/lib/utils';
+
+const istTime = new Intl.DateTimeFormat('en-IN', {
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+  timeZone: 'Asia/Kolkata',
+});
+const istHour = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', hour12: true, timeZone: 'Asia/Kolkata' });
+const hourLabel = (iso: string) => istHour.format(new Date(iso)).toLowerCase();
+const compact = (n: number) => (n >= 1000 ? `${+(n / 1000).toFixed(1)}k` : String(n));
+
+const tooltip = {
+  contentStyle: { background: 'var(--foreground)', border: 0, borderRadius: 10, fontSize: 12, color: '#fff' },
+  labelStyle: { color: '#cfc7d3', fontFamily: 'var(--font-mono)', fontSize: 11 },
+  itemStyle: { color: '#fff' },
+} as const;
+const axis = {
+  tick: { fontSize: 11, fill: 'var(--muted-foreground)' },
+  tickLine: false,
+  axisLine: false,
+} as const;
+
+export interface OnlinePoint {
+  at: string;
+  online: number;
+  lastWeek: number;
+}
+
+/** Online users through the day (solid) against the same hours last week (dashed). */
+export function OnlineChart({ points }: { points: OnlinePoint[] }) {
+  return (
+    <div
+      className="h-[220px] w-full"
+      role="img"
+      aria-label="Online users over the last 24 hours, with last week"
+    >
+      <ResponsiveContainer>
+        <ComposedChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid vertical={false} stroke="var(--divider)" />
+          <XAxis dataKey="at" tickFormatter={hourLabel} minTickGap={36} {...axis} />
+          <YAxis tickFormatter={compact} width={36} allowDecimals={false} {...axis} />
+          <Tooltip
+            {...tooltip}
+            cursor={{ stroke: 'var(--muted-foreground)', strokeDasharray: '3 3' }}
+            labelFormatter={(v) => `${istTime.format(new Date(String(v))).toLowerCase()} IST`}
+            formatter={(v, name) => [fmtNum(Number(v)), name === 'online' ? 'Today' : 'Last week']}
+          />
+          <Area
+            type="monotone"
+            dataKey="online"
+            stroke="none"
+            fill="var(--chart-1)"
+            fillOpacity={0.08}
+            isAnimationActive={false}
+            tooltipType="none"
+          />
+          <Line
+            type="monotone"
+            dataKey="lastWeek"
+            stroke="var(--chart-2)"
+            strokeWidth={2}
+            strokeDasharray="5 4"
+            dot={false}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="online"
+            stroke="var(--chart-1)"
+            strokeWidth={2.2}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export interface AuthHour {
+  hour: string;
+  accepted: number;
+  rejected: number;
+}
+
+/** Accepted logins (solid) with rejects stacked on top (hatched, so it reads without colour). */
+export function LoginsChart({ hours }: { hours: AuthHour[] }) {
+  return (
+    <div
+      className="h-[220px] w-full"
+      role="img"
+      aria-label="RADIUS logins and rejects per hour, last 24 hours"
+    >
+      <ResponsiveContainer>
+        <BarChart data={hours} margin={{ top: 8, right: 0, left: 0, bottom: 0 }} barCategoryGap={2}>
+          <defs>
+            <pattern
+              id="reject-hatch"
+              width="4"
+              height="4"
+              patternUnits="userSpaceOnUse"
+              patternTransform="rotate(45)"
+            >
+              <rect width="4" height="4" fill="#F6C894" />
+              <rect width="2" height="4" fill="var(--chart-2)" />
+            </pattern>
+          </defs>
+          <CartesianGrid vertical={false} stroke="var(--divider)" />
+          <XAxis dataKey="hour" tickFormatter={hourLabel} minTickGap={28} {...axis} />
+          <YAxis tickFormatter={compact} width={32} allowDecimals={false} {...axis} />
+          <Tooltip
+            {...tooltip}
+            cursor={{ fill: 'var(--divider)' }}
+            labelFormatter={(v) => `${hourLabel(String(v))} IST`}
+            formatter={(v, name) => [fmtNum(Number(v)), name === 'accepted' ? 'Logins' : 'Rejects']}
+          />
+          <Bar dataKey="accepted" stackId="a" fill="var(--chart-1)" isAnimationActive={false} />
+          <Bar dataKey="rejected" stackId="a" fill="url(#reject-hatch)" isAnimationActive={false} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export interface BalancePoint {
+  day: string;
+  balancePaise: number;
+}
+
+/** End-of-day wallet balance with the low-balance line. */
+export function BalanceChart({ days, lowPaise }: { days: BalancePoint[]; lowPaise: number }) {
+  const rupees = (p: number) => `₹${fmtNum(Math.round(p / 100))}`;
+  return (
+    <div
+      className="h-[150px] w-full"
+      role="img"
+      aria-label="Wallet balance at the end of each day, last 30 days"
+    >
+      <ResponsiveContainer>
+        <ComposedChart data={days} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+          <CartesianGrid vertical={false} stroke="var(--divider)" />
+          <XAxis
+            dataKey="day"
+            tickFormatter={(d: string) =>
+              new Date(`${d}T00:00:00+05:30`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+            }
+            minTickGap={36}
+            {...axis}
+          />
+          <YAxis hide domain={[0, (max: number) => Math.max(max, lowPaise) * 1.1]} />
+          <Tooltip
+            {...tooltip}
+            labelFormatter={(d) =>
+              new Date(`${String(d)}T00:00:00+05:30`).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })
+            }
+            formatter={(v) => [rupees(Number(v)), 'Balance']}
+          />
+          <Area
+            type="stepAfter"
+            dataKey="balancePaise"
+            stroke="var(--chart-1)"
+            strokeWidth={2.2}
+            fill="var(--chart-1)"
+            fillOpacity={0.1}
+            isAnimationActive={false}
+          />
+          <Line
+            dataKey={() => lowPaise}
+            stroke="var(--chart-2)"
+            strokeDasharray="6 4"
+            dot={false}
+            activeDot={false}
+            isAnimationActive={false}
+            tooltipType="none"
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export interface DayCount {
+  day: string;
+  count: number;
+}
+
+/** Recharges per day (count). */
+export function RechargesChart({ days }: { days: DayCount[] }) {
+  return (
+    <div className="h-[180px] w-full" role="img" aria-label="Recharges per day, last 30 days">
+      <ResponsiveContainer>
+        <BarChart data={days} margin={{ top: 8, right: 0, left: 0, bottom: 0 }} barCategoryGap={3}>
+          <CartesianGrid vertical={false} stroke="var(--divider)" />
+          <XAxis
+            dataKey="day"
+            tickFormatter={(d: string) =>
+              new Date(`${d}T00:00:00+05:30`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+            }
+            minTickGap={36}
+            {...axis}
+          />
+          <YAxis width={28} allowDecimals={false} {...axis} />
+          <Tooltip
+            {...tooltip}
+            cursor={{ fill: 'var(--divider)' }}
+            formatter={(v) => [fmtNum(Number(v)), 'Recharges']}
+          />
+          <Bar dataKey="count" fill="var(--chart-1)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
