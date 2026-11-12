@@ -120,7 +120,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
               Help: <a href={`tel:${me.data.isp.phone}`}>{me.data.isp.phone}</a>
             </span>
           ) : null}
-          <PoweredBy className="sm:ml-auto" />
+          <PoweredBy medium="portal" className="sm:ml-auto" />
         </footer>
       </main>
       <nav

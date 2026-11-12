@@ -131,11 +131,54 @@ const listQuery = pageQuery.extend({
   resellerId: z.union([hexId, z.literal('none')]).optional(),
   /** Customers anywhere in this reseller's branch. */
   under: hexId.optional(),
+  /** Validity window (IST days): ends later today, tomorrow, within 7 days, or ended this month and not renewed. */
+  expiry: z.enum(['today', 'tomorrow', '7d', 'expired-month']).optional(),
 });
+
+const summaryView = z.object({
+  asOf: z.string(),
+  total: z.number(),
+  /** Active and still valid (or with no validity date). */
+  active: z.number(),
+  suspended: z.number(),
+  disabled: z.number(),
+  /** Active, but validity has run out. */
+  expired: z.number(),
+  /** Expired since the start of this IST month and not renewed yet. */
+  expiredThisMonth: z.number(),
+  expiringToday: z.number(),
+  expiringTomorrow: z.number(),
+  expiring7d: z.number(),
+  /** What renewing each group on its current plan would bring in (plan prices, GST as priced). */
+  renewPaise: z.object({
+    today: z.number(),
+    tomorrow: z.number(),
+    next7d: z.number(),
+    expiredThisMonth: z.number(),
+  }),
+});
+type SubscriberSummary = z.output<typeof summaryView>;
+
+const DAY_MS = 86_400_000;
+const IST_MS = 330 * 60_000;
+/** IST midnights around now, as UTC instants: start of today, tomorrow, the day after, and of this month. */
+function istBounds(now: Date) {
+  const ist = new Date(now.getTime() + IST_MS);
+  const today = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()) - IST_MS;
+  const month = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - IST_MS;
+  return {
+    tomorrow: new Date(today + DAY_MS),
+    dayAfter: new Date(today + 2 * DAY_MS),
+    monthStart: new Date(month),
+  };
+}
+const SUMMARY_TTL_MS = 60_000;
 
 const expiringQuery = z.object({
   /** Prepaid customers whose validity ends within this many days from now. */
   days: z.coerce.number().int().min(1).max(60).default(7),
+  /** IST-day window instead of `days`: later today, tomorrow, or the next 7 days. */
+  window: z.enum(['today', 'tomorrow', '7d']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(10),
 });
 
@@ -327,8 +370,23 @@ export class SubscribersService {
   async list(ctx: AuthContext, q: z.output<typeof listQuery>) {
     const now = new Date();
     const f: Filter<SubscriberDoc> = { status: { $ne: 'deleted' } };
+    // Active and Expired don't overlap: an active customer whose validity has run out is Expired.
     if (q.status === 'expired') Object.assign(f, { status: 'active', expiresAt: { $lte: now } });
+    else if (q.status === 'active')
+      Object.assign(f, { status: 'active', $or: [{ expiresAt: { $gt: now } }, { expiresAt: null }] });
     else if (q.status) f.status = q.status;
+    if (q.expiry) {
+      const b = istBounds(now);
+      f.status = 'active';
+      f.expiresAt =
+        q.expiry === 'today'
+          ? { $gt: now, $lt: b.tomorrow }
+          : q.expiry === 'tomorrow'
+            ? { $gte: b.tomorrow, $lt: b.dayAfter }
+            : q.expiry === '7d'
+              ? { $gt: now, $lte: new Date(now.getTime() + 7 * DAY_MS) }
+              : { $gte: b.monthStart, $lte: now };
+    }
     if (q.planId) f.planId = new ObjectId(q.planId);
     if (q.resellerId === 'none') f.resellerId = null;
     else if (q.resellerId) f.resellerId = new ObjectId(q.resellerId);
@@ -345,6 +403,110 @@ export class SubscribersService {
     return pageOf(docs, q.limit, (d) => toView(d, refs));
   }
 
+  private readonly summaryCache = new Map<string, { at: number; v: SubscriberSummary }>();
+
+  /**
+   * Status and renewal counts for the dashboard: one grouped aggregate (per plan, so renewal value
+   * comes from plan prices), scoped like the list, cached per scope for a minute.
+   */
+  async summary(ctx: AuthContext): Promise<SubscriberSummary> {
+    const s = ctx.scope;
+    const key =
+      s.kind === 'branch'
+        ? `b:${s.tenantId.toHexString()}:${s.resellerId.toHexString()}`
+        : s.kind === 'tenant'
+          ? `t:${s.tenantId.toHexString()}`
+          : 'all';
+    const hit = this.summaryCache.get(key);
+    if (hit && Date.now() - hit.at < SUMMARY_TTL_MS) return hit.v;
+
+    const now = new Date();
+    const b = istBounds(now);
+    const in7 = new Date(now.getTime() + 7 * DAY_MS);
+    const isActive = { $eq: ['$status', 'active'] };
+    const hasExpiry = { $eq: [{ $type: '$expiresAt' }, 'date'] };
+    const when = (...conds: unknown[]) => ({ $sum: { $cond: [{ $and: conds }, 1, 0] } });
+    const rows = await this.col(ctx)
+      .aggregate<{
+        _id: ObjectId | null;
+        total: number;
+        activeAll: number;
+        suspended: number;
+        disabled: number;
+        expired: number;
+        expMonth: number;
+        today: number;
+        tomorrow: number;
+        d7: number;
+      }>([
+        { $match: { status: { $ne: 'deleted' } } },
+        {
+          $group: {
+            _id: '$planId',
+            total: { $sum: 1 },
+            activeAll: when(isActive),
+            suspended: when({ $eq: ['$status', 'suspended'] }),
+            disabled: when({ $eq: ['$status', 'disabled'] }),
+            expired: when(isActive, hasExpiry, { $lte: ['$expiresAt', now] }),
+            expMonth: when(
+              isActive,
+              hasExpiry,
+              { $gte: ['$expiresAt', b.monthStart] },
+              { $lte: ['$expiresAt', now] },
+            ),
+            today: when(
+              isActive,
+              hasExpiry,
+              { $gt: ['$expiresAt', now] },
+              { $lt: ['$expiresAt', b.tomorrow] },
+            ),
+            tomorrow: when(
+              isActive,
+              hasExpiry,
+              { $gte: ['$expiresAt', b.tomorrow] },
+              { $lt: ['$expiresAt', b.dayAfter] },
+            ),
+            d7: when(isActive, hasExpiry, { $gt: ['$expiresAt', now] }, { $lte: ['$expiresAt', in7] }),
+          },
+        },
+      ])
+      .toArray();
+
+    const planIds = rows.map((r) => r._id).filter((id): id is ObjectId => id instanceof ObjectId);
+    const prices = new Map(
+      (
+        await this.mongo.db
+          .collection<PlanDoc>('plans')
+          .find({ _id: { $in: planIds } }, { projection: { pricePaise: 1 } })
+          .toArray()
+      ).map((p) => [p._id.toHexString(), p.pricePaise]),
+    );
+    const sum = (k: keyof (typeof rows)[number]) => rows.reduce((n, r) => n + (r[k] as number), 0);
+    const value = (k: 'today' | 'tomorrow' | 'd7' | 'expMonth') =>
+      rows.reduce((n, r) => n + r[k] * (r._id ? (prices.get(r._id.toHexString()) ?? 0) : 0), 0);
+    const v: SubscriberSummary = {
+      asOf: now.toISOString(),
+      total: sum('total'),
+      active: sum('activeAll') - sum('expired'),
+      suspended: sum('suspended'),
+      disabled: sum('disabled'),
+      expired: sum('expired'),
+      expiredThisMonth: sum('expMonth'),
+      expiringToday: sum('today'),
+      expiringTomorrow: sum('tomorrow'),
+      expiring7d: sum('d7'),
+      renewPaise: {
+        today: value('today'),
+        tomorrow: value('tomorrow'),
+        next7d: value('d7'),
+        expiredThisMonth: value('expMonth'),
+      },
+    };
+    if (this.summaryCache.size > 1000) this.summaryCache.clear();
+    this.summaryCache.set(key, { at: Date.now(), v });
+    return v;
+  }
+
   /** Active prepaid customers whose validity runs out soon, soonest first, with the total. */
   async expiring(ctx: AuthContext, q: z.output<typeof expiringQuery>) {
     const now = new Date();
@@ -353,6 +515,15 @@ export class SubscribersService {
       billingType: 'prepaid',
       expiresAt: { $gt: now, $lte: new Date(now.getTime() + q.days * 86_400_000) },
     };
+    if (q.window) {
+      const b = istBounds(now);
+      f.expiresAt =
+        q.window === 'today'
+          ? { $gt: now, $lt: b.tomorrow }
+          : q.window === 'tomorrow'
+            ? { $gte: b.tomorrow, $lt: b.dayAfter }
+            : { $gt: now, $lte: new Date(now.getTime() + 7 * DAY_MS) };
+    }
     const [docs, total] = await Promise.all([
       this.col(ctx)
         .find(f, { sort: { expiresAt: 1, _id: 1 }, limit: q.limit })
@@ -547,6 +718,17 @@ export class SubscribersController {
   })
   list(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof listQuery>) {
     return this.subs.list(ctx, q);
+  }
+
+  @Get('summary')
+  @Endpoint({
+    summary: 'Status and renewal counts (IST days) with what renewing each group is worth; cached ~60 s',
+    tags: ['subscribers'],
+    permission: 'subscribers.read',
+    response: summaryView,
+  })
+  summary(@Ctx() ctx: AuthContext) {
+    return this.subs.summary(ctx);
   }
 
   @Get('expiring')

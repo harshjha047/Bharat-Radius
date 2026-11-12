@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Phone, Zap } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardBar } from '@/components/ui/card';
+import { SegmentedList, SegmentedTrigger, Tabs } from '@/components/ui/tabs';
 import { ErrorState } from '@/components/ui/misc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, unwrap, type ApiData } from '@/lib/api';
@@ -117,12 +119,146 @@ function whenLabel(iso: string) {
   };
 }
 
-export function useExpiring(days: number, limit: number) {
+export type ExpiryWindow = 'today' | 'tomorrow' | '7d';
+
+export function useExpiring(days: number, limit: number, window?: ExpiryWindow) {
   return useQuery({
-    queryKey: ['subscribers', 'expiring', days, limit],
-    queryFn: () => unwrap(api.GET('/api/v1/subscribers/expiring', { params: { query: { days, limit } } })),
+    queryKey: ['subscribers', 'expiring', days, limit, window ?? null],
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/v1/subscribers/expiring', {
+          params: { query: { days, limit, ...(window ? { window } : {}) } },
+        }),
+      ),
     staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
+}
+
+export function useSubscriberSummary() {
+  return useQuery({
+    queryKey: ['subscribers', 'summary'],
+    queryFn: () => unwrap(api.GET('/api/v1/subscribers/summary')),
+    refetchInterval: 60_000,
+  });
+}
+
+const TONE = {
+  danger: {
+    border: 'border-danger-border',
+    label: 'text-danger-text',
+    dot: 'bg-danger-text',
+    note: 'text-danger-text',
+  },
+  warning: {
+    border: 'border-[#f5d9a8]',
+    label: 'text-warning-text',
+    dot: 'bg-warning',
+    note: 'text-warning-text',
+  },
+  plain: { border: 'border-border', label: 'text-body', dot: 'bg-primary', note: 'text-muted-foreground' },
+} as const;
+
+/** Phase 1 renewals: what expires today, tomorrow and this week, and what lapsed this month. */
+export function RenewalsSection() {
+  const q = useSubscriberSummary();
+  const d = q.data;
+  const tiles = d
+    ? ([
+        ['today', 'Expiring today', d.expiringToday, d.renewPaise.today, 'danger'],
+        ['tomorrow', 'Tomorrow', d.expiringTomorrow, d.renewPaise.tomorrow, 'warning'],
+        ['7d', 'Next 7 days', d.expiring7d, d.renewPaise.next7d, 'plain'],
+        ['expired-month', 'Expired this month', d.expiredThisMonth, d.renewPaise.expiredThisMonth, 'danger'],
+      ] as const)
+    : [];
+  const status = d
+    ? ([
+        ['active', 'Active', d.active, 'bg-chart-1'],
+        ['expired', 'Expired', d.expired, 'bg-danger-text'],
+        ['suspended', 'Suspended', d.suspended, 'bg-chart-2'],
+        ['disabled', 'Disabled', d.disabled, 'bg-muted-foreground'],
+      ] as const)
+    : [];
+
+  return (
+    <section aria-labelledby="renewals-h" className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 id="renewals-h" className="mr-auto text-lg font-extrabold tracking-[-0.02em]">
+          Renewals
+        </h2>
+        <span className="text-[13px] text-muted-foreground">Each count opens the subscriber list</span>
+      </div>
+      {q.isError ? (
+        <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {q.isLoading
+              ? [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[112px] rounded-2xl" />)
+              : tiles.map(([key, label, n, paise, tone]) => {
+                  const t = TONE[n === 0 ? 'plain' : tone];
+                  return (
+                    <Link
+                      key={key}
+                      href={`/admin/subscribers?expiry=${key}`}
+                      className={cn(
+                        'flex flex-col gap-1.5 rounded-2xl border bg-card px-[18px] py-4 text-inherit hover:border-input hover:text-inherit',
+                        t.border,
+                      )}
+                    >
+                      <span className={cn('flex items-center gap-2 text-[13px] font-bold', t.label)}>
+                        <span className={cn('size-2 rounded-full', t.dot)} aria-hidden />
+                        {label}
+                      </span>
+                      <span className="text-[28px] leading-none font-extrabold tracking-[-0.03em] text-foreground tabular-nums">
+                        {fmtNum(n)}
+                      </span>
+                      <span className="flex justify-between gap-2 text-xs font-semibold">
+                        <span className={t.note}>{n ? `${fmtRupees0(paise)} to renew` : 'None'}</span>
+                        <span className="text-primary max-sm:hidden">View →</span>
+                      </span>
+                    </Link>
+                  );
+                })}
+          </div>
+          {d && d.total > 0 ? (
+            <Card className="flex flex-col gap-3 px-[18px] py-4">
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <span className="text-[15px] font-bold text-foreground">All subscribers</span>
+                <span className="text-[22px] font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
+                  {fmtNum(d.total)}
+                </span>
+                <span className="ml-auto text-[13px] text-muted-foreground">
+                  {((d.active / d.total) * 100).toFixed(1)}% active
+                </span>
+              </div>
+              <div
+                role="img"
+                aria-label={status.map(([, l, n]) => `${l} ${fmtNum(n)}`).join(', ')}
+                className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-muted"
+              >
+                {status.map(([k, , n, c]) =>
+                  n ? <span key={k} className={c} style={{ flex: `${n} 1 0` }} /> : null,
+                )}
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {status.map(([k, l, n, c]) => (
+                  <Link
+                    key={k}
+                    href={`/admin/subscribers?status=${k}`}
+                    className="flex items-center gap-2 text-[13px] text-body hover:text-foreground"
+                  >
+                    <span className={cn('size-2.5 rounded-[3px]', c)} aria-hidden />
+                    {l} <strong className="text-foreground tabular-nums">{fmtNum(n)}</strong>
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          ) : null}
+        </>
+      )}
+    </section>
+  );
 }
 
 function RechargeLink({ s, price, compact }: { s: ExpiringSub; price: number | null; compact?: boolean }) {
@@ -136,30 +272,68 @@ function RechargeLink({ s, price, compact }: { s: ExpiringSub; price: number | n
   );
 }
 
-/** Prepaid customers whose validity runs out in the next 7 days, soonest first. */
+/** Prepaid customers whose validity runs out soon, soonest first; `tabs` adds Today / Tomorrow / 7 days. */
 export function ExpiringCard({
   limit = 6,
   className,
   compact,
+  tabs,
 }: {
   limit?: number;
   className?: string;
   /** Narrow card: a one-line list instead of the table. */
   compact?: boolean;
+  tabs?: boolean;
 }) {
-  const q = useExpiring(7, limit);
+  const summary = useSubscriberSummary();
+  const [picked, setPicked] = useState<ExpiryWindow | null>(null);
+  const counts = summary.data
+    ? {
+        today: summary.data.expiringToday,
+        tomorrow: summary.data.expiringTomorrow,
+        '7d': summary.data.expiring7d,
+      }
+    : null;
+  // Open on Today, unless nobody expires today.
+  const win: ExpiryWindow | undefined = tabs ? (picked ?? (counts?.today === 0 ? '7d' : 'today')) : undefined;
+  const q = useExpiring(7, limit, win);
   const { byId } = usePlans();
   const items = q.data?.items ?? [];
+  const empty = {
+    today: 'Nobody expires later today.',
+    tomorrow: 'Nobody expires tomorrow.',
+    '7d': 'No prepaid customer expires in the next 7 days.',
+  };
   return (
     <Card className={cn('min-w-0 flex-[3_1_480px] overflow-hidden', className)}>
-      <CardBar>
-        <h2 className="mr-auto text-base font-bold">Expiring soon</h2>
-        {q.data ? (
+      <CardBar className="flex-wrap">
+        <h2 className="mr-auto text-base font-bold">{tabs ? 'Expiring this week' : 'Expiring soon'}</h2>
+        {tabs ? (
+          <Tabs value={win} onValueChange={(v) => setPicked(v as ExpiryWindow)}>
+            <SegmentedList aria-label="When">
+              {(
+                [
+                  ['today', 'Today'],
+                  ['tomorrow', 'Tomorrow'],
+                  ['7d', '7 days'],
+                ] as const
+              ).map(([v, l]) => (
+                <SegmentedTrigger key={v} value={v}>
+                  {l}
+                  {counts ? <span className="ml-1 tabular-nums opacity-70">{fmtNum(counts[v])}</span> : null}
+                </SegmentedTrigger>
+              ))}
+            </SegmentedList>
+          </Tabs>
+        ) : q.data ? (
           <span className="text-[13px] text-muted-foreground">{fmtNum(q.data.total)} in the next 7 days</span>
         ) : null}
         {q.data && q.data.total > items.length ? (
-          <Link href="/admin/subscribers/expiring" className="text-[13px] font-bold">
-            View all
+          <Link
+            href={tabs ? `/admin/subscribers?expiry=${win}` : '/admin/subscribers/expiring'}
+            className="text-[13px] font-bold"
+          >
+            View all {fmtNum(q.data.total)}
           </Link>
         ) : null}
       </CardBar>
@@ -180,9 +354,7 @@ export function ExpiringCard({
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-          No prepaid customer expires in the next 7 days.
-        </p>
+        <p className="px-5 py-10 text-center text-sm text-muted-foreground">{empty[win ?? '7d']}</p>
       ) : (
         <ExpiringRows items={items} byId={byId} compact={compact} />
       )}

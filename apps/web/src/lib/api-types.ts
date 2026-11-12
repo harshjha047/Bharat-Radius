@@ -6077,6 +6077,7 @@ export interface paths {
           planId?: string;
           resellerId?: string | 'none';
           under?: string;
+          expiry?: 'today' | 'tomorrow' | '7d' | 'expired-month';
         };
         header?: never;
         path?: never;
@@ -6281,6 +6282,75 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/subscribers/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Status and renewal counts (IST days) with what renewing each group is worth; cached ~60 s */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              asOf: string;
+              total: number;
+              active: number;
+              suspended: number;
+              disabled: number;
+              expired: number;
+              expiredThisMonth: number;
+              expiringToday: number;
+              expiringTomorrow: number;
+              expiring7d: number;
+              renewPaise: {
+                today: number;
+                tomorrow: number;
+                next7d: number;
+                expiredThisMonth: number;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/subscribers/expiring': {
     parameters: {
       query?: never;
@@ -6293,6 +6363,7 @@ export interface paths {
       parameters: {
         query?: {
           days?: number;
+          window?: 'today' | 'tomorrow' | '7d';
           limit?: number;
         };
         header?: never;

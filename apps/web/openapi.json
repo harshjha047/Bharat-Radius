@@ -13852,6 +13852,15 @@
               "type": "string",
               "pattern": "^[0-9a-f]{24}$"
             }
+          },
+          {
+            "name": "expiry",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["today", "tomorrow", "7d", "expired-month"]
+            }
           }
         ],
         "responses": {
@@ -14426,6 +14435,126 @@
         }
       }
     },
+    "/api/v1/subscribers/summary": {
+      "get": {
+        "summary": "Status and renewal counts (IST days) with what renewing each group is worth; cached ~60 s",
+        "tags": ["subscribers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "subscribers.read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "asOf": {
+                      "type": "string"
+                    },
+                    "total": {
+                      "type": "number"
+                    },
+                    "active": {
+                      "type": "number"
+                    },
+                    "suspended": {
+                      "type": "number"
+                    },
+                    "disabled": {
+                      "type": "number"
+                    },
+                    "expired": {
+                      "type": "number"
+                    },
+                    "expiredThisMonth": {
+                      "type": "number"
+                    },
+                    "expiringToday": {
+                      "type": "number"
+                    },
+                    "expiringTomorrow": {
+                      "type": "number"
+                    },
+                    "expiring7d": {
+                      "type": "number"
+                    },
+                    "renewPaise": {
+                      "type": "object",
+                      "properties": {
+                        "today": {
+                          "type": "number"
+                        },
+                        "tomorrow": {
+                          "type": "number"
+                        },
+                        "next7d": {
+                          "type": "number"
+                        },
+                        "expiredThisMonth": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["today", "tomorrow", "next7d", "expiredThisMonth"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "asOf",
+                    "total",
+                    "active",
+                    "suspended",
+                    "disabled",
+                    "expired",
+                    "expiredThisMonth",
+                    "expiringToday",
+                    "expiringTomorrow",
+                    "expiring7d",
+                    "renewPaise"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/subscribers/expiring": {
       "get": {
         "summary": "Active prepaid subscribers whose validity ends within N days (default 7), soonest first",
@@ -14446,6 +14575,15 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 60
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["today", "tomorrow", "7d"]
             }
           },
           {

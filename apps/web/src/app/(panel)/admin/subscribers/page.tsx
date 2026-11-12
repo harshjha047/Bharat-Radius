@@ -18,6 +18,14 @@ import { usePlans, type Subscriber } from '@/lib/queries';
 import { cn, daysUntil, fmtDate } from '@/lib/utils';
 
 type Status = 'active' | 'suspended' | 'disabled' | 'expired';
+type Expiry = 'today' | 'tomorrow' | '7d' | 'expired-month';
+const EXPIRY: [Expiry, string][] = [
+  ['today', 'Expiring today'],
+  ['tomorrow', 'Expiring tomorrow'],
+  ['7d', 'Expiring in 7 days'],
+  ['expired-month', 'Expired this month'],
+];
+const isExpiry = (v: string | null): v is Expiry => EXPIRY.some(([k]) => k === v);
 const CHIPS: [Status | '', string][] = [
   ['', 'All'],
   ['active', 'Active'],
@@ -53,6 +61,18 @@ function SubscribersList() {
   const [q, setQ] = useState(params.get('q') ?? '');
   const [status, setStatus] = useState<Status | ''>((params.get('status') as Status | null) ?? '');
   const [planId, setPlanId] = useState(params.get('plan') ?? '');
+  const [expiry, setExpiryRaw] = useState<Expiry | ''>(
+    isExpiry(params.get('expiry')) ? (params.get('expiry') as Expiry) : '',
+  );
+  // An expiry window already means "active, by validity", so it and the status chips exclude each other.
+  const setExpiry = (v: Expiry | '') => {
+    setExpiryRaw(v);
+    if (v) setStatus('');
+  };
+  const pickStatus = (v: Status | '') => {
+    setStatus(v);
+    if (v) setExpiryRaw('');
+  };
   const dq = useDebounced(q.trim(), 300);
 
   // Keep filters in the URL so Back and shared links return to the same list.
@@ -61,13 +81,14 @@ function SubscribersList() {
     if (dq) s.set('q', dq);
     if (status) s.set('status', status);
     if (planId) s.set('plan', planId);
+    if (expiry) s.set('expiry', expiry);
     const next = s.toString();
     if (next !== params.toString())
       router.replace(`/admin/subscribers${next ? `?${next}` : ''}`, { scroll: false });
-  }, [dq, status, planId, params, router]);
+  }, [dq, status, planId, expiry, params, router]);
 
   const list = useInfiniteQuery({
-    queryKey: ['subscribers', { q: dq, status, planId }],
+    queryKey: ['subscribers', { q: dq, status, planId, expiry }],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       unwrap(
@@ -78,6 +99,7 @@ function SubscribersList() {
               ...(dq ? { q: dq } : {}),
               ...(status ? { status } : {}),
               ...(planId ? { planId } : {}),
+              ...(expiry ? { expiry } : {}),
               ...(pageParam ? { cursor: pageParam } : {}),
             },
           },
@@ -111,11 +133,11 @@ function SubscribersList() {
           <button
             key={v}
             type="button"
-            aria-pressed={status === v}
-            onClick={() => setStatus(v)}
+            aria-pressed={status === v && !expiry}
+            onClick={() => pickStatus(v)}
             className={cn(
               'h-9 shrink-0 rounded-full border border-input bg-card px-3.5 text-[13px] font-semibold text-foreground hover:bg-subtle',
-              status === v && 'border-primary bg-primary text-primary-foreground hover:bg-primary',
+              status === v && !expiry && 'border-primary bg-primary text-primary-foreground hover:bg-primary',
             )}
           >
             {label}
@@ -149,13 +171,27 @@ function SubscribersList() {
               </option>
             ))}
           </Select>
-          {q || status || planId ? (
+          <Select
+            value={expiry}
+            onChange={(e) => setExpiry(e.target.value as Expiry | '')}
+            aria-label="Expiry"
+            className={cn('min-w-44 sm:w-auto', expiry && 'border-accent-border bg-accent font-semibold')}
+          >
+            <option value="">Expiry: Any</option>
+            {EXPIRY.map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </Select>
+          {q || status || planId || expiry ? (
             <Button
               variant="ghost"
               onClick={() => {
                 setQ('');
                 setStatus('');
                 setPlanId('');
+                setExpiryRaw('');
               }}
             >
               Clear
@@ -175,7 +211,11 @@ function SubscribersList() {
             hasMore={list.hasNextPage}
             loadingMore={list.isFetchingNextPage}
             onLoadMore={() => void list.fetchNextPage()}
-            empty={dq || status || planId ? 'No subscriber matches these filters.' : 'No subscribers yet.'}
+            empty={
+              dq || status || planId || expiry
+                ? 'No subscriber matches these filters.'
+                : 'No subscribers yet.'
+            }
             columns={[
               {
                 key: 'name',

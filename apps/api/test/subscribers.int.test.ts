@@ -233,3 +233,85 @@ describe('expiring soon', () => {
     expect(wide.body.total).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe('renewals summary and the expiry filter', () => {
+  it('counts by status and IST expiry window, with renewal value, and the list filter matches', async () => {
+    const DAY = 86_400_000;
+    const IST = 330 * 60_000;
+    const nowIst = new Date(Date.now() + IST);
+    const todayStart = Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate()) - IST;
+    const tomorrow = todayStart + DAY;
+    const monthStart = Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), 1) - IST;
+    const iso = (t: number) => new Date(t).toISOString();
+    // Later today (or, a minute before midnight, as late as possible), mid-tomorrow, in 5 days, earlier this month.
+    const laterToday = Math.min(Date.now() + 30 * 60_000, tomorrow - 30_000);
+    const earlierThisMonth = Math.max(monthStart + 60_000, Date.now() - 60 * 60_000);
+
+    const mk = async (username: string, expiresAt: number) => {
+      const r = await admin.req('POST', '/api/v1/subscribers', {
+        ...base,
+        username,
+        planId: planA,
+        billingType: 'prepaid',
+        expiresAt: iso(expiresAt),
+      });
+      expect(r.status).toBe(201);
+    };
+    await mk('ren-today', laterToday);
+    await mk('ren-tomorrow', tomorrow + 12 * 3_600_000);
+    await mk('ren-5d', Date.now() + 5 * DAY);
+    await mk('ren-expired', earlierThisMonth);
+
+    const s = await support.req('GET', '/api/v1/subscribers/summary');
+    expect(s.status).toBe(200);
+    const b = s.body as {
+      [
+        k in
+          | 'total'
+          | 'active'
+          | 'suspended'
+          | 'disabled'
+          | 'expired'
+          | 'expiredThisMonth'
+          | 'expiringToday'
+          | 'expiringTomorrow'
+          | 'expiring7d'
+      ]: number;
+    } & { renewPaise: { today: number; tomorrow: number; next7d: number; expiredThisMonth: number } };
+    expect(b.expiringToday).toBeGreaterThanOrEqual(1);
+    expect(b.expiringTomorrow).toBeGreaterThanOrEqual(1);
+    expect(b.expiring7d).toBeGreaterThanOrEqual(b.expiringToday + b.expiringTomorrow);
+    expect(b.expiredThisMonth).toBeGreaterThanOrEqual(1);
+    expect(b.expired).toBeGreaterThanOrEqual(b.expiredThisMonth);
+    expect(b.active + b.expired + b.suspended + b.disabled).toBe(b.total);
+    expect(b.renewPaise.today).toBeGreaterThan(0);
+    expect(b.renewPaise.next7d).toBeGreaterThanOrEqual(b.renewPaise.today + b.renewPaise.tomorrow);
+
+    const names = async (expiry: string) => {
+      const r = await support.req('GET', `/api/v1/subscribers?expiry=${expiry}&limit=200`);
+      expect(r.status).toBe(200);
+      return (r.body.items as { username: string }[])
+        .map((x) => x.username)
+        .filter((u) => u.startsWith('ren-'));
+    };
+    expect(await names('today')).toEqual(['ren-today']);
+    expect(await names('tomorrow')).toEqual(['ren-tomorrow']);
+    expect((await names('7d')).sort()).toEqual(['ren-5d', 'ren-today', 'ren-tomorrow']);
+    expect(await names('expired-month')).toEqual(['ren-expired']);
+    const st = async (status: string) =>
+      (
+        (await support.req('GET', `/api/v1/subscribers?status=${status}&limit=200`)).body.items as {
+          username: string;
+        }[]
+      ).map((x) => x.username);
+    expect(await st('expired')).toContain('ren-expired');
+    expect(await st('active')).not.toContain('ren-expired');
+    expect(await st('active')).toContain('ren-5d');
+
+    const w = await support.req('GET', '/api/v1/subscribers/expiring?window=tomorrow&limit=100');
+    expect(w.status).toBe(200);
+    expect(
+      (w.body.items as { username: string }[]).map((x) => x.username).filter((u) => u.startsWith('ren-')),
+    ).toEqual(['ren-tomorrow']);
+  });
+});

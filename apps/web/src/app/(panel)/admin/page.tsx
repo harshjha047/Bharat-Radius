@@ -4,7 +4,7 @@ import { AlertTriangle, ChevronRight, LifeBuoy, Plus, Search, Server, UserPlus, 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExpiringCard, NetworkRow, useExpiring } from '@/components/dashboard-widgets';
+import { ExpiringCard, NetworkRow, RenewalsSection, useExpiring } from '@/components/dashboard-widgets';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBar } from '@/components/ui/card';
@@ -158,6 +158,153 @@ export default function Dashboard() {
         </div>
       ) : null}
 
+      {can('subscribers.read') ? <RenewalsSection /> : null}
+
+      <div className="flex flex-wrap gap-3">
+        {can('subscribers.read') ? <ExpiringCard tabs className="flex-[3_1_480px]" /> : null}
+
+        {can('sessions.read') || can('nas.read') ? (
+          <Card className="min-w-0 flex-[2_1_380px] overflow-hidden">
+            <CardBar>
+              <h2 className="mr-auto text-base font-bold">Routers</h2>
+              {routers.length ? (
+                <span className="text-[13px] text-muted-foreground">
+                  {up} of {routers.length} with users online
+                </span>
+              ) : null}
+              <Link href="/admin/sessions" className="text-[13px] font-bold">
+                All sessions
+              </Link>
+            </CardBar>
+            {summary.isError ? (
+              <div className="p-4">
+                <ErrorState error={summary.error} onRetry={() => void summary.refetch()} />
+              </div>
+            ) : nas.isLoading || summary.isLoading ? (
+              <div className="divide-y divide-divider">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-5 py-3">
+                    <Skeleton className="size-9 rounded-[10px]" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-40" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : rows.length === 0 ? (
+              <p className="px-5 py-10 text-center text-sm text-muted-foreground">
+                No routers yet. Add one under Routers so subscribers can connect.
+              </p>
+            ) : (
+              <ul className="divide-y divide-divider">
+                {rows.map(({ r, online, h }) => (
+                  <li key={r.id}>
+                    <Link
+                      href={`/admin/sessions?nas=${encodeURIComponent(r.ip)}`}
+                      className="flex items-center gap-3 px-5 py-3 text-inherit hover:bg-subtle hover:text-inherit"
+                    >
+                      <span
+                        className={cn(
+                          'grid size-9 shrink-0 place-items-center rounded-[10px]',
+                          HEALTH[h].tile,
+                        )}
+                      >
+                        <Server className="size-[18px]" strokeWidth={1.8} aria-hidden />
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-sm font-semibold text-foreground">
+                          {r.name}
+                          {r.location.popName ? `, ${r.location.popName}` : ''}
+                        </span>
+                        <span className="truncate font-mono text-xs text-muted-foreground">
+                          {r.ip} · {r.lastSeenAt ? `seen ${relTime(r.lastSeenAt)}` : 'never seen'}
+                        </span>
+                      </span>
+                      <span className="flex flex-col items-end gap-1">
+                        <Badge tone={HEALTH[h].tone}>{HEALTH[h].label}</Badge>
+                        <span className="text-xs text-body tabular-nums">{fmtNum(online)} online</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        ) : null}
+
+        {can('billing.read') && staff && b && !can('reports.view') ? (
+          <Card className="flex min-w-0 flex-[2_1_340px] flex-col gap-4 p-5">
+            <div>
+              <h2 className="text-base font-bold">This month</h2>
+              <p className="text-[13px] text-muted-foreground">{fmtNum(b.month.recharges)} recharges</p>
+            </div>
+            <dl className="grid grid-cols-2 gap-4">
+              <div>
+                <dt className="flex items-center gap-2 text-xs text-body">
+                  <span className="size-2.5 rounded-[3px] bg-chart-1" aria-hidden />
+                  Billed
+                </dt>
+                <dd className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
+                  {fmtRupees0(b.month.invoicedPaise)}
+                </dd>
+              </div>
+              <div>
+                <dt className="flex items-center gap-2 text-xs text-body">
+                  <span className="size-2.5 rounded-[3px] bg-chart-4" aria-hidden />
+                  Collected
+                </dt>
+                <dd className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
+                  {fmtRupees0(b.month.collectedPaise)}
+                </dd>
+              </div>
+            </dl>
+            {collectedPct !== null ? (
+              <div className="space-y-1.5">
+                <div
+                  className="h-2.5 overflow-hidden rounded-full bg-accent"
+                  role="meter"
+                  aria-label="Collected of billed"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(collectedPct * 100)}
+                >
+                  <div
+                    className="h-full rounded-full bg-chart-4"
+                    style={{ width: `${Math.min(100, collectedPct * 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {(collectedPct * 100).toFixed(1)}% collected
+                </p>
+              </div>
+            ) : null}
+            <div className="mt-auto grid grid-cols-2 gap-3 border-t pt-4 text-[13px]">
+              <Link href="/admin/wallets" className="flex flex-col text-inherit hover:text-inherit">
+                <span className="text-muted-foreground">Reseller wallets</span>
+                <span className="font-bold text-foreground tabular-nums">
+                  {fmtRupees0(b.wallets.resellerBalancePaise)}
+                </span>
+                {b.wallets.low || b.wallets.frozen ? (
+                  <span className="text-xs font-semibold text-warning-text">
+                    {b.wallets.low} low · {b.wallets.frozen} frozen
+                  </span>
+                ) : null}
+              </Link>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">SMS queue</span>
+                <span className="font-bold text-foreground tabular-nums">{fmtNum(b.sms.queued)} queued</span>
+                {b.sms.failed24h ? (
+                  <span className="text-xs font-semibold text-danger-text">
+                    {b.sms.failed24h} failed in 24 h
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </Card>
+        ) : null}
+      </div>
+
       <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
         {can('sessions.read') ? (
           summary.isLoading ? (
@@ -271,151 +418,6 @@ export default function Dashboard() {
 
       {can('sessions.read') && staff ? <NetworkRow /> : null}
       {can('reports.view') && staff ? <TrendsRow /> : null}
-
-      <div className="flex flex-wrap gap-3">
-        {can('sessions.read') || can('nas.read') ? (
-          <Card className="min-w-0 flex-[2_1_380px] overflow-hidden">
-            <CardBar>
-              <h2 className="mr-auto text-base font-bold">Routers</h2>
-              {routers.length ? (
-                <span className="text-[13px] text-muted-foreground">
-                  {up} of {routers.length} with users online
-                </span>
-              ) : null}
-              <Link href="/admin/sessions" className="text-[13px] font-bold">
-                All sessions
-              </Link>
-            </CardBar>
-            {summary.isError ? (
-              <div className="p-4">
-                <ErrorState error={summary.error} onRetry={() => void summary.refetch()} />
-              </div>
-            ) : nas.isLoading || summary.isLoading ? (
-              <div className="divide-y divide-divider">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <div key={i} className="flex items-center gap-3 px-5 py-3">
-                    <Skeleton className="size-9 rounded-[10px]" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-40" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : rows.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-                No routers yet. Add one under Routers so subscribers can connect.
-              </p>
-            ) : (
-              <ul className="divide-y divide-divider">
-                {rows.map(({ r, online, h }) => (
-                  <li key={r.id}>
-                    <Link
-                      href={`/admin/sessions?nas=${encodeURIComponent(r.ip)}`}
-                      className="flex items-center gap-3 px-5 py-3 text-inherit hover:bg-subtle hover:text-inherit"
-                    >
-                      <span
-                        className={cn(
-                          'grid size-9 shrink-0 place-items-center rounded-[10px]',
-                          HEALTH[h].tile,
-                        )}
-                      >
-                        <Server className="size-[18px]" strokeWidth={1.8} aria-hidden />
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-sm font-semibold text-foreground">
-                          {r.name}
-                          {r.location.popName ? `, ${r.location.popName}` : ''}
-                        </span>
-                        <span className="truncate font-mono text-xs text-muted-foreground">
-                          {r.ip} · {r.lastSeenAt ? `seen ${relTime(r.lastSeenAt)}` : 'never seen'}
-                        </span>
-                      </span>
-                      <span className="flex flex-col items-end gap-1">
-                        <Badge tone={HEALTH[h].tone}>{HEALTH[h].label}</Badge>
-                        <span className="text-xs text-body tabular-nums">{fmtNum(online)} online</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        ) : null}
-
-        {can('subscribers.read') ? <ExpiringCard className="flex-[3_1_480px]" /> : null}
-
-        {can('billing.read') && staff && b && !can('reports.view') ? (
-          <Card className="flex min-w-0 flex-[2_1_340px] flex-col gap-4 p-5">
-            <div>
-              <h2 className="text-base font-bold">This month</h2>
-              <p className="text-[13px] text-muted-foreground">{fmtNum(b.month.recharges)} recharges</p>
-            </div>
-            <dl className="grid grid-cols-2 gap-4">
-              <div>
-                <dt className="flex items-center gap-2 text-xs text-body">
-                  <span className="size-2.5 rounded-[3px] bg-chart-1" aria-hidden />
-                  Billed
-                </dt>
-                <dd className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
-                  {fmtRupees0(b.month.invoicedPaise)}
-                </dd>
-              </div>
-              <div>
-                <dt className="flex items-center gap-2 text-xs text-body">
-                  <span className="size-2.5 rounded-[3px] bg-chart-4" aria-hidden />
-                  Collected
-                </dt>
-                <dd className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
-                  {fmtRupees0(b.month.collectedPaise)}
-                </dd>
-              </div>
-            </dl>
-            {collectedPct !== null ? (
-              <div className="space-y-1.5">
-                <div
-                  className="h-2.5 overflow-hidden rounded-full bg-accent"
-                  role="meter"
-                  aria-label="Collected of billed"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(collectedPct * 100)}
-                >
-                  <div
-                    className="h-full rounded-full bg-chart-4"
-                    style={{ width: `${Math.min(100, collectedPct * 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs font-semibold text-muted-foreground">
-                  {(collectedPct * 100).toFixed(1)}% collected
-                </p>
-              </div>
-            ) : null}
-            <div className="mt-auto grid grid-cols-2 gap-3 border-t pt-4 text-[13px]">
-              <Link href="/admin/wallets" className="flex flex-col text-inherit hover:text-inherit">
-                <span className="text-muted-foreground">Reseller wallets</span>
-                <span className="font-bold text-foreground tabular-nums">
-                  {fmtRupees0(b.wallets.resellerBalancePaise)}
-                </span>
-                {b.wallets.low || b.wallets.frozen ? (
-                  <span className="text-xs font-semibold text-warning-text">
-                    {b.wallets.low} low · {b.wallets.frozen} frozen
-                  </span>
-                ) : null}
-              </Link>
-              <div className="flex flex-col">
-                <span className="text-muted-foreground">SMS queue</span>
-                <span className="font-bold text-foreground tabular-nums">{fmtNum(b.sms.queued)} queued</span>
-                {b.sms.failed24h ? (
-                  <span className="text-xs font-semibold text-danger-text">
-                    {b.sms.failed24h} failed in 24 h
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </Card>
-        ) : null}
-      </div>
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 font-mono text-[11px] text-muted-foreground">
         <span>All times IST · online figures refresh every 30 s, charts every 5 min</span>
