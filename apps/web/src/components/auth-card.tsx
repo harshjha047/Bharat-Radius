@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { BrandMark, PoweredBy } from '@/components/brand';
+import { BrandLockup, PoweredBy } from '@/components/brand';
 
 const COPY = {
   staff: {
@@ -34,9 +34,8 @@ export function AuthCard({
   return (
     <main className="flex min-h-dvh flex-wrap bg-background">
       <section className="flex flex-[1_1_420px] flex-col gap-7 bg-primary p-8 text-white max-md:hidden lg:p-14">
-        <span className="flex items-center gap-3 self-start rounded-2xl bg-white px-4 py-3">
-          <BrandMark className="size-10 rounded-xl text-sm" />
-          <span className="text-xl font-extrabold tracking-[-0.03em] text-foreground">BharatRadius</span>
+        <span className="self-start rounded-2xl bg-white px-[18px] py-3.5">
+          <BrandLockup className="block h-[72px]" />
         </span>
         <h1 className="mt-auto max-w-[480px] text-[44px] leading-[1.1] font-extrabold tracking-[-0.04em] text-white">
           {c.headline}
@@ -53,10 +52,7 @@ export function AuthCard({
       </section>
       <section className="flex flex-[1_1_420px] items-center justify-center px-6 py-14">
         <div className="flex w-full max-w-[400px] flex-col gap-6">
-          <div className="flex items-center gap-2.5 md:hidden">
-            <BrandMark />
-            <span className="text-lg font-extrabold tracking-[-0.03em] text-foreground">BharatRadius</span>
-          </div>
+          <BrandLockup className="h-auto w-[210px] self-center md:hidden" />
           <div className="space-y-1.5">
             <h2 className="text-[30px] font-extrabold tracking-[-0.03em]">{title}</h2>
             {description ? <p className="text-base text-body">{description}</p> : null}

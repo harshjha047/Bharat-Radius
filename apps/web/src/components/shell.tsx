@@ -333,7 +333,7 @@ export function Shell({ children }: { children: ReactNode }) {
               </D.Content>
             </D.Portal>
           </D.Root>
-          <BrandMark className="size-6 rounded-[7px] text-[9px]" />
+          <BrandMark className="h-6" />
           <span className="flex-1 text-base font-extrabold text-foreground">BharatRadius</span>
         </header>
         <main id="main" className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-5 sm:px-8 sm:py-6">

@@ -1,6 +1,7 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ChevronRight, LifeBuoy, Plus, Search, Server, UserPlus, Users } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -410,9 +411,158 @@ export default function Dashboard() {
         ) : null}
       </div>
 
+      {can('reports.view') && staff ? <TrendsRow /> : null}
+
       <footer className="flex flex-wrap justify-between gap-2 pt-2 font-mono text-[11px] text-muted-foreground">
         <span>All times IST · online figures refresh every 30 s</span>
       </footer>
+    </div>
+  );
+}
+
+const RevenueChart = dynamic(() => import('@/components/revenue-chart'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[220px] w-full rounded-xl" />,
+});
+
+/** IST calendar day, `n` days ago, as YYYY-MM-DD. */
+const istDay = (n = 0) => new Date(Date.now() + 330 * 60_000 - n * 86_400_000).toISOString().slice(0, 10);
+const PLAN_COLORS = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5', 'bg-chart-6'];
+const PLAN_VARS = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6'];
+
+type Report = ApiData<'/api/v1/reports/{name}'>;
+const tableRows = (r: Report | undefined, title: string) =>
+  (r?.tables.find((t) => t.title === title)?.rows ?? []) as Record<string, unknown>[];
+
+/** Revenue vs collections (30 days) and subscribers by plan, both from the reports API. */
+function TrendsRow() {
+  const from = istDay(29);
+  const to = istDay();
+  const report = (name: 'revenue' | 'collections' | 'subscribers') => ({
+    queryKey: ['reports', name, from, to],
+    queryFn: () =>
+      unwrap(api.GET('/api/v1/reports/{name}', { params: { path: { name }, query: { from, to } } })),
+    staleTime: 5 * 60_000,
+  });
+  const revenue = useQuery(report('revenue'));
+  const collections = useQuery(report('collections'));
+  const subs = useQuery(report('subscribers'));
+
+  const billed = new Map(tableRows(revenue.data, 'By day').map((r) => [String(r.day), Number(r.total) || 0]));
+  const collected = new Map(
+    tableRows(collections.data, 'By day and method').map((r) => [String(r.day), Number(r.total) || 0]),
+  );
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const day = istDay(29 - i);
+    return { day, billedPaise: billed.get(day) ?? 0, collectedPaise: collected.get(day) ?? 0 };
+  });
+  const billedSum = days.reduce((n, d) => n + d.billedPaise, 0);
+  const collectedSum = days.reduce((n, d) => n + d.collectedPaise, 0);
+
+  const byPlan = tableRows(subs.data, 'By plan')
+    .map((r) => ({ name: String(r.plan), n: Number(r.total) || 0 }))
+    .filter((p) => p.n > 0)
+    .sort((a, b) => b.n - a.n);
+  const plans =
+    byPlan.length > 6
+      ? [...byPlan.slice(0, 5), { name: 'Other', n: byPlan.slice(5).reduce((s, p) => s + p.n, 0) }]
+      : byPlan;
+  const total = plans.reduce((s, p) => s + p.n, 0);
+  const donut = plans
+    .map((p, i) => {
+      const start = (plans.slice(0, i).reduce((s, q) => s + q.n, 0) / total) * 100;
+      const end = start + (p.n / total) * 100;
+      return `var(${PLAN_VARS[i]}) ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+    })
+    .join(', ');
+
+  return (
+    <div className="flex flex-wrap gap-3">
+      <Card className="flex min-w-0 flex-[3_1_480px] flex-col gap-3.5 p-5">
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+          <div className="mr-auto flex flex-col gap-0.5">
+            <h2 className="text-base font-bold">Revenue and collections, last 30 days</h2>
+            {revenue.data && collections.data ? (
+              <p className="text-[13px] text-muted-foreground">
+                Billed {fmtRupees0(billedSum)} · collected {fmtRupees0(collectedSum)}
+                {billedSum > 0 ? ` (${((collectedSum / billedSum) * 100).toFixed(1)}%)` : ''}
+              </p>
+            ) : null}
+          </div>
+          <span className="flex items-center gap-1.5 text-xs text-body">
+            <span className="size-2.5 rounded-[3px] bg-chart-1" aria-hidden />
+            Revenue billed
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-body">
+            <span className="size-2.5 rounded-[3px] bg-chart-4" aria-hidden />
+            Collected
+          </span>
+        </div>
+        {revenue.isError || collections.isError ? (
+          <ErrorState
+            error={revenue.error ?? collections.error}
+            onRetry={() => {
+              void revenue.refetch();
+              void collections.refetch();
+            }}
+          />
+        ) : revenue.isLoading || collections.isLoading ? (
+          <Skeleton className="h-[220px] w-full rounded-xl" />
+        ) : (
+          <RevenueChart days={days} />
+        )}
+      </Card>
+
+      <Card className="flex min-w-0 flex-[2_1_340px] flex-col gap-3.5 p-5">
+        <div className="flex items-center gap-3">
+          <h2 className="mr-auto text-base font-bold">Subscribers by plan</h2>
+          <Link href="/admin/reports" className="text-[13px] font-bold">
+            Report
+          </Link>
+        </div>
+        {subs.isError ? (
+          <ErrorState error={subs.error} onRetry={() => void subs.refetch()} />
+        ) : subs.isLoading ? (
+          <div className="flex items-center gap-6" aria-busy>
+            <Skeleton className="size-[168px] rounded-full" />
+            <div className="flex-1 space-y-2.5">
+              {Array.from({ length: 5 }, (_, i) => (
+                <Skeleton key={i} className="h-3.5 w-full" />
+              ))}
+            </div>
+          </div>
+        ) : total === 0 ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">No subscribers yet.</p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-6">
+            <div
+              role="img"
+              aria-label={`${fmtNum(total)} subscribers by plan`}
+              className="relative size-[168px] shrink-0 rounded-full"
+              style={{ background: `conic-gradient(${donut})` }}
+            >
+              <div className="absolute inset-[26px] flex flex-col items-center justify-center rounded-full bg-card">
+                <span className="text-2xl font-extrabold tracking-[-0.03em] text-foreground tabular-nums">
+                  {fmtNum(total)}
+                </span>
+                <span className="text-xs text-muted-foreground">subscribers</span>
+              </div>
+            </div>
+            <ul className="flex min-w-40 flex-1 flex-col gap-2">
+              {plans.map((p, i) => (
+                <li key={p.name} className="flex items-center gap-2 text-[13px]">
+                  <span className={cn('size-2.5 shrink-0 rounded-[3px]', PLAN_COLORS[i])} aria-hidden />
+                  <span className="min-w-0 flex-1 truncate text-body">{p.name}</span>
+                  <span className="font-bold text-foreground tabular-nums">{fmtNum(p.n)}</span>
+                  <span className="w-9 text-right text-muted-foreground tabular-nums">
+                    {Math.round((p.n / total) * 100)}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
