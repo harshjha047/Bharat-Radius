@@ -94,6 +94,20 @@ const summaryView = z.object({
   byNas: z.array(z.object({ nasIp: z.string(), nasName: z.string().nullable(), online: z.number() })),
 });
 
+const activityView = z.object({
+  /** Hourly (IST hour starts) for the last 24 h, then one point for now; lastWeek is the same moment 7 days earlier. */
+  points: z.array(z.object({ at: z.string(), online: z.number(), lastWeek: z.number() })),
+  /** RADIUS logins per IST hour, the last 24 hours including the current one, oldest first. */
+  hours: z.array(z.object({ hour: z.string(), accepted: z.number(), rejected: z.number() })),
+});
+
+/** Start of the IST hour 23 hours before the current one. */
+const ACTIVITY_START = `date_trunc('hour', now() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata' - interval '23 hours'`;
+/** A session counts at time t while it is started and not stopped; an open one until 3 missed interim updates. */
+const SESSION_END = 'coalesce(acctstoptime, acctupdatetime + make_interval(secs => 3 * $2::int))';
+/** Longest session we look back for when counting who was online (bounds the partition scan). */
+const LONGEST_SESSION_DAYS = 45;
+
 interface SessionRow {
   radacctid: string;
   start_key: string;
@@ -256,6 +270,61 @@ export class SessionsService {
     };
   }
 
+  /** Online users over the last 24 h (with the same hours last week) and logins vs rejects per hour. */
+  async activity(ctx: AuthContext, q: z.output<typeof tenantQuery>) {
+    const t = await this.pgTenant(this.mongoTenant(ctx, q.tenantId));
+    const start = new Date(Math.floor((Date.now() + IST_OFFSET_MS) / 3_600_000) * 3_600_000 - IST_OFFSET_MS);
+    start.setTime(start.getTime() - 23 * 3_600_000);
+    const emptyHours = () =>
+      Array.from({ length: 24 }, (_, i) => ({
+        hour: new Date(start.getTime() + i * 3_600_000).toISOString(),
+        accepted: 0,
+        rejected: 0,
+      }));
+    if (!t) return { points: [], hours: emptyHours() };
+
+    const [online, auth] = await Promise.all([
+      this.db().query<{ t: Date; online: string; last_week: string }>(
+        `WITH pts AS (
+           SELECT g AS t FROM generate_series(${ACTIVITY_START}, ${ACTIVITY_START} + interval '23 hours', interval '1 hour') g
+           UNION ALL SELECT now()
+         ), cand AS MATERIALIZED (
+           SELECT acctstarttime AS s, ${SESSION_END} AS e
+             FROM radacct
+            WHERE tenant_id = $1
+              AND acctstarttime >= now() - make_interval(days => $3::int) AND acctstarttime <= now()
+              AND ${SESSION_END} > now() - interval '8 days'
+         )
+         SELECT p.t,
+                (SELECT count(*) FROM cand WHERE s <= p.t AND e > p.t) AS online,
+                (SELECT count(*) FROM cand WHERE s <= p.t - interval '7 days' AND e > p.t - interval '7 days') AS last_week
+           FROM pts p ORDER BY p.t`,
+        [t.id, t.interim, LONGEST_SESSION_DAYS],
+      ),
+      this.db().query<{ hour: Date; accepted: string; rejected: string }>(
+        `SELECT date_trunc('hour', authdate AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata' AS hour,
+                count(*) FILTER (WHERE reply = 'Access-Accept') AS accepted,
+                count(*) FILTER (WHERE reply <> 'Access-Accept') AS rejected
+           FROM radpostauth
+          WHERE tenant_id = $1 AND authdate >= ${ACTIVITY_START}
+          GROUP BY 1`,
+        [t.id],
+      ),
+    ]);
+    const byHour = new Map(auth.rows.map((r) => [r.hour.toISOString(), r]));
+    return {
+      points: online.rows.map((r) => ({
+        at: r.t.toISOString(),
+        online: Number(r.online),
+        lastWeek: Number(r.last_week),
+      })),
+      hours: emptyHours().map((h) => {
+        const r = byHour.get(h.hour);
+        return r ? { ...h, accepted: Number(r.accepted), rejected: Number(r.rejected) } : h;
+      }),
+    };
+  }
+
   async history(ctx: AuthContext, id: ObjectId, q: z.output<typeof historyQuery>) {
     const s = await this.subscriber(ctx, id);
     const t = await this.pgTenant(s.tenantId);
@@ -393,6 +462,7 @@ const IST = new Intl.DateTimeFormat('en-CA', {
   month: '2-digit',
   day: '2-digit',
 });
+const IST_OFFSET_MS = 330 * 60_000;
 const istToday = () => IST.format(new Date());
 const istDaysBefore = (day: string, n: number) =>
   new Date(Date.parse(`${day}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
@@ -423,6 +493,18 @@ export class SessionsController {
   })
   summary(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof tenantQuery>) {
     return this.sessions.summary(ctx, q);
+  }
+
+  @Get('sessions/activity')
+  @Endpoint({
+    summary: 'Online users over the last 24 h vs last week, and logins vs rejects per hour',
+    tags: ['sessions'],
+    permission: 'sessions.read',
+    query: tenantQuery,
+    response: activityView,
+  })
+  activity(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof tenantQuery>) {
+    return this.sessions.activity(ctx, q);
   }
 
   @Get('sessions/lookup')

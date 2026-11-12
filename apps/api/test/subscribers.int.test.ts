@@ -202,3 +202,34 @@ describe('subscribers', () => {
     expect(again.status).toBe(201);
   });
 });
+
+describe('expiring soon', () => {
+  it('lists active prepaid customers expiring within N days, soonest first, with the total', async () => {
+    const at = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+    const mk = async (username: string, body: Record<string, unknown>) => {
+      const r = await admin.req('POST', '/api/v1/subscribers', {
+        ...base,
+        username,
+        planId: planA,
+        billingType: 'prepaid',
+        ...body,
+      });
+      expect(r.status).toBe(201);
+      return r.body.id as string;
+    };
+    await mk('exp-5d', { expiresAt: at(5) });
+    await mk('exp-2d', { expiresAt: at(2) });
+    await mk('exp-20d', { expiresAt: at(20) });
+    const susp = await mk('exp-3d-susp', { expiresAt: at(3) });
+    expect((await admin.req('POST', `/api/v1/subscribers/${susp}/suspend`, {})).status).toBe(200);
+
+    const names = (b: Record<string, unknown>) =>
+      (b.items as { username: string }[]).map((s) => s.username).filter((u) => u.startsWith('exp-'));
+    const r = await support.req('GET', '/api/v1/subscribers/expiring');
+    expect(r.status).toBe(200);
+    expect(names(r.body)).toEqual(['exp-2d', 'exp-5d']);
+    const wide = await support.req('GET', '/api/v1/subscribers/expiring?days=30&limit=1');
+    expect(wide.body.items).toHaveLength(1);
+    expect(wide.body.total).toBeGreaterThanOrEqual(3);
+  });
+});

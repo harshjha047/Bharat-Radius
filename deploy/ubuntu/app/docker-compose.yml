@@ -86,6 +86,8 @@ services:
     container_name: isp-web
     environment:
       APP_VERSION: ${APP_VERSION:-dev}
+      # Landing page "Get in touch": call + WhatsApp number, e.g. "+91 98765 43210". Empty hides them.
+      SALES_PHONE: ${SALES_PHONE:-}
     # Only Caddy talks to it; the browser reaches the API through Caddy on the same origin.
     networks:
       acs:

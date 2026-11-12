@@ -133,6 +133,12 @@ const listQuery = pageQuery.extend({
   under: hexId.optional(),
 });
 
+const expiringQuery = z.object({
+  /** Prepaid customers whose validity ends within this many days from now. */
+  days: z.coerce.number().int().min(1).max(60).default(7),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+});
+
 const subscriberView = z.object({
   id: z.string(),
   customerNo: z.string(),
@@ -339,6 +345,24 @@ export class SubscribersService {
     return pageOf(docs, q.limit, (d) => toView(d, refs));
   }
 
+  /** Active prepaid customers whose validity runs out soon, soonest first, with the total. */
+  async expiring(ctx: AuthContext, q: z.output<typeof expiringQuery>) {
+    const now = new Date();
+    const f: Filter<SubscriberDoc> = {
+      status: 'active',
+      billingType: 'prepaid',
+      expiresAt: { $gt: now, $lte: new Date(now.getTime() + q.days * 86_400_000) },
+    };
+    const [docs, total] = await Promise.all([
+      this.col(ctx)
+        .find(f, { sort: { expiresAt: 1, _id: 1 }, limit: q.limit })
+        .toArray(),
+      this.col(ctx).countDocuments(f),
+    ]);
+    const refs = await this.refs(ctx, docs);
+    return { total, items: docs.map((d) => toView(d, refs)) };
+  }
+
   get = async (ctx: AuthContext, id: ObjectId) => this.view(ctx, await this.find(ctx, id));
 
   async create(ctx: AuthContext, b: z.output<typeof createBody>) {
@@ -523,6 +547,18 @@ export class SubscribersController {
   })
   list(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof listQuery>) {
     return this.subs.list(ctx, q);
+  }
+
+  @Get('expiring')
+  @Endpoint({
+    summary: 'Active prepaid subscribers whose validity ends within N days (default 7), soonest first',
+    tags: ['subscribers'],
+    permission: 'subscribers.read',
+    query: expiringQuery,
+    response: z.object({ total: z.number(), items: z.array(subscriberView) }),
+  })
+  expiring(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof expiringQuery>) {
+    return this.subs.expiring(ctx, q);
   }
 
   @Post()

@@ -104,6 +104,27 @@ describe('sessions and logs', () => {
     expect(r.body).toEqual({ online: 1, stale: 1, byNas: [{ nasIp, nasName: 'POP-A', online: 1 }] });
   });
 
+  it('activity: online users per hour vs last week, logins vs rejects per hour', async () => {
+    const r = await support.req('GET', '/api/v1/sessions/activity');
+    expect(r.status).toBe(200);
+    const pts = r.body.points as { at: string; online: number; lastWeek: number }[];
+    expect(pts).toHaveLength(25); // 24 IST hour starts + now
+    expect(pts.at(-1)!.online).toBe(1); // the stale session no longer counts
+    // The 4 h session (stale since ~30 min) was up for several of the earlier hour marks, alongside nothing else.
+    expect(pts.slice(0, -1).filter((p) => p.online >= 1).length).toBeGreaterThanOrEqual(3);
+    expect(Math.max(...pts.map((p) => p.online))).toBeLessThanOrEqual(2);
+    expect(pts.every((p) => p.lastWeek === 0)).toBe(true);
+    const hours = r.body.hours as { hour: string; accepted: number; rejected: number }[];
+    expect(hours).toHaveLength(24);
+    expect(new Date(hours[0]!.hour).getUTCMinutes()).toBe(30); // IST hours start at :30 UTC
+    expect(hours.reduce((n, x) => n + x.accepted, 0)).toBe(1);
+    expect(hours.reduce((n, x) => n + x.rejected, 0)).toBe(1);
+    // Another ISP sees none of it.
+    const o = await other.req('GET', '/api/v1/sessions/activity');
+    expect(o.body.points).toEqual([]);
+    expect(o.body.hours.every((x: { accepted: number }) => x.accepted === 0)).toBe(true);
+  });
+
   it('history and login attempts with the reject reason', async () => {
     const hist = await support.req('GET', `/api/v1/subscribers/${sub.toHexString()}/sessions`);
     expect(hist.body.items).toHaveLength(3);

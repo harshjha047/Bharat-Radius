@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronRight, LifeBuoy, Plus, Search, Server, UserPlus, 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ExpiringCard, NetworkRow, useExpiring } from '@/components/dashboard-widgets';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBar } from '@/components/ui/card';
@@ -12,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { api, unwrap, type ApiData } from '@/lib/api';
 import { useCan, useMe } from '@/lib/auth';
 import { usePlans, type Nas } from '@/lib/queries';
-import { cn, fmtNum, fmtRupees, fmtRupees0, relTime } from '@/lib/utils';
+import { cn, fmtNum, fmtRupees, fmtRupees0, plural, relTime } from '@/lib/utils';
 
 const STALE_MS = 15 * 60_000;
 const istStamp = new Intl.DateTimeFormat('en-IN', {
@@ -268,9 +269,12 @@ export default function Dashboard() {
         ) : null}
       </div>
 
+      {can('sessions.read') && staff ? <NetworkRow /> : null}
+      {can('reports.view') && staff ? <TrendsRow /> : null}
+
       <div className="flex flex-wrap gap-3">
         {can('sessions.read') || can('nas.read') ? (
-          <Card className="min-w-0 flex-[3_1_480px] overflow-hidden">
+          <Card className="min-w-0 flex-[2_1_380px] overflow-hidden">
             <CardBar>
               <h2 className="mr-auto text-base font-bold">Routers</h2>
               {routers.length ? (
@@ -339,7 +343,9 @@ export default function Dashboard() {
           </Card>
         ) : null}
 
-        {can('billing.read') && staff && b ? (
+        {can('subscribers.read') ? <ExpiringCard className="flex-[3_1_480px]" /> : null}
+
+        {can('billing.read') && staff && b && !can('reports.view') ? (
           <Card className="flex min-w-0 flex-[2_1_340px] flex-col gap-4 p-5">
             <div>
               <h2 className="text-base font-bold">This month</h2>
@@ -411,15 +417,21 @@ export default function Dashboard() {
         ) : null}
       </div>
 
-      {can('reports.view') && staff ? <TrendsRow /> : null}
-
       <footer className="flex flex-wrap justify-between gap-2 pt-2 font-mono text-[11px] text-muted-foreground">
-        <span>All times IST · online figures refresh every 30 s</span>
+        <span>All times IST · online figures refresh every 30 s, charts every 5 min</span>
       </footer>
     </div>
   );
 }
 
+const BalanceChart = dynamic(() => import('@/components/network-charts').then((m) => m.BalanceChart), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[150px] w-full rounded-xl" />,
+});
+const RechargesChart = dynamic(() => import('@/components/network-charts').then((m) => m.RechargesChart), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[180px] w-full rounded-xl" />,
+});
 const RevenueChart = dynamic(() => import('@/components/revenue-chart'), {
   ssr: false,
   loading: () => <Skeleton className="h-[220px] w-full rounded-xl" />,
@@ -580,6 +592,38 @@ function ResellerHome({
 }) {
   const can = useCan();
   const low = wallet && (wallet.state === 'low' || wallet.state === 'empty' || wallet.state === 'frozen');
+  const from = istDay(29);
+  const report = useQuery({
+    queryKey: ['wallet-report', wallet?.id, from, istDay()],
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/v1/wallets/{id}/report', {
+          params: { path: { id: wallet!.id }, query: { from, to: istDay() } },
+        }),
+      ),
+    enabled: !!wallet?.canViewLedger,
+    staleTime: 5 * 60_000,
+  });
+  const expiring = useExpiring(7, 5);
+  const ledgerHref = wallet ? `/admin/wallets/${wallet.id}` : '/admin/wallets';
+
+  // End-of-day balances, worked back from today's balance through each day's credits and debits.
+  const byDay = new Map((report.data?.rows ?? []).map((r) => [r.day, r]));
+  const balanceDays: { day: string; balancePaise: number }[] = [];
+  let bal = wallet?.balancePaise ?? 0;
+  for (let i = 0; i < 30; i++) {
+    const day = istDay(i);
+    balanceDays.unshift({ day, balancePaise: bal });
+    const r = byDay.get(day);
+    if (r) bal -= r.creditsPaise - r.debitsPaise;
+  }
+  const rechargeDays = balanceDays.map(({ day }) => ({
+    day,
+    count: byDay.get(day)?.countByType.RECHARGE_debit ?? 0,
+  }));
+  const rechargeCount = rechargeDays.reduce((n, d) => n + d.count, 0);
+  const rechargePaise = (report.data?.rows ?? []).reduce((n, r) => n + (r.byType.RECHARGE_debit ?? 0), 0);
+
   const actions = [
     can('subscribers.write') && {
       href: '/admin/subscribers/new',
@@ -629,13 +673,13 @@ function ResellerHome({
               {wallet.state === 'frozen'
                 ? (wallet.frozenReason ?? 'Contact your provider.')
                 : 'Ask your provider to top up so customer recharges keep going through.'}
+              {wallet.state !== 'frozen' && expiring.data?.total
+                ? ` ${expiring.data.total === 1 ? '1 customer expires' : `${fmtNum(expiring.data.total)} customers expire`} this week.`
+                : ''}
             </span>
           </div>
           {wallet.canViewLedger ? (
-            <Link
-              href="/admin/wallets"
-              className="text-sm font-bold text-warning-text hover:text-warning-text"
-            >
+            <Link href={ledgerHref} className="text-sm font-bold text-warning-text hover:text-warning-text">
               See ledger
             </Link>
           ) : null}
@@ -664,11 +708,24 @@ function ResellerHome({
               </div>
               {wallet.canViewLedger ? (
                 <Button variant="outline" asChild>
-                  <Link href="/admin/wallets">Wallet ledger</Link>
+                  <Link href={ledgerHref}>Wallet ledger</Link>
                 </Button>
               ) : null}
             </div>
           )}
+          {wallet?.canViewLedger ? (
+            report.isLoading ? (
+              <Skeleton className="h-[150px] w-full rounded-xl" />
+            ) : report.data ? (
+              <div className="flex flex-col gap-1.5">
+                <BalanceChart days={balanceDays} lowPaise={wallet.lowBalanceThresholdPaise} />
+                <span className="flex items-center gap-1.5 text-xs text-body">
+                  <span className="inline-block w-3.5 border-t-2 border-dashed border-chart-2" aria-hidden />
+                  Low-balance alert at {fmtRupees0(wallet.lowBalanceThresholdPaise)}
+                </span>
+              </div>
+            ) : null
+          ) : null}
           {wallet ? (
             <dl className="mt-auto grid grid-cols-3 gap-3 border-t border-divider pt-4 text-[13px]">
               {(
@@ -727,6 +784,29 @@ function ResellerHome({
           </KpiLink>
         </div>
       ) : null}
+
+      <div className="flex flex-wrap gap-3">
+        {wallet?.canViewLedger ? (
+          <Card className="flex min-w-0 flex-[3_1_480px] flex-col gap-3.5 p-5">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 className="mr-auto text-base font-bold">Recharges per day, last 30 days</h2>
+              {report.data ? (
+                <span className="text-[13px] text-muted-foreground">
+                  {plural(rechargeCount, 'recharge')} · {fmtRupees(rechargePaise)}
+                </span>
+              ) : null}
+            </div>
+            {report.isError ? (
+              <ErrorState error={report.error} onRetry={() => void report.refetch()} />
+            ) : report.isLoading ? (
+              <Skeleton className="h-[180px] w-full rounded-xl" />
+            ) : (
+              <RechargesChart days={rechargeDays} />
+            )}
+          </Card>
+        ) : null}
+        {can('subscribers.read') ? <ExpiringCard limit={5} compact className="flex-[2_1_340px]" /> : null}
+      </div>
     </div>
   );
 }
