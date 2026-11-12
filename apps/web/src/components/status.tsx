@@ -8,20 +8,20 @@ export function SubscriberState({
 }) {
   if (s.status === 'suspended')
     return (
-      <Badge tone="danger" title={s.suspendReason ?? undefined}>
+      <Badge tone="warning" title={s.suspendReason ?? undefined}>
         Suspended
       </Badge>
     );
-  if (s.status === 'disabled') return <Badge tone="danger">Disabled</Badge>;
+  if (s.status === 'disabled') return <Badge tone="neutral">Disabled</Badge>;
   if (s.radiusState === 'expired')
     return s.planId ? (
-      <Badge tone="warning">Expired</Badge>
+      <Badge tone="danger">Expired</Badge>
     ) : (
       <Badge tone="warning" title="No plan: gets the expired-user speed and the pay page">
         No plan
       </Badge>
     );
-  if (s.radiusState === 'fup') return <Badge tone="warning">FUP speed</Badge>;
+  if (s.radiusState === 'fup') return <Badge tone="info">FUP speed</Badge>;
   return <Badge tone="success">Active</Badge>;
 }
 

@@ -49,7 +49,7 @@ export function ResellerPicker({
 
   if (value) {
     return (
-      <div className="flex h-9 items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 text-sm">
+      <div className="flex h-9 items-center justify-between gap-2 rounded-xl border bg-subtle px-3 text-sm">
         <span className="truncate">
           {value.name} <span className="text-muted-foreground">· {value.code}</span>
         </span>
@@ -89,7 +89,7 @@ export function ResellerPicker({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-md border bg-card p-1 shadow-md"
+          className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border bg-card p-1 shadow-[0_6px_16px_rgba(36,23,42,0.10)]"
         >
           {res.isLoading ? <li className="px-2 py-1.5 text-sm text-muted-foreground">Searching…</li> : null}
           {!res.isLoading && !items.length ? (
@@ -100,7 +100,7 @@ export function ResellerPicker({
               key={r.id}
               role="option"
               aria-selected={false}
-              className="cursor-pointer rounded px-2 py-1.5 text-sm hover:bg-muted"
+              className="cursor-pointer rounded px-2 py-1.5 text-sm hover:bg-subtle"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 onChange({ id: r.id, code: r.code, name: r.name });

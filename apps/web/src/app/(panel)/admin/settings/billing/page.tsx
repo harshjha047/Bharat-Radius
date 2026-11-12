@@ -282,7 +282,7 @@ function Gateways({ s }: { s: Settings }) {
 
 function WebhookUrl({ url, events }: { url: string; events: string }) {
   return (
-    <div className="rounded-md border bg-muted/40 p-2 text-xs">
+    <div className="rounded-xl border bg-subtle p-2 text-xs">
       <div className="mb-1 text-muted-foreground">Webhook URL (events: {events})</div>
       <div className="flex items-center gap-2">
         <span className="truncate font-mono">{url}</span>

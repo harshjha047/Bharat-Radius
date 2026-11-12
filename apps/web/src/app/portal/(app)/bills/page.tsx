@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { portalKeys } from '@/components/portal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/data-table';
 import { api, download, unwrap } from '@/lib/api';
 import { fmtDate, fmtDateTime, fmtRupees } from '@/lib/utils';
@@ -63,12 +63,17 @@ export default function PortalBills() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
+      <div className="mt-1 space-y-0.5">
+        <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Bills</h1>
+        <p className="text-[15px] text-body">Invoices and payments for your connection.</p>
+      </div>
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b pb-4 sm:pb-4">
           <CardTitle>Invoices</CardTitle>
         </CardHeader>
-        <CardContent>
+        <div>
           <DataTable
+            bare
             caption="Invoices"
             rows={invoices.data?.pages.flatMap((p) => p.items)}
             loading={invoices.isLoading}
@@ -92,7 +97,11 @@ export default function PortalBills() {
               {
                 key: 'status',
                 header: 'Status',
-                cell: (r) => <Badge tone={INVOICE_TONE[r.status]}>{r.status.replace('_', ' ')}</Badge>,
+                cell: (r) => (
+                  <Badge tone={INVOICE_TONE[r.status]} className="capitalize">
+                    {r.status.replace('_', ' ')}
+                  </Badge>
+                ),
               },
               {
                 key: 'pdf',
@@ -105,14 +114,15 @@ export default function PortalBills() {
               },
             ]}
           />
-        </CardContent>
+        </div>
       </Card>
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b pb-4 sm:pb-4">
           <CardTitle>Payments</CardTitle>
         </CardHeader>
-        <CardContent>
+        <div>
           <DataTable
+            bare
             caption="Payments"
             rows={payments.data?.pages.flatMap((p) => p.items)}
             loading={payments.isLoading}
@@ -138,7 +148,7 @@ export default function PortalBills() {
               },
             ]}
           />
-        </CardContent>
+        </div>
       </Card>
     </>
   );

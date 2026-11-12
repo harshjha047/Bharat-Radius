@@ -365,7 +365,7 @@ export function PaymentLinkDialog({
         {m.data ? (
           <div className="space-y-3">
             <KeyValue items={[['Amount', fmtRupees(m.data.amountPaise)]]} />
-            <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2 text-sm">
+            <div className="flex items-center gap-2 rounded-xl border bg-subtle p-2 text-sm">
               <span className="truncate font-mono">{m.data.linkUrl}</span>
               <CopyButton value={m.data.linkUrl ?? ''} />
             </div>

@@ -125,7 +125,10 @@ export default function WalletsPage() {
       </div>
       {mine.isError ? <ErrorState error={mine.error} onRetry={() => void mine.refetch()} /> : null}
       {m?.state === 'low' || m?.state === 'empty' ? (
-        <p role="status" className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+        <p
+          role="status"
+          className="mb-4 rounded-xl border border-[#f5d9a8] bg-warning-bg text-warning-text font-semibold px-3 py-2 text-sm"
+        >
           {m.state === 'empty'
             ? 'Your wallet is empty: recharges are blocked until you get a top-up.'
             : `Low balance: at or below ${fmtRupees(m.lowBalanceThresholdPaise)}.`}

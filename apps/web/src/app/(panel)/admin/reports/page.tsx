@@ -10,7 +10,7 @@ import { ErrorState, PageHeader, Stat } from '@/components/ui/misc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, download, unwrap, type ApiData } from '@/lib/api';
 import { useMe } from '@/lib/auth';
-import { fmtBytes, fmtNum, fmtRupees } from '@/lib/utils';
+import { cn, fmtBytes, fmtNum, fmtRupees } from '@/lib/utils';
 
 type ReportData = ApiData<'/api/v1/reports/{name}'>;
 type Table = ReportData['tables'][number];
@@ -52,19 +52,22 @@ function fmt(v: string | number | null | undefined, kind?: string) {
 
 function ReportTable({ t }: { t: Table }) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden">
+      <div className="border-b px-5 py-4">
         <CardTitle>{t.title}</CardTitle>
-      </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <table className="w-full min-w-[32rem] text-sm">
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[32rem] text-sm tabular-nums">
           <thead>
-            <tr className="border-b text-xs text-muted-foreground">
+            <tr className="bg-subtle">
               {t.columns.map((c, i) => (
                 <th
                   key={c.key}
                   scope="col"
-                  className={i ? 'px-2 py-2 text-right font-medium' : 'py-2 pr-2 text-left font-medium'}
+                  className={cn(
+                    'eyebrow px-3.5 py-2.5 font-medium tracking-[0.08em] whitespace-nowrap',
+                    i ? 'text-right' : 'pl-5 text-left',
+                  )}
                 >
                   {c.label}
                 </th>
@@ -74,9 +77,14 @@ function ReportTable({ t }: { t: Table }) {
           <tbody>
             {t.rows.length ? (
               t.rows.map((r, j) => (
-                <tr key={j} className="border-b last:border-0">
+                <tr key={j} className="border-t border-divider">
                   {t.columns.map((c, i) => (
-                    <td key={c.key} className={i ? 'px-2 py-1.5 text-right tabular-nums' : 'py-1.5 pr-2'}>
+                    <td
+                      key={c.key}
+                      className={
+                        i ? 'px-3.5 py-2.5 text-right' : 'py-2.5 pr-3.5 pl-5 font-semibold text-foreground'
+                      }
+                    >
                       {fmt(r[c.key], c.kind)}
                     </td>
                   ))}
@@ -84,7 +92,7 @@ function ReportTable({ t }: { t: Table }) {
               ))
             ) : (
               <tr>
-                <td colSpan={t.columns.length} className="py-6 text-center text-muted-foreground">
+                <td colSpan={t.columns.length} className="py-10 text-center text-muted-foreground">
                   No data for this period.
                 </td>
               </tr>
@@ -92,9 +100,9 @@ function ReportTable({ t }: { t: Table }) {
           </tbody>
           {t.totals ? (
             <tfoot>
-              <tr className="border-t font-semibold">
+              <tr className="border-t-2 bg-subtle font-extrabold text-foreground">
                 {t.columns.map((c, i) => (
-                  <td key={c.key} className={i ? 'px-2 py-2 text-right tabular-nums' : 'py-2 pr-2'}>
+                  <td key={c.key} className={i ? 'px-3.5 py-3 text-right' : 'py-3 pr-3.5 pl-5'}>
                     {fmt(t.totals![c.key], c.kind)}
                   </td>
                 ))}
@@ -102,7 +110,7 @@ function ReportTable({ t }: { t: Table }) {
             </tfoot>
           ) : null}
         </table>
-      </CardContent>
+      </div>
     </Card>
   );
 }
@@ -224,18 +232,21 @@ export default function ReportsPage() {
           </>
         }
       />
-      <div className="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Report">
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b" role="tablist" aria-label="Report">
         {visible.map((r) => (
-          <Button
+          <button
             key={r.name}
+            type="button"
             role="tab"
             aria-selected={name === r.name}
-            size="sm"
-            variant={name === r.name ? 'default' : 'outline'}
             onClick={() => setName(r.name)}
+            className={cn(
+              'h-11 shrink-0 px-3.5 text-sm font-medium whitespace-nowrap text-body hover:text-foreground',
+              name === r.name && 'font-bold text-primary shadow-[inset_0_-2px_0_var(--primary)]',
+            )}
           >
             {r.label}
-          </Button>
+          </button>
         ))}
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">

@@ -14,7 +14,7 @@ import {
 } from '@/components/tickets';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/input';
-import { ErrorState, Field, KeyValue, PageHeader } from '@/components/ui/misc';
+import { ErrorState, Field, KeyValue } from '@/components/ui/misc';
 import { api, unwrap } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import { fmtDateTime } from '@/lib/utils';
@@ -59,36 +59,43 @@ export default function TicketPage() {
 
   return (
     <>
-      <PageHeader
-        title={
-          <span className="flex flex-wrap items-center gap-2">
-            {d.subject}
-            <TicketStatusBadge status={d.status} />
-            <PriorityBadge priority={d.priority} />
-          </span>
-        }
-        description={`${d.number} · ${CATEGORY_LABEL[d.category]} · opened ${fmtDateTime(d.createdAt)} by ${d.openedBy.name}`}
-      />
-      <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
-        <Card>
-          <CardContent className="space-y-4 pt-4 sm:pt-5">
+      <nav aria-label="Breadcrumb" className="mb-4 text-[13px] text-muted-foreground">
+        <Link href="/admin/tickets">Tickets</Link> <span aria-hidden>/</span> {d.number}
+      </nav>
+      <div className="grid items-start gap-3 lg:grid-cols-[1fr_18rem]">
+        <Card className="flex flex-col overflow-hidden">
+          <div className="flex flex-col gap-1 border-b px-5 py-4">
+            <span className="font-mono text-xs text-muted-foreground">
+              {d.number} · {CATEGORY_LABEL[d.category]} · opened {fmtDateTime(d.createdAt)} by{' '}
+              {d.openedBy.name}
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-extrabold tracking-[-0.02em]">{d.subject}</h1>
+              <TicketStatusBadge status={d.status} />
+              <PriorityBadge priority={d.priority} />
+            </div>
+          </div>
+          <div className="bg-[#fcfbfa] p-5">
             <TicketTimeline events={d.events} viewer="staff" />
-            {write && d.status !== 'closed' ? (
+          </div>
+          {write && d.status !== 'closed' ? (
+            <div className="border-t px-4 py-3">
               <ReplyBox
                 staff
                 loading={reply.isPending}
                 onSend={(body, internal) => reply.mutateAsync({ body, internal })}
-                placeholder={d.subscriber ? `Reply to ${d.subscriber.name}…` : 'Add an update…'}
+                placeholder={
+                  d.subscriber
+                    ? `Write a reply to ${d.subscriber.name}. They see it in the portal.`
+                    : 'Add an update…'
+                }
               />
-            ) : null}
-          </CardContent>
+            </div>
+          ) : null}
         </Card>
         <div className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3.5 pt-4 sm:pt-5">
               <Field label="Status" htmlFor="status">
                 <Select
                   id="status"
@@ -143,7 +150,7 @@ export default function TicketPage() {
           {d.subscriber ? (
             <Card>
               <CardHeader>
-                <CardTitle>Customer</CardTitle>
+                <CardTitle className="eyebrow tracking-[0.08em]">Customer</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <KeyValue

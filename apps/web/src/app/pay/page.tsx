@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'Recharge your connection' };
 /** Walled-garden landing for expired customers. Online recharge goes through the portal (OTP pay page: WP 4.2). */
 export default function PayPage() {
   return (
-    <main className="grid min-h-dvh place-items-center bg-muted/40 px-4 py-10">
+    <main className="grid min-h-dvh place-items-center bg-subtle px-4 py-10">
       <div className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 text-center shadow-sm">
         <h1 className="text-lg font-semibold">Your internet plan has expired</h1>
         <p className="text-sm text-muted-foreground">

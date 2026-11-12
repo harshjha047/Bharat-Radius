@@ -40,6 +40,10 @@ function Support() {
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <>
+      <div className="mt-1 space-y-0.5">
+        <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Help</h1>
+        <p className="text-[15px] text-body">Report a problem and follow the reply here.</p>
+      </div>
       <NewTicket
         initialCategory={(CUSTOMER_CATEGORIES as readonly string[]).includes(initial ?? '') ? initial! : null}
       />
@@ -57,11 +61,11 @@ function Support() {
             <Link
               key={t.id}
               href={`/portal/support/${t.id}`}
-              className="flex items-center justify-between gap-3 rounded-md border p-3 hover:bg-muted"
+              className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border p-3.5 text-inherit hover:bg-subtle hover:text-inherit"
             >
               <span className="min-w-0">
-                <span className="block truncate font-medium">{t.subject}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="block truncate font-bold text-foreground">{t.subject}</span>
+                <span className="font-mono text-xs text-muted-foreground">
                   {t.number} · {relTime(t.lastActivityAt)}
                 </span>
               </span>
@@ -118,7 +122,7 @@ function NewTicket({ initialCategory }: { initialCategory: string | null }) {
   };
   if (!open) {
     return (
-      <Button size="lg" className="w-full sm:w-auto" onClick={() => setOpen(true)}>
+      <Button size="xl" className="sm:w-auto sm:px-8" onClick={() => setOpen(true)}>
         Report a problem
       </Button>
     );

@@ -1,10 +1,11 @@
 'use client';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useMemo, useState, type FormEvent } from 'react';
 import { CATEGORY_LABEL, PriorityBadge, TicketStatusBadge, type Ticket } from '@/components/tickets';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent, dialogActions } from '@/components/ui/dialog';
 import { Input, Select, Textarea } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import { ErrorState, Field, PageHeader } from '@/components/ui/misc';
 import { useDebounced } from '@/hooks/use-debounced';
 import { api, fieldErrors, unwrap } from '@/lib/api';
 import { useCan, useMe } from '@/lib/auth';
-import { relTime } from '@/lib/utils';
+import { cn, relTime } from '@/lib/utils';
 
 type View = 'active' | 'mine' | 'unassigned' | 'resolved' | 'closed' | 'all';
 
@@ -93,97 +94,113 @@ function TicketsList() {
           ) : null
         }
       />
-      <div className="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Ticket views">
-        {VIEWS.map(([v, label]) => (
-          <Button
-            key={v}
-            role="tab"
-            aria-selected={view === v}
-            size="sm"
-            variant={view === v ? 'default' : 'outline'}
-            onClick={() => setView(v)}
+      <Card className="overflow-hidden">
+        <div className="flex flex-col gap-2.5 border-b p-3 lg:flex-row lg:items-center">
+          <div
+            role="tablist"
+            aria-label="Ticket views"
+            className="flex gap-0.5 overflow-x-auto rounded-xl bg-muted p-1 lg:mr-auto"
           >
-            {label}
-            {badge(v) !== '' ? <span className="tabular-nums opacity-80">{badge(v)}</span> : null}
-          </Button>
-        ))}
-      </div>
-      <div className="mb-3 flex flex-wrap gap-2">
-        <Input
-          type="search"
-          aria-label="Ticket number"
-          placeholder="Ticket no. (T000123)"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="w-48"
-        />
-        <Select
-          aria-label="Category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-48"
-        >
-          <option value="">All categories</option>
-          {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </Select>
-      </div>
-      {list.isError ? (
-        <ErrorState error={list.error} onRetry={() => void list.refetch()} />
-      ) : (
-        <DataTable
-          caption="Tickets"
-          rows={list.data?.pages.flatMap((p) => p.items)}
-          loading={list.isLoading}
-          rowKey={(t) => t.id}
-          onRowClick={(t) => router.push(`/admin/tickets/${t.id}`)}
-          hasMore={list.hasNextPage}
-          loadingMore={list.isFetchingNextPage}
-          onLoadMore={() => void list.fetchNextPage()}
-          empty="No tickets here."
-          columns={[
-            {
-              key: 'subject',
-              header: 'Ticket',
-              cell: (t) => (
-                <span className="block min-w-0">
-                  <span className="flex items-center gap-2 font-medium">
-                    <span className="truncate">{t.subject}</span>
-                    <PriorityBadge priority={t.priority} />
+            {VIEWS.map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={view === v}
+                onClick={() => setView(v)}
+                className={cn(
+                  'h-8 shrink-0 rounded-[9px] px-3 text-[13px] font-medium whitespace-nowrap text-body',
+                  view === v && 'bg-card font-bold text-foreground shadow-[0_1px_2px_rgba(36,23,42,0.08)]',
+                )}
+              >
+                {label}
+                {badge(v) !== '' ? <span className="ml-1 tabular-nums opacity-80">{badge(v)}</span> : null}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <label className="flex h-10 flex-[1_1_180px] items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary lg:w-52 lg:flex-none">
+              <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <input
+                type="search"
+                aria-label="Ticket number"
+                placeholder="T000123"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
+              />
+            </label>
+            <Select
+              aria-label="Category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-48 max-sm:flex-1"
+            >
+              <option value="">All categories</option>
+              {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+        {list.isError ? (
+          <ErrorState error={list.error} onRetry={() => void list.refetch()} />
+        ) : (
+          <DataTable
+            bare
+            caption="Tickets"
+            rows={list.data?.pages.flatMap((p) => p.items)}
+            loading={list.isLoading}
+            rowKey={(t) => t.id}
+            onRowClick={(t) => router.push(`/admin/tickets/${t.id}`)}
+            hasMore={list.hasNextPage}
+            loadingMore={list.isFetchingNextPage}
+            onLoadMore={() => void list.fetchNextPage()}
+            empty="No tickets here."
+            columns={[
+              {
+                key: 'subject',
+                header: 'Ticket',
+                cell: (t) => (
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-muted-foreground">{t.number}</span>
+                      <PriorityBadge priority={t.priority} />
+                    </span>
+                    <span className="truncate font-bold text-foreground">{t.subject}</span>
+                    <span className="text-xs text-muted-foreground">{CATEGORY_LABEL[t.category]}</span>
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {t.number} · {CATEGORY_LABEL[t.category]}
-                  </span>
-                </span>
-              ),
-            },
-            {
-              key: 'customer',
-              header: 'Customer',
-              cell: (t) =>
-                t.subscriber ? (
-                  <span>
-                    {t.subscriber.name}
-                    <span className="block text-xs text-muted-foreground">{t.subscriber.customerNo}</span>
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">Internal</span>
                 ),
-            },
-            { key: 'status', header: 'Status', cell: (t) => <TicketStatusBadge status={t.status} /> },
-            {
-              key: 'assignee',
-              header: 'Assigned',
-              cell: (t) => t.assignee?.name ?? <span className="text-muted-foreground">—</span>,
-              hideOnMobile: true,
-            },
-            { key: 'activity', header: 'Last activity', cell: (t) => relTime(t.lastActivityAt) },
-          ]}
-        />
-      )}
+              },
+              {
+                key: 'customer',
+                header: 'Customer',
+                cell: (t) =>
+                  t.subscriber ? (
+                    <span className="flex flex-col">
+                      <span className="font-semibold">{t.subscriber.name}</span>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {t.subscriber.customerNo}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Internal</span>
+                  ),
+              },
+              { key: 'status', header: 'Status', cell: (t) => <TicketStatusBadge status={t.status} /> },
+              {
+                key: 'assignee',
+                header: 'Assigned',
+                cell: (t) => t.assignee?.name ?? <span className="text-muted-foreground">—</span>,
+                hideOnMobile: true,
+              },
+              { key: 'activity', header: 'Last activity', cell: (t) => relTime(t.lastActivityAt) },
+            ]}
+          />
+        )}
+      </Card>
       {creating ? (
         <NewTicketDialog
           subscriberId={subscriberId}
@@ -266,7 +283,7 @@ function NewTicketDialog({
             hint={reseller ? undefined : 'Leave empty for an internal ticket.'}
           >
             {target ? (
-              <div className="flex h-9 items-center justify-between rounded-md border bg-muted/40 px-3 text-sm">
+              <div className="flex h-9 items-center justify-between rounded-xl border bg-subtle px-3 text-sm">
                 {target.label}
                 {!subscriberId ? (
                   <Button type="button" variant="ghost" size="sm" onClick={() => setPicked(null)}>
@@ -284,12 +301,12 @@ function NewTicketDialog({
                   onChange={(e) => setWho(e.target.value)}
                 />
                 {search.data?.items.length ? (
-                  <ul className="absolute z-50 mt-1 w-full rounded-md border bg-card p-1 shadow-md">
+                  <ul className="absolute z-50 mt-1 w-full rounded-xl border bg-card p-1 shadow-[0_6px_16px_rgba(36,23,42,0.10)]">
                     {search.data.items.map((s) => (
                       <li key={s.id}>
                         <button
                           type="button"
-                          className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                          className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-subtle"
                           onClick={() => setPicked({ id: s.id, label: `${s.name} · ${s.customerNo}` })}
                         >
                           {s.name} <span className="text-muted-foreground">· {s.customerNo}</span>

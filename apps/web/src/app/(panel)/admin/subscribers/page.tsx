@@ -5,17 +5,45 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { SubscriberState, SyncState } from '@/components/status';
+import { Tag } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/data-table';
-import { Input, Select } from '@/components/ui/input';
+import { Select } from '@/components/ui/input';
 import { ErrorState, PageHeader } from '@/components/ui/misc';
 import { useDebounced } from '@/hooks/use-debounced';
 import { api, unwrap } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import { usePlans, type Subscriber } from '@/lib/queries';
-import { fmtDate } from '@/lib/utils';
+import { cn, daysUntil, fmtDate } from '@/lib/utils';
 
 type Status = 'active' | 'suspended' | 'disabled' | 'expired';
+const CHIPS: [Status | '', string][] = [
+  ['', 'All'],
+  ['active', 'Active'],
+  ['expired', 'Expired'],
+  ['suspended', 'Suspended'],
+  ['disabled', 'Disabled'],
+];
+
+function Expiry({ s }: { s: Subscriber }) {
+  const days = daysUntil(s.expiresAt);
+  if (days === null) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span
+      className={cn(
+        'whitespace-nowrap tabular-nums',
+        days <= 0
+          ? 'font-bold text-danger-text'
+          : days <= 3
+            ? 'font-bold text-warning-text'
+            : 'text-foreground',
+      )}
+    >
+      {fmtDate(s.expiresAt)}
+    </span>
+  );
+}
 
 function SubscribersList() {
   const router = useRouter();
@@ -74,114 +102,143 @@ function SubscribersList() {
           ) : null
         }
       />
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-        <div className="relative flex-1">
-          <Search
-            className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="pl-9"
-            placeholder="Name, username, phone or customer no."
-            aria-label="Search subscribers"
-            maxLength={64}
-          />
-        </div>
-        <Select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as Status | '')}
-          aria-label="Status"
-          className="sm:w-40"
-        >
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="expired">Expired</option>
-          <option value="suspended">Suspended</option>
-          <option value="disabled">Disabled</option>
-        </Select>
-        <Select
-          value={planId}
-          onChange={(e) => setPlanId(e.target.value)}
-          aria-label="Plan"
-          className="sm:w-48"
-        >
-          <option value="">All plans</option>
-          {plans.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </Select>
+      <div
+        role="group"
+        aria-label="Status"
+        className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0"
+      >
+        {CHIPS.map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            aria-pressed={status === v}
+            onClick={() => setStatus(v)}
+            className={cn(
+              'h-9 shrink-0 rounded-full border border-input bg-card px-3.5 text-[13px] font-semibold text-foreground hover:bg-subtle',
+              status === v && 'border-primary bg-primary text-primary-foreground hover:bg-primary',
+            )}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-      {list.isError ? (
-        <ErrorState error={list.error} onRetry={() => void list.refetch()} />
-      ) : (
-        <DataTable
-          caption="Subscribers"
-          loading={list.isLoading}
-          rows={rows}
-          rowKey={(s) => s.id}
-          onRowClick={(s) => router.push(`/admin/subscribers/${s.id}`)}
-          hasMore={list.hasNextPage}
-          loadingMore={list.isFetchingNextPage}
-          onLoadMore={() => void list.fetchNextPage()}
-          empty={dq || status || planId ? 'No subscriber matches these filters.' : 'No subscribers yet.'}
-          columns={[
-            {
-              key: 'name',
-              header: 'Subscriber',
-              cell: (s) => (
-                <div className="min-w-0">
-                  <Link
-                    href={`/admin/subscribers/${s.id}`}
-                    className="font-medium hover:underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {s.name}
-                  </Link>
-                  <div className="text-xs text-muted-foreground">#{s.customerNo}</div>
-                </div>
-              ),
-            },
-            {
-              key: 'username',
-              header: 'Username',
-              cell: (s) => <span className="font-mono text-xs">{s.username}</span>,
-            },
-            { key: 'phone', header: 'Phone', cell: (s) => s.phone, hideOnMobile: true },
-            {
-              key: 'plan',
-              header: 'Plan',
-              cell: (s) => (s.planId ? (byId.get(s.planId)?.name ?? '…') : '—'),
-            },
-            ...(can('resellers.read')
-              ? [
-                  {
-                    key: 'reseller',
-                    header: 'Reseller',
-                    cell: (s: Subscriber) =>
-                      s.reseller?.name ?? <span className="text-muted-foreground">Direct</span>,
-                    hideOnMobile: true,
-                  },
-                ]
-              : []),
-            {
-              key: 'state',
-              header: 'Status',
-              cell: (s) => (
-                <span className="flex flex-wrap justify-end gap-1 sm:justify-start">
-                  <SubscriberState s={s} />
-                  <SyncState s={s} />
-                </span>
-              ),
-            },
-            { key: 'expires', header: 'Expires', cell: (s) => fmtDate(s.expiresAt) },
-          ]}
-        />
-      )}
+      <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3.5">
+          <label className="flex h-10 flex-[1_1_260px] items-center gap-2 rounded-xl border border-input px-3 focus-within:border-primary">
+            <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
+              placeholder="Name, C-number, username, phone"
+              aria-label="Search subscribers"
+              maxLength={64}
+            />
+          </label>
+          <Select
+            value={planId}
+            onChange={(e) => setPlanId(e.target.value)}
+            aria-label="Plan"
+            className={cn('min-w-44 sm:w-auto', planId && 'border-accent-border bg-accent font-semibold')}
+          >
+            <option value="">Plan: Any</option>
+            {plans.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+          {q || status || planId ? (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setQ('');
+                setStatus('');
+                setPlanId('');
+              }}
+            >
+              Clear
+            </Button>
+          ) : null}
+        </div>
+        {list.isError ? (
+          <ErrorState error={list.error} onRetry={() => void list.refetch()} />
+        ) : (
+          <DataTable
+            bare
+            caption="Subscribers"
+            loading={list.isLoading}
+            rows={rows}
+            rowKey={(s) => s.id}
+            onRowClick={(s) => router.push(`/admin/subscribers/${s.id}`)}
+            hasMore={list.hasNextPage}
+            loadingMore={list.isFetchingNextPage}
+            onLoadMore={() => void list.fetchNextPage()}
+            empty={dq || status || planId ? 'No subscriber matches these filters.' : 'No subscribers yet.'}
+            columns={[
+              {
+                key: 'name',
+                header: 'Subscriber',
+                cell: (s) => (
+                  <div className="flex min-w-0 flex-col">
+                    <Link
+                      href={`/admin/subscribers/${s.id}`}
+                      className="font-semibold text-foreground hover:text-primary"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {s.name}
+                    </Link>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {s.customerNo} · {s.username}
+                    </span>
+                  </div>
+                ),
+              },
+              {
+                key: 'plan',
+                header: 'Plan',
+                cell: (s) => (
+                  <span className="whitespace-nowrap">
+                    {s.planId ? (byId.get(s.planId)?.name ?? '…') : '—'}
+                  </span>
+                ),
+              },
+              ...(can('resellers.read')
+                ? [
+                    {
+                      key: 'reseller',
+                      header: 'Reseller',
+                      cell: (s: Subscriber) => (
+                        <Tag mono title={s.reseller?.name}>
+                          {s.reseller ? (s.reseller.code ?? s.reseller.name) : 'Direct'}
+                        </Tag>
+                      ),
+                      hideOnMobile: true,
+                    },
+                  ]
+                : []),
+              {
+                key: 'state',
+                header: 'Status',
+                cell: (s) => (
+                  <span className="flex flex-wrap justify-end gap-1 sm:justify-start">
+                    <SubscriberState s={s} />
+                    <SyncState s={s} />
+                  </span>
+                ),
+              },
+              { key: 'expires', header: 'Valid until', cell: (s) => <Expiry s={s} /> },
+              {
+                key: 'phone',
+                header: 'Phone',
+                cell: (s) => <span className="whitespace-nowrap tabular-nums">{s.phone}</span>,
+                hideOnMobile: true,
+              },
+            ]}
+          />
+        )}
+      </Card>
     </>
   );
 }

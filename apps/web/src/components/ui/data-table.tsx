@@ -23,6 +23,8 @@ interface Props<T> {
   loadingMore?: boolean;
   onLoadMore?: () => void;
   caption?: string;
+  /** No outer border: the table sits inside a Card that already has one. */
+  bare?: boolean;
 }
 
 /** Table on wider screens; each row becomes a labelled card under 640 px (same DOM, CSS only). */
@@ -37,30 +39,51 @@ export function DataTable<T>({
   loadingMore,
   onLoadMore,
   caption,
+  bare,
 }: Props<T>) {
+  const card = bare
+    ? 'max-sm:block max-sm:px-4 max-sm:py-3'
+    : 'max-sm:block max-sm:rounded-2xl max-sm:border max-sm:bg-card max-sm:p-4';
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-lg border bg-card max-sm:border-0 max-sm:bg-transparent">
+      <div
+        className={cn(
+          'overflow-x-auto bg-card max-sm:overflow-visible max-sm:bg-transparent',
+          bare ? '' : 'rounded-2xl border max-sm:border-0',
+        )}
+      >
         <table className="w-full text-sm max-sm:block">
           {caption ? <caption className="sr-only">{caption}</caption> : null}
-          <thead className="bg-muted/60 text-left text-xs text-muted-foreground max-sm:hidden">
+          <thead className="sticky top-0 z-[1] bg-subtle text-left max-sm:hidden">
             <tr>
               {columns.map((c) => (
-                <th key={c.key} scope="col" className={cn('px-3 py-2 font-medium', c.className)}>
+                <th
+                  key={c.key}
+                  scope="col"
+                  className={cn(
+                    'eyebrow px-3 py-2.5 font-medium tracking-[0.08em] whitespace-nowrap first:pl-5 last:pr-5',
+                    c.className,
+                  )}
+                >
                   {c.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y max-sm:block max-sm:space-y-2 max-sm:divide-y-0">
+          <tbody
+            className={cn(
+              'divide-y divide-divider max-sm:block',
+              !bare && 'max-sm:space-y-2 max-sm:divide-y-0',
+            )}
+          >
             {loading
               ? Array.from({ length: 6 }, (_, i) => (
-                  <tr
-                    key={i}
-                    className="max-sm:block max-sm:rounded-lg max-sm:border max-sm:bg-card max-sm:p-3"
-                  >
+                  <tr key={i} className={card}>
                     {columns.map((c) => (
-                      <td key={c.key} className="px-3 py-3 max-sm:block max-sm:px-0 max-sm:py-1">
+                      <td
+                        key={c.key}
+                        className="h-[52px] px-3 first:pl-5 last:pr-5 max-sm:block max-sm:h-auto max-sm:px-0 max-sm:first:pl-0 max-sm:last:pr-0 max-sm:py-1"
+                      >
                         <Skeleton className="h-4 w-full max-w-40" />
                       </td>
                     ))}
@@ -70,21 +93,18 @@ export function DataTable<T>({
                   <tr
                     key={rowKey(r)}
                     onClick={onRowClick ? () => onRowClick(r) : undefined}
-                    className={cn(
-                      'max-sm:block max-sm:rounded-lg max-sm:border max-sm:bg-card max-sm:p-3',
-                      onRowClick && 'cursor-pointer hover:bg-muted/50',
-                    )}
+                    className={cn(card, onRowClick && 'cursor-pointer hover:bg-subtle')}
                   >
                     {columns.map((c, i) => (
                       <td
                         key={c.key}
                         data-label={typeof c.header === 'string' ? c.header : undefined}
                         className={cn(
-                          'px-3 py-2.5 align-middle',
-                          'max-sm:flex max-sm:items-baseline max-sm:justify-between max-sm:gap-4 max-sm:px-0 max-sm:py-1',
+                          'h-[52px] px-3 py-2.5 align-middle text-foreground first:pl-5 last:pr-5',
+                          'max-sm:flex max-sm:h-auto max-sm:items-baseline max-sm:justify-between max-sm:gap-4 max-sm:px-0 max-sm:py-1 max-sm:first:pl-0 max-sm:last:pr-0',
                           i > 0 &&
                             'max-sm:before:text-xs max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]',
-                          i === 0 && 'max-sm:font-medium',
+                          i === 0 && 'max-sm:font-semibold',
                           c.hideOnMobile && 'max-sm:hidden',
                           c.className,
                         )}
@@ -97,13 +117,18 @@ export function DataTable<T>({
           </tbody>
         </table>
         {!loading && rows?.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+          <div
+            className={cn(
+              'px-4 py-12 text-center text-sm text-muted-foreground',
+              !bare && 'max-sm:rounded-2xl max-sm:border max-sm:bg-card',
+            )}
+          >
             {empty ?? 'Nothing here yet.'}
           </div>
         ) : null}
       </div>
       {hasMore ? (
-        <div className="flex justify-center">
+        <div className={cn('flex justify-center', bare && 'pb-4')}>
           <Button variant="outline" size="sm" onClick={onLoadMore} loading={loadingMore}>
             Load more
           </Button>

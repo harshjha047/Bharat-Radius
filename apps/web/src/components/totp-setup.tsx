@@ -40,7 +40,7 @@ export function TotpSetup({
         <li>Scan the code with your authenticator app.</li>
         <li>Enter the 6-digit code it shows.</li>
       </ol>
-      <div className="mx-auto size-48 overflow-hidden rounded-md bg-white p-2">
+      <div className="mx-auto size-48 overflow-hidden rounded-xl bg-white p-2">
         {qr ? (
           <div
             role="img"
@@ -57,7 +57,7 @@ export function TotpSetup({
           <summary className="cursor-pointer text-muted-foreground">
             Can&apos;t scan? Enter the key instead
           </summary>
-          <div className="mt-2 flex items-center gap-2 rounded-md bg-muted px-3 py-1">
+          <div className="mt-2 flex items-center gap-2 rounded-xl bg-muted px-3 py-1">
             <code className="flex-1 font-mono text-xs break-all">{setup.secret}</code>
             <CopyButton value={setup.secret} label="Copy key" />
           </div>

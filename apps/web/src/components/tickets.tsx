@@ -1,9 +1,9 @@
 'use client';
 import { Lock } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { Badge, Tag } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox, Textarea } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/input';
 import type { ApiData } from '@/lib/api';
 import { cn, fmtDateTime } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ export const STATUS_LABEL: Record<TicketStatus, string> = {
   closed: 'Closed',
 };
 const STATUS_TONE = {
-  open: 'warning',
+  open: 'info',
   in_progress: 'primary',
   waiting_customer: 'neutral',
   resolved: 'success',
@@ -46,7 +46,14 @@ export const TicketStatusBadge = ({ status }: { status: TicketStatus }) => (
 
 export const PriorityBadge = ({ priority }: { priority: Ticket['priority'] }) =>
   priority === 'high' || priority === 'urgent' ? (
-    <Badge tone="danger">{PRIORITY_LABEL[priority]}</Badge>
+    <Tag
+      className={cn(
+        'h-5 rounded-md border-0 px-1.5 text-[11px] font-bold',
+        priority === 'urgent' ? 'bg-danger-bg text-danger-text' : 'bg-warning-bg text-warning-text',
+      )}
+    >
+      {PRIORITY_LABEL[priority]}
+    </Tag>
   ) : null;
 
 function changeText(e: TicketEvent) {
@@ -59,34 +66,45 @@ function changeText(e: TicketEvent) {
 /** Messages as bubbles (customer on the left), internal notes highlighted, changes as one-line entries. */
 export function TicketTimeline({ events, viewer }: { events: TicketEvent[]; viewer: 'staff' | 'customer' }) {
   return (
-    <ol className="space-y-3" aria-label="Ticket history">
+    <ol className="flex flex-col gap-4" aria-label="Ticket history">
       {events.map((e) => {
         if (e.kind !== 'message' && e.kind !== 'note') {
           return (
-            <li key={e.id} className="text-center text-xs text-muted-foreground">
-              {e.author.name} {changeText(e)} · {fmtDateTime(e.createdAt)}
+            <li key={e.id} className="flex items-center gap-2.5 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" aria-hidden />
+              <span className="text-center">
+                {e.author.name} {changeText(e)} · {fmtDateTime(e.createdAt)}
+              </span>
+              <span className="h-px flex-1 bg-border" aria-hidden />
             </li>
           );
         }
         const fromCustomer = e.author.type === 'customer';
         const mine = viewer === 'customer' ? fromCustomer : !fromCustomer;
         return (
-          <li key={e.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
+          <li key={e.id} className={cn('flex max-w-[85%] flex-col gap-1 sm:max-w-[78%]', mine && 'self-end')}>
+            <p className={cn('flex items-center gap-2 text-xs text-muted-foreground', mine && 'justify-end')}>
+              <span className="font-bold text-foreground">{e.author.name}</span>
+              <span className="font-mono">{fmtDateTime(e.createdAt)}</span>
+            </p>
             <div
               className={cn(
-                'max-w-[85%] rounded-lg border px-3 py-2 text-sm',
+                'border px-3.5 py-3 text-sm leading-relaxed text-foreground',
+                mine ? 'rounded-[14px_4px_14px_14px]' : 'rounded-[4px_14px_14px_14px]',
                 e.kind === 'note'
-                  ? 'border-warning/50 bg-warning/10'
+                  ? 'border-[#f5d9a8] bg-warning-bg'
                   : mine
-                    ? 'bg-accent text-accent-foreground'
+                    ? 'border-accent-border bg-accent'
                     : 'bg-card',
               )}
             >
-              <p className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
-                {e.kind === 'note' ? <Lock className="size-3" aria-label="Internal note" /> : null}
-                {e.author.name} · {fmtDateTime(e.createdAt)}
-              </p>
-              <p className="whitespace-pre-wrap break-words">{e.body}</p>
+              {e.kind === 'note' ? (
+                <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold tracking-[0.06em] text-warning-text uppercase">
+                  <Lock className="size-3" strokeWidth={2.2} aria-hidden />
+                  Internal note · staff only
+                </span>
+              ) : null}
+              <p className="break-words whitespace-pre-wrap">{e.body}</p>
             </div>
           </li>
         );
@@ -117,7 +135,31 @@ export function ReplyBox({
     setInternal(false);
   };
   return (
-    <form onSubmit={(e) => void submit(e)} className="space-y-2">
+    <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-2.5">
+      {staff ? (
+        <div role="group" aria-label="Reply type" className="flex gap-1">
+          {(
+            [
+              [false, 'Reply to customer'],
+              [true, 'Internal note'],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={internal === v}
+              onClick={() => setInternal(v)}
+              className={cn(
+                'h-8 rounded-lg px-3 text-[13px] font-medium text-body hover:bg-subtle',
+                internal === v &&
+                  (v ? 'bg-warning-bg font-bold text-warning-text' : 'bg-accent font-bold text-primary'),
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <Textarea
         aria-label="Reply"
         rows={3}
@@ -125,17 +167,9 @@ export function ReplyBox({
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder={internal ? 'Internal note — the customer will not see this' : placeholder}
-        className={cn(internal && 'border-warning/60 bg-warning/5')}
+        className={cn(internal && 'border-[#f5d9a8] bg-warning-bg/60')}
       />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {staff ? (
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={internal} onChange={(e) => setInternal(e.target.checked)} />
-            Internal note
-          </label>
-        ) : (
-          <span />
-        )}
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Button type="submit" loading={loading} disabled={!body.trim()}>
           {internal ? 'Add note' : 'Send'}
         </Button>
