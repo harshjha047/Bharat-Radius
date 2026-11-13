@@ -420,8 +420,11 @@ export class SubscriberExcel {
       createdAt: null,
       finishedAt: null,
     });
-    if (q.dryRun) return view('validated');
-    if (issues.length && !q.skipInvalid) return view('rejected');
+    if (q.dryRun || (issues.length && !q.skipInvalid)) {
+      const status = q.dryRun ? 'validated' : 'rejected';
+      noteChange({ after: { fileName, status, counts, issues: issues.length } });
+      return view(status);
+    }
     if (!valid.length) throw new AppError(400, 'VALIDATION_FAILED', 'No valid rows to import');
 
     const now = new Date();
