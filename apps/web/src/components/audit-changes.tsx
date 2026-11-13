@@ -15,6 +15,9 @@ const HIDDEN = new Set([
   'importBatchId',
 ]);
 
+const toRecord = (v: unknown): Record<string, unknown> | null =>
+  v == null ? null : typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : { body: v };
+
 const show = (v: unknown): string => {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'string') return v;
@@ -26,14 +29,16 @@ const show = (v: unknown): string => {
 export type Resolve = (key: string, value: unknown) => string | undefined;
 
 export function AuditChanges({
-  before,
-  after,
+  before: rawBefore,
+  after: rawAfter,
   resolve,
 }: {
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
   resolve?: Resolve | undefined;
 }) {
+  const before = toRecord(rawBefore);
+  const after = toRecord(rawAfter);
   const fmt = (k: string, v: unknown) => resolve?.(k, v) ?? show(v);
   const keys = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])].filter(
     (k) => !HIDDEN.has(k),

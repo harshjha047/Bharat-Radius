@@ -136,7 +136,9 @@ export class AuditInterceptor implements NestInterceptor {
                       !Array.isArray(n.after) &&
                       !Buffer.isBuffer(n.after)
                     ? changes(null, n.after as never)
-                    : { after: redact(n.after) as never };
+                    : n.after == null
+                      ? {}
+                      : { after: { body: redact(n.after) } as never };
               const id = n.entityId ?? fallbackId;
               await this.audit
                 .record({
@@ -157,6 +159,10 @@ export class AuditInterceptor implements NestInterceptor {
     );
   }
 }
+
+/** Older entries may hold a bare string/array (e.g. "[N bytes]" from a binary upload). */
+const asRecord = (v: unknown): Record<string, unknown> | null =>
+  v == null ? null : typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : { body: v };
 
 const auditQuery = pageQuery.extend({
   entityType: z
@@ -220,8 +226,8 @@ export class AuditController {
       action: d.action,
       actor: d.actor,
       entity: d.entity,
-      before: d.before ?? null,
-      after: d.after ?? null,
+      before: asRecord(d.before),
+      after: asRecord(d.after),
       ip: d.ip ?? null,
       tenantId: d.tenantId?.toHexString() ?? null,
     }));

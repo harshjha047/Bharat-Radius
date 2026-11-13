@@ -145,12 +145,13 @@ export default function AuditPage() {
               hideOnMobile: true,
               cell: (r) => {
                 const href = entityHref(r.entity.type, r.entity.id);
-                const label = (r.after?.username ??
-                  r.after?.name ??
-                  r.before?.name ??
+                const label =
+                  [r.after?.username, r.after?.name, r.before?.name].find(
+                    (v): v is string => typeof v === 'string',
+                  ) ??
                   (r.entity.type === 'user' && r.entity.id ? userById.get(r.entity.id) : undefined) ??
                   r.entity.id?.slice(-6) ??
-                  '—') as string;
+                  '—';
                 return href ? (
                   <Link href={href} className="text-primary hover:underline">
                     {label}
