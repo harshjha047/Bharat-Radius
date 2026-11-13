@@ -162,7 +162,11 @@ export class AuditInterceptor implements NestInterceptor {
 
 /** Older entries may hold a bare string/array (e.g. "[N bytes]" from a binary upload). */
 const asRecord = (v: unknown): Record<string, unknown> | null =>
-  v == null ? null : typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : { body: v };
+  v == null
+    ? null
+    : typeof v === 'object' && !Array.isArray(v)
+      ? (v as Record<string, unknown>)
+      : { body: v };
 
 const auditQuery = pageQuery.extend({
   entityType: z

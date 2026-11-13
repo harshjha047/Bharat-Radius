@@ -16,7 +16,11 @@ const HIDDEN = new Set([
 ]);
 
 const toRecord = (v: unknown): Record<string, unknown> | null =>
-  v == null ? null : typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : { body: v };
+  v == null
+    ? null
+    : typeof v === 'object' && !Array.isArray(v)
+      ? (v as Record<string, unknown>)
+      : { body: v };
 
 const show = (v: unknown): string => {
   if (v === null || v === undefined) return '—';
