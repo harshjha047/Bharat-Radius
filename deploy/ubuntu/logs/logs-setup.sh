@@ -32,7 +32,7 @@ systemctl daemon-reload
 systemctl enable -q --now isp-logs-maint.timer isp-logs-metrics.timer
 /opt/isp-logs/logs-maint.sh metrics
 
-logger -t isp-logs-setup "log archive installed"
+logger -t logs-setup-test "log archive installed"
 sleep 2
 if grep -rqs "log archive installed" /var/log/isp-archive/host/system/; then
   log "OK: archive is receiving local logs (/var/log/isp-archive/host/system/$(date +%F).log)"
