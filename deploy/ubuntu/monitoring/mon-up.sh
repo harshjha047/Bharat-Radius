@@ -12,6 +12,10 @@ die() { printf '\033[1;31m[mon-up] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 trap 'die "failed at line $LINENO: $BASH_COMMAND"' ERR
 
 [[ $EUID -eq 0 ]] || die "run as root"
+# Re-runs reuse the chat id written by the first run.
+if [[ -z "${TELEGRAM_CHAT_ID:-}" && -f "$MON/alertmanager.yml" ]]; then
+  TELEGRAM_CHAT_ID="$(sed -n 's/^[ -]*chat_id: *\(-\{0,1\}[0-9]\{1,\}\).*/\1/p' "$MON/alertmanager.yml" | head -1)"
+fi
 [[ "${TELEGRAM_CHAT_ID:-}" =~ ^-?[0-9]+$ ]] || die "set TELEGRAM_CHAT_ID (number from getUpdates)"
 [[ -s /etc/isp-app/telegram_token ]] || die "/etc/isp-app/telegram_token missing"
 for n in isp_internal acs_default; do docker network inspect "$n" >/dev/null 2>&1 || die "network $n missing: run app-up.sh first"; done
