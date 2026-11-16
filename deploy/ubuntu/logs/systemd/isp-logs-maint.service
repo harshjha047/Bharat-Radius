@@ -1,0 +1,8 @@
+[Unit]
+Description=isp-platform log archive: seal finished days, prune after 3 years, metrics
+
+[Service]
+Type=oneshot
+ExecStart=/opt/isp-logs/logs-maint.sh run
+Nice=10
+IOSchedulingClass=idle

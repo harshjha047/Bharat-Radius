@@ -15,6 +15,137 @@
     }
   },
   "paths": {
+    "/api/v1/subscribers/{id}/access-log": {
+      "get": {
+        "summary": "Who viewed this customer’s data (newest first; kept 3 years)",
+        "tags": ["audit"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "audit.view",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "actor": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "type", "name"],
+                            "additionalProperties": false
+                          },
+                          "route": {
+                            "type": "string"
+                          },
+                          "ip": {
+                            "type": "string"
+                          },
+                          "at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "actor", "route", "ip", "at"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/audit": {
       "get": {
         "summary": "Audit log: who changed what (filter by entity, person, action prefix, time)",
@@ -13185,6 +13316,197 @@
         }
       }
     },
+    "/api/v1/compliance/nat-lookup": {
+      "get": {
+        "summary": "Who used a public IP (and port) at a given time, from the routers’ NAT logs (audited)",
+        "tags": ["compliance"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "compliance.lookup",
+        "parameters": [
+          {
+            "name": "ip",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "port",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "required": true,
+            "schema": {}
+          },
+          {
+            "name": "windowMins",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "hits": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "at": {
+                            "type": "string"
+                          },
+                          "router": {
+                            "type": "string"
+                          },
+                          "routerName": {
+                            "type": ["string", "null"]
+                          },
+                          "proto": {
+                            "type": "string"
+                          },
+                          "privateIp": {
+                            "type": "string"
+                          },
+                          "privatePort": {
+                            "type": ["number", "null"]
+                          },
+                          "publicIp": {
+                            "type": "string"
+                          },
+                          "publicPort": {
+                            "type": ["number", "null"]
+                          },
+                          "destIp": {
+                            "type": "string"
+                          },
+                          "destPort": {
+                            "type": ["number", "null"]
+                          },
+                          "inInterface": {
+                            "type": "string"
+                          },
+                          "username": {
+                            "type": ["string", "null"]
+                          },
+                          "subscriber": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "customerNo": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "name", "customerNo"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "at",
+                          "router",
+                          "routerName",
+                          "proto",
+                          "privateIp",
+                          "privatePort",
+                          "publicIp",
+                          "publicPort",
+                          "destIp",
+                          "destPort",
+                          "inInterface",
+                          "username",
+                          "subscriber"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "filesScanned": {
+                      "type": "number"
+                    },
+                    "bytesScanned": {
+                      "type": "number"
+                    },
+                    "truncated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["configured", "hits", "filesScanned", "bytesScanned", "truncated"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sessions/live": {
       "get": {
         "summary": "Users online now (search username, IP or MAC prefix; filter by router)",
@@ -22409,6 +22731,7 @@
                         "subscribers.password.reveal",
                         "subscribers.export",
                         "sessions.read",
+                        "compliance.lookup",
                         "nas.read",
                         "nas.write",
                         "plans.read",
@@ -22565,6 +22888,7 @@
                         "subscribers.password.reveal",
                         "subscribers.export",
                         "sessions.read",
+                        "compliance.lookup",
                         "nas.read",
                         "nas.write",
                         "plans.read",

@@ -41,6 +41,7 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/subscribers/:id/activate': 'subA',
   '/api/v1/subscribers/:id/kick': 'subA',
   '/api/v1/subscribers/:id/portal-reset': 'subA',
+  '/api/v1/subscribers/:id/access-log': 'subA',
   '/api/v1/tickets/:id': 'ticketA',
   '/api/v1/tickets/:id/reply': 'ticketA',
   '/api/v1/subscribers/:id/password': 'subA',

@@ -192,29 +192,70 @@ function Live() {
   );
 }
 
-/** "Who had 100.64.3.7 at 21:40 on the 3rd?" — for complaints and police requests. */
+/** datetime-local gives HH:MM, or HH:MM:SS when seconds are typed. */
+const withSeconds = (v: string) => (v.length === 16 ? `${v}:00` : v);
+
+/**
+ * "Who had 100.64.3.7 at 21:40 on the 3rd?" — for complaints and police requests. Sessions answer it for customers
+ * with their own IP; the NAT logs answer it for customers behind NAT (needs the port; searches are audited).
+ */
 function Lookup() {
-  const [args, setArgs] = useState<{ ip: string; at: string } | null>(null);
+  const can = useCan();
+  const nat = can('compliance.lookup');
+  const [args, setArgs] = useState<{ ip: string; at: string; port?: number; windowMins: number } | null>(
+    null,
+  );
   const q = useQuery({
     queryKey: ['sessions', 'lookup', args],
-    queryFn: () => unwrap(api.GET('/api/v1/sessions/lookup', { params: { query: args! } })),
+    queryFn: () =>
+      unwrap(api.GET('/api/v1/sessions/lookup', { params: { query: { ip: args!.ip, at: args!.at } } })),
     enabled: !!args,
+  });
+  const n = useQuery({
+    queryKey: ['compliance', 'nat', args],
+    queryFn: () => unwrap(api.GET('/api/v1/compliance/nat-lookup', { params: { query: args! } })),
+    enabled: !!args && nat && !args.ip.includes(':'),
+    retry: false,
   });
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    setArgs({ ip: String(f.get('ip')).trim(), at: `${String(f.get('at'))}:00+05:30` });
+    const port = String(f.get('port') ?? '').trim();
+    setArgs({
+      ip: String(f.get('ip')).trim(),
+      at: `${withSeconds(String(f.get('at')))}+05:30`,
+      windowMins: Number(f.get('window') ?? 5),
+      ...(port ? { port: Number(port) } : {}),
+    });
   };
   return (
     <div className="space-y-4">
-      <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <form
+        onSubmit={submit}
+        className={`grid gap-3 sm:items-end ${nat ? 'sm:grid-cols-[1fr_7rem_1fr_8rem_auto]' : 'sm:grid-cols-[1fr_1fr_auto]'}`}
+      >
         <Field label="IP address" htmlFor="ip">
-          <Input id="ip" name="ip" required inputMode="decimal" placeholder="e.g. 100.64.3.7" />
+          <Input id="ip" name="ip" required inputMode="decimal" placeholder="e.g. 203.0.113.9" />
         </Field>
+        {nat ? (
+          <Field label="Port" htmlFor="port" hint="Source port, if known">
+            <Input id="port" name="port" inputMode="numeric" pattern="[0-9]*" placeholder="40001" />
+          </Field>
+        ) : null}
         <Field label="Date and time (IST)" htmlFor="at">
-          <Input id="at" name="at" type="datetime-local" required />
+          <Input id="at" name="at" type="datetime-local" step={1} required />
         </Field>
-        <Button type="submit" loading={q.isFetching}>
+        {nat ? (
+          <Field label="Search ±" htmlFor="window">
+            <Select id="window" name="window" defaultValue="5">
+              <option value="1">1 min</option>
+              <option value="5">5 min</option>
+              <option value="15">15 min</option>
+              <option value="60">60 min</option>
+            </Select>
+          </Field>
+        ) : null}
+        <Button type="submit" loading={q.isFetching || n.isFetching}>
           Look up
         </Button>
       </form>
@@ -237,6 +278,69 @@ function Lookup() {
             },
           ]}
         />
+      ) : null}
+      {args && nat ? (
+        n.isError ? (
+          <ErrorState error={n.error} />
+        ) : n.data && !n.data.configured ? (
+          <p className="text-sm text-muted-foreground">NAT log archive is not set up on this server yet.</p>
+        ) : (
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold">NAT logs (customers behind NAT)</h3>
+            <DataTable
+              caption="Connections that went out as this public IP"
+              loading={n.isLoading}
+              rows={n.data?.hits}
+              rowKey={(r) => `${r.at}-${r.router}-${r.privateIp}-${r.privatePort}-${r.publicPort}`}
+              empty="No NAT log line for this IP in that window."
+              columns={[
+                { key: 'at', header: 'Time', cell: (r) => fmtDateTime(r.at) },
+                {
+                  key: 'who',
+                  header: 'Customer',
+                  cell: (r) =>
+                    r.subscriber ? (
+                      <Link href={`/admin/subscribers/${r.subscriber.id}`} className="underline">
+                        {r.subscriber.name} · {r.subscriber.customerNo}
+                      </Link>
+                    ) : (
+                      (r.username ?? <span className="text-muted-foreground">Unknown ({r.inInterface})</span>)
+                    ),
+                },
+                {
+                  key: 'pub',
+                  header: 'Public',
+                  cell: (r) => `${r.publicIp}${r.publicPort ? `:${r.publicPort}` : ''}`,
+                },
+                {
+                  key: 'priv',
+                  header: 'Private',
+                  cell: (r) => `${r.privateIp}${r.privatePort ? `:${r.privatePort}` : ''}`,
+                  hideOnMobile: true,
+                },
+                {
+                  key: 'dest',
+                  header: 'Destination',
+                  cell: (r) => `${r.proto} ${r.destIp}${r.destPort ? `:${r.destPort}` : ''}`,
+                  hideOnMobile: true,
+                },
+                {
+                  key: 'router',
+                  header: 'Router',
+                  cell: (r) => r.routerName ?? r.router,
+                  hideOnMobile: true,
+                },
+              ]}
+            />
+            {n.data ? (
+              <p className="text-xs text-muted-foreground">
+                Searched {n.data.filesScanned} file(s), {fmtBytes(n.data.bytesScanned)}
+                {n.data.truncated ? ' · first 200 matches only, narrow the time or add the port' : ''}. This
+                search is recorded in the audit log.
+              </p>
+            ) : null}
+          </div>
+        )
       ) : null}
     </div>
   );

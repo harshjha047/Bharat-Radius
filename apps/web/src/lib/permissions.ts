@@ -13,6 +13,7 @@ export const PERMISSION_GROUPS: { label: string; items: [Permission, string][] }
       ['subscribers.export', 'Export to Excel'],
       ['imports.run', 'Import from Excel'],
       ['sessions.read', 'Sessions and login logs'],
+      ['compliance.lookup', 'Search NAT logs (who used a public IP:port; audited)'],
     ],
   },
   {

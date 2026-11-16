@@ -26,6 +26,9 @@ grep -q "app_radius_staging  $APP_SUBNET" /etc/postgresql/16/main/pg_hba.conf \
 
 # ------------------------------------------------------------------ secrets (generated once)
 install -d -m 0700 "$ETC"
+# Log archive (WP 4.6): the API container reads NAT logs as group isp-archive (fixed gid, see docker-compose.yml).
+getent group isp-archive >/dev/null || groupadd -g 2470 isp-archive
+install -d -m 0750 -g isp-archive /var/log/isp-archive /var/log/isp-archive/nat
 gen() { openssl rand -hex "${1:-24}"; }
 [[ -s $ETC/mongo.keyfile ]] || openssl rand -base64 756 | tr -d '\n' >"$ETC/mongo.keyfile"
 [[ -s $ETC/mongo_root_pw ]] || gen >"$ETC/mongo_root_pw"

@@ -2,7 +2,7 @@
 # Nightly backup (WP 4.8), run as root by isp-backup.timer. Config: /etc/isp-backup/backup.env.
 #   mongo     all databases of isp-mongo (mongodump archive, gzip)          → verified with mongorestore --dryRun
 #   postgres  each RADIUS database (pg_dump custom format)                  → verified with pg_restore --list
-#   etc       /etc/isp-radius /etc/isp-app (secrets: only ever stored age-encrypted)
+#   etc       /etc/isp-radius /etc/isp-app (secrets: only ever stored age-encrypted) + log-archive manifests
 # Every file is age-encrypted to AGE_RECIPIENT (the owner's public key; the private key never touches this server),
 # kept locally KEEP_LOCAL_DAYS and copied off-site with rclone to RCLONE_REMOTE when set (KEEP_REMOTE_DAYS there).
 # Success per kind → isp_backup_last_success_timestamp_seconds{kind} (alerts BackupMissing / BackupNeverRan).
@@ -71,7 +71,7 @@ done
 
 # ---- etc (secrets)
 log "etc: archiving configuration and secrets"
-dirs=(); for d in /etc/isp-radius /etc/isp-app; do [[ -d $d ]] && dirs+=("$d"); done
+dirs=(); for d in /etc/isp-radius /etc/isp-app /var/log/isp-archive/MANIFEST; do [[ -d $d ]] && dirs+=("$d"); done
 tar -czf "$WORK/etc.tar.gz" -C / "${dirs[@]#/}"
 tar -tzf "$WORK/etc.tar.gz" >/dev/null || die "etc archive failed verification"
 seal etc "$WORK/etc.tar.gz" etc.tar.gz

@@ -163,3 +163,37 @@ tests:
             exp_annotations:
               summary: 'RADIUS sync keeps failing (30 errors in 15 min); changes retry with backoff'
               runbook: docs/runbooks/outbox.md
+
+  - interval: 1m
+    input_series:
+      - series: 'isp_logarchive_free_bytes'
+        values: '20e9x60 5e9x60'
+      - series: 'isp_logarchive_size_bytes'
+        values: '100e9x120'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: LogArchiveDiskLow
+        exp_alerts: []
+      - eval_time: 100m
+        alertname: LogArchiveDiskLow
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations:
+              summary: 'Log archive disk 5% free: logs inside the 3-year retention are never deleted, so add storage'
+              runbook: docs/runbooks/compliance-logs.md
+
+  - interval: 5m
+    input_series:
+      - series: 'isp_logarchive_source_last_write_timestamp_seconds{kind="routers",source="198.51.100.4"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: RouterLogsSilent
+        exp_alerts: []
+      - eval_time: 3h30m
+        alertname: RouterLogsSilent
+        exp_alerts:
+          - exp_labels: { severity: warning, kind: routers, source: 198.51.100.4 }
+            exp_annotations:
+              summary: 'No syslog from router 198.51.100.4 for over 3 hours'
+              runbook: docs/runbooks/compliance-logs.md

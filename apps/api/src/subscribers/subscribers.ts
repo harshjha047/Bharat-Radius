@@ -758,6 +758,7 @@ export class SubscribersController {
 
   @Get(':id')
   @Endpoint({
+    access: 'subscriber',
     summary: 'One subscriber',
     tags: ['subscribers'],
     permission: 'subscribers.read',
@@ -842,6 +843,7 @@ export class SubscribersController {
 
   @Get(':id/password')
   @Endpoint({
+    access: 'subscriber',
     summary: 'Show the PPPoE password',
     tags: ['subscribers'],
     audit: 'subscriber.password_reveal',
@@ -855,6 +857,7 @@ export class SubscribersController {
 
   @Get(':id/coa-log')
   @Endpoint({
+    access: 'subscriber',
     summary: 'Recent CoA / disconnect results',
     tags: ['subscribers'],
     permission: 'subscribers.read',

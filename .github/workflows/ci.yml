@@ -117,7 +117,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
-      - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh deploy/ubuntu/lab/*.sh deploy/ubuntu/backup/*.sh
+      - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh deploy/ubuntu/lab/*.sh deploy/ubuntu/backup/*.sh deploy/ubuntu/logs/*.sh
+      - name: rsyslog archive config parses (WP 4.6)
+        run: |
+          sudo apt-get install -y -qq rsyslog >/dev/null
+          sudo groupadd -g 2470 isp-archive
+          printf 'module(load="imuxsock" SysSock.Use="off")\ninclude(file="%s")\n' "$PWD/deploy/ubuntu/logs/rsyslog-isp.conf" >/tmp/rs.conf
+          sudo rsyslogd -N1 -f /tmp/rs.conf
 
   radius:
     runs-on: ubuntu-24.04

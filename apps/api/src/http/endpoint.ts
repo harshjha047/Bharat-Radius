@@ -19,6 +19,11 @@ export interface EndpointOptions {
   permission?: Permission;
   /** Audit action (e.g. "subscriber.update"); required on every change and every secret reveal (unit-tested). */
   audit?: string;
+  /**
+   * Personal-data read log (DPDP): records who opened which customer's data, kept 3 years in `access_logs`.
+   * Value = entity type; the id comes from the :id route param. For views, not changes (those use `audit`).
+   */
+  access?: 'subscriber';
   /** Super-admin only; anyone else gets 404 so tenant staff cannot even see the route's records exist. */
   platformOnly?: boolean;
   /** Origin + CSRF checks for unsafe methods. Off only for server-to-server routes (webhooks). */

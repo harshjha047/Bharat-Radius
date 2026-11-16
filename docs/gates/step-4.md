@@ -12,7 +12,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | 4.3 Tickets | 🔀 PR (stacked on 4.1) | Staff list/detail with assign, internal notes, status; portal Help; reseller branch scope; new Technician role. Runbook `docs/runbooks/tickets.md` |
 | 4.4 Reports + GSTR export | 🔀 PR (stacked on 4.3) | Revenue, collections, subscribers, reseller sales, usage, tickets; Excel/PDF; GSTR-1 workbook (offline-tool layout). Runbook `docs/runbooks/reports.md`. Accountant to check the first GSTR-1 (O-9) |
 | 4.5 KYC/CAF | ⏳ O-18 | |
-| 4.6 Compliance logs | ⏳ O-12, O-11 | |
+| 4.6 Compliance logs | 🔀 PR | Archive (3 years, sealed daily), router syslog + NAT logs (opt-in per router, `mikrotik/logging.rsc`), NAT IP lookup in the panel (audited), access log, `radpostauth` 1,100 days. UDP 514 still to open. Runbook `docs/runbooks/compliance-logs.md` |
 | 4.7 Importer | ⏳ O-10 | |
 | 4.8 Backups/DR | ⏳ O-18 | |
 | 4.9 Alerts | ⏳ | |
