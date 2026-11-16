@@ -5,6 +5,14 @@ import { createLogger } from './logger.js';
 const config = loadConfig();
 const logger = createLogger(config);
 
+// Exit hard so Docker's restart policy recovers; a half-dead process only turns "unhealthy", which Docker ignores.
+for (const event of ['uncaughtException', 'unhandledRejection'] as const) {
+  process.on(event, (err) => {
+    logger.fatal({ err }, event);
+    process.exit(1);
+  });
+}
+
 try {
   const app = await createApp(config, logger);
   const server = app.getHttpServer();

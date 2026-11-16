@@ -2,6 +2,7 @@ import {
   Global,
   Inject,
   Injectable,
+  Logger,
   Module,
   type DynamicModule,
   type OnApplicationShutdown,
@@ -13,6 +14,8 @@ import { CONFIG, type Config } from '../config.js';
 
 export const MONGO = Symbol('MONGO');
 export const RADIUS_DB = Symbol('RADIUS_DB');
+
+const log = new Logger('RadiusDb');
 
 @Injectable()
 class Shutdown implements OnApplicationShutdown {
@@ -50,16 +53,19 @@ export class InfraModule {
         },
         {
           provide: RADIUS_DB,
-          useFactory: () =>
-            config.RADIUS_DB_URL
-              ? new pg.Pool({
-                  connectionString: config.RADIUS_DB_URL,
-                  max: config.RADIUS_DB_POOL_MAX,
-                  idleTimeoutMillis: 30_000,
-                  connectionTimeoutMillis: 2000,
-                  application_name: 'isp-api',
-                })
-              : null,
+          useFactory: () => {
+            if (!config.RADIUS_DB_URL) return null;
+            const pool = new pg.Pool({
+              connectionString: config.RADIUS_DB_URL,
+              max: config.RADIUS_DB_POOL_MAX,
+              idleTimeoutMillis: 30_000,
+              connectionTimeoutMillis: 2000,
+              application_name: 'isp-api',
+            });
+            // Without a listener, an idle client's socket error (PostgreSQL restart, TLS reset) crashes the process.
+            pool.on('error', (err) => log.warn(`idle PostgreSQL connection failed: ${err.message}`));
+            return pool;
+          },
         },
         { provide: FieldCrypto, useFactory: () => new FieldCrypto(config.FIELD_ENCRYPTION_KEY) },
         Shutdown,
