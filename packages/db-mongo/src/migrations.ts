@@ -942,6 +942,24 @@ const insightIndexes: Migration = {
   },
 };
 
+/** DPDP: who viewed which customer's data (WP 4.6); kept ~3 years by TTL. */
+export const ACCESS_LOG_TTL_SECS = 1100 * 86_400;
+const accessLogs: Migration = {
+  id: '013_access_logs',
+  async up(db) {
+    await ensureCollection(db, 'access_logs', {
+      bsonType: 'object',
+      required: ['tenantId', 'actor', 'entity', 'route', 'at'],
+      properties: { tenantId: oidOrNull, at: date },
+    });
+    await ensureIndexes(db, 'access_logs', [
+      { key: { tenantId: 1, 'entity.type': 1, 'entity.id': 1, at: -1 } },
+      { key: { tenantId: 1, 'actor.id': 1, at: -1 } },
+      { key: { at: 1 }, expireAfterSeconds: ACCESS_LOG_TTL_SECS },
+    ]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -955,4 +973,5 @@ export const MIGRATIONS: readonly Migration[] = [
   reportIndexes,
   renewalIndexes,
   insightIndexes,
+  accessLogs,
 ];

@@ -213,3 +213,37 @@ groups:
         annotations:
           summary: 'No backup has ever reported success on this host'
           runbook: docs/runbooks/backups.md
+
+  - name: log-archive
+    rules:
+      - alert: LogArchiveDiskLow
+        expr: isp_logarchive_free_bytes / isp_logarchive_size_bytes < 0.15
+        for: 30m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Log archive disk {{ $value | humanizePercentage }} free: logs inside the 3-year retention are never deleted, so add storage'
+          runbook: docs/runbooks/compliance-logs.md
+
+      - alert: LogArchiveSealStale
+        expr: time() - isp_logarchive_last_seal_timestamp_seconds > 26 * 3600
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Daily log seal has not run for over 26 hours (isp-logs-maint.timer)'
+          runbook: docs/runbooks/compliance-logs.md
+
+      - alert: RouterLogsSilent
+        expr: time() - isp_logarchive_source_last_write_timestamp_seconds{kind="routers"} > 3 * 3600
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: 'No syslog from router {{ $labels.source }} for over 3 hours'
+          runbook: docs/runbooks/compliance-logs.md
+
+      - alert: ClockNotSynced
+        expr: node_timex_sync_status == 0
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Server clock is not NTP-synchronised: log timestamps (DoT/CERT-In) and session times may drift'
+          runbook: docs/runbooks/compliance-logs.md

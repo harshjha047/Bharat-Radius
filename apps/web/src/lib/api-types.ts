@@ -4,6 +4,76 @@
  */
 
 export interface paths {
+  '/api/v1/subscribers/{id}/access-log': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Who viewed this customer’s data (newest first; kept 3 years) */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                actor: {
+                  id: string;
+                  type: string;
+                  name: string;
+                };
+                route: string;
+                ip: string;
+                at: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/audit': {
     parameters: {
       query?: never;
@@ -5701,6 +5771,87 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/compliance/nat-lookup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Who used a public IP (and port) at a given time, from the routers’ NAT logs (audited) */
+    get: {
+      parameters: {
+        query: {
+          ip: string;
+          port?: number;
+          at: unknown;
+          windowMins?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              configured: boolean;
+              hits: {
+                at: string;
+                router: string;
+                routerName: string | null;
+                proto: string;
+                privateIp: string;
+                privatePort: number | null;
+                publicIp: string;
+                publicPort: number | null;
+                destIp: string;
+                destPort: number | null;
+                inInterface: string;
+                username: string | null;
+                subscriber: {
+                  id: string;
+                  name: string;
+                  customerNo: string;
+                } | null;
+              }[];
+              filesScanned: number;
+              bytesScanned: number;
+              truncated: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/sessions/live': {
     parameters: {
       query?: never;
@@ -10083,6 +10234,7 @@ export interface paths {
               | 'subscribers.password.reveal'
               | 'subscribers.export'
               | 'sessions.read'
+              | 'compliance.lookup'
               | 'nas.read'
               | 'nas.write'
               | 'plans.read'
@@ -10230,6 +10382,7 @@ export interface paths {
               | 'subscribers.password.reveal'
               | 'subscribers.export'
               | 'sessions.read'
+              | 'compliance.lookup'
               | 'nas.read'
               | 'nas.write'
               | 'plans.read'

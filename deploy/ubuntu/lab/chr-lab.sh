@@ -6,6 +6,8 @@
 #   sudo bash deploy/ubuntu/lab/chr-lab.sh up              # first time: asks for the RADIUS secret of router 10.99.0.2
 #   sudo bash deploy/ubuntu/lab/chr-lab.sh dial <username> # test customer dials PPPoE (asks for the PPPoE password)
 #   sudo bash deploy/ubuntu/lab/chr-lab.sh hangup | status | console | winbox
+#   sudo bash deploy/ubuntu/lab/chr-lab.sh logs-on                # applies the repo's mikrotik/logging.rsc (syslog + NAT log)
+#   sudo bash deploy/ubuntu/lab/chr-lab.sh nat-test               # test customer opens a connection; finds its NAT line
 #   sudo bash deploy/ubuntu/lab/chr-lab.sh down [--wipe]   # stop (and with --wipe delete the CHR disk)
 set -Eeuo pipefail
 
@@ -13,6 +15,7 @@ CHR_VERSION="${CHR_VERSION:-7.16.2}"
 LIB=/opt/isp-radius/lab
 RUN=/run/isp-chr-lab
 UNIT=isp-chr-lab
+PAY_TEST_PORT=8089
 HOST_IP=10.99.0.1
 CHR_IP=10.99.0.2
 NS=labcpe
@@ -269,6 +272,49 @@ status() {
   fi
 }
 
+# ------------------------------------------------------------------ log archive test (WP 4.6)
+chr_api() {
+  local method="$1" path="$2" body="${3:-}"
+  curl -fsS --max-time 20 -u "admin:$(cat "$LIB/admin_pw")" -X "$method" -H 'content-type: application/json' \
+    ${body:+--data "$body"} "http://$CHR_IP/rest/$path"
+}
+
+logs_on() {
+  systemctl is-active -q "$UNIT" || die "lab is not running; run: up"
+  [[ -d /var/log/isp-archive ]] || die "log archive not installed: sudo bash deploy/ubuntu/logs/logs-setup.sh"
+  # The lab customer pool is NATed out of ether1 like a real POP, so logging.rsc finds a srcnat rule to log.
+  if ! chr_api GET 'ip/firewall/nat?comment=isp%20chr%20lab%20nat' | grep -q masquerade; then
+    chr_api PUT ip/firewall/nat '{"chain":"srcnat","src-address":"100.64.50.0/24","out-interface":"ether1","action":"masquerade","comment":"isp chr lab nat"}' >/dev/null
+  fi
+  local script body
+  script="$(sed -e "s|^:local syslogIp \".*\"|:local syslogIp \"$HOST_IP\"|" \
+                -e "s|^:local srcAddress \".*\"|:local srcAddress \"$CHR_IP\"|" "$REPO/mikrotik/logging.rsc")"
+  body="$(python3 -c 'import json,sys; print(json.dumps({"script": sys.stdin.read(), "as-string": "true"}))' <<<"$script")"
+  chr_api POST execute "$body" | sed 's/\\n/\n/g'
+  echo
+  log "CHR now sends syslog to $HOST_IP:514 (lab bridge; ufw allows brlab0). Check: sudo ls /var/log/isp-archive/routers/$CHR_IP/"
+}
+
+nat_test() {
+  local ifc t0 hit
+  ifc="$(ip netns exec "$NS" ip -4 -o addr show 2>/dev/null | awk '$2 ~ /^ppp/ {print $2; exit}')"
+  [[ -n $ifc ]] || die "test customer is offline; run: dial <username>"
+  ip netns exec "$NS" ip route replace "$HOST_IP/32" dev "$ifc"
+  t0="$(date +%s)"
+  ip netns exec "$NS" curl -s -o /dev/null --max-time 5 "http://$HOST_IP:$PAY_TEST_PORT/" || true
+  log "opened a TCP connection to $HOST_IP:$PAY_TEST_PORT from the test customer; waiting for its NAT line"
+  for _ in $(seq 1 15); do
+    hit="$(grep -h "ISPNAT" /var/log/isp-archive/nat/"$CHR_IP"/*.log 2>/dev/null | grep ":$PAY_TEST_PORT," | tail -1 || true)"
+    if [[ -n $hit && $(date -d "${hit%% *}" +%s) -ge $((t0 - 2)) ]]; then
+      log "NAT line archived:"; echo "  $hit"
+      log "find it in the panel: Online now → IP lookup → IP $CHR_IP, port from the NAT (...) part, time now"
+      return 0
+    fi
+    sleep 1
+  done
+  die "no NAT line within 15 s. Check: sudo ls -l /var/log/isp-archive/nat/$CHR_IP/ ; journalctl -u rsyslog -n 20"
+}
+
 case "${1:-}" in
   net) net_up ;;
   up)
@@ -283,6 +329,8 @@ case "${1:-}" in
     log "ready. Next: create a test subscriber in the panel, then: sudo bash $0 dial <username>"
     ;;
   dial) dial "${2:-}" ;;
+  logs-on) logs_on ;;
+  nat-test) nat_test ;;
   hangup) hangup ;;
   status) status ;;
   console)

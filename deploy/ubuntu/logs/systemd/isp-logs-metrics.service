@@ -1,0 +1,8 @@
+[Unit]
+Description=isp-platform log archive metrics (size, free space, newest file per router)
+
+[Service]
+Type=oneshot
+ExecStart=/opt/isp-logs/logs-maint.sh metrics
+Nice=10
+IOSchedulingClass=idle

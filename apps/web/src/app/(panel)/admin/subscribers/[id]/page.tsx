@@ -83,6 +83,7 @@ export default function SubscriberPage() {
           <TabsTrigger value="coa">Router actions</TabsTrigger>
           {can('billing.read') ? <TabsTrigger value="billing">Billing</TabsTrigger> : null}
           {can('audit.view') ? <TabsTrigger value="history">History</TabsTrigger> : null}
+          {can('audit.view') ? <TabsTrigger value="views">Viewed by</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="overview">
           <Overview s={s} />
@@ -104,6 +105,9 @@ export default function SubscriberPage() {
         </TabsContent>
         <TabsContent value="history">
           <History id={id} />
+        </TabsContent>
+        <TabsContent value="views">
+          <ViewedBy id={id} />
         </TabsContent>
       </Tabs>
     </>
@@ -756,6 +760,49 @@ function History({ id }: { id: string }) {
             />
           ),
         },
+      ]}
+    />
+  );
+}
+
+const VIEW_LABEL: Record<string, string> = {
+  'GET /api/v1/subscribers/:id': 'Opened the record',
+  'GET /api/v1/subscribers/:id/password': 'Revealed the PPPoE password',
+  'GET /api/v1/subscribers/:id/sessions': 'Sessions',
+  'GET /api/v1/subscribers/:id/usage': 'Usage',
+  'GET /api/v1/subscribers/:id/auth-log': 'Login log',
+  'GET /api/v1/subscribers/:id/coa-log': 'Router actions',
+};
+
+/** DPDP: who looked at this customer's data (kept 3 years). */
+function ViewedBy({ id }: { id: string }) {
+  const q = useInfiniteQuery({
+    queryKey: ['access-log', id],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      unwrap(
+        api.GET('/api/v1/subscribers/{id}/access-log', {
+          params: { path: { id }, query: { limit: 50, ...(pageParam ? { cursor: pageParam } : {}) } },
+        }),
+      ),
+    getNextPageParam: (p) => p.nextCursor ?? undefined,
+  });
+  if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
+  return (
+    <DataTable
+      caption="Who viewed this customer's data"
+      loading={q.isLoading}
+      rows={q.data?.pages.flatMap((p) => p.items)}
+      rowKey={(r) => r.id}
+      hasMore={q.hasNextPage}
+      loadingMore={q.isFetchingNextPage}
+      onLoadMore={() => void q.fetchNextPage()}
+      empty="No views recorded yet."
+      columns={[
+        { key: 'at', header: 'When', cell: (r) => <span title={fmtDateTime(r.at)}>{relTime(r.at)}</span> },
+        { key: 'who', header: 'Who', cell: (r) => r.actor.name },
+        { key: 'what', header: 'What', cell: (r) => VIEW_LABEL[r.route] ?? r.route },
+        { key: 'ip', header: 'From IP', cell: (r) => r.ip, hideOnMobile: true },
       ]}
     />
   );

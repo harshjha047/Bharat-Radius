@@ -1,0 +1,9 @@
+[Unit]
+Description=Seal yesterday's logs shortly after midnight
+
+[Timer]
+OnCalendar=*-*-* 00:20:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

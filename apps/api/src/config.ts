@@ -36,6 +36,8 @@ const schema = z
     /** Per source IP, failures only. Higher than the per-account limit: staff often share one office/CGNAT IP. */
     LOGIN_MAX_FAILURES_IP: z.coerce.number().int().min(5).default(20),
     SESSION_CACHE_TTL_MS: z.coerce.number().int().min(0).max(60_000).default(30_000),
+    /** Read-only NAT log archive (/var/log/isp-archive/nat mounted into the container); unset = NAT lookup off. */
+    NAT_ARCHIVE_DIR: z.string().optional(),
   })
   .transform((c) => {
     const prod = c.NODE_ENV === 'production';

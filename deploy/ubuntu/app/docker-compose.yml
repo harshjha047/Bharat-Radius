@@ -2,10 +2,18 @@
 # RADIUS (FreeRADIUS + PostgreSQL) stays native on the host; this stack only talks to it over TLS.
 name: isp
 
+# Container logs go to journald → rsyslog → /var/log/isp-archive/app/<container>/ (kept 3 years, WP 4.6).
+# `docker logs` keeps working with this driver.
+x-logging: &logging
+  driver: journald
+  options:
+    tag: '{{.Name}}'
+
 services:
   mongo:
     image: mongo:8.0
     container_name: isp-mongo
+    logging: *logging
     command: ['--replSet', 'rs-isp', '--keyFile', '/etc/mongo/keyfile', '--bind_ip_all', '--wiredTigerCacheSizeGB', '1']
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
@@ -33,6 +41,7 @@ services:
       dockerfile: deploy/ubuntu/app/api.Dockerfile
     image: isp-api:local
     container_name: isp-api
+    logging: *logging
     env_file: /etc/isp-app/staging.env
     environment:
       API_HOST: 0.0.0.0
@@ -40,10 +49,14 @@ services:
       APP_VERSION: ${APP_VERSION:-dev}
       # Caddy reaches the API over Docker networks; only its X-Forwarded-For is trusted.
       TRUST_PROXY: 172.16.0.0/12
+      NAT_ARCHIVE_DIR: /archive/nat
     extra_hosts:
       - 'acs-prod:host-gateway'
     volumes:
       - /etc/isp-radius/tls/ca.crt:/etc/isp/radius-ca.crt:ro
+      # NAT log archive, read-only, for "who used this public IP:port" lookups (group isp-archive, gid 2470)
+      - /var/log/isp-archive/nat:/archive/nat:ro
+    group_add: ['2470']
     networks:
       internal: {}
       acs:
@@ -61,6 +74,7 @@ services:
       dockerfile: deploy/ubuntu/app/workers.Dockerfile
     image: isp-workers:local
     container_name: isp-workers
+    logging: *logging
     env_file: /etc/isp-app/staging.env
     environment:
       WORKERS_HOST: 0.0.0.0
@@ -84,6 +98,7 @@ services:
       dockerfile: deploy/ubuntu/app/web.Dockerfile
     image: isp-web:local
     container_name: isp-web
+    logging: *logging
     environment:
       APP_VERSION: ${APP_VERSION:-dev}
       # Landing page "Get in touch": call + WhatsApp number, e.g. "+91 98765 43210". Empty hides them.
@@ -100,6 +115,7 @@ services:
   walled-garden:
     image: caddy:2-alpine
     container_name: isp-walled-garden
+    logging: *logging
     volumes:
       - ./walled-garden/Caddyfile:/etc/caddy/Caddyfile:ro
     ports:

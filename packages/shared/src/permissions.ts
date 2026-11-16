@@ -6,6 +6,7 @@ export const PERMISSIONS = [
   'subscribers.password.reveal',
   'subscribers.export',
   'sessions.read',
+  'compliance.lookup',
   'nas.read',
   'nas.write',
   'plans.read',

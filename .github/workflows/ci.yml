@@ -117,7 +117,15 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
-      - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh deploy/ubuntu/lab/*.sh deploy/ubuntu/backup/*.sh
+      - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh deploy/ubuntu/lab/*.sh deploy/ubuntu/backup/*.sh deploy/ubuntu/logs/*.sh
+      - name: rsyslog archive config parses (WP 4.6)
+        run: |
+          sudo apt-get install -y -qq rsyslog >/dev/null
+          sudo groupadd -g 2470 isp-archive
+          # Same as logs-setup.sh: install next to Ubuntu's own config and validate the whole thing (AppArmor
+          # only lets rsyslogd read /etc/rsyslog*).
+          sudo install -m 0644 deploy/ubuntu/logs/rsyslog-isp.conf /etc/rsyslog.d/30-isp-archive.conf
+          sudo rsyslogd -N1
 
   radius:
     runs-on: ubuntu-24.04

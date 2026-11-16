@@ -292,7 +292,7 @@ BEGIN
 END $$;
 
 -- Drops radpostauth month partitions entirely older than p_keep_days (default 90).
-CREATE OR REPLACE FUNCTION radius_drop_old_postauth(p_keep_days integer DEFAULT 90)
+CREATE OR REPLACE FUNCTION radius_drop_old_postauth(p_keep_days integer DEFAULT 1100)
 RETURNS integer LANGUAGE plpgsql AS $$
 DECLARE
   r record;

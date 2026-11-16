@@ -6,6 +6,7 @@ import { Controller, Get, Inject, Module, type DynamicModule } from '@nestjs/com
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { Logger as PinoLogger } from 'pino';
+import { AccessLogController, AccessLogInterceptor } from './audit/access-log.js';
 import { AuditController, AuditInterceptor, AuditService } from './audit/audit.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthGuard } from './auth/auth.guard.js';
@@ -33,6 +34,7 @@ import { WalletsController, WalletsService } from './billing/wallets.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
 import { FinancialInsightsService } from './reports/insights.js';
 import { ReportsController, ReportsService } from './reports/reports.js';
+import { ComplianceController, ComplianceService } from './compliance/compliance.js';
 import { SessionsController, SessionsService } from './sessions/sessions.js';
 import {
   IMPORT_PATH,
@@ -87,6 +89,8 @@ class AppModule {
         BillingSettingsController,
         SubscribersController,
         SessionsController,
+        ComplianceController,
+        AccessLogController,
         SubscriberExcelController,
         AuditController,
         PortalController,
@@ -115,6 +119,7 @@ class AppModule {
         BillingSettingsService,
         SubscribersService,
         SessionsService,
+        ComplianceService,
         SubscriberExcel,
         AuditService,
         PortalAuth,
@@ -125,6 +130,7 @@ class AppModule {
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: ValidationInterceptor },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+        { provide: APP_INTERCEPTOR, useClass: AccessLogInterceptor },
         { provide: APP_FILTER, useClass: ErrorFilter },
       ],
     };

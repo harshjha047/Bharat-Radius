@@ -12,7 +12,7 @@ case "$TASK" in
     [[ "$n" == 0 ]] || echo "closed $n stale sessions"
     ;;
   partitions)
-    echo "created $(q "SELECT radius_ensure_partitions(1)") partitions; dropped $(q "SELECT radius_drop_old_postauth(90)") radpostauth partitions"
+    echo "created $(q "SELECT radius_ensure_partitions(1)") partitions; dropped $(q "SELECT radius_drop_old_postauth(${POSTAUTH_KEEP_DAYS:-1100})") radpostauth partitions"
     ;;
   nas-watch)
     new="$(q "SELECT radius_nas_hash()")"

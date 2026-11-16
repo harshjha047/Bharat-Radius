@@ -521,6 +521,7 @@ export class SessionsController {
 
   @Get('subscribers/:id/sessions')
   @Endpoint({
+    access: 'subscriber',
     summary: 'Session history (default last 90 days)',
     tags: ['sessions'],
     permission: 'sessions.read',
@@ -534,6 +535,7 @@ export class SessionsController {
 
   @Get('subscribers/:id/usage')
   @Endpoint({
+    access: 'subscriber',
     summary: 'Daily data usage (IST days, default last 31) and the current data-cap cycle',
     tags: ['sessions'],
     permission: 'subscribers.read',
@@ -547,6 +549,7 @@ export class SessionsController {
 
   @Get('subscribers/:id/auth-log')
   @Endpoint({
+    access: 'subscriber',
     summary: 'Login attempts with the reject reason (default last 90 days)',
     tags: ['sessions'],
     permission: 'sessions.read',
