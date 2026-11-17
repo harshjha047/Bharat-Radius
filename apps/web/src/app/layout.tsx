@@ -3,10 +3,12 @@ import type { ReactNode } from 'react';
 import '@fontsource-variable/plus-jakarta-sans/wght.css';
 import '@fontsource/ibm-plex-mono/latin-400.css';
 import '@fontsource/ibm-plex-mono/latin-500.css';
+import { canonicalOrigin } from '@/lib/site';
 import { Providers } from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(canonicalOrigin()),
   title: { default: 'BharatRadius', template: '%s · BharatRadius' },
   robots: { index: false, follow: false },
 };
