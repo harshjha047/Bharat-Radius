@@ -21,13 +21,6 @@ function LoginForm() {
   const [showTenant, setShowTenant] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Already signed in: go straight to the panel (or the page that sent them here).
-  const session = useSignedIn('staff');
-  const next = params.get('next');
-  useEffect(() => {
-    if (session.confirmed) router.replace(safeNext(next, session.confirmed.href));
-  }, [session.confirmed, next, router]);
-
   const finish = (status: 'ok' | 'mfa_required' | 'mfa_enroll_required') => {
     qc.clear();
     if (status === 'mfa_required') return setStep('code');
@@ -56,6 +49,13 @@ function LoginForm() {
     onSuccess: (r) => finish(r.status),
     onError,
   });
+
+  // Already signed in: go straight to the panel (or the page that sent them here).
+  const session = useSignedIn('staff', login.isIdle && verify.isIdle);
+  const next = params.get('next');
+  useEffect(() => {
+    if (session.confirmed) router.replace(safeNext(next, session.confirmed.href));
+  }, [session.confirmed, next, router]);
 
   const submitPassword = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

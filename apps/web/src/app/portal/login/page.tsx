@@ -14,11 +14,6 @@ export default function PortalLoginPage() {
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
-  // Already signed in to the portal: go straight to the customer's home.
-  const session = useSignedIn('customer');
-  useEffect(() => {
-    if (session.confirmed) router.replace('/portal');
-  }, [session.confirmed, router]);
   const login = useMutation({
     meta: { silent: true },
     mutationFn: (b: { login: string; password: string }) =>
@@ -36,6 +31,12 @@ export default function PortalLoginPage() {
             : 'Sign-in failed',
       ),
   });
+
+  // Already signed in to the portal: go straight to the customer's home.
+  const session = useSignedIn('customer', login.isIdle);
+  useEffect(() => {
+    if (session.confirmed) router.replace('/portal');
+  }, [session.confirmed, router]);
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
