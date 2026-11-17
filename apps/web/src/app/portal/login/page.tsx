@@ -1,17 +1,19 @@
 'use client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
-import { AuthCard, FormError } from '@/components/auth-card';
+import { useEffect, useState, type FormEvent } from 'react';
+import { AuthCard, FormError, SessionCheck } from '@/components/auth-card';
 import { Button } from '@/components/ui/button';
 import { Input, PasswordInput } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { api, ApiError, unwrap } from '@/lib/api';
+import { useSignedIn } from '@/lib/session';
 
 export default function PortalLoginPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+
   const login = useMutation({
     meta: { silent: true },
     mutationFn: (b: { login: string; password: string }) =>
@@ -30,12 +32,20 @@ export default function PortalLoginPage() {
       ),
   });
 
+  // Already signed in to the portal: go straight to the customer's home.
+  const session = useSignedIn('customer', login.isIdle);
+  useEffect(() => {
+    if (session.confirmed) router.replace('/portal');
+  }, [session.confirmed, router]);
+
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     const f = new FormData(e.currentTarget);
     login.mutate({ login: String(f.get('login')).trim(), password: String(f.get('password')) });
   };
+
+  if (session.confirmed || (session.optimistic && session.checking)) return <SessionCheck />;
 
   return (
     <AuthCard audience="customer" title="Log in" description="Use the details on your welcome SMS.">

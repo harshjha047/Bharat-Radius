@@ -72,3 +72,15 @@ export function FormError({ children }: { children: ReactNode }) {
     </p>
   );
 }
+
+/** Shown on a login page while an existing session is checked, instead of flashing the form. */
+export function SessionCheck() {
+  return (
+    <main className="grid min-h-dvh place-items-center bg-background" aria-busy="true">
+      <p role="status" className="flex items-center gap-3 text-sm text-muted-foreground">
+        <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        You are already signed in. Opening…
+      </p>
+    </main>
+  );
+}

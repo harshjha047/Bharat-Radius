@@ -1,13 +1,15 @@
 'use client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState, type FormEvent } from 'react';
+import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { AuthCard, FormError } from '@/components/auth-card';
 import { Button } from '@/components/ui/button';
 import { Input, PasswordInput } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { api, ApiError, unwrap } from '@/lib/api';
 import { safeNext } from '@/lib/nav';
+import { useSignedIn } from '@/lib/session';
+import { SessionCheck } from '@/components/auth-card';
 
 type Step = 'password' | 'code';
 
@@ -48,6 +50,13 @@ function LoginForm() {
     onError,
   });
 
+  // Already signed in: go straight to the panel (or the page that sent them here).
+  const session = useSignedIn('staff', login.isIdle && verify.isIdle);
+  const next = params.get('next');
+  useEffect(() => {
+    if (session.confirmed) router.replace(safeNext(next, session.confirmed.href));
+  }, [session.confirmed, next, router]);
+
   const submitPassword = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -66,6 +75,8 @@ function LoginForm() {
     setError(null);
     verify.mutate(String(new FormData(e.currentTarget).get('code')).replace(/\s/g, ''));
   };
+
+  if (session.confirmed || (session.optimistic && session.checking)) return <SessionCheck />;
 
   if (step === 'code') {
     return (
