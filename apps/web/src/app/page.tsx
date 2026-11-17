@@ -1,3 +1,23 @@
+import {
+  Activity,
+  BarChart3,
+  Building2,
+  Gauge,
+  Headset,
+  IndianRupee,
+  KeyRound,
+  MapPin,
+  Network,
+  Package,
+  Radio,
+  ReceiptText,
+  Router,
+  ScrollText,
+  Server,
+  Users,
+  Wifi,
+  type LucideIcon,
+} from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -19,6 +39,7 @@ import {
 } from '@/lib/site';
 import { cn } from '@/lib/utils';
 import { ContactForm } from './contact-form';
+import { SignedInSwap } from './signed-in-actions';
 
 export function generateMetadata(): Metadata {
   const origin = canonicalOrigin();
@@ -45,21 +66,46 @@ export function generateMetadata(): Metadata {
 // re-read on each regeneration, so changing them needs no rebuild.
 export const revalidate = 300;
 
-const NAV = [
-  'Dashboard',
-  'Subscribers',
-  'Resellers',
-  'Plans & FUP',
-  'Invoices',
-  'Routers',
-  'Sessions',
-  'Reports',
+// Same icons as the real panel sidebar (components/shell.tsx).
+const NAV: Array<[string, LucideIcon]> = [
+  ['Dashboard', Gauge],
+  ['Subscribers', Users],
+  ['Resellers', Network],
+  ['Plans & FUP', Package],
+  ['Invoices', ReceiptText],
+  ['Routers', Router],
+  ['Online now', Radio],
+  ['Reports', BarChart3],
 ];
 const STATS = [
-  { label: 'Reseller / LCO sites', value: '4', note: 'Wallet-based', tint: 'bg-[#EAF6EC]' },
-  { label: 'Online sessions', value: '1,184', note: 'PPPoE, live', tint: 'bg-[#FFF3E6]' },
-  { label: 'Subscribers', value: '1,312', note: '42 expiring this week', tint: 'bg-[#E6EEFB]' },
-  { label: 'Collected this month', value: '₹7.9L', note: 'Razorpay + cash', tint: 'bg-[#EDEAF9]' },
+  {
+    label: 'Reseller / LCO sites',
+    value: '4',
+    note: 'Wallet-based',
+    icon: Network,
+    tint: 'bg-[#EAF6EC] text-[#2E9B3F]',
+  },
+  {
+    label: 'Online sessions',
+    value: '1,184',
+    note: 'PPPoE, live',
+    icon: Radio,
+    tint: 'bg-[#FFF3E6] text-[#E8760F]',
+  },
+  {
+    label: 'Subscribers',
+    value: '1,312',
+    note: '42 expiring this week',
+    icon: Users,
+    tint: 'bg-[#E6EEFB] text-[#1F5FBF]',
+  },
+  {
+    label: 'Collected this month',
+    value: '₹7.9L',
+    note: 'Razorpay + cash',
+    icon: IndianRupee,
+    tint: 'bg-[#EDEAF9] text-[#6B4FC8]',
+  },
 ];
 const ROWS = [
   ['LN', 'Laxmi Nagar LCO', 'Franchise · Level 1', '98xxx xxx01'],
@@ -69,12 +115,12 @@ const ROWS = [
 ];
 const BARS = [38, 52, 44, 61, 55, 72, 64, 80, 71, 88, 76, 94, 84, 100];
 
-const TRUST = [
-  ['FreeRADIUS core', 'PostgreSQL-backed, industry standard'],
-  ['Tested at 100,000 subscribers', 'Search in under 1 s on a 4-vCPU server'],
-  ['Hosted in India', 'Data stays on Indian servers'],
-  ['Built and supported by DIV', 'One team for hosting, setup and help'],
-] as const;
+const TRUST: Array<[string, string, LucideIcon]> = [
+  ['FreeRADIUS core', 'PostgreSQL-backed, industry standard', Server],
+  ['Tested at 100,000 subscribers', 'Search in under 1 s on a 4-vCPU server', Gauge],
+  ['Hosted in India', 'Data stays on Indian servers', MapPin],
+  ['Built and supported by DIV', 'One team for hosting, setup and help', Headset],
+];
 
 const PROBLEMS = [
   [
@@ -229,14 +275,14 @@ function Ghost({ href, children, className }: { href: string; children: ReactNod
 }
 
 function Feature({
-  icon,
+  icon: Icon,
   color,
   title,
   body,
   points,
   children,
 }: {
-  icon: string;
+  icon: LucideIcon;
   color: string;
   title: string;
   body: string;
@@ -249,12 +295,9 @@ function Feature({
         <div className="flex items-center gap-[11px]">
           <span
             aria-hidden
-            className={cn(
-              'grid size-[30px] shrink-0 place-items-center rounded-[9px] font-outfit text-[13px] font-semibold text-white',
-              color,
-            )}
+            className={cn('grid size-[30px] shrink-0 place-items-center rounded-[9px] text-white', color)}
           >
-            {icon}
+            <Icon strokeWidth={2.2} className="size-4" />
           </span>
           <h3 className="font-outfit text-[18.5px] font-semibold tracking-[-0.01em] text-[#10214F]">
             {title}
@@ -316,7 +359,7 @@ function ProductMock() {
               </div>
             </div>
             <div className="grid gap-0.5">
-              {NAV.map((label, i) => (
+              {NAV.map(([label, Icon], i) => (
                 <div
                   key={label}
                   className={cn(
@@ -324,8 +367,9 @@ function ProductMock() {
                     i === 0 ? 'bg-[#FFF3E6] font-semibold text-[#C4610C]' : 'text-[#4A5578]',
                   )}
                 >
-                  <span
-                    className={cn('size-4 shrink-0 rounded-[5px]', i === 0 ? 'bg-[#E8760F]' : 'bg-[#E4E7F0]')}
+                  <Icon
+                    aria-hidden
+                    className={cn('size-4 shrink-0', i === 0 ? 'text-[#E8760F]' : 'text-[#8A93B0]')}
                   />
                   {label}
                 </div>
@@ -378,7 +422,11 @@ function ProductMock() {
                 {STATS.map((s) => (
                   <div key={s.label} className="rounded-xl border border-[#ECEEF5] bg-white p-3.5">
                     <div className="flex items-center gap-2">
-                      <span className={cn('size-[22px] shrink-0 rounded-[7px]', s.tint)} />
+                      <span
+                        className={cn('grid size-[22px] shrink-0 place-items-center rounded-[7px]', s.tint)}
+                      >
+                        <s.icon aria-hidden strokeWidth={2.2} className="size-3.5" />
+                      </span>
                       <span className="text-[11.5px] text-[#6C7799]">{s.label}</span>
                     </div>
                     <div className="mt-2.5 font-outfit text-[26px] font-semibold tracking-[-0.02em]">
@@ -533,24 +581,26 @@ export default function Landing() {
               ))}
             </nav>
             <div className="flex shrink-0 items-center gap-2 max-lg:ml-auto">
-              <Link
-                href="/login"
-                className={cn(
-                  link,
-                  'rounded-full px-4 py-[11px] font-outfit text-sm font-medium max-sm:hidden',
-                )}
-              >
-                Log in
-              </Link>
-              <a
-                href="#contact"
-                className={cn(
-                  pill,
-                  'bg-[#10214F] px-[22px] py-[11px] text-sm text-white hover:bg-[#E8760F] hover:text-white',
-                )}
-              >
-                Book a demo
-              </a>
+              <SignedInSwap className="px-[22px] py-[11px] text-sm">
+                <Link
+                  href="/login"
+                  className={cn(
+                    link,
+                    'rounded-full px-4 py-[11px] font-outfit text-sm font-medium max-sm:hidden',
+                  )}
+                >
+                  Log in
+                </Link>
+                <a
+                  href="#contact"
+                  className={cn(
+                    pill,
+                    'bg-[#10214F] px-[22px] py-[11px] text-sm text-white hover:bg-[#E8760F] hover:text-white',
+                  )}
+                >
+                  Book a demo
+                </a>
+              </SignedInSwap>
             </div>
           </div>
         </header>
@@ -593,13 +643,18 @@ export default function Landing() {
             , the team that hosts, sets up and runs it with you.
           </p>
           <ul className="mx-auto mt-9 grid max-w-[1000px] grid-cols-2 gap-3 text-left lg:grid-cols-4">
-            {TRUST.map(([title, note]) => (
+            {TRUST.map(([title, note, Icon]) => (
               <li
                 key={title}
-                className="rounded-2xl border border-[#10214F]/[0.07] bg-white/75 px-4 py-3.5 backdrop-blur-[6px]"
+                className="flex gap-3 rounded-2xl border border-[#10214F]/[0.07] bg-white/75 px-4 py-3.5 backdrop-blur-[6px]"
               >
-                <div className="font-outfit text-[15px] font-semibold text-[#10214F]">{title}</div>
-                <div className="mt-0.5 text-[13px] leading-[1.45] text-[#6C7799]">{note}</div>
+                <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-[#FFF3E6] text-[#E8760F]">
+                  <Icon aria-hidden strokeWidth={2.2} className="size-4" />
+                </span>
+                <span>
+                  <span className="block font-outfit text-[15px] font-semibold text-[#10214F]">{title}</span>
+                  <span className="mt-0.5 block text-[13px] leading-[1.45] text-[#6C7799]">{note}</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -632,7 +687,7 @@ export default function Landing() {
         <h2 className={h2}>RADIUS, billing and reseller management in one ISP panel</h2>
         <div className="mt-12 grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-5 text-left">
           <Feature
-            icon="R"
+            icon={KeyRound}
             color="bg-[#E8760F]"
             title="PPPoE RADIUS authentication"
             body="FreeRADIUS checks every login against your subscriber list and plan, and records every session."
@@ -671,7 +726,7 @@ export default function Landing() {
           </Feature>
 
           <Feature
-            icon="P"
+            icon={Package}
             color="bg-[#C4610C]"
             title="Plans, FUP and bandwidth control"
             body="Speed, validity, data caps and post-FUP speed per plan, for prepaid and postpaid customers."
@@ -693,7 +748,13 @@ export default function Landing() {
               ] as const
             ).map(([name, speed, price]) => (
               <div key={name} className="flex items-center gap-2.5 border-t border-[#F5F6FA] pt-[9px]">
-                <span className="size-[22px] shrink-0 rounded-[7px] bg-[#FFF3E6]" />
+                <span className="grid size-[22px] shrink-0 place-items-center rounded-[7px] bg-[#FFF3E6] text-[#C4610C]">
+                  {name.startsWith('Business') ? (
+                    <Building2 aria-hidden strokeWidth={2.2} className="size-3.5" />
+                  ) : (
+                    <Wifi aria-hidden strokeWidth={2.2} className="size-3.5" />
+                  )}
+                </span>
                 <span className="text-xs">{name}</span>
                 <span className="ml-auto text-[11.5px] text-[#6C7799]">{speed}</span>
                 <span className="font-outfit text-xs font-semibold">{price}</span>
@@ -702,7 +763,7 @@ export default function Landing() {
           </Feature>
 
           <Feature
-            icon="L"
+            icon={Network}
             color="bg-[#2E9B3F]"
             title="Reseller, LCO and franchise management"
             body="Give every partner a login and a prepaid wallet; they recharge their own customers, you keep control."
@@ -735,7 +796,7 @@ export default function Landing() {
           </Feature>
 
           <Feature
-            icon="₹"
+            icon={ReceiptText}
             color="bg-[#6B4FC8]"
             title="GST billing and online payments"
             body="Prepaid recharges and monthly postpaid invoices, collected online and settled automatically."
@@ -772,7 +833,7 @@ export default function Landing() {
           </Feature>
 
           <Feature
-            icon="N"
+            icon={Activity}
             color="bg-[#1F5FBF]"
             title="Live sessions and usage reports"
             body="See who is online, what they use and what you collect, with alerts when something breaks."
@@ -805,7 +866,7 @@ export default function Landing() {
           </Feature>
 
           <Feature
-            icon="D"
+            icon={ScrollText}
             color="bg-[#0F8FA0]"
             title="DoT and CERT-In log archive"
             body="The logs licensing rules ask for, kept on Indian servers and ready when a request arrives."
