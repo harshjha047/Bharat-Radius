@@ -21,7 +21,7 @@ const upload = (c: Client, file: Buffer, query = '') =>
 
 beforeAll(async () => {
   h = await startHarness();
-  const t = await seedTenant(h.db, 'pimp', 'plans.example.test');
+  const t = await seedTenant(h.db, 'pimp', 'new.example.test');
   admin = await signIn(
     h,
     await seedUser(h, {
