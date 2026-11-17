@@ -1228,431 +1228,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/v1/plans': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Plans */
-    get: {
-      parameters: {
-        query?: {
-          cursor?: string;
-          limit?: number;
-          status?: 'active' | 'archived';
-          q?: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              items: {
-                id: string;
-                name: string;
-                description: string | null;
-                downloadKbps: number;
-                uploadKbps: number;
-                burst: {
-                  downloadKbps: number;
-                  uploadKbps: number;
-                  thresholdDownloadKbps: number;
-                  thresholdUploadKbps: number;
-                  timeSecs: number;
-                } | null;
-                rateLimit: string;
-                dataCapBytes: number | null;
-                fup: {
-                  downloadKbps: number;
-                  uploadKbps: number;
-                } | null;
-                fupRate: string | null;
-                fupCycle: ('billing_cycle' | 'calendar_month') | null;
-                validityDays: number;
-                ipPool: string | null;
-                simUse: number;
-                billingTypes: ('prepaid' | 'postpaid')[];
-                pricePaise: number;
-                gstRatePercent: number;
-                hsnSac: string;
-                extraAttributes: {
-                  attribute: string;
-                  op: string;
-                  value: string;
-                }[];
-                /** @enum {string} */
-                status: 'active' | 'archived';
-                radiusId: number | null;
-                updatedAt: string;
-              }[];
-              nextCursor: string | null;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    /** Create a plan */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            downloadKbps: number;
-            uploadKbps: number;
-            name: string;
-            description?: string;
-            burst?: {
-              downloadKbps: number;
-              uploadKbps: number;
-              thresholdDownloadKbps: number;
-              thresholdUploadKbps: number;
-              timeSecs: number;
-            };
-            dataCapBytes?: number;
-            fup?: {
-              downloadKbps: number;
-              uploadKbps: number;
-            };
-            /** @enum {string} */
-            fupCycle?: 'billing_cycle' | 'calendar_month';
-            /** @default 30 */
-            validityDays?: number;
-            ipPool?: string;
-            /** @default 1 */
-            simUse?: number;
-            /**
-             * @default [
-             *       "prepaid"
-             *     ]
-             */
-            billingTypes?: ('prepaid' | 'postpaid')[];
-            pricePaise: number;
-            /** @default 18 */
-            gstRatePercent?: 0 | 5 | 12 | 18 | 28;
-            /** @default 998422 */
-            hsnSac?: string;
-            /** @default [] */
-            extraAttributes?: {
-              attribute: string;
-              /**
-               * @default :=
-               * @enum {string}
-               */
-              op?: ':=' | '=' | '+=';
-              value: string;
-            }[];
-          };
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string;
-              name: string;
-              description: string | null;
-              downloadKbps: number;
-              uploadKbps: number;
-              burst: {
-                downloadKbps: number;
-                uploadKbps: number;
-                thresholdDownloadKbps: number;
-                thresholdUploadKbps: number;
-                timeSecs: number;
-              } | null;
-              rateLimit: string;
-              dataCapBytes: number | null;
-              fup: {
-                downloadKbps: number;
-                uploadKbps: number;
-              } | null;
-              fupRate: string | null;
-              fupCycle: ('billing_cycle' | 'calendar_month') | null;
-              validityDays: number;
-              ipPool: string | null;
-              simUse: number;
-              billingTypes: ('prepaid' | 'postpaid')[];
-              pricePaise: number;
-              gstRatePercent: number;
-              hsnSac: string;
-              extraAttributes: {
-                attribute: string;
-                op: string;
-                value: string;
-              }[];
-              /** @enum {string} */
-              status: 'active' | 'archived';
-              radiusId: number | null;
-              updatedAt: string;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/plans/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** One plan */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string;
-              name: string;
-              description: string | null;
-              downloadKbps: number;
-              uploadKbps: number;
-              burst: {
-                downloadKbps: number;
-                uploadKbps: number;
-                thresholdDownloadKbps: number;
-                thresholdUploadKbps: number;
-                timeSecs: number;
-              } | null;
-              rateLimit: string;
-              dataCapBytes: number | null;
-              fup: {
-                downloadKbps: number;
-                uploadKbps: number;
-              } | null;
-              fupRate: string | null;
-              fupCycle: ('billing_cycle' | 'calendar_month') | null;
-              validityDays: number;
-              ipPool: string | null;
-              simUse: number;
-              billingTypes: ('prepaid' | 'postpaid')[];
-              pricePaise: number;
-              gstRatePercent: number;
-              hsnSac: string;
-              extraAttributes: {
-                attribute: string;
-                op: string;
-                value: string;
-              }[];
-              /** @enum {string} */
-              status: 'active' | 'archived';
-              radiusId: number | null;
-              updatedAt: string;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Edit or archive a plan (online users on it get the new speed by CoA) */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            name?: string;
-            description?: string | null;
-            downloadKbps?: number;
-            uploadKbps?: number;
-            burst?: {
-              downloadKbps: number;
-              uploadKbps: number;
-              thresholdDownloadKbps: number;
-              thresholdUploadKbps: number;
-              timeSecs: number;
-            } | null;
-            dataCapBytes?: number | null;
-            fup?: {
-              downloadKbps: number;
-              uploadKbps: number;
-            } | null;
-            fupCycle?: ('billing_cycle' | 'calendar_month') | null;
-            validityDays?: number;
-            ipPool?: string | null;
-            simUse?: number;
-            billingTypes?: ('prepaid' | 'postpaid')[];
-            pricePaise?: number;
-            gstRatePercent?: 0 | 5 | 12 | 18 | 28;
-            hsnSac?: string;
-            extraAttributes?: {
-              attribute: string;
-              /**
-               * @default :=
-               * @enum {string}
-               */
-              op?: ':=' | '=' | '+=';
-              value: string;
-            }[];
-            /** @enum {string} */
-            status?: 'active' | 'archived';
-          };
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string;
-              name: string;
-              description: string | null;
-              downloadKbps: number;
-              uploadKbps: number;
-              burst: {
-                downloadKbps: number;
-                uploadKbps: number;
-                thresholdDownloadKbps: number;
-                thresholdUploadKbps: number;
-                timeSecs: number;
-              } | null;
-              rateLimit: string;
-              dataCapBytes: number | null;
-              fup: {
-                downloadKbps: number;
-                uploadKbps: number;
-              } | null;
-              fupRate: string | null;
-              fupCycle: ('billing_cycle' | 'calendar_month') | null;
-              validityDays: number;
-              ipPool: string | null;
-              simUse: number;
-              billingTypes: ('prepaid' | 'postpaid')[];
-              pricePaise: number;
-              gstRatePercent: number;
-              hsnSac: string;
-              extraAttributes: {
-                attribute: string;
-                op: string;
-                value: string;
-              }[];
-              /** @enum {string} */
-              status: 'active' | 'archived';
-              radiusId: number | null;
-              updatedAt: string;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    trace?: never;
-  };
   '/api/v1/resellers': {
     parameters: {
       query?: never;
@@ -2360,6 +1935,2002 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Find subscribers (name, username, phone or customer number prefix) */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          q?: string;
+          status?: 'active' | 'suspended' | 'disabled' | 'expired';
+          planId?: string;
+          resellerId?: string | 'none';
+          under?: string;
+          expiry?: 'today' | 'tomorrow' | '7d' | 'expired-month';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                customerNo: string;
+                username: string;
+                name: string;
+                phone: string;
+                altPhone: string | null;
+                email: string | null;
+                address: {
+                  [key: string]: unknown;
+                };
+                gstin: string | null;
+                /** @enum {string} */
+                billingType: 'prepaid' | 'postpaid';
+                planId: string | null;
+                expiresAt: string | null;
+                /** @enum {string} */
+                status: 'active' | 'suspended' | 'disabled';
+                suspendReason: string | null;
+                /** @enum {string} */
+                radiusState: 'blocked' | 'expired' | 'fup' | 'active';
+                network: {
+                  staticIp: string | null;
+                  macLock: string | null;
+                  simUse: number | null;
+                  popName: string | null;
+                };
+                fupActive: boolean;
+                kycStatus: string;
+                tags: string[];
+                notes: string | null;
+                /** @enum {string} */
+                syncStatus: 'synced' | 'pending' | 'error';
+                reseller: {
+                  id: string;
+                  code: string;
+                  name: string;
+                } | null;
+                createdAt: string;
+                updatedAt: string;
+                pppoePassword?: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Create a subscriber (PPPoE password returned once if generated) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            username: string;
+            pppoePassword?: string;
+            name: string;
+            phone: string;
+            altPhone?: string;
+            /** Format: email */
+            email?: string;
+            address: {
+              line1: string;
+              line2?: string;
+              city: string;
+              district?: string;
+              state: string;
+              stateCode?: string;
+              pincode: string;
+              lat?: number;
+              lng?: number;
+            };
+            gstin?: string;
+            /**
+             * @default prepaid
+             * @enum {string}
+             */
+            billingType?: 'prepaid' | 'postpaid';
+            planId?: string;
+            expiresAt?: unknown;
+            network?: {
+              staticIp?: string | null;
+              macLock?: string | null;
+              simUse?: number | null;
+              popName?: string | null;
+            };
+            /** @default [] */
+            tags?: string[];
+            notes?: string;
+            resellerId?: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              customerNo: string;
+              username: string;
+              name: string;
+              phone: string;
+              altPhone: string | null;
+              email: string | null;
+              address: {
+                [key: string]: unknown;
+              };
+              gstin: string | null;
+              /** @enum {string} */
+              billingType: 'prepaid' | 'postpaid';
+              planId: string | null;
+              expiresAt: string | null;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'disabled';
+              suspendReason: string | null;
+              /** @enum {string} */
+              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
+              network: {
+                staticIp: string | null;
+                macLock: string | null;
+                simUse: number | null;
+                popName: string | null;
+              };
+              fupActive: boolean;
+              kycStatus: string;
+              tags: string[];
+              notes: string | null;
+              /** @enum {string} */
+              syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              createdAt: string;
+              updatedAt: string;
+              pppoePassword?: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Status and renewal counts (IST days) with what renewing each group is worth; cached ~60 s */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              asOf: string;
+              total: number;
+              active: number;
+              suspended: number;
+              disabled: number;
+              expired: number;
+              expiredThisMonth: number;
+              expiringToday: number;
+              expiringTomorrow: number;
+              expiring7d: number;
+              renewPaise: {
+                today: number;
+                tomorrow: number;
+                next7d: number;
+                expiredThisMonth: number;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/expiring': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Active prepaid subscribers whose validity ends within N days (default 7), soonest first */
+    get: {
+      parameters: {
+        query?: {
+          days?: number;
+          window?: 'today' | 'tomorrow' | '7d';
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              total: number;
+              items: {
+                id: string;
+                customerNo: string;
+                username: string;
+                name: string;
+                phone: string;
+                altPhone: string | null;
+                email: string | null;
+                address: {
+                  [key: string]: unknown;
+                };
+                gstin: string | null;
+                /** @enum {string} */
+                billingType: 'prepaid' | 'postpaid';
+                planId: string | null;
+                expiresAt: string | null;
+                /** @enum {string} */
+                status: 'active' | 'suspended' | 'disabled';
+                suspendReason: string | null;
+                /** @enum {string} */
+                radiusState: 'blocked' | 'expired' | 'fup' | 'active';
+                network: {
+                  staticIp: string | null;
+                  macLock: string | null;
+                  simUse: number | null;
+                  popName: string | null;
+                };
+                fupActive: boolean;
+                kycStatus: string;
+                tags: string[];
+                notes: string | null;
+                /** @enum {string} */
+                syncStatus: 'synced' | 'pending' | 'error';
+                reseller: {
+                  id: string;
+                  code: string;
+                  name: string;
+                } | null;
+                createdAt: string;
+                updatedAt: string;
+                pppoePassword?: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One subscriber */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              customerNo: string;
+              username: string;
+              name: string;
+              phone: string;
+              altPhone: string | null;
+              email: string | null;
+              address: {
+                [key: string]: unknown;
+              };
+              gstin: string | null;
+              /** @enum {string} */
+              billingType: 'prepaid' | 'postpaid';
+              planId: string | null;
+              expiresAt: string | null;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'disabled';
+              suspendReason: string | null;
+              /** @enum {string} */
+              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
+              network: {
+                staticIp: string | null;
+                macLock: string | null;
+                simUse: number | null;
+                popName: string | null;
+              };
+              fupActive: boolean;
+              kycStatus: string;
+              tags: string[];
+              notes: string | null;
+              /** @enum {string} */
+              syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              createdAt: string;
+              updatedAt: string;
+              pppoePassword?: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    /** Delete (disconnects; username and static IP become free; history kept) */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @constant */
+              ok: true;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Edit a subscriber; RADIUS and an online session follow (CoA or reconnect) */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            pppoePassword?: string;
+            name?: string;
+            phone?: string;
+            altPhone?: string | null;
+            email?: string | null;
+            address?: {
+              line1: string;
+              line2?: string;
+              city: string;
+              district?: string;
+              state: string;
+              stateCode?: string;
+              pincode: string;
+              lat?: number;
+              lng?: number;
+            };
+            gstin?: string | null;
+            /** @enum {string} */
+            billingType?: 'prepaid' | 'postpaid';
+            planId?: string | null;
+            expiresAt?: unknown | null;
+            network?: {
+              staticIp?: string | null;
+              macLock?: string | null;
+              simUse?: number | null;
+              popName?: string | null;
+            };
+            tags?: string[];
+            notes?: string | null;
+            resellerId?: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              customerNo: string;
+              username: string;
+              name: string;
+              phone: string;
+              altPhone: string | null;
+              email: string | null;
+              address: {
+                [key: string]: unknown;
+              };
+              gstin: string | null;
+              /** @enum {string} */
+              billingType: 'prepaid' | 'postpaid';
+              planId: string | null;
+              expiresAt: string | null;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'disabled';
+              suspendReason: string | null;
+              /** @enum {string} */
+              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
+              network: {
+                staticIp: string | null;
+                macLock: string | null;
+                simUse: number | null;
+                popName: string | null;
+              };
+              fupActive: boolean;
+              kycStatus: string;
+              tags: string[];
+              notes: string | null;
+              /** @enum {string} */
+              syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              createdAt: string;
+              updatedAt: string;
+              pppoePassword?: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/suspend': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Suspend (disconnects the session; logins are refused) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            reason?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              customerNo: string;
+              username: string;
+              name: string;
+              phone: string;
+              altPhone: string | null;
+              email: string | null;
+              address: {
+                [key: string]: unknown;
+              };
+              gstin: string | null;
+              /** @enum {string} */
+              billingType: 'prepaid' | 'postpaid';
+              planId: string | null;
+              expiresAt: string | null;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'disabled';
+              suspendReason: string | null;
+              /** @enum {string} */
+              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
+              network: {
+                staticIp: string | null;
+                macLock: string | null;
+                simUse: number | null;
+                popName: string | null;
+              };
+              fupActive: boolean;
+              kycStatus: string;
+              tags: string[];
+              notes: string | null;
+              /** @enum {string} */
+              syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              createdAt: string;
+              updatedAt: string;
+              pppoePassword?: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/activate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Lift a suspension */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              customerNo: string;
+              username: string;
+              name: string;
+              phone: string;
+              altPhone: string | null;
+              email: string | null;
+              address: {
+                [key: string]: unknown;
+              };
+              gstin: string | null;
+              /** @enum {string} */
+              billingType: 'prepaid' | 'postpaid';
+              planId: string | null;
+              expiresAt: string | null;
+              /** @enum {string} */
+              status: 'active' | 'suspended' | 'disabled';
+              suspendReason: string | null;
+              /** @enum {string} */
+              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
+              network: {
+                staticIp: string | null;
+                macLock: string | null;
+                simUse: number | null;
+                popName: string | null;
+              };
+              fupActive: boolean;
+              kycStatus: string;
+              tags: string[];
+              notes: string | null;
+              /** @enum {string} */
+              syncStatus: 'synced' | 'pending' | 'error';
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              createdAt: string;
+              updatedAt: string;
+              pppoePassword?: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/kick': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Disconnect the live session */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @constant */
+              ok: true;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Show the PPPoE password */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              pppoePassword: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/coa-log': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Recent CoA / disconnect results */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {string} */
+              type: 'coa' | 'disconnect';
+              result: string;
+              reason: string;
+              nasIp: string;
+              errorCause: number | null;
+              latencyMs: number | null;
+              at: string;
+            }[];
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/import/template': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Excel template with the ISP’s plans and column help */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Import subscribers from Excel (dryRun=true checks only; invalid rows reject the file unless skipInvalid) */
+    post: {
+      parameters: {
+        query?: {
+          dryRun?: 'true' | 'false';
+          skipInvalid?: 'true' | 'false';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string | null;
+              fileName: string;
+              /** @enum {string} */
+              status: 'validated' | 'rejected' | 'queued' | 'running' | 'done' | 'failed';
+              counts: {
+                read: number;
+                valid: number;
+                created: number;
+                failed: number;
+              };
+              errors: {
+                row: number;
+                column?: string;
+                message: string;
+              }[];
+              errorsTruncated: boolean;
+              createdAt: string | null;
+              finishedAt: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/imports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Recent imports */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string | null;
+              fileName: string;
+              /** @enum {string} */
+              status: 'validated' | 'rejected' | 'queued' | 'running' | 'done' | 'failed';
+              counts: {
+                read: number;
+                valid: number;
+                created: number;
+                failed: number;
+              };
+              errors: {
+                row: number;
+                column?: string;
+                message: string;
+              }[];
+              errorsTruncated: boolean;
+              createdAt: string | null;
+              finishedAt: string | null;
+            }[];
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/imports/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Import progress and problems */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string | null;
+              fileName: string;
+              /** @enum {string} */
+              status: 'validated' | 'rejected' | 'queued' | 'running' | 'done' | 'failed';
+              counts: {
+                read: number;
+                valid: number;
+                created: number;
+                failed: number;
+              };
+              errors: {
+                row: number;
+                column?: string;
+                message: string;
+              }[];
+              errorsTruncated: boolean;
+              createdAt: string | null;
+              finishedAt: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/imports/{id}/errors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Problems as an Excel sheet */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export subscribers to Excel (no passwords; at most 100,000 rows) */
+    get: {
+      parameters: {
+        query?: {
+          status?: 'active' | 'suspended' | 'disabled';
+          planId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/plans': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Plans */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          status?: 'active' | 'archived';
+          q?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                name: string;
+                description: string | null;
+                downloadKbps: number;
+                uploadKbps: number;
+                burst: {
+                  downloadKbps: number;
+                  uploadKbps: number;
+                  thresholdDownloadKbps: number;
+                  thresholdUploadKbps: number;
+                  timeSecs: number;
+                } | null;
+                rateLimit: string;
+                dataCapBytes: number | null;
+                fup: {
+                  downloadKbps: number;
+                  uploadKbps: number;
+                } | null;
+                fupRate: string | null;
+                fupCycle: ('billing_cycle' | 'calendar_month') | null;
+                validityDays: number;
+                ipPool: string | null;
+                simUse: number;
+                billingTypes: ('prepaid' | 'postpaid')[];
+                pricePaise: number;
+                gstRatePercent: number;
+                hsnSac: string;
+                extraAttributes: {
+                  attribute: string;
+                  op: string;
+                  value: string;
+                }[];
+                /** @enum {string} */
+                status: 'active' | 'archived';
+                radiusId: number | null;
+                updatedAt: string;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Create a plan */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            downloadKbps: number;
+            uploadKbps: number;
+            name: string;
+            description?: string;
+            burst?: {
+              downloadKbps: number;
+              uploadKbps: number;
+              thresholdDownloadKbps: number;
+              thresholdUploadKbps: number;
+              timeSecs: number;
+            };
+            dataCapBytes?: number;
+            fup?: {
+              downloadKbps: number;
+              uploadKbps: number;
+            };
+            /** @enum {string} */
+            fupCycle?: 'billing_cycle' | 'calendar_month';
+            /** @default 30 */
+            validityDays?: number;
+            ipPool?: string;
+            /** @default 1 */
+            simUse?: number;
+            /**
+             * @default [
+             *       "prepaid"
+             *     ]
+             */
+            billingTypes?: ('prepaid' | 'postpaid')[];
+            pricePaise: number;
+            /** @default 18 */
+            gstRatePercent?: 0 | 5 | 12 | 18 | 28;
+            /** @default 998422 */
+            hsnSac?: string;
+            /** @default [] */
+            extraAttributes?: {
+              attribute: string;
+              /**
+               * @default :=
+               * @enum {string}
+               */
+              op?: ':=' | '=' | '+=';
+              value: string;
+            }[];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              name: string;
+              description: string | null;
+              downloadKbps: number;
+              uploadKbps: number;
+              burst: {
+                downloadKbps: number;
+                uploadKbps: number;
+                thresholdDownloadKbps: number;
+                thresholdUploadKbps: number;
+                timeSecs: number;
+              } | null;
+              rateLimit: string;
+              dataCapBytes: number | null;
+              fup: {
+                downloadKbps: number;
+                uploadKbps: number;
+              } | null;
+              fupRate: string | null;
+              fupCycle: ('billing_cycle' | 'calendar_month') | null;
+              validityDays: number;
+              ipPool: string | null;
+              simUse: number;
+              billingTypes: ('prepaid' | 'postpaid')[];
+              pricePaise: number;
+              gstRatePercent: number;
+              hsnSac: string;
+              extraAttributes: {
+                attribute: string;
+                op: string;
+                value: string;
+              }[];
+              /** @enum {string} */
+              status: 'active' | 'archived';
+              radiusId: number | null;
+              updatedAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/plans/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One plan */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              name: string;
+              description: string | null;
+              downloadKbps: number;
+              uploadKbps: number;
+              burst: {
+                downloadKbps: number;
+                uploadKbps: number;
+                thresholdDownloadKbps: number;
+                thresholdUploadKbps: number;
+                timeSecs: number;
+              } | null;
+              rateLimit: string;
+              dataCapBytes: number | null;
+              fup: {
+                downloadKbps: number;
+                uploadKbps: number;
+              } | null;
+              fupRate: string | null;
+              fupCycle: ('billing_cycle' | 'calendar_month') | null;
+              validityDays: number;
+              ipPool: string | null;
+              simUse: number;
+              billingTypes: ('prepaid' | 'postpaid')[];
+              pricePaise: number;
+              gstRatePercent: number;
+              hsnSac: string;
+              extraAttributes: {
+                attribute: string;
+                op: string;
+                value: string;
+              }[];
+              /** @enum {string} */
+              status: 'active' | 'archived';
+              radiusId: number | null;
+              updatedAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Edit or archive a plan (online users on it get the new speed by CoA) */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            name?: string;
+            description?: string | null;
+            downloadKbps?: number;
+            uploadKbps?: number;
+            burst?: {
+              downloadKbps: number;
+              uploadKbps: number;
+              thresholdDownloadKbps: number;
+              thresholdUploadKbps: number;
+              timeSecs: number;
+            } | null;
+            dataCapBytes?: number | null;
+            fup?: {
+              downloadKbps: number;
+              uploadKbps: number;
+            } | null;
+            fupCycle?: ('billing_cycle' | 'calendar_month') | null;
+            validityDays?: number;
+            ipPool?: string | null;
+            simUse?: number;
+            billingTypes?: ('prepaid' | 'postpaid')[];
+            pricePaise?: number;
+            gstRatePercent?: 0 | 5 | 12 | 18 | 28;
+            hsnSac?: string;
+            extraAttributes?: {
+              attribute: string;
+              /**
+               * @default :=
+               * @enum {string}
+               */
+              op?: ':=' | '=' | '+=';
+              value: string;
+            }[];
+            /** @enum {string} */
+            status?: 'active' | 'archived';
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              name: string;
+              description: string | null;
+              downloadKbps: number;
+              uploadKbps: number;
+              burst: {
+                downloadKbps: number;
+                uploadKbps: number;
+                thresholdDownloadKbps: number;
+                thresholdUploadKbps: number;
+                timeSecs: number;
+              } | null;
+              rateLimit: string;
+              dataCapBytes: number | null;
+              fup: {
+                downloadKbps: number;
+                uploadKbps: number;
+              } | null;
+              fupRate: string | null;
+              fupCycle: ('billing_cycle' | 'calendar_month') | null;
+              validityDays: number;
+              ipPool: string | null;
+              simUse: number;
+              billingTypes: ('prepaid' | 'postpaid')[];
+              pricePaise: number;
+              gstRatePercent: number;
+              hsnSac: string;
+              extraAttributes: {
+                attribute: string;
+                op: string;
+                value: string;
+              }[];
+              /** @enum {string} */
+              status: 'active' | 'archived';
+              radiusId: number | null;
+              updatedAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/v1/plans/import/template': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Excel template for plans, with column help */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/plans/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Import plans from Excel (dryRun=true checks only; existing names are skipped unless updateExisting; invalid rows reject the file unless skipInvalid) */
+    post: {
+      parameters: {
+        query?: {
+          dryRun?: 'true' | 'false';
+          updateExisting?: 'true' | 'false';
+          skipInvalid?: 'true' | 'false';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              fileName: string;
+              /** @enum {string} */
+              status: 'validated' | 'rejected' | 'done';
+              counts: {
+                read: number;
+                create: number;
+                update: number;
+                unchanged: number;
+                skip: number;
+                invalid: number;
+                created: number;
+                updated: number;
+                failed: number;
+              };
+              rows: {
+                row: number;
+                name: string;
+                /** @enum {string} */
+                action: 'create' | 'update' | 'unchanged' | 'skip' | 'invalid';
+                changes: string[];
+                result: ('created' | 'updated' | 'failed') | null;
+              }[];
+              errors: {
+                row: number;
+                column?: string;
+                message: string;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/plans/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export all plans (active and archived) to Excel, in the import columns */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -6375,1393 +7946,6 @@ export interface paths {
               nextCursor: string | null;
             };
           };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Find subscribers (name, username, phone or customer number prefix) */
-    get: {
-      parameters: {
-        query?: {
-          cursor?: string;
-          limit?: number;
-          q?: string;
-          status?: 'active' | 'suspended' | 'disabled' | 'expired';
-          planId?: string;
-          resellerId?: string | 'none';
-          under?: string;
-          expiry?: 'today' | 'tomorrow' | '7d' | 'expired-month';
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              items: {
-                id: string;
-                customerNo: string;
-                username: string;
-                name: string;
-                phone: string;
-                altPhone: string | null;
-                email: string | null;
-                address: {
-                  [key: string]: unknown;
-                };
-                gstin: string | null;
-                /** @enum {string} */
-                billingType: 'prepaid' | 'postpaid';
-                planId: string | null;
-                expiresAt: string | null;
-                /** @enum {string} */
-                status: 'active' | 'suspended' | 'disabled';
-                suspendReason: string | null;
-                /** @enum {string} */
-                radiusState: 'blocked' | 'expired' | 'fup' | 'active';
-                network: {
-                  staticIp: string | null;
-                  macLock: string | null;
-                  simUse: number | null;
-                  popName: string | null;
-                };
-                fupActive: boolean;
-                kycStatus: string;
-                tags: string[];
-                notes: string | null;
-                /** @enum {string} */
-                syncStatus: 'synced' | 'pending' | 'error';
-                reseller: {
-                  id: string;
-                  code: string;
-                  name: string;
-                } | null;
-                createdAt: string;
-                updatedAt: string;
-                pppoePassword?: string;
-              }[];
-              nextCursor: string | null;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    /** Create a subscriber (PPPoE password returned once if generated) */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            username: string;
-            pppoePassword?: string;
-            name: string;
-            phone: string;
-            altPhone?: string;
-            /** Format: email */
-            email?: string;
-            address: {
-              line1: string;
-              line2?: string;
-              city: string;
-              district?: string;
-              state: string;
-              stateCode?: string;
-              pincode: string;
-              lat?: number;
-              lng?: number;
-            };
-            gstin?: string;
-            /**
-             * @default prepaid
-             * @enum {string}
-             */
-            billingType?: 'prepaid' | 'postpaid';
-            planId?: string;
-            expiresAt?: unknown;
-            network?: {
-              staticIp?: string | null;
-              macLock?: string | null;
-              simUse?: number | null;
-              popName?: string | null;
-            };
-            /** @default [] */
-            tags?: string[];
-            notes?: string;
-            resellerId?: string | null;
-          };
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string;
-              customerNo: string;
-              username: string;
-              name: string;
-              phone: string;
-              altPhone: string | null;
-              email: string | null;
-              address: {
-                [key: string]: unknown;
-              };
-              gstin: string | null;
-              /** @enum {string} */
-              billingType: 'prepaid' | 'postpaid';
-              planId: string | null;
-              expiresAt: string | null;
-              /** @enum {string} */
-              status: 'active' | 'suspended' | 'disabled';
-              suspendReason: string | null;
-              /** @enum {string} */
-              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
-              network: {
-                staticIp: string | null;
-                macLock: string | null;
-                simUse: number | null;
-                popName: string | null;
-              };
-              fupActive: boolean;
-              kycStatus: string;
-              tags: string[];
-              notes: string | null;
-              /** @enum {string} */
-              syncStatus: 'synced' | 'pending' | 'error';
-              reseller: {
-                id: string;
-                code: string;
-                name: string;
-              } | null;
-              createdAt: string;
-              updatedAt: string;
-              pppoePassword?: string;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/summary': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Status and renewal counts (IST days) with what renewing each group is worth; cached ~60 s */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              asOf: string;
-              total: number;
-              active: number;
-              suspended: number;
-              disabled: number;
-              expired: number;
-              expiredThisMonth: number;
-              expiringToday: number;
-              expiringTomorrow: number;
-              expiring7d: number;
-              renewPaise: {
-                today: number;
-                tomorrow: number;
-                next7d: number;
-                expiredThisMonth: number;
-              };
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/expiring': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Active prepaid subscribers whose validity ends within N days (default 7), soonest first */
-    get: {
-      parameters: {
-        query?: {
-          days?: number;
-          window?: 'today' | 'tomorrow' | '7d';
-          limit?: number;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              total: number;
-              items: {
-                id: string;
-                customerNo: string;
-                username: string;
-                name: string;
-                phone: string;
-                altPhone: string | null;
-                email: string | null;
-                address: {
-                  [key: string]: unknown;
-                };
-                gstin: string | null;
-                /** @enum {string} */
-                billingType: 'prepaid' | 'postpaid';
-                planId: string | null;
-                expiresAt: string | null;
-                /** @enum {string} */
-                status: 'active' | 'suspended' | 'disabled';
-                suspendReason: string | null;
-                /** @enum {string} */
-                radiusState: 'blocked' | 'expired' | 'fup' | 'active';
-                network: {
-                  staticIp: string | null;
-                  macLock: string | null;
-                  simUse: number | null;
-                  popName: string | null;
-                };
-                fupActive: boolean;
-                kycStatus: string;
-                tags: string[];
-                notes: string | null;
-                /** @enum {string} */
-                syncStatus: 'synced' | 'pending' | 'error';
-                reseller: {
-                  id: string;
-                  code: string;
-                  name: string;
-                } | null;
-                createdAt: string;
-                updatedAt: string;
-                pppoePassword?: string;
-              }[];
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** One subscriber */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string;
-              customerNo: string;
-              username: string;
-              name: string;
-              phone: string;
-              altPhone: string | null;
-              email: string | null;
-              address: {
-                [key: string]: unknown;
-              };
-              gstin: string | null;
-              /** @enum {string} */
-              billingType: 'prepaid' | 'postpaid';
-              planId: string | null;
-              expiresAt: string | null;
-              /** @enum {string} */
-              status: 'active' | 'suspended' | 'disabled';
-              suspendReason: string | null;
-              /** @enum {string} */
-              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
-              network: {
-                staticIp: string | null;
-                macLock: string | null;
-                simUse: number | null;
-                popName: string | null;
-              };
-              fupActive: boolean;
-              kycStatus: string;
-              tags: string[];
-              notes: string | null;
-              /** @enum {string} */
-              syncStatus: 'synced' | 'pending' | 'error';
-              reseller: {
-                id: string;
-                code: string;
-                name: string;
-              } | null;
-              createdAt: string;
-              updatedAt: string;
-              pppoePassword?: string;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    /** Delete (disconnects; username and static IP become free; history kept) */
-    delete: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** @constant */
-              ok: true;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    options?: never;
-    head?: never;
-    /** Edit a subscriber; RADIUS and an online session follow (CoA or reconnect) */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            pppoePassword?: string;
-            name?: string;
-            phone?: string;
-            altPhone?: string | null;
-            email?: string | null;
-            address?: {
-              line1: string;
-              line2?: string;
-              city: string;
-              district?: string;
-              state: string;
-              stateCode?: string;
-              pincode: string;
-              lat?: number;
-              lng?: number;
-            };
-            gstin?: string | null;
-            /** @enum {string} */
-            billingType?: 'prepaid' | 'postpaid';
-            planId?: string | null;
-            expiresAt?: unknown | null;
-            network?: {
-              staticIp?: string | null;
-              macLock?: string | null;
-              simUse?: number | null;
-              popName?: string | null;
-            };
-            tags?: string[];
-            notes?: string | null;
-            resellerId?: string | null;
-          };
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string;
-              customerNo: string;
-              username: string;
-              name: string;
-              phone: string;
-              altPhone: string | null;
-              email: string | null;
-              address: {
-                [key: string]: unknown;
-              };
-              gstin: string | null;
-              /** @enum {string} */
-              billingType: 'prepaid' | 'postpaid';
-              planId: string | null;
-              expiresAt: string | null;
-              /** @enum {string} */
-              status: 'active' | 'suspended' | 'disabled';
-              suspendReason: string | null;
-              /** @enum {string} */
-              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
-              network: {
-                staticIp: string | null;
-                macLock: string | null;
-                simUse: number | null;
-                popName: string | null;
-              };
-              fupActive: boolean;
-              kycStatus: string;
-              tags: string[];
-              notes: string | null;
-              /** @enum {string} */
-              syncStatus: 'synced' | 'pending' | 'error';
-              reseller: {
-                id: string;
-                code: string;
-                name: string;
-              } | null;
-              createdAt: string;
-              updatedAt: string;
-              pppoePassword?: string;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    trace?: never;
-  };
-  '/api/v1/subscribers/{id}/suspend': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Suspend (disconnects the session; logins are refused) */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            reason?: string;
-          };
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string;
-              customerNo: string;
-              username: string;
-              name: string;
-              phone: string;
-              altPhone: string | null;
-              email: string | null;
-              address: {
-                [key: string]: unknown;
-              };
-              gstin: string | null;
-              /** @enum {string} */
-              billingType: 'prepaid' | 'postpaid';
-              planId: string | null;
-              expiresAt: string | null;
-              /** @enum {string} */
-              status: 'active' | 'suspended' | 'disabled';
-              suspendReason: string | null;
-              /** @enum {string} */
-              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
-              network: {
-                staticIp: string | null;
-                macLock: string | null;
-                simUse: number | null;
-                popName: string | null;
-              };
-              fupActive: boolean;
-              kycStatus: string;
-              tags: string[];
-              notes: string | null;
-              /** @enum {string} */
-              syncStatus: 'synced' | 'pending' | 'error';
-              reseller: {
-                id: string;
-                code: string;
-                name: string;
-              } | null;
-              createdAt: string;
-              updatedAt: string;
-              pppoePassword?: string;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/{id}/activate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Lift a suspension */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string;
-              customerNo: string;
-              username: string;
-              name: string;
-              phone: string;
-              altPhone: string | null;
-              email: string | null;
-              address: {
-                [key: string]: unknown;
-              };
-              gstin: string | null;
-              /** @enum {string} */
-              billingType: 'prepaid' | 'postpaid';
-              planId: string | null;
-              expiresAt: string | null;
-              /** @enum {string} */
-              status: 'active' | 'suspended' | 'disabled';
-              suspendReason: string | null;
-              /** @enum {string} */
-              radiusState: 'blocked' | 'expired' | 'fup' | 'active';
-              network: {
-                staticIp: string | null;
-                macLock: string | null;
-                simUse: number | null;
-                popName: string | null;
-              };
-              fupActive: boolean;
-              kycStatus: string;
-              tags: string[];
-              notes: string | null;
-              /** @enum {string} */
-              syncStatus: 'synced' | 'pending' | 'error';
-              reseller: {
-                id: string;
-                code: string;
-                name: string;
-              } | null;
-              createdAt: string;
-              updatedAt: string;
-              pppoePassword?: string;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/{id}/kick': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Disconnect the live session */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** @constant */
-              ok: true;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/{id}/password': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Show the PPPoE password */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              pppoePassword: string;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/{id}/coa-log': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Recent CoA / disconnect results */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** @enum {string} */
-              type: 'coa' | 'disconnect';
-              result: string;
-              reason: string;
-              nasIp: string;
-              errorCause: number | null;
-              latencyMs: number | null;
-              at: string;
-            }[];
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/import/template': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Excel template with the ISP’s plans and column help */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/import': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Import subscribers from Excel (dryRun=true checks only; invalid rows reject the file unless skipInvalid) */
-    post: {
-      parameters: {
-        query?: {
-          dryRun?: 'true' | 'false';
-          skipInvalid?: 'true' | 'false';
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string | null;
-              fileName: string;
-              /** @enum {string} */
-              status: 'validated' | 'rejected' | 'queued' | 'running' | 'done' | 'failed';
-              counts: {
-                read: number;
-                valid: number;
-                created: number;
-                failed: number;
-              };
-              errors: {
-                row: number;
-                column?: string;
-                message: string;
-              }[];
-              errorsTruncated: boolean;
-              createdAt: string | null;
-              finishedAt: string | null;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/imports': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Recent imports */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string | null;
-              fileName: string;
-              /** @enum {string} */
-              status: 'validated' | 'rejected' | 'queued' | 'running' | 'done' | 'failed';
-              counts: {
-                read: number;
-                valid: number;
-                created: number;
-                failed: number;
-              };
-              errors: {
-                row: number;
-                column?: string;
-                message: string;
-              }[];
-              errorsTruncated: boolean;
-              createdAt: string | null;
-              finishedAt: string | null;
-            }[];
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/imports/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Import progress and problems */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string | null;
-              fileName: string;
-              /** @enum {string} */
-              status: 'validated' | 'rejected' | 'queued' | 'running' | 'done' | 'failed';
-              counts: {
-                read: number;
-                valid: number;
-                created: number;
-                failed: number;
-              };
-              errors: {
-                row: number;
-                column?: string;
-                message: string;
-              }[];
-              errorsTruncated: boolean;
-              createdAt: string | null;
-              finishedAt: string | null;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/imports/{id}/errors': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Problems as an Excel sheet */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/export': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Export subscribers to Excel (no passwords; at most 100,000 rows) */
-    get: {
-      parameters: {
-        query?: {
-          status?: 'active' | 'suspended' | 'disabled';
-          planId?: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
         };
         /** @description Error */
         default: {

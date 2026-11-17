@@ -24,6 +24,7 @@ import { ValidationInterceptor } from './http/validation.interceptor.js';
 import { InfraModule } from './infra/infra.module.js';
 import { createLogger, NestPinoLogger } from './logger.js';
 import { NasController, NasService } from './network/nas.js';
+import { PLANS_IMPORT_PATH, PlanExcel, PlanExcelController } from './network/plans-excel.js';
 import { PlansController, PlansService } from './network/plans.js';
 import { ResellersController, ResellersService } from './resellers/resellers.js';
 import { InvoicesController, InvoicesService } from './billing/invoices.js';
@@ -80,6 +81,7 @@ class AppModule {
         RolesController,
         TenantsController,
         NasController,
+        PlanExcelController,
         PlansController,
         ResellersController,
         WalletsController,
@@ -109,6 +111,7 @@ class AppModule {
         Outbox,
         TenantsService,
         NasService,
+        PlanExcel,
         PlansService,
         ResellersService,
         WalletsService,
@@ -164,6 +167,7 @@ export async function createApp(
   app.enableShutdownHooks();
 
   const f = app.getHttpAdapter().getInstance();
+  const XLSX_UPLOAD_PATHS = new Set([IMPORT_PATH, PLANS_IMPORT_PATH]);
   // Excel uploads arrive as the raw file. A custom media type always needs a CORS preflight, so it is CSRF-safe.
   f.addContentTypeParser(XLSX_MIME, { parseAs: 'buffer', bodyLimit: MAX_IMPORT_BYTES }, (_req, body, done) =>
     done(null, body),
@@ -173,7 +177,7 @@ export async function createApp(
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;
     if (
       req.method === 'POST' &&
-      req.url.split('?')[0] === IMPORT_PATH &&
+      XLSX_UPLOAD_PATHS.has(req.url.split('?')[0]!) &&
       req.headers['content-type'] === XLSX_MIME
     )
       return;
