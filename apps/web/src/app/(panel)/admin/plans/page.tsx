@@ -1,16 +1,17 @@
 'use client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Archive, Pencil, Plus, RotateCcw } from 'lucide-react';
+import { Archive, Download, FileUp, Pencil, Plus, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { PlanForm } from '@/components/plan-form';
+import { PlanImport } from '@/components/plan-import';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/input';
 import { ErrorState, PageHeader } from '@/components/ui/misc';
-import { api, unwrap } from '@/lib/api';
+import { api, download, unwrap } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import { usePlans, type Plan } from '@/lib/queries';
 import { fmtBytes, fmtKbps, fmtRupees, plural } from '@/lib/utils';
@@ -21,6 +22,18 @@ export default function PlansPage() {
   const plans = usePlans();
   const [editing, setEditing] = useState<Plan | 'new' | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const exportPlans = async () => {
+    setExporting(true);
+    try {
+      await download('/api/v1/plans/export', 'plans.xlsx');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
   const write = can('plans.write');
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['plans'] });
@@ -66,11 +79,21 @@ export default function PlansPage() {
         title="Plans"
         description="Speeds are what MikroTik enforces; editing a speed updates online customers at once."
         actions={
-          write ? (
-            <Button onClick={() => setEditing('new')}>
-              <Plus /> New plan
+          <>
+            <Button variant="outline" onClick={() => void exportPlans()} loading={exporting}>
+              <Download /> Export
             </Button>
-          ) : null
+            {write ? (
+              <>
+                <Button variant="outline" onClick={() => setImporting(true)}>
+                  <FileUp /> Import
+                </Button>
+                <Button onClick={() => setEditing('new')}>
+                  <Plus /> New plan
+                </Button>
+              </>
+            ) : null}
+          </>
         }
       />
       <label className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
@@ -177,6 +200,13 @@ export default function PlansPage() {
               onSubmit={(b) => save.mutateAsync(b)}
               onCancel={() => setEditing(null)}
             />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={importing} onOpenChange={setImporting}>
+        <DialogContent wide title="Import plans">
+          {importing ? (
+            <PlanImport onImported={() => void refresh()} onClose={() => setImporting(false)} />
           ) : null}
         </DialogContent>
       </Dialog>

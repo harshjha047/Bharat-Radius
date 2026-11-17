@@ -61,7 +61,7 @@ const fields = {
   hsnSac: z.string().regex(/^\d{4,8}$/, 'must be a 4–8 digit HSN/SAC code'),
   extraAttributes: z.array(attribute).max(20),
 };
-const createBody = speeds.extend({
+export const createBody = speeds.extend({
   name: fields.name,
   description: fields.description.optional(),
   burst: burst.optional(),
@@ -78,7 +78,7 @@ const createBody = speeds.extend({
   extraAttributes: fields.extraAttributes.default([]),
 });
 // Explicit optional fields, not createBody.partial(): zod 4 would apply the defaults on every PATCH.
-const updateBody = z
+export const updateBody = z
   .object({
     name: fields.name.optional(),
     description: fields.description.nullable().optional(),
@@ -154,7 +154,7 @@ const toView = (p: PlanDoc): z.output<typeof planView> => ({
   updatedAt: p.updatedAt.toISOString(),
 });
 
-interface PlanShape {
+export interface PlanShape {
   downloadKbps: number;
   uploadKbps: number;
   burst?: PlanDoc['burst'] | undefined;
@@ -163,7 +163,7 @@ interface PlanShape {
 }
 
 /** Cross-field rules, applied to the merged result of create or update. Returns the derived RADIUS strings. */
-function derive(p: PlanShape): { rateLimit: string; fupRate?: string } {
+export function derive(p: PlanShape): { rateLimit: string; fupRate?: string } {
   const bad = (m: string) => new AppError(400, 'VALIDATION_FAILED', m);
   if (p.burst) {
     const problem = burstProblem(p, p.burst);
