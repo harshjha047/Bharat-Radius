@@ -101,8 +101,13 @@ services:
     logging: *logging
     environment:
       APP_VERSION: ${APP_VERSION:-dev}
-      # Landing page "Get in touch": call + WhatsApp number, e.g. "+91 98765 43210". Empty hides them.
+      # Landing page call + WhatsApp buttons, e.g. "+91 98765 43210". Empty hides them (the demo form stays).
       SALES_PHONE: ${SALES_PHONE:-}
+      # Where demo-form leads are POSTed as JSON (Slack incoming webhook, Zapier, Make, n8n, Apps Script).
+      # Empty or failing: leads are written to `docker logs isp-web` (event landing.lead.undelivered).
+      LEAD_WEBHOOK_URL: ${LEAD_WEBHOOK_URL:-}
+      # Official product site. Every install's landing page canonicalises here; only this host gets a sitemap.
+      CANONICAL_ORIGIN: ${CANONICAL_ORIGIN:-https://new.bharatradius.com}
     # Only Caddy talks to it; the browser reaches the API through Caddy on the same origin.
     networks:
       acs:
