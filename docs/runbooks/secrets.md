@@ -12,7 +12,7 @@
 | JWT key, refresh pepper, field-encryption key | `install-base.ps1` | Windows `C:\isp\secrets\<env>.env` | API service |
 | Router RADIUS secrets | Panel (Step 2) | MongoDB (AES-GCM) → PostgreSQL `nas.secret` | FreeRADIUS |
 
-`RADIUS_PW_KEY` never enters the database: FreeRADIUS passes it to `radius_check()`, the API passes it to `radius_encrypt_password()`. Statement logging is disabled for both roles. Database dumps, the Windows standby and backups contain only ciphertext.
+`RADIUS_PW_KEY` never enters a table: `install.sh` stores it as a role setting of `fr_radius*` (`ALTER ROLE … SET app.pw_key`), which `radius_check()` reads with `current_setting()`, so it is not in FreeRADIUS queries or `freeradius -X` output. The API passes it to `radius_encrypt_password()`. Statement logging is disabled for both roles. `pg_dump` of a RADIUS database (backups, the standby's data) does not include role settings; `pg_dumpall --globals-only` would, so never ship one off the host.
 
 ## Off-server copy (SOPS + age)
 
@@ -26,7 +26,7 @@
 |---|---|---|
 | `fr_radius` password | edit `PGPASSWORD` in `<instance>.env`, rerun `install.sh <instance>` (it applies `ALTER ROLE` and restarts FreeRADIUS) | ~1 s; routers retry |
 | `app_radius` password | edit `APP_DB_PASSWORD` in `<instance>.app.env`, rerun `install.sh`, update Windows env, restart `isp-api` | API only |
-| `RADIUS_PW_KEY` | `UPDATE subscribers SET password_enc = radius_encrypt_password(pgp_sym_decrypt(password_enc, :'old'), :'new')` in one transaction, then update both env files and restart FreeRADIUS + API | ~1 s |
+| `RADIUS_PW_KEY` | `sudo /opt/isp-radius/scripts/rotate-pw-key.sh <instance>` (stops API + workers, re-encrypts every password and switches `app.pw_key` in one transaction, updates both env files, restarts FreeRADIUS), then `sudo bash deploy/ubuntu/app/app-up.sh` | ~1 s RADIUS; panel until app-up finishes |
 | Router secret | change in panel (Step 2) and on the MikroTik within 30 s of each other | that router's logins during the gap |
 | Leaked BharatRadius secrets (O-1) | make the repo private, rotate its DB, JWT and SMTP passwords | — |
 

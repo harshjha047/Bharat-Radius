@@ -5,7 +5,23 @@ RETURNS bytea LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$
   SELECT pgp_sym_encrypt(p_plain, p_key, 'cipher-algo=aes256, compress-algo=0, s2k-mode=1');
 $$;
 
-CREATE OR REPLACE FUNCTION radius_check(p_nas inet, p_user text, p_mac text, p_key text)
+-- PPPoE password key: a per-role setting (ALTER ROLE <fr_role> SET app.pw_key, install.sh), never query text,
+-- so it cannot appear in `freeradius -X`, pg_stat_statements or a database dump.
+CREATE OR REPLACE FUNCTION radius_pw_key()
+RETURNS text LANGUAGE plpgsql STABLE AS $$
+DECLARE
+  k text := nullif(current_setting('app.pw_key', true), '');
+BEGIN
+  IF k IS NULL THEN
+    RAISE EXCEPTION 'app.pw_key is not set for role %', current_user;
+  END IF;
+  RETURN k;
+END $$;
+
+SET client_min_messages = warning;
+DROP FUNCTION IF EXISTS radius_check(inet, text, text, text); -- old form: key as an argument
+RESET client_min_messages;
+CREATE OR REPLACE FUNCTION radius_check(p_nas inet, p_user text, p_mac text)
 RETURNS TABLE (id bigint, username text, attribute text, value text, op text)
 LANGUAGE plpgsql STABLE AS $$
 #variable_conflict use_column
@@ -51,7 +67,7 @@ BEGIN
     RETURN;
   END IF;
 
-  attribute := 'Cleartext-Password'; value := pgp_sym_decrypt(s.password_enc, p_key); RETURN NEXT;
+  attribute := 'Cleartext-Password'; value := pgp_sym_decrypt(s.password_enc, radius_pw_key()); RETURN NEXT;
 END $$;
 
 CREATE OR REPLACE FUNCTION radius_reply(p_nas inet, p_user text)

@@ -10,12 +10,30 @@ import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/dropdown';
 import { ConfirmDialog, ErrorState, PageHeader, SecretBox } from '@/components/ui/misc';
+import { Skeleton } from '@/components/ui/skeleton';
 import { api, unwrap } from '@/lib/api';
 import { useCan } from '@/lib/auth';
 import type { Nas } from '@/lib/queries';
 import { relTime } from '@/lib/utils';
 
 type Confirm = { kind: 'rotate' | 'delete' | 'disable'; nas: Nas } | null;
+type Target = { instance: 'production' | 'staging'; host: string | null; authPort: number; acctPort: number };
+
+/** Where routers must send RADIUS: the panel writes to one instance, and its ports differ (1812 vs 11812). */
+function RadiusTarget({ t }: { t: Target | undefined }) {
+  if (!t) return <Skeleton className="h-5 w-80" />;
+  return (
+    <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <span>RADIUS for these routers:</span>
+      <span className="font-mono text-xs text-foreground">
+        {t.host ?? 'this server'} · auth {t.authPort}/udp · acct {t.acctPort}/udp
+      </span>
+      <Badge tone={t.instance === 'production' ? 'success' : 'warning'}>
+        {t.instance === 'production' ? 'Production' : 'Staging'}
+      </Badge>
+    </p>
+  );
+}
 
 export default function RoutersPage() {
   const can = useCan();
@@ -31,6 +49,11 @@ export default function RoutersPage() {
     // A new or edited router shows "Syncing" until the worker has written it to RADIUS (normally ~1 s).
     refetchInterval: (q) =>
       q.state.data?.items.some((n) => n.status === 'active' && n.radiusId == null) ? 2000 : false,
+  });
+  const target = useQuery({
+    queryKey: ['radius-target'],
+    queryFn: () => unwrap(api.GET('/api/v1/nas/radius-target')),
+    staleTime: Infinity,
   });
   const refresh = () => qc.invalidateQueries({ queryKey: ['nas'] });
   const path = (n: Nas) => ({ params: { path: { id: n.id } } });
@@ -87,6 +110,9 @@ export default function RoutersPage() {
           ) : null
         }
       />
+      <div className="mb-4">
+        <RadiusTarget t={target.data} />
+      </div>
       {list.isError ? (
         <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       ) : (
@@ -171,13 +197,18 @@ export default function RoutersPage() {
           title={editing === 'new' ? 'Add router' : `Edit ${(editing as Nas | null)?.name ?? ''}`}
         >
           {editing !== null ? (
-            <RouterForm
-              key={editing === 'new' ? 'new' : editing.id}
-              nas={editing === 'new' ? undefined : editing}
-              submitting={save.isPending}
-              onSubmit={(b) => save.mutateAsync(b)}
-              onCancel={() => setEditing(null)}
-            />
+            <>
+              <div className="mb-4">
+                <RadiusTarget t={target.data} />
+              </div>
+              <RouterForm
+                key={editing === 'new' ? 'new' : editing.id}
+                nas={editing === 'new' ? undefined : editing}
+                submitting={save.isPending}
+                onSubmit={(b) => save.mutateAsync(b)}
+                onCancel={() => setEditing(null)}
+              />
+            </>
           ) : null}
         </DialogContent>
       </Dialog>
@@ -198,7 +229,16 @@ export default function RoutersPage() {
                 <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
                   <li>
                     In <code>setup.rsc</code> set <code>radiusSecret</code> to this secret and{' '}
-                    <code>srcAddress</code> to <code>{secret.nas.ip}</code>.
+                    <code>srcAddress</code> to <code>{secret.nas.ip}</code>
+                    {target.data ? (
+                      <>
+                        , <code>radiusIp</code> to{' '}
+                        <code>{target.data.host ?? 'this server’s public IP'}</code>, <code>authPort</code> to{' '}
+                        <code>{target.data.authPort}</code> and <code>acctPort</code> to{' '}
+                        <code>{target.data.acctPort}</code>
+                      </>
+                    ) : null}
+                    .
                   </li>
                   <li>
                     Upload it to the router and run <code>/import file-name=setup.rsc</code>.

@@ -197,3 +197,20 @@ tests:
             exp_annotations:
               summary: 'No syslog from router 198.51.100.4 for over 3 hours'
               runbook: docs/runbooks/compliance-logs.md
+
+  - interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{fstype="ext4",mountpoint="/"}'
+        values: '400000000000-1000000000x90'
+      - series: 'node_filesystem_size_bytes{fstype="ext4",mountpoint="/"}'
+        values: '1000000000000x90'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: DiskFillingFast
+        exp_alerts: []
+      - eval_time: 75m
+        alertname: DiskFillingFast
+        exp_alerts:
+          - exp_labels: { severity: critical, fstype: ext4, mountpoint: / }
+            exp_annotations:
+              summary: 'Disk / will be full within 6 hours at the current rate (check /var/log/syslog, docker system df)'

@@ -2,7 +2,11 @@
 # Staging app stack on the RADIUS host: our MongoDB, the API, the walled-garden redirect, and one Caddy site in the
 # ACS stack. Idempotent. Never changes ACS containers or routes; adds only:
 #   /opt/acs/repo/infra/caddy/sites/isp.caddy  +  one "import /etc/caddy/sites/*.caddy" line in its Caddyfile.
-# Usage: sudo bash deploy/ubuntu/app/app-up.sh
+# Usage: sudo [RADIUS_INSTANCE=staging|production] [RADIUS_PUBLIC_HOST=<ip>] bash deploy/ubuntu/app/app-up.sh
+#   RADIUS_INSTANCE: which RADIUS database the panel writes routers and subscribers to (default staging). The panel
+#     shows it with the host and ports routers must use. Remembered in /etc/isp-app/settings.env, so a plain rerun
+#     never switches instance. production uses MongoDB database "isp", staging "isp_staging".
+#   RADIUS_PUBLIC_HOST: address routers send RADIUS to (default: this host's primary public IPv4).
 set -Eeuo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,17 +22,36 @@ die() { printf '\033[1;31m[app-up] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 trap 'die "failed at line $LINENO: $BASH_COMMAND"' ERR
 
 [[ $EUID -eq 0 ]] || die "run as root"
+SETTINGS="$ETC/settings.env"
+if [[ -r $SETTINGS ]]; then
+  while IFS='=' read -r k v; do
+    case "$k" in RADIUS_INSTANCE|RADIUS_PUBLIC_HOST) [[ -v $k ]] || printf -v "$k" '%s' "$v" ;; esac
+  done <"$SETTINGS"
+fi
+RADIUS_INSTANCE="${RADIUS_INSTANCE:-staging}"
+case "$RADIUS_INSTANCE" in
+  staging) MONGO_DB=isp_staging ;;
+  production) MONGO_DB=isp ;;
+  *) die "RADIUS_INSTANCE must be staging or production" ;;
+esac
+RADIUS_PUBLIC_HOST="${RADIUS_PUBLIC_HOST:-$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')}"
 command -v docker >/dev/null || die "docker not installed"
 docker network inspect acs_default >/dev/null 2>&1 || die "docker network acs_default not found (ACS stack down?)"
-[[ -s /etc/isp-radius/staging.app.env && -s /etc/isp-radius/tls/ca.crt ]] || die "run radius/scripts/install.sh first"
-grep -q "app_radius_staging  $APP_SUBNET" /etc/postgresql/16/main/pg_hba.conf \
+RCONF=/etc/isp-radius/$RADIUS_INSTANCE.conf
+RAPP=/etc/isp-radius/$RADIUS_INSTANCE.app.env
+[[ -s $RCONF && -s $RAPP && -s /etc/isp-radius/tls/ca.crt ]] || die "run radius/scripts/install.sh $RADIUS_INSTANCE first"
+R_DB="$(sed -n 's/^DB=//p' "$RCONF")"; R_ROLE="$(sed -n 's/^APP_ROLE=//p' "$RCONF")"
+R_AUTH="$(sed -n 's/^AUTH_PORT=//p' "$RCONF")"; R_ACCT="$(sed -n 's/^ACCT_PORT=//p' "$RCONF")"
+grep -qE "^hostssl +$R_DB +$R_ROLE +$APP_SUBNET" /etc/postgresql/16/main/pg_hba.conf \
   || die "PostgreSQL does not accept the app subnet yet: rerun install.sh with APP_SUBNET=$APP_SUBNET"
 
 # ------------------------------------------------------------------ secrets (generated once)
 install -d -m 0700 "$ETC"
 # Log archive (WP 4.6): the API container reads NAT logs as group isp-archive (fixed gid, see docker-compose.yml).
 getent group isp-archive >/dev/null || groupadd -g 2470 isp-archive
-install -d -m 0750 -g isp-archive /var/log/isp-archive /var/log/isp-archive/nat
+# Owner syslog + setgid, as logs-setup.sh sets it: rsyslogd runs as syslog and must be able to create files here.
+WRITER=syslog; id -u syslog >/dev/null 2>&1 || WRITER=root
+install -d -o "$WRITER" -g isp-archive -m 2750 /var/log/isp-archive /var/log/isp-archive/nat
 gen() { openssl rand -hex "${1:-24}"; }
 [[ -s $ETC/mongo.keyfile ]] || openssl rand -base64 756 | tr -d '\n' >"$ETC/mongo.keyfile"
 [[ -s $ETC/mongo_root_pw ]] || gen >"$ETC/mongo_root_pw"
@@ -39,23 +62,30 @@ gen() { openssl rand -hex "${1:-24}"; }
 chown 999:999 "$ETC/mongo.keyfile" "$ETC/mongo_root_pw"; chmod 0400 "$ETC/mongo.keyfile" "$ETC/mongo_root_pw"
 chmod 0600 "$ETC/mongo_app_pw" "$ETC/app_keys.env"
 
-APP_DB_PASSWORD="$(sed -n 's/^APP_DB_PASSWORD=//p' /etc/isp-radius/staging.app.env)"
-RADIUS_PW_KEY="$(sed -n 's/^RADIUS_PW_KEY=//p' /etc/isp-radius/staging.app.env)"
+APP_DB_PASSWORD="$(sed -n 's/^APP_DB_PASSWORD=//p' "$RAPP")"
+RADIUS_PW_KEY="$(sed -n 's/^RADIUS_PW_KEY=//p' "$RAPP")"
 MONGO_APP_PW="$(cat "$ETC/mongo_app_pw")"
 umask 077
 {
   echo "NODE_ENV=production"
-  echo "MONGO_URL=mongodb://isp_app:${MONGO_APP_PW}@isp-mongo:27017/isp_staging?replicaSet=${REPLSET}&authSource=admin"
-  echo "RADIUS_DB_URL=postgres://app_radius_staging:${APP_DB_PASSWORD}@acs-prod:5432/radius_staging?sslmode=verify-full&sslrootcert=/etc/isp/radius-ca.crt"
+  echo "MONGO_URL=mongodb://isp_app:${MONGO_APP_PW}@isp-mongo:27017/${MONGO_DB}?replicaSet=${REPLSET}&authSource=admin"
+  echo "RADIUS_DB_URL=postgres://${R_ROLE}:${APP_DB_PASSWORD}@acs-prod:5432/${R_DB}?sslmode=verify-full&sslrootcert=/etc/isp/radius-ca.crt"
   echo "RADIUS_DB_POOL_MAX=10"
   echo "RADIUS_PW_KEY=${RADIUS_PW_KEY}"
+  echo "RADIUS_INSTANCE=${RADIUS_INSTANCE}"
+  echo "RADIUS_AUTH_PORT=${R_AUTH}"
+  echo "RADIUS_ACCT_PORT=${R_ACCT}"
+  [[ -z $RADIUS_PUBLIC_HOST ]] || echo "RADIUS_PUBLIC_HOST=${RADIUS_PUBLIC_HOST}"
   cat "$ETC/app_keys.env"
   echo "PUBLIC_BASE_URL=https://new.bharatradius.com"
   echo "MONGO_POOL_MAX=20"
   echo "TZ_BILLING=Asia/Kolkata"
-} >"$ETC/staging.env.new"
-mv "$ETC/staging.env.new" "$ETC/staging.env"
+} >"$ETC/app.env.new"
+mv "$ETC/app.env.new" "$ETC/app.env"
+rm -f "$ETC/staging.env"
+printf 'RADIUS_INSTANCE=%s\nRADIUS_PUBLIC_HOST=%s\n' "$RADIUS_INSTANCE" "$RADIUS_PUBLIC_HOST" >"$SETTINGS"
 umask 022
+log "panel → RADIUS $RADIUS_INSTANCE ($R_DB): routers use ${RADIUS_PUBLIC_HOST:-<host>} auth $R_AUTH / acct $R_ACCT, MongoDB $MONGO_DB"
 
 # ------------------------------------------------------------------ PostgreSQL reachable from containers
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
@@ -87,6 +117,23 @@ log "building isp-api, isp-workers, isp-web"
 APP_VERSION="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo dev)"
 export APP_VERSION
 "${COMPOSE[@]}" build api workers web
+# Build cache and replaced images otherwise grow without bound (16 Nov 2026: ~37 GB). Prune now; BuildKit GC in
+# daemon.json keeps it bounded between deploys once Docker restarts (never restarted here: it hosts the ACS stack).
+docker builder prune -f --keep-storage 10GB >/dev/null || true
+docker image prune -f --filter "label=com.docker.compose.project=isp" >/dev/null || true
+python3 - <<'PY' || log "could not update /etc/docker/daemon.json; set builder.gc by hand"
+import json, os
+p = "/etc/docker/daemon.json"
+d = json.load(open(p)) if os.path.exists(p) and os.path.getsize(p) else {}
+gc = d.setdefault("builder", {}).setdefault("gc", {})
+if gc.get("enabled") is not True or "defaultKeepStorage" not in gc:
+    gc.update({"enabled": True, "defaultKeepStorage": gc.get("defaultKeepStorage", "10GB")})
+    tmp = p + ".isp-new"
+    with open(tmp, "w") as f:
+        json.dump(d, f, indent=2)
+    os.replace(tmp, p)
+    print("daemon.json: builder.gc enabled (applies at the next Docker restart)")
+PY
 # Migrations run before the new API starts; the API refuses to start with pending migrations.
 log "MongoDB migrations: $("${COMPOSE[@]}" run --rm --no-deps api node dist/cli.js migrate | tail -1)"
 log "starting isp-api, isp-workers, isp-web, isp-walled-garden"

@@ -17,6 +17,12 @@ const schema = z
     MONGO_POOL_MAX: z.coerce.number().int().min(2).max(500).default(20),
     RADIUS_DB_URL: z.string().startsWith('postgres').optional(),
     RADIUS_DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
+    /** Which RADIUS instance RADIUS_DB_URL feeds (default: from its database name); shown to staff. */
+    RADIUS_INSTANCE: z.enum(['production', 'staging']).optional(),
+    /** Public IP or name routers send RADIUS to (Routers page, setup instructions). */
+    RADIUS_PUBLIC_HOST: z.string().trim().min(1).optional(),
+    RADIUS_AUTH_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+    RADIUS_ACCT_PORT: z.coerce.number().int().min(1).max(65535).optional(),
 
     JWT_SIGNING_KEY: z.string().min(32, 'JWT_SIGNING_KEY must be at least 32 characters'),
     REFRESH_TOKEN_PEPPER: z.string().min(32, 'REFRESH_TOKEN_PEPPER must be at least 32 characters'),
@@ -47,8 +53,17 @@ const schema = z
       .map((s) => s.trim())
       .filter(Boolean))
       origins.add(new URL(o).origin);
+    const instance =
+      c.RADIUS_INSTANCE ?? (/\/radius_staging(\?|$)/.test(c.RADIUS_DB_URL ?? '') ? 'staging' : 'production');
+    const staging = instance === 'staging';
     return {
       ...c,
+      radiusTarget: {
+        instance,
+        host: c.RADIUS_PUBLIC_HOST ?? null,
+        authPort: c.RADIUS_AUTH_PORT ?? (staging ? 11812 : 1812),
+        acctPort: c.RADIUS_ACCT_PORT ?? (staging ? 11813 : 1813),
+      },
       COOKIE_SECURE: c.COOKIE_SECURE ?? prod,
       OPENAPI_PUBLIC: c.OPENAPI_PUBLIC ?? !prod,
       allowedOrigins: origins as ReadonlySet<string>,

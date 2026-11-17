@@ -1,0 +1,43 @@
+# Managed by isp-platform radius/scripts/install.sh — do not edit on the server.
+# Stock filter_username (policy.d/filter) minus the "realm must contain a dot" rule: ISP logins such as
+# "john@123" use a bare realm. The stock file is left untouched so package upgrades cannot undo this.
+isp_filter_username {
+	if (&User-Name) {
+		if (&User-Name =~ / /) {
+			update request {
+				&Module-Failure-Message += 'Rejected: Username contains whitespace'
+			}
+			reject
+		}
+		if (&User-Name =~ /@[^@]*@/ ) {
+			update request {
+				&Module-Failure-Message += 'Rejected: Multiple @ in username'
+			}
+			reject
+		}
+		if (&User-Name =~ /\.\./ ) {
+			update request {
+				&Module-Failure-Message += 'Rejected: Username contains ..s'
+			}
+			reject
+		}
+		if (&User-Name =~ /\.$/)  {
+			update request {
+				&Module-Failure-Message += 'Rejected: Realm ends with a dot'
+			}
+			reject
+		}
+		if (&User-Name =~ /@\./)  {
+			update request {
+				&Module-Failure-Message += 'Rejected: Realm begins with a dot'
+			}
+			reject
+		}
+		if (&User-Name =~ /@$/)  {
+			update request {
+				&Module-Failure-Message += 'Rejected: Empty realm'
+			}
+			reject
+		}
+	}
+}
