@@ -67,7 +67,8 @@ INSERT INTO seed VALUES
   ('e2e-a', 'e2e-pool',      'Pa55-x',     'pool', 'active',    '30 days',  NULL, NULL, NULL, false),
   ('e2e-a', 'e2e-fup',       'Pa55-x',     'p50',  'active',    '30 days',  NULL, NULL, NULL, true),
   ('e2e-a', 'e2e-sim',       'Pa55-x',     'p50',  'active',    '30 days',  NULL, NULL, NULL, false),
-  ('e2e-a', 'e2e-acct',      'Pa55-x',     'p50',  'active',    '30 days',  NULL, NULL, NULL, false);
+  ('e2e-a', 'e2e-acct',      'Pa55-x',     'p50',  'active',    '30 days',  NULL, NULL, NULL, false),
+  ('e2e-a', 'e2e-realm@123', 'Pa55-x',     'p50',  'active',    '30 days',  NULL, NULL, NULL, false);
 INSERT INTO subscribers (tenant_id, username, password_enc, plan_id, status, expires_at, static_ip, mac_lock, sim_use, fup_active)
 SELECT t.id, s.username, radius_encrypt_password(s.pw, :'key'), p.id, s.status,
        CASE WHEN s.expires IS NOT NULL THEN now() + s.expires END, s.static_ip, s.mac, s.sim, s.fup
@@ -123,6 +124,11 @@ q -c "UPDATE tenants SET status='suspended' WHERE id=$TB"
 r="$(auth "$NAS_B" "$SECRET_B" 'User-Name=e2e-buser,User-Password=Pa55-buser')"
 check "suspended ISP: its users rejected, reason logged" eq "$(reason "$TB" e2e-buser)" "Service provider suspended"
 q -c "UPDATE tenants SET status='active' WHERE id=$TB"
+r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-realm@123,User-Password=Pa55-x')"
+check "username with a dotless realm (john@123) accepted" has "$r" "Received Access-Accept"
+auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-realm@.x,User-Password=Pa55-x' >/dev/null
+check "username filter reject logs the filter's reason, not 'User not found'" \
+  eq "$(reason "$TA" 'e2e-realm@.x')" "Rejected: Realm begins with a dot"
 lacks_rate() { lacks "$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-suspended,User-Password=Pa55-x')" "Mikrotik-Rate-Limit"; }
 check "Access-Reject carries no plan attributes" lacks_rate
 

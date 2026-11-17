@@ -69,6 +69,16 @@ groups:
         annotations:
           summary: 'Disk {{ $labels.mountpoint }} above 80%'
 
+      # 80 % alone fires too late for a runaway log (16 Nov 2026: 48 GB of syslog in a day).
+      - alert: DiskFillingFast
+        expr: |
+          predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"}[1h], 6 * 3600) < 0
+          and node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes < 0.5
+        for: 15m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Disk {{ $labels.mountpoint }} will be full within 6 hours at the current rate (check /var/log/syslog, docker system df)'
+
       - alert: MemoryLow
         expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
         for: 10m

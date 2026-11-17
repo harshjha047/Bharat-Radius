@@ -282,10 +282,18 @@ describe('outbox → RADIUS', () => {
         sid.toHexString(),
       ]);
       expect(row).toBeDefined();
-      const pw = await admin.query(
-        `SELECT value FROM radius_check('127.0.0.1', $1, NULL, $2) WHERE attribute = 'Cleartext-Password'`,
-        [`u${run}`, PW_KEY],
-      );
+      // FreeRADIUS gets the key from its role setting (app.pw_key); set it for this session instead.
+      const c = await admin.connect();
+      let pw: pg.QueryResult<{ value: string }>;
+      try {
+        await c.query(`SELECT set_config('app.pw_key', $1, false)`, [PW_KEY]);
+        pw = await c.query(
+          `SELECT value FROM radius_check('127.0.0.1', $1, NULL) WHERE attribute = 'Cleartext-Password'`,
+          [`u${run}`],
+        );
+      } finally {
+        c.release();
+      }
       expect(pw.rows[0]?.value).toBe('pppoe-pw');
       expect((await db.collection<SubscriberDoc>('subscribers').findOne({ _id: sid }))?.syncStatus).toBe(
         'synced',

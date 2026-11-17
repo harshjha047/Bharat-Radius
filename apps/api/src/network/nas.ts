@@ -10,9 +10,16 @@ import type { AuthContext } from '../auth/context.js';
 import { AppError, conflict, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import { compact, idParams, okResponse, page, pageOf, pageQuery } from '../http/schemas.js';
+import { CONFIG, type Config } from '../config.js';
 import { MONGO } from '../infra/infra.module.js';
 import { Outbox } from '../sync/outbox.js';
 
+/** RouterOS major version; spreadsheets and staff write "v6", "6", "6.49.20" or "RouterOS 7" interchangeably. */
+const routerOsVersion = z.preprocess(
+  (v) =>
+    typeof v === 'string' ? (/^\s*(?:routeros\s*)?v?\s*([67])(?:\.[\d.]*)?\s*$/i.exec(v)?.[1] ?? v) : v,
+  z.enum(['6', '7']),
+);
 /** No quotes, spaces or backslashes: the secret is pasted into RouterOS scripts. */
 const secret = z.string().regex(/^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$/, '16-64 characters, no spaces or quotes');
 const ip = z
@@ -30,7 +37,7 @@ const fields = {
   name: z.string().trim().min(1).max(64),
   ip,
   coaPort: z.number().int().min(1).max(65535),
-  routerOsVersion: z.enum(['6', '7']),
+  routerOsVersion,
   location,
   description: z.string().trim().max(500),
 };
@@ -241,9 +248,30 @@ export class NasService {
 
 type Id = { id: ObjectId };
 
+const radiusTarget = z.object({
+  instance: z.enum(['production', 'staging']),
+  host: z.string().nullable(),
+  authPort: z.number(),
+  acctPort: z.number(),
+});
+
 @Controller('nas')
 export class NasController {
-  constructor(@Inject(NasService) private readonly nas: NasService) {}
+  constructor(
+    @Inject(NasService) private readonly nas: NasService,
+    @Inject(CONFIG) private readonly config: Config,
+  ) {}
+
+  @Get('radius-target')
+  @Endpoint({
+    summary: 'RADIUS host and ports routers must send to (this panel feeds that instance)',
+    tags: ['nas'],
+    permission: 'nas.read',
+    response: radiusTarget,
+  })
+  target() {
+    return this.config.radiusTarget;
+  }
 
   @Get()
   @Endpoint({

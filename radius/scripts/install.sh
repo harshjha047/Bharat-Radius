@@ -242,6 +242,8 @@ SQL
   done
   psql_su -d "$DB" <"$SRC_DIR/sql/100_functions.sql"
   psql_su -d "$DB" -v fr_role="$FR_ROLE" -v app_role="$APP_ROLE" <"$SRC_DIR/sql/200_grants.sql"
+  # The app's copy is authoritative: it encrypts with it. Role-level (not IN DATABASE) so pg_dump never carries it.
+  psql_su -d postgres -v role="$FR_ROLE" -v key="$RADIUS_PW_KEY" <<<"ALTER ROLE :\"role\" SET app.pw_key = :'key';"
   psql_su -d "$DB" -c "SELECT radius_ensure_partitions(1)" >/dev/null
 done
 
@@ -280,6 +282,7 @@ for inst in "${INSTANCES[@]}"; do
   set_conf "$RADDB/radiusd.conf" proxy_requests no
   render "$SRC_DIR/freeradius/mods/sql" "$RADDB/mods-available/sql"
   install -m 0640 "$SRC_DIR/freeradius/mods/isp_queries.conf" "$RADDB/mods-config/sql/main/postgresql/isp_queries.conf"
+  install -m 0640 "$SRC_DIR/freeradius/policy.d/isp_filter" "$RADDB/policy.d/isp_filter"
   render "$SRC_DIR/freeradius/sites/isp" "$RADDB/sites-available/isp"
   render "$SRC_DIR/freeradius/sites/status" "$RADDB/sites-available/status"
   install -m 0640 "$SRC_DIR/freeradius/clients.conf" "$RADDB/clients.conf"
@@ -351,14 +354,11 @@ done
 # ---------------------------------------------------------------- firewall (only if already active)
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   log "ufw active: adding rules"
-  # RADIUS ports: only routers listed in $ETC_DIR/<instance>.allow (managed with scripts/nas-allow.sh).
-  # First install: production starts closed (add each POP router at cutover), staging stays open for the lab.
+  # RADIUS ports: only routers in the nas table (synced by the NAS watcher) plus hand-added entries in
+  # $ETC_DIR/<instance>.allow (scripts/nas-allow.sh). Both instances start closed; nothing is open to all.
   for inst in "${INSTANCES[@]}"; do
-    if [[ ! -f "$ETC_DIR/$inst.allow" ]]; then
-      if [[ $inst == staging ]]; then echo "any staging-lab" >"$ETC_DIR/$inst.allow"; else : >"$ETC_DIR/$inst.allow"; fi
-      chmod 0644 "$ETC_DIR/$inst.allow"
-    fi
-    "$OPT_DIR/scripts/nas-allow.sh" "$inst" apply | sed "s/^/[$inst] /"
+    [[ -f "$ETC_DIR/$inst.allow" ]] || install -m 0644 /dev/null "$ETC_DIR/$inst.allow"
+    "$OPT_DIR/scripts/nas-allow.sh" "$inst" sync | sed "s/^/[$inst] /"
   done
   [[ -n "$WINDOWS_IP" ]] && ufw allow from "$WINDOWS_IP" to any port 5432 proto tcp comment "isp-radius pg" >/dev/null
   [[ -n "$APP_SUBNET" ]] && ufw allow from "$APP_SUBNET" to any port 5432 proto tcp comment "isp-radius pg (app containers)" >/dev/null

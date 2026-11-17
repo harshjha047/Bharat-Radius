@@ -10,7 +10,8 @@ GRANT SELECT, INSERT, UPDATE ON radacct TO :"fr_role";
 GRANT INSERT ON radpostauth TO :"fr_role";
 GRANT USAGE ON SEQUENCE radacct_radacctid_seq, radpostauth_id_seq TO :"fr_role";
 GRANT EXECUTE ON FUNCTION
-  radius_check(inet, text, text, text),
+  radius_pw_key(),
+  radius_check(inet, text, text),
   radius_reply(inet, text),
   radius_online_count(inet, text),
   radius_log_auth(inet, text, text, text, text),
@@ -43,7 +44,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Keys pass through query text: never log statements for these roles.
+-- The app still passes RADIUS_PW_KEY to radius_encrypt_password(): never log statements for these roles.
 ALTER ROLE :"fr_role" SET log_statement = 'none';
 ALTER ROLE :"fr_role" SET log_min_duration_statement = -1;
 ALTER ROLE :"fr_role" SET log_min_error_statement = 'panic';

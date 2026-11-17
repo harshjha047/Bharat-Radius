@@ -1,4 +1,4 @@
-# isp-platform app stack on the RADIUS host (staging). Managed by app-up.sh; secrets live in /etc/isp-app (root only).
+# isp-platform app stack on the RADIUS host (RADIUS instance: see app-up.sh). Managed by app-up.sh; secrets live in /etc/isp-app (root only).
 # RADIUS (FreeRADIUS + PostgreSQL) stays native on the host; this stack only talks to it over TLS.
 name: isp
 
@@ -42,7 +42,7 @@ services:
     image: isp-api:local
     container_name: isp-api
     logging: *logging
-    env_file: /etc/isp-app/staging.env
+    env_file: /etc/isp-app/app.env
     environment:
       API_HOST: 0.0.0.0
       API_PORT: '4100'
@@ -75,7 +75,7 @@ services:
     image: isp-workers:local
     container_name: isp-workers
     logging: *logging
-    env_file: /etc/isp-app/staging.env
+    env_file: /etc/isp-app/app.env
     environment:
       WORKERS_HOST: 0.0.0.0
       WORKERS_PORT: '4101'

@@ -73,6 +73,35 @@ describe('routers (NAS)', () => {
     expect((await admin.req('POST', '/api/v1/nas', { name: 'dup', ip: '203.0.113.10' })).status).toBe(409);
   });
 
+  it('accepts RouterOS versions as written in the field ("v6", "6.49.20") and stores the major', async () => {
+    const c = await admin.req('POST', '/api/v1/nas', {
+      name: 'ROS',
+      ip: '203.0.113.50',
+      routerOsVersion: 'v6',
+    });
+    expect(c.status).toBe(201);
+    expect(c.body.routerOsVersion).toBe('6');
+    for (const [v, want] of [
+      ['6.49.20', '6'],
+      ['RouterOS 7', '7'],
+    ] as const) {
+      const r = await admin.req('PATCH', `/api/v1/nas/${c.body.id}`, { routerOsVersion: v });
+      expect(r.status).toBe(200);
+      expect(r.body.routerOsVersion).toBe(want);
+    }
+    expect((await admin.req('PATCH', `/api/v1/nas/${c.body.id}`, { routerOsVersion: 'v8' })).status).toBe(
+      400,
+    );
+    expect((await admin.req('DELETE', `/api/v1/nas/${c.body.id}`)).status).toBe(200);
+  });
+
+  it('tells staff where routers send RADIUS', async () => {
+    const r = await admin.req('GET', '/api/v1/nas/radius-target');
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ instance: expect.stringMatching(/^(production|staging)$/) });
+    expect(r.body.authPort).toBeGreaterThan(0);
+  });
+
   it('rotates the secret and queues each change', async () => {
     const r = await admin.req('PATCH', `/api/v1/nas/${id}`, { rotateSecret: true, coaPort: 1700 });
     expect(r.status).toBe(200);

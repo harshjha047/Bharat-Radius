@@ -18,7 +18,8 @@ server isp {
 	}
 
 	authorize {
-		filter_username
+		# Not the stock filter_username: it rejects bare realms like "john@123" (policy.d/isp_filter).
+		isp_filter_username
 		preprocess
 		chap
 		mschap
@@ -87,8 +88,9 @@ server isp {
 					}
 				}
 				else {
+					# Surface the real cause (username filter, mschap, ...) instead of a blanket "User not found".
 					update control {
-						&Tmp-String-0 := "User not found"
+						&Tmp-String-0 := "%{%{Module-Failure-Message}:-User not found}"
 					}
 				}
 			}
