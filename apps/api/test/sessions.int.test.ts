@@ -205,9 +205,10 @@ describe('sessions and logs', () => {
       last24h: { accepted: 1, rejected: 1 },
     });
 
-    const tail = await support.req('GET', '/api/v1/radius/tail');
+    const after = encodeURIComponent(new Date(Date.now() - 10 * 60_000).toISOString());
+    const tail = await support.req('GET', `/api/v1/radius/tail?after=${after}`);
     expect(tail.body.events.map((e: { type: string }) => e.type)).toEqual(['reject', 'reject', 'accept']);
-    const mine = await support.req('GET', `/api/v1/radius/tail?user=${user}x`);
+    const mine = await support.req('GET', `/api/v1/radius/tail?after=${after}&user=${user}x`);
     expect(mine.body.events).toHaveLength(1);
     expect((await support.req('GET', '/api/v1/radius/auth-log?from=2026-01-01&to=2026-03-01')).status).toBe(
       400,
