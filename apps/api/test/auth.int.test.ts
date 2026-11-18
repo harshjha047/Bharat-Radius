@@ -340,6 +340,8 @@ describe('preferences', () => {
       'trends',
       'kpi-plans',
     ]);
-    expect((await c.req('PUT', '/api/v1/auth/preferences', { dashboardHidden: ['Bad Id'] })).status).toBe(400);
+    expect((await c.req('PUT', '/api/v1/auth/preferences', { dashboardHidden: ['Bad Id'] })).status).toBe(
+      400,
+    );
   });
 });
