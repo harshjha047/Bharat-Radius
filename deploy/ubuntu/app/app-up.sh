@@ -22,6 +22,11 @@ die() { printf '\033[1;31m[app-up] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 trap 'die "failed at line $LINENO: $BASH_COMMAND"' ERR
 
 [[ $EUID -eq 0 ]] || die "run as root"
+# Disk guard drill or maintenance (disk >= 70 %): a rebuild needs several GB; free space first.
+if [[ -e /run/isp-guard/pause-heavy && ${FORCE:-0} != 1 ]]; then
+  die "disk guard is active ($(df --output=pcent / | tail -1 | tr -d ' ') used): free space first, or FORCE=1"
+fi
+install -d -m 0755 /run/isp-guard
 SETTINGS="$ETC/settings.env"
 if [[ -r $SETTINGS ]]; then
   while IFS='=' read -r k v; do

@@ -56,6 +56,8 @@ services:
       - /etc/isp-radius/tls/ca.crt:/etc/isp/radius-ca.crt:ro
       # NAT log archive, read-only, for "who used this public IP:port" lookups (group isp-archive, gid 2470)
       - /var/log/isp-archive/nat:/archive/nat:ro
+      # Disk guard flags (maintenance, pause-heavy), written by deploy/ubuntu/disk/disk-guard.sh
+      - /run/isp-guard:/run/isp-guard:ro
     group_add: ['2470']
     networks:
       internal: {}
@@ -84,6 +86,7 @@ services:
       - 'acs-prod:host-gateway'
     volumes:
       - /etc/isp-radius/tls/ca.crt:/etc/isp/radius-ca.crt:ro
+      - /run/isp-guard:/run/isp-guard:ro
     networks: [internal]
     depends_on:
       mongo: { condition: service_healthy }
@@ -108,6 +111,8 @@ services:
       LEAD_WEBHOOK_URL: ${LEAD_WEBHOOK_URL:-}
       # Official product site. Every install's landing page canonicalises here; only this host gets a sitemap.
       CANONICAL_ORIGIN: ${CANONICAL_ORIGIN:-https://new.bharatradius.com}
+    volumes:
+      - /run/isp-guard:/run/isp-guard:ro
     # Only Caddy talks to it; the browser reaches the API through Caddy on the same origin.
     networks:
       acs:

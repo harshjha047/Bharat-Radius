@@ -117,7 +117,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
-      - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh deploy/ubuntu/lab/*.sh deploy/ubuntu/backup/*.sh deploy/ubuntu/logs/*.sh
+      - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh deploy/ubuntu/lab/*.sh deploy/ubuntu/backup/*.sh deploy/ubuntu/logs/*.sh deploy/ubuntu/disk/*.sh
+      - name: Disk guard levels
+        run: bash deploy/ubuntu/disk/test-guard.sh
       - name: rsyslog archive config parses (WP 4.6)
         run: |
           sudo apt-get install -y -qq rsyslog >/dev/null

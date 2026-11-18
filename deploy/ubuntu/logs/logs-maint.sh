@@ -21,7 +21,7 @@ OFFLOAD_CONF="${OFFLOAD_CONF:-/etc/isp-logs/offload.env}"
 # shellcheck disable=SC1090
 [[ -r $OFFLOAD_CONF ]] && . "$OFFLOAD_CONF"
 LOG_REMOTE="${LOG_REMOTE:-}"
-KEEP_LOCAL_DAYS="${KEEP_LOCAL_DAYS:-60}"
+KEEP_LOCAL_DAYS="${KEEP_LOCAL_DAYS_OVERRIDE:-${KEEP_LOCAL_DAYS:-60}}"
 LOG_ENCRYPT="${LOG_ENCRYPT:-no}"
 if [[ -z ${AGE_RECIPIENT:-} && -r /etc/isp-backup/backup.env ]]; then
   AGE_RECIPIENT="$(sed -n 's/^AGE_RECIPIENT=//p' /etc/isp-backup/backup.env)"
@@ -199,6 +199,7 @@ case "${1:-run}" in
   run) prune; seal; offload; metrics; log "sealed; archive $(du -sh "$ROOT" | cut -f1), free $(df -h --output=avail "$ROOT" | tail -1 | tr -d ' ')" ;;
   verify) verify ;;
   fetch) shift; fetch "$@" ;;
+  offload) offload; metrics ;;
   metrics) metrics ;;
-  *) echo "usage: $0 [run|verify|metrics|fetch FROM [TO]]" >&2; exit 2 ;;
+  *) echo "usage: $0 [run|verify|metrics|offload|fetch FROM [TO]]" >&2; exit 2 ;;
 esac

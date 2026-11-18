@@ -1,3 +1,4 @@
+import { guardFlag } from './guard.js';
 import { createServer } from 'node:http';
 import pg from 'pg';
 import { pino } from 'pino';
@@ -75,7 +76,12 @@ const scheduler = new Scheduler(
       periodMs: 5 * 60_000,
       run: async () => ({ disconnected: await coa.expiredSweep() }),
     },
-    { name: 'imports', periodMs: 5_000, run: () => imports.run() },
+    // Disk guard drill (disk >= 70 %): Excel imports wait; queued rows stay queued.
+    {
+      name: 'imports',
+      periodMs: 5_000,
+      run: () => (guardFlag('pause-heavy') ? Promise.resolve({ paused: 1 }) : imports.run()),
+    },
     { name: 'notifications', periodMs: 10_000, run: () => sms.run() },
     { name: 'postpaid-invoice', periodMs: 30 * 60_000, run: () => postpaidInvoices(client, db) },
     { name: 'postpaid-overdue', periodMs: 60 * 60_000, run: () => postpaidOverdue(client, db) },

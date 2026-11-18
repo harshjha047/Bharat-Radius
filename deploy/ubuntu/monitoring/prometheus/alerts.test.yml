@@ -272,3 +272,36 @@ tests:
               summary: '3 old log file(s) could not be moved off-site and are filling this disk'
               runbook: docs/runbooks/compliance-logs.md
 
+  - interval: 1m
+    input_series:
+      - series: 'isp_disk_guard_level'
+        values: '0 1 1 2 2 3 0'
+    alert_rule_test:
+      - eval_time: 0m
+        alertname: DiskGuardDrill
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: DiskGuardDrill
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations:
+              summary: 'Disk over 70 %: drill running (imports paused, old logs and backups moving to Backblaze)'
+              runbook: docs/runbooks/disk-guard.md
+      - eval_time: 3m
+        alertname: DiskGuardMaintenance
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations:
+              summary: 'Disk over 85 %: panel and portal show the maintenance page (RADIUS and payments still running)'
+              runbook: docs/runbooks/disk-guard.md
+      - eval_time: 5m
+        alertname: DiskReserveReleased
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations:
+              summary: 'Disk over 95 %: emergency reserve released for the databases. Free space now.'
+              runbook: docs/runbooks/disk-guard.md
+      - eval_time: 6m
+        alertname: DiskReserveReleased
+        exp_alerts: []
+
