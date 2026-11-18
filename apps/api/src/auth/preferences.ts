@@ -13,7 +13,7 @@ const prefsView = z.object({
 type Prefs = z.output<typeof prefsView>;
 
 /** Per-user panel preferences (dashboard configuration). Personal: no permission beyond being signed in. */
-@Controller('me')
+@Controller('auth')
 export class PreferencesController {
   constructor(@Inject(MONGO) private readonly mongo: MongoHandle) {}
 
@@ -29,7 +29,13 @@ export class PreferencesController {
   }
 
   @Put('preferences')
-  @Endpoint({ summary: 'Save my panel preferences', tags: ['auth'], body: prefsView, response: prefsView })
+  @Endpoint({
+    summary: 'Save my panel preferences',
+    tags: ['auth'],
+    audit: 'auth.preferences',
+    body: prefsView,
+    response: prefsView,
+  })
   async put(@Ctx() ctx: AuthContext, @Body() b: Prefs): Promise<Prefs> {
     const hidden = [...new Set(b.dashboardHidden)];
     await this.users().updateOne(

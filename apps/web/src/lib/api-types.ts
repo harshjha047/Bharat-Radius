@@ -768,7 +768,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/v1/me/preferences': {
+  '/api/v1/auth/preferences': {
     parameters: {
       query?: never;
       header?: never;

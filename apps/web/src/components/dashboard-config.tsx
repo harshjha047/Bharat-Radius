@@ -18,13 +18,13 @@ export function useDashboardPrefs() {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: KEY,
-    queryFn: () => unwrap(api.GET('/api/v1/me/preferences')),
+    queryFn: () => unwrap(api.GET('/api/v1/auth/preferences')),
     staleTime: Infinity,
   });
   const hidden = useMemo(() => new Set(q.data?.dashboardHidden ?? []), [q.data]);
   const save = useMutation({
     mutationFn: (dashboardHidden: string[]) =>
-      unwrap(api.PUT('/api/v1/me/preferences', { body: { dashboardHidden } })),
+      unwrap(api.PUT('/api/v1/auth/preferences', { body: { dashboardHidden } })),
     onMutate: async (dashboardHidden) => {
       await qc.cancelQueries({ queryKey: KEY });
       const prev = qc.getQueryData(KEY);
