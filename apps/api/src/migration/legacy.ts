@@ -755,7 +755,9 @@ export async function importLegacy(
         if (crypto.decrypt(cur.pppoePassword, pppoeAad(cur._id)) !== m.input.pppoePassword)
           set.pppoePassword = crypto.encrypt(m.input.pppoePassword, pppoeAad(cur._id));
         if (planId && !cur.planId?.equals(planId)) set.planId = planId;
-        if (cur.expiresAt?.getTime() !== m.input.expiresAt?.getTime()) set.expiresAt = m.input.expiresAt;
+        /* no old expiry: keep ours (staff may have set one); only a real old date is followed */
+        if (x.expireDate && cur.expiresAt?.getTime() !== m.input.expiresAt?.getTime())
+          set.expiresAt = m.input.expiresAt;
         if (cur.status !== status && cur.status !== 'suspended') set.status = status;
         if (!cur.resellerId?.equals(r._id)) Object.assign(set, { resellerId: r._id, ancestors });
         if (!mm) {

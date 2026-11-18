@@ -187,6 +187,14 @@ describe('import-legacy', () => {
     expect(h.crypto.decrypt(one.pppoePassword, pppoeAad(one._id))).toBe('changed-pw');
     expect(one.expiresAt!.toISOString()).toBe('2027-01-13T18:29:59.000Z');
     expect(await h.db.collection('subscribers').countDocuments({ tenantId: tenant })).toBe(3);
+
+    const set = new Date('2027-02-01T18:29:59Z');
+    await h.db.collection('subscribers').updateOne({ username: 'three@123' }, { $set: { expiresAt: set } });
+    const later = await run(true, snap);
+    expect(later.counts.subscriber).toMatchObject({ updated: 0, unchanged: 3 });
+    expect(
+      (await h.db.collection<SubscriberDoc>('subscribers').findOne({ username: 'three@123' }))!.expiresAt,
+    ).toEqual(set);
   });
 
   it('refuses a username already used outside the import', async () => {
