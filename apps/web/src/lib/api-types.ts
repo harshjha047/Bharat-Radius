@@ -7426,7 +7426,14 @@ export interface paths {
         header?: never;
         path: {
           name:
-            'financial' | 'revenue' | 'collections' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
+            | 'financial'
+            | 'revenue'
+            | 'collections'
+            | 'subscribers'
+            | 'recharges'
+            | 'reseller-sales'
+            | 'usage'
+            | 'tickets';
         };
         cookie?: never;
       };
@@ -7506,7 +7513,14 @@ export interface paths {
         header?: never;
         path: {
           name:
-            'financial' | 'revenue' | 'collections' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
+            | 'financial'
+            | 'revenue'
+            | 'collections'
+            | 'subscribers'
+            | 'recharges'
+            | 'reseller-sales'
+            | 'usage'
+            | 'tickets';
         };
         cookie?: never;
       };

@@ -15,11 +15,12 @@ import { cn, fmtBytes, fmtNum, fmtRupees } from '@/lib/utils';
 
 type ReportData = ApiData<'/api/v1/reports/{name}'>;
 type Table = ReportData['tables'][number];
-type Name = 'revenue' | 'collections' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
+type Name = 'revenue' | 'collections' | 'recharges' | 'subscribers' | 'reseller-sales' | 'usage' | 'tickets';
 
 const REPORTS: { name: Name; label: string; staffOnly?: boolean }[] = [
   { name: 'revenue', label: 'Revenue' },
   { name: 'collections', label: 'Collections' },
+  { name: 'recharges', label: 'Recharges and expiries' },
   { name: 'subscribers', label: 'Subscribers' },
   { name: 'reseller-sales', label: 'Reseller sales' },
   { name: 'usage', label: 'Usage', staffOnly: true },
