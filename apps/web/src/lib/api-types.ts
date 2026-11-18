@@ -8811,6 +8811,295 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/pay/entry': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Walled-garden redirect target (router :8089): sends the browser to the pay page */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/pay/context': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Pay page: provider, and the customer if known (masked) */
+    get: {
+      parameters: {
+        query: {
+          t: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              isp: {
+                name: string;
+                phone: string | null;
+              };
+              online: boolean;
+              subscriber: {
+                name: string;
+                customerNo: string;
+                username: string | null;
+                expired: boolean;
+                expiresAt: string | null;
+                plan: {
+                  name: string;
+                  downloadKbps: number;
+                  uploadKbps: number;
+                  validityDays: number;
+                  pricePaise: number;
+                } | null;
+              } | null;
+              t: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/pay/lookup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Pay page: find a customer online behind the same router */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            t: string;
+            login: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              isp: {
+                name: string;
+                phone: string | null;
+              };
+              online: boolean;
+              subscriber: {
+                name: string;
+                customerNo: string;
+                username: string | null;
+                expired: boolean;
+                expiresAt: string | null;
+                plan: {
+                  name: string;
+                  downloadKbps: number;
+                  uploadKbps: number;
+                  validityDays: number;
+                  pricePaise: number;
+                } | null;
+              } | null;
+              t: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/pay/order': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Pay page: payment link to renew the current plan */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            t: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              subscriber: {
+                id: string;
+                name: string;
+                customerNo: string;
+              };
+              /** @enum {string} */
+              method: 'razorpay' | 'cashfree' | 'cash' | 'wallet' | 'bank_transfer';
+              amountPaise: number;
+              /** @enum {string} */
+              status: 'created' | 'pending' | 'captured' | 'failed' | 'refunded';
+              purpose: {
+                /** @enum {string} */
+                type: 'recharge' | 'invoice';
+                planId: string | null;
+                invoiceId: string | null;
+              };
+              linkUrl: string | null;
+              gatewayPaymentId: string | null;
+              receiptNo: string | null;
+              failureReason: string | null;
+              rechargeId: string | null;
+              invoiceId: string | null;
+              capturedAt: string | null;
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/tickets': {
     parameters: {
       query?: never;

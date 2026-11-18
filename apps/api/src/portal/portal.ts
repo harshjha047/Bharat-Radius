@@ -154,7 +154,7 @@ export class PortalService {
   }
 
   /** Plans this customer may buy (or is on), with their own price incl. GST. One query for the owner's rates. */
-  private async priced(s: SubscriberDoc, plans: PlanDoc[]): Promise<z.output<typeof planView>[]> {
+  async priced(s: SubscriberDoc, plans: PlanDoc[]): Promise<z.output<typeof planView>[]> {
     const own = s.resellerId
       ? await rates(this.db)
           .find({ buyerId: s.resellerId, planId: { $in: plans.map((p) => p._id) } })
@@ -287,7 +287,18 @@ export class PortalService {
 
   /** Online payment link for the signed-in customer: a recharge (optionally on another plan) or an invoice. */
   async pay(ctx: AuthContext, b: z.output<typeof payBody>) {
-    const s = await this.self(ctx);
+    return this.payFor(await this.self(ctx), b);
+  }
+
+  /** Payment link for a customer the caller already proved to be (portal session, or the walled-garden pay page). */
+  async payFor(
+    s: SubscriberDoc,
+    b: {
+      planId?: ObjectId | undefined;
+      invoiceId?: ObjectId | undefined;
+      gateway?: 'razorpay' | 'cashfree' | undefined;
+    },
+  ) {
     const tenant = await this.db
       .collection<BillingTenant>('tenants')
       .findOne({ _id: s.tenantId }, { projection: { gateways: 1 } });

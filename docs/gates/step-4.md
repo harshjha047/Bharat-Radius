@@ -8,7 +8,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 |---|---|---|
 | Step 3 carry-over: reseller cleared on edit | 🔀 PR #31 | Root cause: clearing the reseller chip sent `resellerId: null`; now only an explicit change is sent, with a warning + undo |
 | 4.1 Customer portal | 🔀 PR | Password sign-in (PPPoE password until a portal password is set), home/usage/bills/account, online pay + plan change (prepaid). OTP sign-in waits on O-7. Runbook `docs/runbooks/portal.md` |
-| 4.2 Walled-garden pay page | ⏳ O-12, O-7 | `/pay` links to the portal meanwhile |
+| 4.2 Walled-garden pay page | 🔀 PR | `:8089` → `/api/v1/pay/entry`: router found by its public address; the one expired customer online behind it is shown (masked) with *Pay ₹…* (renews the current plan); otherwise lookup by username / customer no. / mobile, accepted only if online behind that router. Signed 30-min token; no OTP needed (O-7 later for any-account lookup). Runbook `docs/runbooks/pay-page.md` |
 | 4.3 Tickets | 🔀 PR (stacked on 4.1) | Staff list/detail with assign, internal notes, status; portal Help; reseller branch scope; new Technician role. Runbook `docs/runbooks/tickets.md` |
 | 4.4 Reports + GSTR export | 🔀 PR (stacked on 4.3) | Revenue, collections, subscribers, reseller sales, usage, tickets; Excel/PDF; GSTR-1 workbook (offline-tool layout). Runbook `docs/runbooks/reports.md`. Accountant to check the first GSTR-1 (O-9) |
 | 4.5 KYC/CAF | ⏳ O-18 | |
@@ -61,3 +61,16 @@ Deploy order: `sudo bash radius/scripts/install.sh staging` (migration 004 + fun
 3. Redial → rejected; login history reason *Subscriber account expired*.
 4. Switch the setting to *Slow speed + pay page* → redial → online at 256k, reason *Plan expired*. Switch back.
 5. Recharge `test.lab` → dials normally.
+
+## Staging checks — 4.2 pay page
+
+Needs: Settings → *When validity runs out* = **Slow speed + pay page**; Razorpay test keys enabled; CHR lab.
+
+1. From any outside machine: `curl -si http://154.49.142.251:8089/` → `302` to `https://new.bharatradius.com/pay`.
+2. `test.lab`: set Valid until to yesterday; `sudo bash deploy/ubuntu/lab/chr-lab.sh dial` → online at the expired speed.
+3. From behind the CHR (or by `curl -si --interface <CHR WAN>`), open `http://example.com` → pay page with *t•••.l••*,
+   customer number, *Expired*, plan and *Pay ₹…* incl. GST.
+4. *Pay* → Razorpay test page → pay → within a minute the recharge appears, the session redials at full speed.
+5. *Not you?* → enter another username not online behind that router → *No connection with those details…*.
+6. Open the pay link again after 30 minutes → *This page has expired*.
+
