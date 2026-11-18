@@ -19283,6 +19283,517 @@
         }
       }
     },
+    "/api/v1/pay/entry": {
+      "get": {
+        "summary": "Walled-garden redirect target (router :8089): sends the browser to the pay page",
+        "tags": ["pay"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pay/context": {
+      "get": {
+        "summary": "Pay page: provider, and the customer if known (masked)",
+        "tags": ["pay"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "t",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 400
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "isp": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["name", "phone"],
+                      "additionalProperties": false
+                    },
+                    "online": {
+                      "type": "boolean"
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "expired": {
+                              "type": "boolean"
+                            },
+                            "expiresAt": {
+                              "type": ["string", "null"]
+                            },
+                            "plan": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "downloadKbps": {
+                                      "type": "number"
+                                    },
+                                    "uploadKbps": {
+                                      "type": "number"
+                                    },
+                                    "validityDays": {
+                                      "type": "number"
+                                    },
+                                    "pricePaise": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "downloadKbps",
+                                    "uploadKbps",
+                                    "validityDays",
+                                    "pricePaise"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["name", "customerNo", "username", "expired", "expiresAt", "plan"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "t": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["isp", "online", "subscriber", "t"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pay/lookup": {
+      "post": {
+        "summary": "Pay page: find a customer online behind the same router",
+        "tags": ["pay"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "t": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 400
+                  },
+                  "login": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 64
+                  }
+                },
+                "required": ["t", "login"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "isp": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["name", "phone"],
+                      "additionalProperties": false
+                    },
+                    "online": {
+                      "type": "boolean"
+                    },
+                    "subscriber": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "customerNo": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": ["string", "null"]
+                            },
+                            "expired": {
+                              "type": "boolean"
+                            },
+                            "expiresAt": {
+                              "type": ["string", "null"]
+                            },
+                            "plan": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "downloadKbps": {
+                                      "type": "number"
+                                    },
+                                    "uploadKbps": {
+                                      "type": "number"
+                                    },
+                                    "validityDays": {
+                                      "type": "number"
+                                    },
+                                    "pricePaise": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "downloadKbps",
+                                    "uploadKbps",
+                                    "validityDays",
+                                    "pricePaise"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["name", "customerNo", "username", "expired", "expiresAt", "plan"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "t": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["isp", "online", "subscriber", "t"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pay/order": {
+      "post": {
+        "summary": "Pay page: payment link to renew the current plan",
+        "tags": ["pay"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "t": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 400
+                  }
+                },
+                "required": ["t"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "subscriber": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "customerNo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "customerNo"],
+                      "additionalProperties": false
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": ["razorpay", "cashfree", "cash", "wallet", "bank_transfer"]
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["created", "pending", "captured", "failed", "refunded"]
+                    },
+                    "purpose": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["recharge", "invoice"]
+                        },
+                        "planId": {
+                          "type": ["string", "null"]
+                        },
+                        "invoiceId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["type", "planId", "invoiceId"],
+                      "additionalProperties": false
+                    },
+                    "linkUrl": {
+                      "type": ["string", "null"]
+                    },
+                    "gatewayPaymentId": {
+                      "type": ["string", "null"]
+                    },
+                    "receiptNo": {
+                      "type": ["string", "null"]
+                    },
+                    "failureReason": {
+                      "type": ["string", "null"]
+                    },
+                    "rechargeId": {
+                      "type": ["string", "null"]
+                    },
+                    "invoiceId": {
+                      "type": ["string", "null"]
+                    },
+                    "capturedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "subscriber",
+                    "method",
+                    "amountPaise",
+                    "status",
+                    "purpose",
+                    "linkUrl",
+                    "gatewayPaymentId",
+                    "receiptNo",
+                    "failureReason",
+                    "rechargeId",
+                    "invoiceId",
+                    "capturedAt",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tickets": {
       "get": {
         "summary": "Tickets, most recently active first (a reseller sees its branch)",

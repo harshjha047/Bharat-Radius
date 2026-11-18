@@ -45,6 +45,7 @@ import {
   XLSX_MIME,
 } from './subscribers/excel.js';
 import { PortalAuth } from './portal/portal-auth.js';
+import { PayPageController, PayPageService } from './portal/pay-page.js';
 import { PortalAdminController, PortalController, PortalService } from './portal/portal.js';
 import { SubscribersController, SubscribersService } from './subscribers/subscribers.js';
 import { Outbox } from './sync/outbox.js';
@@ -96,6 +97,7 @@ class AppModule {
         SubscriberExcelController,
         AuditController,
         PortalController,
+        PayPageController,
         PortalAdminController,
         TicketsController,
         PortalTicketsController,
@@ -127,6 +129,7 @@ class AppModule {
         AuditService,
         PortalAuth,
         PortalService,
+        PayPageService,
         TicketsService,
         ReportsService,
         FinancialInsightsService,

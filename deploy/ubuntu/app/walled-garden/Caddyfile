@@ -1,4 +1,6 @@
-# Expired users' HTTP (any Host) is dst-nat'ed here by MikroTik (setup.rsc payPort). Captive-portal probes land here too.
+# Expired users' HTTP (any Host, any path) is dst-nat'ed here by MikroTik (setup.rsc payPort). Captive-portal probes
+# land here too. The API sees the router's public address (customer traffic is masqueraded), works out who is asking,
+# and answers with a redirect to the pay page.
 {
 	admin off
 	auto_https off
@@ -6,5 +8,11 @@
 
 :8089 {
 	header Cache-Control "no-store"
-	redir https://new.bharatradius.com/pay 302
+	rewrite * /api/v1/pay/entry
+	reverse_proxy isp-api:4100 {
+		header_up Host {upstream_hostport}
+	}
+	handle_errors {
+		redir https://new.bharatradius.com/pay 302
+	}
 }
