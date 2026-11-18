@@ -19,6 +19,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | 4.10–4.15 | ⏳ | |
 | F-15 Expired handling | 🔀 PR | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
 | F-10/16 Username case, Excel dates | 🔀 PR (stacked on F-15) | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
+| F-5/12/13 Recharge quantity + period | 🔀 PR (stacked on F-10/16) | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
 
 ## Staging checks — 4.1
 
@@ -71,3 +72,11 @@ Deploy: `install.sh staging` (migration 005) then `app-up.sh` (Mongo 015). Eithe
 2. CHR lab: dial as `TEST.LAB` → accepted; Sessions shows `test.lab`; Kick works.
 3. Portal sign-in as `TEST.LAB` → works.
 4. Excel import with `expires_on` `12/10/2026` → Valid until 12 Oct 2026; `31/02/2026` → row error.
+
+## Staging checks — F-5/12/13
+
+1. Subscriber `test.sub` (active, valid until D) → Recharge → Periods **3 ×** → Starts = D, Valid until = D + 90 days, customer pays 3 × price incl. GST.
+2. Confirm → invoice PDF: one line, qty 3, period D – D+90.
+3. Recharges (and the subscriber's history): *Period* D → D+90 with “× 3”; *Recharged by* = your name.
+4. Expired subscriber → Starts = now.
+5. As Test L2 with a balance below 3 × its price → *Insufficient Wallet Balance*, nothing debited.

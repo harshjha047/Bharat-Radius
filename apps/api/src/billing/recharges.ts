@@ -9,7 +9,7 @@ import {
   payments,
   performRecharge,
   recharges,
-  renewedExpiry,
+  rechargePeriod,
   reverseRecharge,
   walletPrice,
   wallets,
@@ -46,6 +46,8 @@ const createBody = z.object({
    * invoice (wallets.adjust). A reseller always pays from its own wallet.
    */
   payment: z.enum(['cash', 'none']).optional(),
+  /** Periods bought at once (3 × 1 month). */
+  quantity: z.number().int().min(1).max(12).default(1),
 });
 const refundBody = z.object({ reason: z.string().trim().min(5).max(200) });
 const listQuery = pageQuery.extend({
@@ -57,7 +59,11 @@ const listQuery = pageQuery.extend({
   from: isoDay.optional(),
   to: isoDay.optional(),
 });
-const quoteQuery = z.object({ subscriberId: hexId, planId: hexId.optional() });
+const quoteQuery = z.object({
+  subscriberId: hexId,
+  planId: hexId.optional(),
+  quantity: z.coerce.number().int().min(1).max(12).default(1),
+});
 
 const ref = z.object({ id: z.string(), name: z.string() }).nullable();
 const rechargeView = z.object({
@@ -76,7 +82,12 @@ const rechargeView = z.object({
   channel: z.enum(['online', 'reseller_wallet', 'cash', 'staff', 'import']),
   status: z.enum(['SUCCESS', 'REVERSED']),
   oldExpiresAt: z.string().nullable(),
+  /** Start and end of the period bought. */
+  periodStart: z.string(),
   newExpiresAt: z.string(),
+  quantity: z.number(),
+  /** Who recharged (staff or reseller user); null for online / system. */
+  by: z.object({ id: z.string(), name: z.string() }).nullable(),
   invoiceId: z.string().nullable(),
   paymentId: z.string().nullable(),
   reversal: z.object({ reason: z.string(), at: z.string(), creditNoteId: z.string().nullable() }).nullable(),
@@ -85,12 +96,14 @@ const rechargeView = z.object({
 });
 const quoteView = z.object({
   plan: z.object({ id: z.string(), name: z.string(), validityDays: z.number() }),
-  /** Debited from the caller's wallet (0 for ISP staff). */
+  quantity: z.number(),
+  /** Debited from the caller's wallet (0 for ISP staff); totals for the quantity. */
   walletPricePaise: z.number(),
   walletBalancePaise: z.number().nullable(),
   customerPricePaise: z.number(),
   /** Customer price incl. GST, rounded to the rupee. */
   customerTotalPaise: z.number(),
+  periodStart: z.string(),
   newExpiresAt: z.string(),
 });
 
@@ -113,7 +126,10 @@ export class RechargesService {
   private async views(ctx: AuthContext, docs: RechargeDoc[]): Promise<View[]> {
     const ids = (k: 'subscriberId' | 'planId' | 'siteResellerId') =>
       [...new Set(docs.flatMap((d) => (d[k] ? [d[k]!.toHexString()] : [])))].map((x) => new ObjectId(x));
-    const [subs, plans, sellers] = await Promise.all([
+    const actorIds = [...new Set(docs.map((d) => d.actorId).filter((a) => ObjectId.isValid(a)))].map(
+      (a) => new ObjectId(a),
+    );
+    const [subs, plans, sellers, users] = await Promise.all([
       this.db
         .collection<SubscriberDoc>('subscribers')
         .find({ _id: { $in: ids('subscriberId') } }, { projection: { name: 1, username: 1, customerNo: 1 } })
@@ -126,11 +142,18 @@ export class RechargesService {
         .collection<{ _id: ObjectId; code: string; name: string }>('resellers')
         .find({ _id: { $in: ids('siteResellerId') } }, { projection: { code: 1, name: 1 } })
         .toArray(),
+      actorIds.length
+        ? this.db
+            .collection<{ _id: ObjectId; name: string }>('users')
+            .find({ _id: { $in: actorIds } }, { projection: { name: 1 } })
+            .toArray()
+        : [],
     ]);
     const m = <T extends { _id: ObjectId }>(xs: T[]) => new Map(xs.map((x) => [x._id.toHexString(), x]));
     const S = m(subs);
     const P = m(plans);
     const R = m(sellers);
+    const U = m(users);
     return docs.map((d) => {
       const s = S.get(d.subscriberId.toHexString());
       const p = P.get(d.planId.toHexString());
@@ -151,7 +174,16 @@ export class RechargesService {
         channel: d.channel,
         status: d.status,
         oldExpiresAt: d.oldExpiresAt?.toISOString() ?? null,
+        periodStart: (
+          d.periodStart ??
+          (d.oldExpiresAt && d.oldExpiresAt > d.rechargeDate ? d.oldExpiresAt : d.rechargeDate)
+        ).toISOString(),
         newExpiresAt: d.newExpiresAt.toISOString(),
+        quantity: d.quantity ?? 1,
+        by: (() => {
+          const u = U.get(d.actorId);
+          return u ? { id: d.actorId, name: u.name } : null;
+        })(),
         invoiceId: d.invoiceId?.toHexString() ?? null,
         paymentId: d.paymentId?.toHexString() ?? null,
         reversal: d.reversal
@@ -188,13 +220,17 @@ export class RechargesService {
     const self = selfReseller(ctx);
     const w = self ? await wallets(this.db).findOne({ ownerId: self, tenantId: s.tenantId }) : null;
     const cp = await customerPrice(this.db, s.resellerId, plan);
+    const n = q.quantity;
+    const period = rechargePeriod(s.expiresAt, plan.validityDays, n);
     return {
       plan: { id: plan._id.toHexString(), name: plan.name, validityDays: plan.validityDays },
-      walletPricePaise: self ? await walletPrice(this.db, self, plan) : 0,
+      quantity: n,
+      walletPricePaise: self ? (await walletPrice(this.db, self, plan)) * n : 0,
       walletBalancePaise: w ? w.balancePaise : null,
-      customerPricePaise: cp,
-      customerTotalPaise: grossPrice(cp, plan.gstRatePercent),
-      newExpiresAt: renewedExpiry(s.expiresAt, plan.validityDays).toISOString(),
+      customerPricePaise: cp * n,
+      customerTotalPaise: grossPrice(cp * n, plan.gstRatePercent),
+      periodStart: period.start.toISOString(),
+      newExpiresAt: period.end.toISOString(),
     };
   }
 
@@ -243,7 +279,7 @@ export class RechargesService {
             subscriberId: sub._id,
             ancestors: sub.ancestors,
             method: 'cash',
-            amountPaise: grossPrice(cp, plan.gstRatePercent),
+            amountPaise: grossPrice(cp * b.quantity, plan.gstRatePercent),
             status: 'captured',
             purpose: { type: 'recharge', planId: plan._id },
             collectedBy: actor,
@@ -262,6 +298,7 @@ export class RechargesService {
           channel: self ? 'reseller_wallet' : b.payment === 'cash' ? 'cash' : 'staff',
           ...(wallet ? { wallet } : {}),
           customerPricePaise: cp,
+          quantity: b.quantity,
           invoice: b.payment !== 'none',
           idempotencyKey: key,
           actor,

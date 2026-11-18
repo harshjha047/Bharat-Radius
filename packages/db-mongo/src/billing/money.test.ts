@@ -6,6 +6,7 @@ import {
   grossPrice,
   gstLine,
   gstTotals,
+  rechargePeriod,
   renewedExpiry,
   rupees,
 } from './money.js';
@@ -58,6 +59,17 @@ describe('dates', () => {
     const cur = new Date('2026-11-20T18:29:59Z');
     expect(renewedExpiry(cur, 30, now).toISOString()).toBe('2026-12-20T18:29:59.000Z');
     expect(endOfIstDay(new Date('2026-11-07T18:30:00Z')).toISOString()).toBe('2026-11-08T18:29:59.000Z');
+  });
+
+  it('recharge period: starts at the current expiry while in service, else now; N periods', () => {
+    const now = new Date('2026-11-07T20:00:00Z');
+    const cur = new Date('2026-11-20T18:29:59Z');
+    const p = rechargePeriod(cur, 30, 3, now);
+    expect(p.start).toEqual(cur);
+    expect(p.end.toISOString()).toBe('2027-02-18T18:29:59.000Z');
+    const e = rechargePeriod(new Date('2026-11-01T18:29:59Z'), 30, 1, now);
+    expect(e.start).toEqual(now);
+    expect(e.end.toISOString()).toBe('2026-12-07T18:29:59.000Z');
   });
 
   it('financial year and invoice numbers (≤ 16 characters)', () => {

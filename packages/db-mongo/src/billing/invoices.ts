@@ -50,7 +50,8 @@ export interface InvoiceInput {
   plan: Pick<PlanDoc, 'name' | 'hsnSac' | 'gstRatePercent'>;
   /** Taxable price per unit (excl. GST). */
   ratePaise: number;
-  /** Fractional quantity for pro-rated postpaid months (rounded to the paisa via ratePaise). */
+  /** Units of ratePaise (recharge quantity); default 1. */
+  qty?: number;
   description: string;
   type: InvoiceDoc['type'];
   issueDate?: Date;
@@ -78,6 +79,7 @@ export async function issueInvoice(db: Db, session: ClientSession, i: InvoiceInp
       description: i.description,
       hsnSac: i.plan.hsnSac,
       ratePaise: i.ratePaise,
+      ...(i.qty ? { qty: i.qty } : {}),
       gstRatePercent: i.plan.gstRatePercent,
       intraState: buyer.stateCode === seller.stateCode,
     }),

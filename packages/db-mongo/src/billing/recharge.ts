@@ -3,7 +3,7 @@ import { coaFor } from '../coa-policy.js';
 import type { OutboxDoc, PlanDoc, SubscriberDoc } from '../types.js';
 import { invoices, issueCreditNote, issueInvoice, type BillingTenant } from './invoices.js';
 import { move } from './ledger.js';
-import { MoneyError, istDate, renewedExpiry, rupees } from './money.js';
+import { MoneyError, istDate, rechargePeriod, rupees } from './money.js';
 import { notify } from './notify.js';
 import type { PaymentDoc, RechargeChannel, RechargeDoc, WalletDoc } from './types.js';
 
@@ -60,10 +60,12 @@ export interface RechargeInput {
   subscriber: SubscriberDoc;
   plan: PlanDoc;
   channel: RechargeChannel;
-  /** The recharging reseller's wallet and the price it pays; absent for ISP staff and direct customers. */
+  /** The recharging reseller's wallet and the price it pays per period; absent for ISP staff and direct customers. */
   wallet?: { doc: WalletDoc; resellerId: ObjectId; amountPaise: number };
-  /** Taxable price to the customer (invoice), excl. GST. */
+  /** Taxable price to the customer per period (invoice), excl. GST. */
   customerPricePaise: number;
+  /** Periods bought at once (1–12); default 1. */
+  quantity?: number;
   /** false for complimentary staff recharges (no invoice). */
   invoice: boolean;
   idempotencyKey: string;
@@ -107,22 +109,28 @@ export async function performRecharge(
   if (r.plan.status !== 'active' || !r.plan.billingTypes.includes('prepaid')) {
     throw new MoneyError(400, 'VALIDATION_FAILED', 'This plan cannot be sold as prepaid');
   }
+  const qty = r.quantity ?? 1;
+  if (!Number.isInteger(qty) || qty < 1 || qty > 12) {
+    throw new MoneyError(400, 'VALIDATION_FAILED', 'Quantity must be 1–12');
+  }
   const now = r.now ?? new Date();
   const id = new ObjectId();
+  const walletTotal = (r.wallet?.amountPaise ?? 0) * qty;
   let walletTxnId: ObjectId | null = null;
   if (r.wallet) {
     const txn = await move(db, session, {
       tenantId: s.tenantId,
       walletId: r.wallet.doc._id,
-      deltaPaise: -r.wallet.amountPaise,
+      deltaPaise: -walletTotal,
       type: 'RECHARGE',
       referenceId: id,
-      description: `Recharge ${s.username ?? s.customerNo} · ${r.plan.name}`,
+      description: `Recharge ${s.username ?? s.customerNo} · ${r.plan.name}${qty > 1 ? ` × ${qty}` : ''}`,
       actor: r.actor,
     });
     walletTxnId = txn._id;
   }
-  const newExpiresAt = renewedExpiry(s.expiresAt, r.plan.validityDays, now);
+  const period = rechargePeriod(s.expiresAt, r.plan.validityDays, qty, now);
+  const newExpiresAt = period.end;
   const updated = await updateSubscriber(
     db,
     session,
@@ -138,7 +146,10 @@ export async function performRecharge(
         subscriber: updated,
         plan: r.plan,
         ratePaise: r.customerPricePaise,
-        description: `${r.plan.name} · ${r.plan.validityDays} days to ${istDate(newExpiresAt)}`,
+        ...(qty > 1 ? { qty } : {}),
+        description: `${r.plan.name} · ${r.plan.validityDays * qty} days, ${istDate(period.start)} to ${istDate(newExpiresAt)}`,
+        periodStart: period.start,
+        periodEnd: newExpiresAt,
         type: 'prepaid_recharge',
         issueDate: now,
         rechargeId: id,
@@ -156,8 +167,8 @@ export async function performRecharge(
     ancestors: s.ancestors,
     walletId: r.wallet?.doc._id ?? null,
     walletTxnId,
-    amountPaise: r.wallet?.amountPaise ?? 0,
-    customerPricePaise: r.customerPricePaise,
+    amountPaise: walletTotal,
+    customerPricePaise: r.customerPricePaise * qty,
     taxPaise: grossCustomer
       ? grossCustomer.totalPaise - grossCustomer.taxablePaise - grossCustomer.roundOffPaise
       : 0,
@@ -166,6 +177,8 @@ export async function performRecharge(
     rechargeDate: now,
     oldExpiresAt: s.expiresAt ?? null,
     newExpiresAt,
+    periodStart: period.start,
+    ...(qty > 1 ? { quantity: qty } : {}),
     oldPlanId: s.planId ?? null,
     ...(r.paymentId ? { paymentId: r.paymentId } : {}),
     ...(grossCustomer ? { invoiceId: grossCustomer._id } : {}),

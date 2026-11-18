@@ -10552,6 +10552,17 @@
               "type": "string",
               "pattern": "^[0-9a-f]{24}$"
             }
+          },
+          {
+            "name": "quantity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
           }
         ],
         "responses": {
@@ -10579,6 +10590,9 @@
                       "required": ["id", "name", "validityDays"],
                       "additionalProperties": false
                     },
+                    "quantity": {
+                      "type": "number"
+                    },
                     "walletPricePaise": {
                       "type": "number"
                     },
@@ -10591,16 +10605,21 @@
                     "customerTotalPaise": {
                       "type": "number"
                     },
+                    "periodStart": {
+                      "type": "string"
+                    },
                     "newExpiresAt": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "plan",
+                    "quantity",
                     "walletPricePaise",
                     "walletBalancePaise",
                     "customerPricePaise",
                     "customerTotalPaise",
+                    "periodStart",
                     "newExpiresAt"
                   ],
                   "additionalProperties": false
@@ -10670,6 +10689,12 @@
                   "payment": {
                     "type": "string",
                     "enum": ["cash", "none"]
+                  },
+                  "quantity": {
+                    "default": 1,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
                   }
                 },
                 "required": ["subscriberId"]
@@ -10771,8 +10796,34 @@
                     "oldExpiresAt": {
                       "type": ["string", "null"]
                     },
+                    "periodStart": {
+                      "type": "string"
+                    },
                     "newExpiresAt": {
                       "type": "string"
+                    },
+                    "quantity": {
+                      "type": "number"
+                    },
+                    "by": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "invoiceId": {
                       "type": ["string", "null"]
@@ -10821,7 +10872,10 @@
                     "channel",
                     "status",
                     "oldExpiresAt",
+                    "periodStart",
                     "newExpiresAt",
+                    "quantity",
+                    "by",
                     "invoiceId",
                     "paymentId",
                     "reversal",
@@ -11048,8 +11102,34 @@
                           "oldExpiresAt": {
                             "type": ["string", "null"]
                           },
+                          "periodStart": {
+                            "type": "string"
+                          },
                           "newExpiresAt": {
                             "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "by": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "invoiceId": {
                             "type": ["string", "null"]
@@ -11098,7 +11178,10 @@
                           "channel",
                           "status",
                           "oldExpiresAt",
+                          "periodStart",
                           "newExpiresAt",
+                          "quantity",
+                          "by",
                           "invoiceId",
                           "paymentId",
                           "reversal",
@@ -11265,8 +11348,34 @@
                     "oldExpiresAt": {
                       "type": ["string", "null"]
                     },
+                    "periodStart": {
+                      "type": "string"
+                    },
                     "newExpiresAt": {
                       "type": "string"
+                    },
+                    "quantity": {
+                      "type": "number"
+                    },
+                    "by": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "invoiceId": {
                       "type": ["string", "null"]
@@ -11315,7 +11424,10 @@
                     "channel",
                     "status",
                     "oldExpiresAt",
+                    "periodStart",
                     "newExpiresAt",
+                    "quantity",
+                    "by",
                     "invoiceId",
                     "paymentId",
                     "reversal",
@@ -11493,8 +11605,34 @@
                     "oldExpiresAt": {
                       "type": ["string", "null"]
                     },
+                    "periodStart": {
+                      "type": "string"
+                    },
                     "newExpiresAt": {
                       "type": "string"
+                    },
+                    "quantity": {
+                      "type": "number"
+                    },
+                    "by": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "invoiceId": {
                       "type": ["string", "null"]
@@ -11543,7 +11681,10 @@
                     "channel",
                     "status",
                     "oldExpiresAt",
+                    "periodStart",
                     "newExpiresAt",
+                    "quantity",
+                    "by",
                     "invoiceId",
                     "paymentId",
                     "reversal",

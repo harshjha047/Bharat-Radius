@@ -1,5 +1,11 @@
 'use client';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { FileText } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
@@ -192,6 +198,8 @@ export function TopUpDialog({
   );
 }
 
+const QUANTITIES = [1, 2, 3, 4, 5, 6, 12] as const;
+
 /** Prepaid recharge with a live quote: reseller pays from its wallet; staff records cash or a complimentary one. */
 export function RechargeDialog({
   subscriber,
@@ -210,12 +218,16 @@ export function RechargeDialog({
   const [key, newKey] = useIdemKey();
   const [planId, setPlanId] = useState(subscriber.planId ?? '');
   const [payment, setPayment] = useState<'cash' | 'none'>('cash');
+  const [quantity, setQuantity] = useState(1);
   const quote = useQuery({
-    queryKey: ['recharge-quote', subscriber.id, planId],
+    queryKey: ['recharge-quote', subscriber.id, planId, quantity],
     queryFn: () =>
       unwrap(
-        api.GET('/api/v1/recharges/quote', { params: { query: { subscriberId: subscriber.id, planId } } }),
+        api.GET('/api/v1/recharges/quote', {
+          params: { query: { subscriberId: subscriber.id, planId, quantity } },
+        }),
       ),
+    placeholderData: keepPreviousData,
     enabled: open && !!planId,
     staleTime: 10_000,
   });
@@ -224,7 +236,7 @@ export function RechargeDialog({
     mutationFn: () =>
       unwrap(
         api.POST('/api/v1/recharges', {
-          body: { subscriberId: subscriber.id, planId, ...(staff ? { payment } : {}) },
+          body: { subscriberId: subscriber.id, planId, quantity, ...(staff ? { payment } : {}) },
           ...idem(key),
         }),
       ),
@@ -267,6 +279,19 @@ export function RechargeDialog({
               ))}
             </Select>
           </Field>
+          <Field
+            label="Periods"
+            htmlFor="rc-qty"
+            hint={q ? `${q.plan.validityDays * quantity} days` : undefined}
+          >
+            <Select id="rc-qty" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))}>
+              {QUANTITIES.map((n) => (
+                <option key={n} value={n}>
+                  {n === 1 ? '1 (single)' : `${n} ×`}
+                </option>
+              ))}
+            </Select>
+          </Field>
           {staff ? (
             <Field label="Payment" htmlFor="rc-pay">
               <Select
@@ -292,7 +317,8 @@ export function RechargeDialog({
                       ],
                     ] as [string, string][])),
                 ['Customer pays (incl. GST)', fmtRupees(q.customerTotalPaise)],
-                ['New expiry', fmtDateTime(q.newExpiresAt)],
+                ['Starts', fmtDateTime(q.periodStart)],
+                ['Valid until', fmtDateTime(q.newExpiresAt)],
               ]}
             />
           ) : null}
@@ -603,7 +629,24 @@ export function RechargesTable({
             cell: (r) => (r.amountPaise ? fmtRupees(r.amountPaise) : '—'),
             className: 'text-right',
           },
-          { key: 'until', header: 'Valid until', cell: (r) => fmtDate(r.newExpiresAt), hideOnMobile: true },
+          {
+            key: 'period',
+            header: 'Period',
+            cell: (r) => (
+              <span className="whitespace-nowrap">
+                {fmtDate(r.periodStart)} → {fmtDate(r.newExpiresAt)}
+                {r.quantity > 1 ? (
+                  <span className="block text-xs text-muted-foreground">× {r.quantity}</span>
+                ) : null}
+              </span>
+            ),
+          },
+          {
+            key: 'actor',
+            header: 'Recharged by',
+            cell: (r) => r.by?.name ?? '—',
+            hideOnMobile: true,
+          },
           {
             key: 'status',
             header: 'Status',
