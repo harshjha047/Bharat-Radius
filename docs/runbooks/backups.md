@@ -40,6 +40,35 @@ sudo systemctl start isp-backup.service && journalctl -u isp-backup -n 20 --no-p
 
 Use a bucket key that can write and list but not delete versions (object lock / versioning on), so ransomware on the server cannot erase old backups.
 
+## Backblaze B2 (owner's choice, 18 Nov 2026)
+
+B2 has no India region; everything is age-encrypted on the server before upload, so the bucket only holds ciphertext.
+Do *Setup (once)* above first (your age key). One bucket, two folders: `isp-backups/` (nightly backups, 35 days) and `isp-logs/` (log days older than 60 days).
+
+In the Backblaze web console:
+
+1. **Buckets → Create a Bucket**: name e.g. `bharatradius-offsite-<random>`, **Private**, Default Encryption on.
+   Object Lock is optional (more protection, cannot be turned off later).
+2. Bucket → **Lifecycle Settings → Use custom lifecycle rules**: for prefix `isp-backups/` and `isp-logs/`,
+   *days from hiding to deleting* = 30. Old versions of anything deleted or overwritten stay 30 days.
+3. **Application Keys → Add a New Application Key**: allow access to **that bucket only**, type **Read and Write**.
+   Copy `keyID` and `applicationKey` (shown once). Never paste them in chat or email.
+
+On the VPS (keys typed at the prompt, not saved in shell history):
+
+```bash
+read -rp 'keyID: ' K; read -rsp 'applicationKey: ' A; echo
+sudo rclone config create offsite b2 account "$K" key "$A" hard_delete false --non-interactive >/dev/null; unset K A
+sudo rclone lsd offsite:<bucket>                                     # works = keys and bucket are right
+sudo sed -i 's|^RCLONE_REMOTE=.*|RCLONE_REMOTE=offsite:<bucket>/isp-backups|' /etc/isp-backup/backup.env
+sudo sed -i 's|^LOG_REMOTE=.*|LOG_REMOTE=offsite:<bucket>/isp-logs|' /etc/isp-logs/offload.env
+sudo systemctl start isp-backup.service && journalctl -u isp-backup -n 20 --no-pager   # "off-site: copying …"
+sudo /opt/isp-logs/logs-maint.sh run                                                    # "offload: …" once days are 60+ old
+```
+
+`hard_delete false`: rclone's prune only hides files; B2 deletes them 30 days later (lifecycle rule), so a stolen
+server key cannot destroy the history at once.
+
 ## Restore drill (monthly, and before each POP cutover)
 
 Restores the newest backup into throw-away databases (`restore_*`) next to the live ones, compares record counts, drops them. Live data is not touched.

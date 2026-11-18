@@ -265,6 +265,14 @@ groups:
           summary: 'Daily log seal has not run for over 26 hours (isp-logs-maint.timer)'
           runbook: docs/runbooks/compliance-logs.md
 
+      - alert: LogOffloadStuck
+        expr: isp_logarchive_offload_pending_files > 0
+        for: 6h
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $value }} old log file(s) could not be moved off-site and are filling this disk'
+          runbook: docs/runbooks/compliance-logs.md
+
       - alert: RouterLogsSilent
         expr: time() - isp_logarchive_source_last_write_timestamp_seconds{kind="routers"} > 3 * 3600
         for: 15m

@@ -6,14 +6,27 @@
 #     previous one, so removing or editing an old file or manifest breaks the chain (verify: logs-maint.sh verify)
 #  3. the manifests also go into the encrypted nightly backup (backup.sh), so deleting the newest one is caught too
 #  4. write node-exporter metrics (archive size, free space, newest file per router) for the alerts
+#  5. off-site (when LOG_REMOTE is set in /etc/isp-logs/offload.env): sealed files older than KEEP_LOCAL_DAYS are
+#     age-encrypted to the backup key, uploaded, checked against the bucket's SHA-1, listed in MANIFEST/OFFSITE.list
+#     and only then removed here. `fetch <from> <to>` brings days back (needs the private key: AGE_IDENTITY).
 set -Eeuo pipefail
 umask 0027
 ROOT="${ARCHIVE_ROOT:-/var/log/isp-archive}"
 RETENTION_DAYS="${RETENTION_DAYS:-1096}"
 OUT_DIR="${OUT_DIR:-/var/lib/prometheus/node-exporter}"
 MANIFESTS="$ROOT/MANIFEST"
+OFFSITE_LIST="$MANIFESTS/OFFSITE.list"
+OFFLOAD_CONF="${OFFLOAD_CONF:-/etc/isp-logs/offload.env}"
+# shellcheck disable=SC1090
+[[ -r $OFFLOAD_CONF ]] && . "$OFFLOAD_CONF"
+LOG_REMOTE="${LOG_REMOTE:-}"
+KEEP_LOCAL_DAYS="${KEEP_LOCAL_DAYS:-60}"
+if [[ -z ${AGE_RECIPIENT:-} && -r /etc/isp-backup/backup.env ]]; then
+  AGE_RECIPIENT="$(sed -n 's/^AGE_RECIPIENT=//p' /etc/isp-backup/backup.env)"
+fi
 TODAY="$(date +%F)"
 log() { printf '%s %s\n' "$(date +%T)" "$*"; }
+die() { log "ERROR: $*" >&2; exit 1; }
 
 day_of() { local b; b="$(basename "$1")"; echo "${b:0:10}"; }
 
@@ -56,6 +69,60 @@ prune() {
   done < <(find "$ROOT" -type f \( -name '*.log.gz' -o -name '*.sha256' \) -print0)
   find "$ROOT" -mindepth 2 -type d -empty -delete
   ((n == 0)) || log "pruned $n file(s) older than $cutoff ($RETENTION_DAYS days)"
+  if [[ -n $LOG_REMOTE ]]; then
+    rclone delete --min-age "${RETENTION_DAYS}d" "$LOG_REMOTE" 2>/dev/null || log "off-site prune failed (not fatal)"
+  fi
+}
+
+offloaded() { [[ -s $OFFSITE_LIST ]] && awk -v r="$1" '$1 == r { f = 1 } END { exit !f }' "$OFFSITE_LIST"; }
+
+offload() {
+  [[ -n $LOG_REMOTE ]] || return 0
+  [[ -n ${AGE_RECIPIENT:-} ]] || { log "offload: AGE_RECIPIENT not set (backup-setup.sh); skipped"; return 0; }
+  command -v rclone >/dev/null && command -v age >/dev/null || { log "offload: rclone/age missing; skipped"; return 0; }
+  local f rel tmp local_sha remote_sha n=0 kept=0
+  touch "$OFFSITE_LIST"; chmod 0440 "$OFFSITE_LIST"; chgrp isp-archive "$OFFSITE_LIST"
+  tmp="$(mktemp -d)"
+  # File mtime = when it was sealed (or fetched back), so a fetched day stays KEEP_LOCAL_DAYS before going again.
+  while IFS= read -r -d '' f; do
+    rel="${f#"$ROOT"/}"
+    if ! offloaded "$rel"; then
+      age -r "$AGE_RECIPIENT" -o "$tmp/x.age" "$f"
+      local_sha="$(sha1sum "$tmp/x.age" | cut -d' ' -f1)"
+      if ! rclone copyto --retries 3 "$tmp/x.age" "$LOG_REMOTE/$rel.age"; then
+        log "offload: upload of $rel failed; kept locally"; kept=$((kept + 1)); continue
+      fi
+      remote_sha="$(rclone hashsum sha1 "$LOG_REMOTE/$rel.age" 2>/dev/null | cut -d' ' -f1)"
+      if [[ $local_sha != "$remote_sha" ]]; then
+        log "offload: $rel did not verify in the bucket; kept locally"; kept=$((kept + 1)); continue
+      fi
+      printf '%s %s\n' "$rel" "$TODAY" >>"$OFFSITE_LIST"
+    fi
+    rm -f "$f"; n=$((n + 1))
+  done < <(find "$ROOT" -path "$MANIFESTS" -prune -o -type f -name '*.log.gz' -mtime +"$KEEP_LOCAL_DAYS" -print0 | sort -z)
+  rm -rf "$tmp"
+  find "$ROOT" -mindepth 3 -type d -empty -delete
+  ((n + kept == 0)) || log "offload: $n file(s) moved to $LOG_REMOTE, $kept kept for retry"
+}
+
+# fetch <from YYYY-MM-DD> <to YYYY-MM-DD>: decrypt offloaded days back into the archive (panel lookups see them again)
+fetch() {
+  local from="${1:-}" to="${2:-${1:-}}" rel tmp n=0
+  [[ $from =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ && $to =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || die "usage: fetch YYYY-MM-DD [YYYY-MM-DD]"
+  [[ -n $LOG_REMOTE ]] || die "LOG_REMOTE is not set in $OFFLOAD_CONF"
+  [[ -r ${AGE_IDENTITY:-} ]] || die "set AGE_IDENTITY to the private backup key file"
+  [[ -s $OFFSITE_LIST ]] || die "nothing has been moved off-site"
+  tmp="$(mktemp -d)"
+  while read -r rel; do
+    [[ -e $ROOT/$rel ]] && continue
+    rclone copyto "$LOG_REMOTE/$rel.age" "$tmp/x.age"
+    install -d -g isp-archive -m 2750 "$(dirname "$ROOT/$rel")"
+    age -d -i "$AGE_IDENTITY" -o "$ROOT/$rel" "$tmp/x.age"
+    chmod 0440 "$ROOT/$rel"; chgrp isp-archive "$ROOT/$rel"; n=$((n + 1))
+  done < <(awk -v a="$from" -v b="$to" '{ k = split($1, p, "/"); d = substr(p[k], 1, 10); if (d >= a && d <= b) print $1 }' "$OFFSITE_LIST")
+  rm -rf "$tmp"
+  log "fetched $n file(s) for $from … $to; they stay $KEEP_LOCAL_DAYS days"
+  verify
 }
 
 metrics() {
@@ -75,6 +142,11 @@ metrics() {
     echo '# HELP isp_logarchive_last_seal_timestamp_seconds Last successful daily seal.'
     echo '# TYPE isp_logarchive_last_seal_timestamp_seconds gauge'
     echo "isp_logarchive_last_seal_timestamp_seconds $(date +%s)"
+    if [[ -n $LOG_REMOTE ]]; then
+      echo '# HELP isp_logarchive_offload_pending_files Sealed files past KEEP_LOCAL_DAYS + 2 still only on this server.'
+      echo '# TYPE isp_logarchive_offload_pending_files gauge'
+      echo "isp_logarchive_offload_pending_files $(find "$ROOT" -path "$MANIFESTS" -prune -o -type f -name '*.log.gz' -mtime +"$((KEEP_LOCAL_DAYS + 2))" -print | wc -l)"
+    fi
     echo '# HELP isp_logarchive_source_last_write_timestamp_seconds Newest archive file per router and kind.'
     echo '# TYPE isp_logarchive_source_last_write_timestamp_seconds gauge'
     for dir in "$ROOT"/routers/* "$ROOT"/nat/*; do
@@ -97,7 +169,13 @@ verify() {
     # The first manifest after a 3-year prune legitimately points at a deleted one.
     if [[ $want != "$got" && -n $prev ]]; then echo "CHAIN BROKEN at $man"; bad=1; fi
     # Files past the retention period were deleted on purpose; check everything else.
-    (cd "$ROOT" && tail -n +2 "$MANIFESTS/$man" | awk -v c="$cutoff" '{ n = split($2, p, "/"); if (substr(p[n], 1, 10) >= c) print }' |
+    # Files moved off-site (OFFSITE.list) are checked there by SHA-1 at upload; check the rest here.
+    (cd "$ROOT" && tail -n +2 "$MANIFESTS/$man" |
+      awk -v c="$cutoff" -v root="$ROOT" -v list="$OFFSITE_LIST" '
+        BEGIN { while ((getline l < list) > 0) { split(l, x, " "); off[x[1]] = 1 } }
+        { n = split($2, p, "/"); if (substr(p[n], 1, 10) < c) next
+          if (($2 in off) && system("test -e \"" root "/" $2 "\"") != 0) next
+          print }' |
       sha256sum -c --quiet) || { echo "FILE CHANGED OR MISSING in $man"; bad=1; }
     prev="$man"
   done
@@ -106,8 +184,9 @@ verify() {
 }
 
 case "${1:-run}" in
-  run) prune; seal; metrics; log "sealed; archive $(du -sh "$ROOT" | cut -f1), free $(df -h --output=avail "$ROOT" | tail -1 | tr -d ' ')" ;;
+  run) prune; seal; offload; metrics; log "sealed; archive $(du -sh "$ROOT" | cut -f1), free $(df -h --output=avail "$ROOT" | tail -1 | tr -d ' ')" ;;
   verify) verify ;;
+  fetch) shift; fetch "$@" ;;
   metrics) metrics ;;
-  *) echo "usage: $0 [run|verify|metrics]" >&2; exit 2 ;;
+  *) echo "usage: $0 [run|verify|metrics|fetch FROM [TO]]" >&2; exit 2 ;;
 esac
