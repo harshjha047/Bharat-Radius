@@ -33,6 +33,20 @@ scrape_configs:
     static_configs:
       - targets: ['isp-workers:4101']
 
+  # Expired customers' web traffic is dst-nat'ed here by routers; probed on the public address like a router would.
+  - job_name: blackbox-walled
+    metrics_path: /probe
+    params: { module: [http_redirect_pay] }
+    static_configs:
+      - targets: ['http://154.49.142.251:8089/generate_204']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: isp-blackbox:9115
+
   - job_name: blackbox-http
     metrics_path: /probe
     params: { module: [http_2xx] }
