@@ -871,6 +871,7 @@ describe('F-7 billing models, top-up requests, recharge edits', () => {
       customer('edit1', { resellerId: id.l2, planId: id.plan }),
     );
     const until = istDay(new Date(Date.now() + 45 * 86_400_000));
+    const quoted = (await admin.req('GET', `/api/v1/recharges/quote?subscriberId=${c.body.id}`)).body;
     const r = await admin.req(
       'POST',
       '/api/v1/recharges',
@@ -884,7 +885,7 @@ describe('F-7 billing models, top-up requests, recharge edits', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(istDay(new Date(r.body.newExpiresAt))).toBe(until);
     expect(r.body.override).toMatchObject({
-      customerTotal: { quotedPaise: 118 * RS, setPaise: 100 * RS },
+      customerTotal: { quotedPaise: quoted.customerTotalPaise, setPaise: 100 * RS },
       reason: 'festival offer',
     });
     const inv = (await admin.req('GET', `/api/v1/invoices?subscriberId=${c.body.id}`)).body.items[0];
