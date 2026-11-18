@@ -32,6 +32,7 @@ import { InvoicesController, InvoicesService } from './billing/invoices.js';
 import { PaymentsController, PaymentsService, WebhooksService } from './billing/payments.js';
 import { RechargesController, RechargesService } from './billing/recharges.js';
 import { BillingSettingsController, BillingSettingsService } from './billing/settings.js';
+import { TopupRequestsController, TopupRequestsService } from './billing/topup-requests.js';
 import { WalletsController, WalletsService } from './billing/wallets.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
 import { FinancialInsightsService } from './reports/insights.js';
@@ -91,6 +92,7 @@ class AppModule {
         PlansController,
         ResellersController,
         WalletsController,
+        TopupRequestsController,
         RechargesController,
         InvoicesController,
         PaymentsController,
@@ -124,6 +126,7 @@ class AppModule {
         PlansService,
         ResellersService,
         WalletsService,
+        TopupRequestsService,
         RechargesService,
         InvoicesService,
         PaymentsService,

@@ -134,6 +134,16 @@ export interface RechargeDoc {
   /** Periods bought at once; absent = 1. amountPaise / customerPricePaise are totals. */
   quantity?: number;
   oldPlanId: ObjectId | null;
+  /** How the wallet debit was worked out (absent = prepaid wallet price). */
+  walletModel?: 'prepaid' | 'revenue_share';
+  shareBp?: number;
+  /** Price and/or expiry set by hand in the recharge popup; the wallet debit is not affected. */
+  override?: {
+    /** Customer total incl. GST: quoted → charged. */
+    customerTotalPaise?: { quoted: number; set: number };
+    expiresAt?: { quoted: Date; set: Date };
+    reason: string;
+  };
   reversal?: {
     refundTxnId: ObjectId | null;
     creditNoteId: ObjectId | null;
@@ -146,6 +156,32 @@ export interface RechargeDoc {
   actorId: string;
   idempotencyKey: string;
   createdAt: Date;
+}
+
+/** A reseller asks the wallet directly above it for money (F-7); the parent approves → normal transfer. */
+export interface TopupRequestDoc {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  resellerId: ObjectId;
+  walletId: ObjectId;
+  /** The wallet that pays: the parent reseller's, or the ISP's Master wallet for level 1. */
+  parentWalletId: ObjectId;
+  /** Requester's branch (resellerId's ancestors + itself) for parent-side listing. */
+  ancestors: ObjectId[];
+  amountPaise: number;
+  paidVia?: 'cash' | 'upi' | 'bank';
+  reference?: string;
+  note?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  /** Amount actually sent on approval (the parent may send less or more). */
+  approvedPaise?: number;
+  transferId?: ObjectId;
+  decisionNote?: string;
+  decidedBy?: string;
+  decidedAt?: Date;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface GstLine {

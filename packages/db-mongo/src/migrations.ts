@@ -1011,6 +1011,45 @@ const usernameCaseInsensitive: Migration = {
   },
 };
 
+/** F-7: resellers ask the wallet above them for a top-up; the parent approves (a normal transfer) or rejects. */
+const topupRequests: Migration = {
+  id: '016_topup_requests',
+  async up(db) {
+    const oid = { bsonType: 'objectId' };
+    await ensureCollection(db, 'topup_requests', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'resellerId',
+        'walletId',
+        'parentWalletId',
+        'ancestors',
+        'amountPaise',
+        'status',
+        'createdBy',
+        'createdAt',
+        'updatedAt',
+      ],
+      properties: {
+        tenantId: oid,
+        resellerId: oid,
+        walletId: oid,
+        parentWalletId: oid,
+        ancestors: { bsonType: 'array', items: oid },
+        amountPaise: { bsonType: ['int', 'long'], minimum: 1 },
+        approvedPaise: { bsonType: ['int', 'long'], minimum: 1 },
+        paidVia: { enum: ['cash', 'upi', 'bank'] },
+        status: { enum: ['pending', 'approved', 'rejected', 'cancelled'] },
+        transferId: oid,
+      },
+    });
+    await ensureIndexes(db, 'topup_requests', [
+      { key: { tenantId: 1, parentWalletId: 1, status: 1, createdAt: -1 } },
+      { key: { tenantId: 1, walletId: 1, createdAt: -1 } },
+    ]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -1027,4 +1066,5 @@ export const MIGRATIONS: readonly Migration[] = [
   accessLogs,
   legacyImport,
   usernameCaseInsensitive,
+  topupRequests,
 ];

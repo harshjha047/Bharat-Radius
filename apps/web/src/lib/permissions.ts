@@ -32,6 +32,7 @@ export const PERMISSION_GROUPS: { label: string; items: [Permission, string][] }
       ['resellers.write', 'Manage resellers'],
       ['billing.read', 'View wallets, recharges, invoices, payments'],
       ['recharges.create', 'Recharge subscribers'],
+      ['recharges.override', 'Change price and valid-until in the recharge popup'],
       ['wallets.transfer', 'Wallet top-ups and transfers'],
       ['wallets.refund', 'Refunds and credit notes'],
       ['wallets.adjust', 'Wallet adjustments'],

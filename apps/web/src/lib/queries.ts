@@ -14,6 +14,7 @@ export type ResellerDetail = ApiData<'/api/v1/resellers/{id}'>;
 export type Wallet = Item<'/api/v1/wallets'>;
 export type WalletDashboard = ApiData<'/api/v1/wallets/{id}'>;
 export type Recharge = Item<'/api/v1/recharges'>;
+export type TopupRequest = Item<'/api/v1/wallets/topup-requests'>;
 export type Invoice = Item<'/api/v1/invoices'>;
 export type Payment = Item<'/api/v1/payments'>;
 

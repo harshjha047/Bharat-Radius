@@ -1,5 +1,5 @@
 import type { ClientSession, Db, MongoClient, ObjectId } from 'mongodb';
-import type { PlanDoc, SubscriberDoc } from '../types.js';
+import type { PlanDoc, ResellerDoc, SubscriberDoc } from '../types.js';
 import { invoices, payInvoice, type BillingTenant } from './invoices.js';
 import { move, wallets } from './ledger.js';
 import { MoneyError, istDate, rupees } from './money.js';
@@ -14,13 +14,48 @@ const txOptions = { readConcern: { level: 'snapshot' as const }, writeConcern: {
 export const withTx = <T>(client: MongoClient, fn: (s: ClientSession) => Promise<T>) =>
   client.withSession((s) => s.withTransaction(() => fn(s), txOptions));
 
-/** Price the reseller's wallet pays for one recharge of `plan`: its parent-set rate, else the plan price (MRP). */
-export async function walletPrice(db: Db, resellerId: ObjectId, plan: PlanDoc, session?: ClientSession) {
-  const r = await rates(db).findOne({ buyerId: resellerId, planId: plan._id }, session ? { session } : {});
+/** `shareBp` / 10,000 of `pricePaise`, half up to the paisa. */
+export const sharePaise = (pricePaise: number, shareBp: number) =>
+  Math.floor((pricePaise * shareBp) / 10_000 + 0.5);
+
+export interface WalletTerms {
+  /** Debited per period. */
+  amountPaise: number;
+  walletModel: 'prepaid' | 'revenue_share';
+  shareBp?: number;
+}
+
+/**
+ * What the reseller's wallet pays for one recharge of `plan`. Prepaid model: its parent-set rate, else the plan
+ * price (MRP). Revenue share: the parent-set share of the plan price. Either way the parent decides what it may sell.
+ */
+export async function walletTerms(
+  db: Db,
+  resellerId: ObjectId,
+  plan: PlanDoc,
+  session?: ClientSession,
+): Promise<WalletTerms> {
+  const opt = session ? { session } : {};
+  const [r, seller] = await Promise.all([
+    rates(db).findOne({ buyerId: resellerId, planId: plan._id }, opt),
+    db
+      .collection<ResellerDoc>('resellers')
+      .findOne({ _id: resellerId }, { ...opt, projection: { walletModel: 1, shareBp: 1 } }),
+  ]);
   if (r && !r.active)
     throw new MoneyError(403, 'VALIDATION_FAILED', 'This reseller is not allowed to sell this plan');
-  return r?.walletPricePaise ?? plan.pricePaise;
+  if (seller?.walletModel === 'revenue_share' && seller.shareBp !== undefined) {
+    return {
+      amountPaise: sharePaise(plan.pricePaise, seller.shareBp),
+      walletModel: 'revenue_share',
+      shareBp: seller.shareBp,
+    };
+  }
+  return { amountPaise: r?.walletPricePaise ?? plan.pricePaise, walletModel: 'prepaid' };
 }
+
+export const walletPrice = async (db: Db, resellerId: ObjectId, plan: PlanDoc, session?: ClientSession) =>
+  (await walletTerms(db, resellerId, plan, session)).amountPaise;
 
 /** Taxable price to the customer: the owning reseller's own customer price, else the plan price. */
 export async function customerPrice(

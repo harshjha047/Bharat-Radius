@@ -753,6 +753,194 @@ describe('payment gateways', () => {
   });
 });
 
+describe('F-7 billing models, top-up requests, recharge edits', () => {
+  const istDay = (d: Date) => new Date(d.getTime() + 330 * 60_000).toISOString().slice(0, 10);
+  const fund = async () => {
+    const l1w = await wallet(id.l1!);
+    const l2w = await wallet(id.l2!);
+    await admin.req(
+      'POST',
+      '/api/v1/wallets/transfer',
+      { toWalletId: l1w._id.toHexString(), amountPaise: 5_000 * RS },
+      key(),
+    );
+    await l1User.req(
+      'POST',
+      '/api/v1/wallets/transfer',
+      { toWalletId: l2w._id.toHexString(), amountPaise: 2_000 * RS },
+      key(),
+    );
+  };
+
+  it('revenue share: the parent sets the %, each recharge debits that share of the plan price', async () => {
+    await fund();
+    expect(
+      (
+        await l2User.req('PUT', `/api/v1/resellers/${id.l2}/rates`, {
+          model: { walletModel: 'revenue_share', sharePercent: 10 },
+        })
+      ).status,
+    ).toBe(403);
+    const put = await l1User.req('PUT', `/api/v1/resellers/${id.l2}/rates`, {
+      model: { walletModel: 'revenue_share', sharePercent: 40 },
+    });
+    expect(put.status, JSON.stringify(put.body)).toBe(200);
+    expect(put.body).toMatchObject({ walletModel: 'revenue_share', sharePercent: 40 });
+    expect(put.body.items.find((x: { planId: string }) => x.planId === id.plan)).toMatchObject({
+      walletPricePaise: 40 * RS,
+    });
+    const c = await admin.req(
+      'POST',
+      '/api/v1/subscribers',
+      customer('share1', { resellerId: id.l2, planId: id.plan }),
+    );
+    const q = await l2User.req('GET', `/api/v1/recharges/quote?subscriberId=${c.body.id}&quantity=2`);
+    expect(q.body).toMatchObject({
+      walletPricePaise: 80 * RS,
+      walletModel: 'revenue_share',
+      sharePercent: 40,
+    });
+    const before = (await wallet(id.l2!)).balancePaise;
+    const r = await l2User.req('POST', '/api/v1/recharges', { subscriberId: c.body.id, quantity: 2 }, key());
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body).toMatchObject({ amountPaise: 80 * RS, walletModel: 'revenue_share', sharePercent: 40 });
+    expect((await wallet(id.l2!)).balancePaise).toBe(before - 80 * RS);
+
+    const back = await l1User.req('PUT', `/api/v1/resellers/${id.l2}/rates`, {
+      model: { walletModel: 'prepaid' },
+    });
+    expect(back.body).toMatchObject({ walletModel: 'prepaid', sharePercent: null });
+    const r2 = await l2User.req('POST', '/api/v1/recharges', { subscriberId: c.body.id }, key());
+    expect(r2.body).toMatchObject({ amountPaise: 80 * RS, walletModel: 'prepaid' });
+  });
+
+  it('top-up request: the reseller asks, only the wallet above approves, money moves once', async () => {
+    const l1Before = (await wallet(id.l1!)).balancePaise;
+    const l2Before = (await wallet(id.l2!)).balancePaise;
+    const ask = await l2User.req('POST', '/api/v1/wallets/topup-requests', {
+      amountPaise: 500 * RS,
+      paidVia: 'upi',
+      reference: 'UTR123',
+    });
+    expect(ask.status, JSON.stringify(ask.body)).toBe(201);
+    expect(ask.body).toMatchObject({ status: 'pending', canCancel: true, canDecide: false });
+    expect((await admin.req('POST', '/api/v1/wallets/topup-requests', { amountPaise: RS })).status).toBe(403);
+    const inbox = await l1User.req('GET', '/api/v1/wallets/topup-requests?box=incoming&status=pending');
+    expect(inbox.body.pending).toBeGreaterThanOrEqual(1);
+    expect(inbox.body.items.find((x: { id: string }) => x.id === ask.body.id)).toMatchObject({
+      canDecide: true,
+      reseller: { id: id.l2 },
+    });
+    expect(
+      (await admin.req('POST', `/api/v1/wallets/topup-requests/${ask.body.id}/approve`, {})).status,
+    ).toBe(404);
+    expect(
+      (await l2User.req('POST', `/api/v1/wallets/topup-requests/${ask.body.id}/approve`, {})).status,
+    ).toBe(403);
+    const ok = await l1User.req('POST', `/api/v1/wallets/topup-requests/${ask.body.id}/approve`, {
+      amountPaise: 300 * RS,
+    });
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200);
+    expect(ok.body).toMatchObject({ status: 'approved', approvedPaise: 300 * RS });
+    expect(
+      (await l1User.req('POST', `/api/v1/wallets/topup-requests/${ask.body.id}/approve`, {})).status,
+    ).toBe(409);
+    expect((await wallet(id.l1!)).balancePaise).toBe(l1Before - 300 * RS);
+    expect((await wallet(id.l2!)).balancePaise).toBe(l2Before + 300 * RS);
+
+    const again = await l2User.req('POST', '/api/v1/wallets/topup-requests', { amountPaise: 50 * RS });
+    const cancel = await l2User.req('POST', `/api/v1/wallets/topup-requests/${again.body.id}/cancel`);
+    expect(cancel.body.status).toBe('cancelled');
+
+    const up = await l1User.req('POST', '/api/v1/wallets/topup-requests', { amountPaise: 900 * RS });
+    expect(up.status).toBe(201);
+    const staffInbox = await admin.req('GET', '/api/v1/wallets/topup-requests?box=incoming');
+    expect(staffInbox.body.items.some((x: { id: string }) => x.id === up.body.id)).toBe(true);
+    const no = await admin.req('POST', `/api/v1/wallets/topup-requests/${up.body.id}/reject`, {
+      note: 'pay first',
+    });
+    expect(no.body).toMatchObject({ status: 'rejected', decisionNote: 'pay first' });
+    const mine = await l1User.req('GET', '/api/v1/wallets/topup-requests?box=outgoing');
+    expect(mine.body.items[0]).toMatchObject({ id: up.body.id, status: 'rejected' });
+  });
+
+  it('price and valid-until edits change the invoice and expiry, never the wallet debit', async () => {
+    const c = await admin.req(
+      'POST',
+      '/api/v1/subscribers',
+      customer('edit1', { resellerId: id.l2, planId: id.plan }),
+    );
+    const until = istDay(new Date(Date.now() + 45 * 86_400_000));
+    const quoted = (await admin.req('GET', `/api/v1/recharges/quote?subscriberId=${c.body.id}`)).body;
+    const r = await admin.req(
+      'POST',
+      '/api/v1/recharges',
+      {
+        subscriberId: c.body.id,
+        payment: 'cash',
+        override: { customerTotalPaise: 100 * RS, expiresOn: until, reason: 'festival offer' },
+      },
+      key(),
+    );
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(istDay(new Date(r.body.newExpiresAt))).toBe(until);
+    expect(r.body.override).toMatchObject({
+      customerTotal: { quotedPaise: quoted.customerTotalPaise, setPaise: 100 * RS },
+      reason: 'festival offer',
+    });
+    const inv = (await admin.req('GET', `/api/v1/invoices?subscriberId=${c.body.id}`)).body.items[0];
+    expect(inv.totalPaise).toBe(100 * RS);
+    const pay = await admin.req('GET', `/api/v1/payments?subscriberId=${c.body.id}`);
+    expect(pay.body.items[0]).toMatchObject({ amountPaise: 100 * RS });
+    expect(
+      (
+        await admin.req(
+          'POST',
+          '/api/v1/recharges',
+          {
+            subscriberId: c.body.id,
+            payment: 'cash',
+            override: { customerTotalPaise: 10_050, reason: 'odd' },
+          },
+          key(),
+        )
+      ).status,
+    ).toBe(400);
+
+    // Reseller: may shorten, not extend past what its wallet pays for; the debit stays the wallet price.
+    const q = await l2User.req('GET', `/api/v1/recharges/quote?subscriberId=${c.body.id}`);
+    expect(q.body.canOverride).toBe(true);
+    const paidUntil = new Date(q.body.maxExpiresAt);
+    const longer = await l2User.req(
+      'POST',
+      '/api/v1/recharges',
+      {
+        subscriberId: c.body.id,
+        override: { expiresOn: istDay(new Date(paidUntil.getTime() + 86_400_000)), reason: 'goodwill' },
+      },
+      key(),
+    );
+    expect(longer.status).toBe(400);
+    const before = (await wallet(id.l2!)).balancePaise;
+    const shorter = await l2User.req(
+      'POST',
+      '/api/v1/recharges',
+      {
+        subscriberId: c.body.id,
+        override: {
+          customerTotalPaise: 50 * RS,
+          expiresOn: istDay(new Date(paidUntil.getTime() - 5 * 86_400_000)),
+          reason: 'part month',
+        },
+      },
+      key(),
+    );
+    expect(shorter.status, JSON.stringify(shorter.body)).toBe(200);
+    expect(shorter.body.amountPaise).toBe(q.body.walletPricePaise);
+    expect((await wallet(id.l2!)).balancePaise).toBe(before - q.body.walletPricePaise);
+  });
+});
+
 describe('reconciliation', () => {
   it('a tampered balance is caught and the wallet frozen; frozen wallets move no money', async () => {
     expect((await reconcileWallets(h.db)).mismatches).toBe(0);

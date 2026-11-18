@@ -9,7 +9,9 @@ import {
   rechargePeriod,
   renewedExpiry,
   rupees,
+  taxableForGross,
 } from './money.js';
+import { sharePaise } from './settle.js';
 
 describe('GST', () => {
   it('splits CGST/SGST in state and IGST out of state, rounding half up to the paisa', () => {
@@ -83,5 +85,26 @@ describe('dates', () => {
   it('formats rupees with Indian grouping', () => {
     expect(rupees(10_000_000)).toBe('Rs. 1,00,000.00');
     expect(rupees(-5_050)).toBe('-Rs. 50.50');
+  });
+});
+
+describe('F-7 money helpers', () => {
+  it('revenue share rounds half up to the paisa', () => {
+    expect(sharePaise(50_000, 4000)).toBe(20_000);
+    expect(sharePaise(49_900, 3333)).toBe(16_632);
+    expect(sharePaise(1, 5000)).toBe(1);
+  });
+  it('a hand-set total incl. GST maps back to a taxable amount that invoices to exactly that total', () => {
+    for (const [gross, rate] of [
+      [59_000, 18],
+      [10_000, 18],
+      [100, 18],
+      [99_900, 5],
+      [0, 18],
+    ] as const) {
+      expect(grossPrice(taxableForGross(gross, rate), rate)).toBe(gross);
+    }
+    expect(taxableForGross(59_000, 18)).toBe(50_000);
+    expect(() => taxableForGross(10_050, 18)).toThrow(/whole rupees/);
   });
 });

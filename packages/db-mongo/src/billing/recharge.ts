@@ -3,7 +3,15 @@ import { coaFor } from '../coa-policy.js';
 import type { OutboxDoc, PlanDoc, SubscriberDoc } from '../types.js';
 import { invoices, issueCreditNote, issueInvoice, type BillingTenant } from './invoices.js';
 import { move } from './ledger.js';
-import { MoneyError, istDate, rechargePeriod, rupees } from './money.js';
+import {
+  MoneyError,
+  endOfIstDay,
+  grossPrice,
+  istDate,
+  rechargePeriod,
+  rupees,
+  taxableForGross,
+} from './money.js';
 import { notify } from './notify.js';
 import type { PaymentDoc, RechargeChannel, RechargeDoc, WalletDoc } from './types.js';
 
@@ -61,13 +69,24 @@ export interface RechargeInput {
   plan: PlanDoc;
   channel: RechargeChannel;
   /** The recharging reseller's wallet and the price it pays per period; absent for ISP staff and direct customers. */
-  wallet?: { doc: WalletDoc; resellerId: ObjectId; amountPaise: number };
+  wallet?: {
+    doc: WalletDoc;
+    resellerId: ObjectId;
+    amountPaise: number;
+    walletModel?: 'prepaid' | 'revenue_share';
+    shareBp?: number;
+  };
   /** Taxable price to the customer per period (invoice), excl. GST. */
   customerPricePaise: number;
   /** Periods bought at once (1–12); default 1. */
   quantity?: number;
   /** false for complimentary staff recharges (no invoice). */
   invoice: boolean;
+  /**
+   * Set by hand in the recharge popup (`recharges.override`): customer total incl. GST (whole rupees) and/or the
+   * last valid day. Only the invoice and expiry change; the wallet debit stays the plan price/share × periods.
+   */
+  override?: { customerTotalPaise?: number; expiresAt?: Date; reason: string };
   idempotencyKey: string;
   actor: string;
   paymentId?: ObjectId;
@@ -130,7 +149,20 @@ export async function performRecharge(
     walletTxnId = txn._id;
   }
   const period = rechargePeriod(s.expiresAt, r.plan.validityDays, qty, now);
-  const newExpiresAt = period.end;
+  const o = r.override;
+  const newExpiresAt = o?.expiresAt ? endOfIstDay(o.expiresAt) : period.end;
+  if (newExpiresAt <= now || newExpiresAt <= period.start) {
+    throw new MoneyError(400, 'VALIDATION_FAILED', 'Valid until must be after the period start');
+  }
+  const quotedTotal = grossPrice(r.customerPricePaise * qty, r.plan.gstRatePercent);
+  const priced = o?.customerTotalPaise !== undefined;
+  if (priced && !r.invoice) {
+    throw new MoneyError(400, 'VALIDATION_FAILED', 'A complimentary recharge has no price to change');
+  }
+  const taxableTotal = priced
+    ? taxableForGross(o.customerTotalPaise!, r.plan.gstRatePercent)
+    : r.customerPricePaise * qty;
+  const days = Math.round((newExpiresAt.getTime() + 1000 - period.start.getTime()) / 86_400_000);
   const updated = await updateSubscriber(
     db,
     session,
@@ -145,9 +177,10 @@ export async function performRecharge(
         tenant: r.tenant,
         subscriber: updated,
         plan: r.plan,
-        ratePaise: r.customerPricePaise,
-        ...(qty > 1 ? { qty } : {}),
-        description: `${r.plan.name} · ${r.plan.validityDays * qty} days, ${istDate(period.start)} to ${istDate(newExpiresAt)}`,
+        ...(priced
+          ? { ratePaise: taxableTotal }
+          : { ratePaise: r.customerPricePaise, ...(qty > 1 ? { qty } : {}) }),
+        description: `${r.plan.name}${priced && qty > 1 ? ` × ${qty}` : ''} · ${o?.expiresAt ? days : r.plan.validityDays * qty} days, ${istDate(period.start)} to ${istDate(newExpiresAt)}`,
         periodStart: period.start,
         periodEnd: newExpiresAt,
         type: 'prepaid_recharge',
@@ -168,7 +201,7 @@ export async function performRecharge(
     walletId: r.wallet?.doc._id ?? null,
     walletTxnId,
     amountPaise: walletTotal,
-    customerPricePaise: r.customerPricePaise * qty,
+    customerPricePaise: taxableTotal,
     taxPaise: grossCustomer
       ? grossCustomer.totalPaise - grossCustomer.taxablePaise - grossCustomer.roundOffPaise
       : 0,
@@ -180,6 +213,18 @@ export async function performRecharge(
     periodStart: period.start,
     ...(qty > 1 ? { quantity: qty } : {}),
     oldPlanId: s.planId ?? null,
+    ...(r.wallet?.walletModel === 'revenue_share'
+      ? { walletModel: 'revenue_share' as const, shareBp: r.wallet.shareBp! }
+      : {}),
+    ...(o && (priced || o.expiresAt)
+      ? {
+          override: {
+            ...(priced ? { customerTotalPaise: { quoted: quotedTotal, set: o.customerTotalPaise! } } : {}),
+            ...(o.expiresAt ? { expiresAt: { quoted: period.end, set: newExpiresAt } } : {}),
+            reason: o.reason,
+          },
+        }
+      : {}),
     ...(r.paymentId ? { paymentId: r.paymentId } : {}),
     ...(grossCustomer ? { invoiceId: grossCustomer._id } : {}),
     actorId: r.actor,

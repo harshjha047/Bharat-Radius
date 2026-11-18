@@ -10872,6 +10872,26 @@
                     },
                     "newExpiresAt": {
                       "type": "string"
+                    },
+                    "walletModel": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["prepaid", "revenue_share"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sharePercent": {
+                      "type": ["number", "null"]
+                    },
+                    "canOverride": {
+                      "type": "boolean"
+                    },
+                    "maxExpiresAt": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -10882,7 +10902,11 @@
                     "customerPricePaise",
                     "customerTotalPaise",
                     "periodStart",
-                    "newExpiresAt"
+                    "newExpiresAt",
+                    "walletModel",
+                    "sharePercent",
+                    "canOverride",
+                    "maxExpiresAt"
                   ],
                   "additionalProperties": false
                 }
@@ -10957,6 +10981,26 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 12
+                  },
+                  "override": {
+                    "type": "object",
+                    "properties": {
+                      "customerTotalPaise": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000000000
+                      },
+                      "expiresOn": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 200
+                      }
+                    },
+                    "required": ["reason"]
                   }
                 },
                 "required": ["subscriberId"]
@@ -11093,6 +11137,70 @@
                     "paymentId": {
                       "type": ["string", "null"]
                     },
+                    "walletModel": {
+                      "type": "string",
+                      "enum": ["prepaid", "revenue_share"]
+                    },
+                    "sharePercent": {
+                      "type": ["number", "null"]
+                    },
+                    "override": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "customerTotal": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "quotedPaise": {
+                                      "type": "number"
+                                    },
+                                    "setPaise": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": ["quotedPaise", "setPaise"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "expiresAt": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "quoted": {
+                                      "type": "string"
+                                    },
+                                    "set": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["quoted", "set"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["customerTotal", "expiresAt", "reason"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "reversal": {
                       "anyOf": [
                         {
@@ -11140,6 +11248,9 @@
                     "by",
                     "invoiceId",
                     "paymentId",
+                    "walletModel",
+                    "sharePercent",
+                    "override",
                     "reversal",
                     "createdAt"
                   ],
@@ -11399,6 +11510,70 @@
                           "paymentId": {
                             "type": ["string", "null"]
                           },
+                          "walletModel": {
+                            "type": "string",
+                            "enum": ["prepaid", "revenue_share"]
+                          },
+                          "sharePercent": {
+                            "type": ["number", "null"]
+                          },
+                          "override": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "customerTotal": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "quotedPaise": {
+                                            "type": "number"
+                                          },
+                                          "setPaise": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": ["quotedPaise", "setPaise"],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "expiresAt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "quoted": {
+                                            "type": "string"
+                                          },
+                                          "set": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": ["quoted", "set"],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["customerTotal", "expiresAt", "reason"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "reversal": {
                             "anyOf": [
                               {
@@ -11446,6 +11621,9 @@
                           "by",
                           "invoiceId",
                           "paymentId",
+                          "walletModel",
+                          "sharePercent",
+                          "override",
                           "reversal",
                           "createdAt"
                         ],
@@ -11645,6 +11823,70 @@
                     "paymentId": {
                       "type": ["string", "null"]
                     },
+                    "walletModel": {
+                      "type": "string",
+                      "enum": ["prepaid", "revenue_share"]
+                    },
+                    "sharePercent": {
+                      "type": ["number", "null"]
+                    },
+                    "override": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "customerTotal": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "quotedPaise": {
+                                      "type": "number"
+                                    },
+                                    "setPaise": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": ["quotedPaise", "setPaise"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "expiresAt": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "quoted": {
+                                      "type": "string"
+                                    },
+                                    "set": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["quoted", "set"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["customerTotal", "expiresAt", "reason"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "reversal": {
                       "anyOf": [
                         {
@@ -11692,6 +11934,9 @@
                     "by",
                     "invoiceId",
                     "paymentId",
+                    "walletModel",
+                    "sharePercent",
+                    "override",
                     "reversal",
                     "createdAt"
                   ],
@@ -11902,6 +12147,70 @@
                     "paymentId": {
                       "type": ["string", "null"]
                     },
+                    "walletModel": {
+                      "type": "string",
+                      "enum": ["prepaid", "revenue_share"]
+                    },
+                    "sharePercent": {
+                      "type": ["number", "null"]
+                    },
+                    "override": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "customerTotal": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "quotedPaise": {
+                                      "type": "number"
+                                    },
+                                    "setPaise": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": ["quotedPaise", "setPaise"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "expiresAt": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "quoted": {
+                                      "type": "string"
+                                    },
+                                    "set": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["quoted", "set"],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["customerTotal", "expiresAt", "reason"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "reversal": {
                       "anyOf": [
                         {
@@ -11949,6 +12258,9 @@
                     "by",
                     "invoiceId",
                     "paymentId",
+                    "walletModel",
+                    "sharePercent",
+                    "override",
                     "reversal",
                     "createdAt"
                   ],
@@ -12967,6 +13279,876 @@
                     }
                   },
                   "required": ["today", "month", "unpaid", "wallets", "sms"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/topup-requests": {
+      "get": {
+        "summary": "Top-up requests asked of my wallet (incoming) or sent by me (outgoing), newest first",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "billing.read",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "box",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "incoming",
+              "type": "string",
+              "enum": ["incoming", "outgoing"]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "approved", "rejected", "cancelled"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "reseller": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "code", "name"],
+                            "additionalProperties": false
+                          },
+                          "walletId": {
+                            "type": "string"
+                          },
+                          "balancePaise": {
+                            "type": "number"
+                          },
+                          "amountPaise": {
+                            "type": "number"
+                          },
+                          "approvedPaise": {
+                            "type": ["number", "null"]
+                          },
+                          "paidVia": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": ["cash", "upi", "bank"]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "reference": {
+                            "type": ["string", "null"]
+                          },
+                          "note": {
+                            "type": ["string", "null"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["pending", "approved", "rejected", "cancelled"]
+                          },
+                          "decisionNote": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "decidedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "canDecide": {
+                            "type": "boolean"
+                          },
+                          "canCancel": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "reseller",
+                          "walletId",
+                          "balancePaise",
+                          "amountPaise",
+                          "approvedPaise",
+                          "paidVia",
+                          "reference",
+                          "note",
+                          "status",
+                          "decisionNote",
+                          "createdAt",
+                          "decidedAt",
+                          "canDecide",
+                          "canCancel"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    },
+                    "pending": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["items", "nextCursor", "pending"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Reseller asks the wallet directly above it for money",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "wallets.transfer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "amountPaise": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000000000
+                  },
+                  "paidVia": {
+                    "type": "string",
+                    "enum": ["cash", "upi", "bank"]
+                  },
+                  "reference": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "required": ["amountPaise"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "reseller": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "code", "name"],
+                      "additionalProperties": false
+                    },
+                    "walletId": {
+                      "type": "string"
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "approvedPaise": {
+                      "type": ["number", "null"]
+                    },
+                    "paidVia": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["cash", "upi", "bank"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reference": {
+                      "type": ["string", "null"]
+                    },
+                    "note": {
+                      "type": ["string", "null"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "approved", "rejected", "cancelled"]
+                    },
+                    "decisionNote": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "decidedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "canDecide": {
+                      "type": "boolean"
+                    },
+                    "canCancel": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "reseller",
+                    "walletId",
+                    "balancePaise",
+                    "amountPaise",
+                    "approvedPaise",
+                    "paidVia",
+                    "reference",
+                    "note",
+                    "status",
+                    "decisionNote",
+                    "createdAt",
+                    "decidedAt",
+                    "canDecide",
+                    "canCancel"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/topup-requests/{id}/approve": {
+      "post": {
+        "summary": "Send the money asked for (or another amount); a normal transfer, once per request",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "wallets.transfer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "amountPaise": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000000000
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "reseller": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "code", "name"],
+                      "additionalProperties": false
+                    },
+                    "walletId": {
+                      "type": "string"
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "approvedPaise": {
+                      "type": ["number", "null"]
+                    },
+                    "paidVia": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["cash", "upi", "bank"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reference": {
+                      "type": ["string", "null"]
+                    },
+                    "note": {
+                      "type": ["string", "null"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "approved", "rejected", "cancelled"]
+                    },
+                    "decisionNote": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "decidedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "canDecide": {
+                      "type": "boolean"
+                    },
+                    "canCancel": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "reseller",
+                    "walletId",
+                    "balancePaise",
+                    "amountPaise",
+                    "approvedPaise",
+                    "paidVia",
+                    "reference",
+                    "note",
+                    "status",
+                    "decisionNote",
+                    "createdAt",
+                    "decidedAt",
+                    "canDecide",
+                    "canCancel"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/topup-requests/{id}/reject": {
+      "post": {
+        "summary": "Turn down a top-up request with a note",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "wallets.transfer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  }
+                },
+                "required": ["note"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "reseller": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "code", "name"],
+                      "additionalProperties": false
+                    },
+                    "walletId": {
+                      "type": "string"
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "approvedPaise": {
+                      "type": ["number", "null"]
+                    },
+                    "paidVia": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["cash", "upi", "bank"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reference": {
+                      "type": ["string", "null"]
+                    },
+                    "note": {
+                      "type": ["string", "null"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "approved", "rejected", "cancelled"]
+                    },
+                    "decisionNote": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "decidedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "canDecide": {
+                      "type": "boolean"
+                    },
+                    "canCancel": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "reseller",
+                    "walletId",
+                    "balancePaise",
+                    "amountPaise",
+                    "approvedPaise",
+                    "paidVia",
+                    "reference",
+                    "note",
+                    "status",
+                    "decisionNote",
+                    "createdAt",
+                    "decidedAt",
+                    "canDecide",
+                    "canCancel"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/topup-requests/{id}/cancel": {
+      "post": {
+        "summary": "Withdraw my own pending request",
+        "tags": ["wallets"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "wallets.transfer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "reseller": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "code", "name"],
+                      "additionalProperties": false
+                    },
+                    "walletId": {
+                      "type": "string"
+                    },
+                    "balancePaise": {
+                      "type": "number"
+                    },
+                    "amountPaise": {
+                      "type": "number"
+                    },
+                    "approvedPaise": {
+                      "type": ["number", "null"]
+                    },
+                    "paidVia": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["cash", "upi", "bank"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reference": {
+                      "type": ["string", "null"]
+                    },
+                    "note": {
+                      "type": ["string", "null"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "approved", "rejected", "cancelled"]
+                    },
+                    "decisionNote": {
+                      "type": ["string", "null"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "decidedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "canDecide": {
+                      "type": "boolean"
+                    },
+                    "canCancel": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "reseller",
+                    "walletId",
+                    "balancePaise",
+                    "amountPaise",
+                    "approvedPaise",
+                    "paidVia",
+                    "reference",
+                    "note",
+                    "status",
+                    "decisionNote",
+                    "createdAt",
+                    "decidedAt",
+                    "canDecide",
+                    "canCancel"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -14535,6 +15717,13 @@
                     "canSetCustomerPrices": {
                       "type": "boolean"
                     },
+                    "walletModel": {
+                      "type": "string",
+                      "enum": ["prepaid", "revenue_share"]
+                    },
+                    "sharePercent": {
+                      "type": ["number", "null"]
+                    },
                     "items": {
                       "type": "array",
                       "items": {
@@ -14579,7 +15768,13 @@
                       }
                     }
                   },
-                  "required": ["canSetWalletPrices", "canSetCustomerPrices", "items"],
+                  "required": [
+                    "canSetWalletPrices",
+                    "canSetCustomerPrices",
+                    "walletModel",
+                    "sharePercent",
+                    "items"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -14646,7 +15841,7 @@
                 "type": "object",
                 "properties": {
                   "rates": {
-                    "minItems": 1,
+                    "default": [],
                     "maxItems": 500,
                     "type": "array",
                     "items": {
@@ -14679,9 +15874,37 @@
                       },
                       "required": ["planId"]
                     }
+                  },
+                  "model": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "walletModel": {
+                            "type": "string",
+                            "const": "prepaid"
+                          }
+                        },
+                        "required": ["walletModel"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "walletModel": {
+                            "type": "string",
+                            "const": "revenue_share"
+                          },
+                          "sharePercent": {
+                            "type": "number",
+                            "minimum": 0.01,
+                            "maximum": 100
+                          }
+                        },
+                        "required": ["walletModel", "sharePercent"]
+                      }
+                    ]
                   }
-                },
-                "required": ["rates"]
+                }
               }
             }
           }
@@ -14700,6 +15923,13 @@
                     },
                     "canSetCustomerPrices": {
                       "type": "boolean"
+                    },
+                    "walletModel": {
+                      "type": "string",
+                      "enum": ["prepaid", "revenue_share"]
+                    },
+                    "sharePercent": {
+                      "type": ["number", "null"]
                     },
                     "items": {
                       "type": "array",
@@ -14745,7 +15975,13 @@
                       }
                     }
                   },
-                  "required": ["canSetWalletPrices", "canSetCustomerPrices", "items"],
+                  "required": [
+                    "canSetWalletPrices",
+                    "canSetCustomerPrices",
+                    "walletModel",
+                    "sharePercent",
+                    "items"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -25512,6 +26748,7 @@
                         "resellers.write",
                         "billing.read",
                         "recharges.create",
+                        "recharges.override",
                         "wallets.transfer",
                         "wallets.refund",
                         "wallets.adjust",
@@ -25669,6 +26906,7 @@
                         "resellers.write",
                         "billing.read",
                         "recharges.create",
+                        "recharges.override",
                         "wallets.transfer",
                         "wallets.refund",
                         "wallets.adjust",

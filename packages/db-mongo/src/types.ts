@@ -211,6 +211,13 @@ export interface ResellerDoc extends Standard {
   walletId?: ObjectId;
   creditLimitPaise: number;
   canCreateSubResellers: boolean;
+  /**
+   * How this reseller's wallet pays for a recharge, set by its parent (staff for level 1). Absent = `prepaid`:
+   * the per-plan wallet price. `revenue_share`: `shareBp` / 10,000 of the plan price (excl. GST).
+   */
+  walletModel?: 'prepaid' | 'revenue_share';
+  /** Basis points debited under revenue share (4000 = 40 %). */
+  shareBp?: number;
   /** Suspended blocks the reseller's panel and new recharges in its whole branch; customers stay online. */
   status: ResellerStatus;
   suspendReason?: string;

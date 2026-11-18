@@ -1,7 +1,7 @@
 import { ObjectId, type ClientSession, type Db } from 'mongodb';
 import type { ResellerDoc, TenantDoc } from '../types.js';
 import { DEFAULT_BILLING, MoneyError, insufficient } from './money.js';
-import type { WalletDoc, WalletTransferDoc, WalletTxnDoc, WalletTxnType } from './types.js';
+import type { WalletDoc, WalletTransferDoc, WalletTxnDoc, WalletTxnType, TopupRequestDoc } from './types.js';
 
 type Totals = keyof WalletDoc['totals'];
 const TOTAL_FOR: Record<WalletTxnType, Partial<Record<'credit' | 'debit', Totals>>> = {
@@ -15,6 +15,7 @@ const TOTAL_FOR: Record<WalletTxnType, Partial<Record<'credit' | 'debit', Totals
 export const wallets = (db: Db) => db.collection<WalletDoc>('wallets');
 export const walletTxns = (db: Db) => db.collection<WalletTxnDoc>('wallet_txns');
 export const walletTransfers = (db: Db) => db.collection<WalletTransferDoc>('wallet_transfers');
+export const topupRequests = (db: Db) => db.collection<TopupRequestDoc>('topup_requests');
 
 const lowBalanceOf = async (db: Db, tenantId: ObjectId, session?: ClientSession) =>
   (

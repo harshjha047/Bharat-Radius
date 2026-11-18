@@ -24,6 +24,7 @@ import {
   type Payment,
   type Recharge,
   type Subscriber,
+  type TopupRequest,
   type Wallet,
 } from '@/lib/queries';
 import { fmtDate, fmtDateTime, fmtRupees } from '@/lib/utils';
@@ -200,6 +201,114 @@ export function TopUpDialog({
 
 const QUANTITIES = [1, 2, 3, 4, 5, 6, 12] as const;
 
+/** ISO instant → its calendar day in India, YYYY-MM-DD (for <input type="date">). */
+const istDay = (iso: string) => new Date(new Date(iso).getTime() + 330 * 60_000).toISOString().slice(0, 10);
+
+/** Reseller asks the wallet above it for money; the parent approves it as a normal top-up. */
+export function RequestTopUpDialog({
+  open,
+  onOpenChange,
+  suggestPaise,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  suggestPaise?: number;
+}) {
+  const qc = useQueryClient();
+  const [amount, setAmount] = useState('');
+  const [via, setVia] = useState<'cash' | 'upi' | 'bank' | ''>('');
+  const [reference, setReference] = useState('');
+  const [note, setNote] = useState('');
+  const paise = toPaise(amount);
+  const m = useMutation({
+    meta: { silent: true },
+    mutationFn: () =>
+      unwrap(
+        api.POST('/api/v1/wallets/topup-requests', {
+          body: {
+            amountPaise: paise!,
+            ...(via ? { paidVia: via } : {}),
+            ...(reference.trim() ? { reference: reference.trim() } : {}),
+            ...(note.trim() ? { note: note.trim() } : {}),
+          },
+        }),
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['topup-requests'] });
+      toast.success(`Asked for ${fmtRupees(paise!)}. You will see the balance once it is approved.`);
+      setAmount('');
+      setReference('');
+      setNote('');
+      onOpenChange(false);
+    },
+  });
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o && suggestPaise && !amount) setAmount(String(Math.ceil(suggestPaise / 100)));
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent
+        title="Request a top-up"
+        description="Sent to the level above you. The balance is added when they approve it."
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (paise) m.mutate();
+          }}
+        >
+          <Field
+            label="Amount (₹)"
+            htmlFor="rq-amount"
+            error={amount && !paise ? 'Enter an amount, e.g. 5000' : m.error ? errorText(m.error) : undefined}
+          >
+            <Input
+              id="rq-amount"
+              inputMode="decimal"
+              autoFocus
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Paid via" htmlFor="rq-via">
+              <Select id="rq-via" value={via} onChange={(e) => setVia(e.target.value as typeof via)}>
+                <option value="">—</option>
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="bank">Bank transfer</option>
+              </Select>
+            </Field>
+            <Field label="Reference / UTR" htmlFor="rq-ref">
+              <Input
+                id="rq-ref"
+                maxLength={60}
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Field label="Note" htmlFor="rq-note">
+            <Input id="rq-note" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+          <div className={dialogActions}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={m.isPending} disabled={!paise}>
+              Request {paise ? fmtRupees(paise) : ''}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** Prepaid recharge with a live quote: reseller pays from its wallet; staff records cash or a complimentary one. */
 export function RechargeDialog({
   subscriber,
@@ -219,6 +328,10 @@ export function RechargeDialog({
   const [planId, setPlanId] = useState(subscriber.planId ?? '');
   const [payment, setPayment] = useState<'cash' | 'none'>('cash');
   const [quantity, setQuantity] = useState(1);
+  const [price, setPrice] = useState<string | null>(null);
+  const [until, setUntil] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
+  const [askTopUp, setAskTopUp] = useState(false);
   const quote = useQuery({
     queryKey: ['recharge-quote', subscriber.id, planId, quantity],
     queryFn: () =>
@@ -236,7 +349,13 @@ export function RechargeDialog({
     mutationFn: () =>
       unwrap(
         api.POST('/api/v1/recharges', {
-          body: { subscriberId: subscriber.id, planId, quantity, ...(staff ? { payment } : {}) },
+          body: {
+            subscriberId: subscriber.id,
+            planId,
+            quantity,
+            ...(staff ? { payment } : {}),
+            ...(override ? { override } : {}),
+          },
           ...idem(key),
         }),
       ),
@@ -252,12 +371,37 @@ export function RechargeDialog({
   });
   const q = quote.data;
   const short = !staff && q && q.walletBalancePaise !== null && q.walletBalancePaise < q.walletPricePaise;
+  const complimentary = staff && payment === 'none';
+  const pricePaise = price === null ? null : toPaise(price);
+  const priceBad = price !== null && (pricePaise === null || pricePaise % 100 !== 0);
+  const priceChanged = !!q && !complimentary && pricePaise !== null && pricePaise !== q.customerTotalPaise;
+  const untilChanged = !!q && until !== null && !!until && until !== istDay(q.newExpiresAt);
+  const untilBad =
+    !!q &&
+    untilChanged &&
+    (until! <= istDay(q.periodStart) || (!!q.maxExpiresAt && until! > istDay(q.maxExpiresAt)));
+  const override =
+    priceChanged || untilChanged
+      ? {
+          ...(priceChanged ? { customerTotalPaise: pricePaise! } : {}),
+          ...(untilChanged ? { expiresOn: until! } : {}),
+          reason: reason.trim(),
+        }
+      : null;
+  const resetEdits = () => {
+    setPrice(null);
+    setUntil(null);
+    setReason('');
+  };
   const prepaidPlans = plans.filter((p) => p.status === 'active' && p.billingTypes.includes('prepaid'));
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (o) newKey();
+        if (o) {
+          newKey();
+          resetEdits();
+        }
         onOpenChange(o);
       }}
     >
@@ -270,7 +414,14 @@ export function RechargeDialog({
           }}
         >
           <Field label="Plan" htmlFor="rc-plan">
-            <Select id="rc-plan" value={planId} onChange={(e) => setPlanId(e.target.value)}>
+            <Select
+              id="rc-plan"
+              value={planId}
+              onChange={(e) => {
+                setPlanId(e.target.value);
+                resetEdits();
+              }}
+            >
               <option value="">Choose a plan</option>
               {prepaidPlans.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -284,7 +435,14 @@ export function RechargeDialog({
             htmlFor="rc-qty"
             hint={q ? `${q.plan.validityDays * quantity} days` : undefined}
           >
-            <Select id="rc-qty" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))}>
+            <Select
+              id="rc-qty"
+              value={quantity}
+              onChange={(e) => {
+                setQuantity(Number(e.target.value));
+                resetEdits();
+              }}
+            >
               {QUANTITIES.map((n) => (
                 <option key={n} value={n}>
                   {n === 1 ? '1 (single)' : `${n} ×`}
@@ -310,22 +468,92 @@ export function RechargeDialog({
                 ...(staff
                   ? []
                   : ([
-                      ['From your wallet', fmtRupees(q.walletPricePaise)],
+                      [
+                        'From your wallet',
+                        q.walletModel === 'revenue_share' && q.sharePercent !== null
+                          ? `${fmtRupees(q.walletPricePaise)} (${q.sharePercent}% of plan price)`
+                          : fmtRupees(q.walletPricePaise),
+                      ],
                       [
                         'Wallet balance',
                         q.walletBalancePaise === null ? '—' : fmtRupees(q.walletBalancePaise),
                       ],
                     ] as [string, string][])),
-                ['Customer pays (incl. GST)', fmtRupees(q.customerTotalPaise)],
-                ['Starts', fmtDateTime(q.periodStart)],
-                ['Valid until', fmtDateTime(q.newExpiresAt)],
+                ...(q.canOverride
+                  ? ([['Starts', fmtDateTime(q.periodStart)]] as [string, string][])
+                  : ([
+                      ['Customer pays (incl. GST)', fmtRupees(q.customerTotalPaise)],
+                      ['Starts', fmtDateTime(q.periodStart)],
+                      ['Valid until', fmtDateTime(q.newExpiresAt)],
+                    ] as [string, string][])),
               ]}
             />
           ) : null}
+          {q?.canOverride ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label="Customer pays (₹, incl. GST)"
+                htmlFor="rc-price"
+                hint={priceChanged ? `Plan price ${fmtRupees(q.customerTotalPaise)}` : undefined}
+                error={!complimentary && priceBad ? 'Whole rupees, e.g. 590' : undefined}
+              >
+                <Input
+                  id="rc-price"
+                  inputMode="numeric"
+                  disabled={complimentary}
+                  value={complimentary ? '0' : (price ?? String(q.customerTotalPaise / 100))}
+                  onChange={(e) => setPrice(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Valid until"
+                htmlFor="rc-until"
+                hint={untilChanged ? `Plan gives ${fmtDate(q.newExpiresAt)}` : 'Ends 11:59 pm'}
+                error={
+                  untilBad
+                    ? q.maxExpiresAt && until! > istDay(q.maxExpiresAt)
+                      ? `At most ${fmtDate(q.maxExpiresAt)}: add periods for more days`
+                      : 'Must be after the start'
+                    : undefined
+                }
+              >
+                <Input
+                  id="rc-until"
+                  type="date"
+                  min={istDay(q.periodStart)}
+                  {...(q.maxExpiresAt ? { max: istDay(q.maxExpiresAt) } : {})}
+                  value={until ?? istDay(q.newExpiresAt)}
+                  onChange={(e) => setUntil(e.target.value)}
+                />
+              </Field>
+            </div>
+          ) : null}
+          {override ? (
+            <Field
+              label="Reason for the change"
+              htmlFor="rc-reason"
+              hint="Saved with the recharge and in the audit log"
+            >
+              <Input
+                id="rc-reason"
+                maxLength={200}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. festival offer, compensation for outage"
+              />
+            </Field>
+          ) : null}
           {short ? (
-            <p className="text-sm text-destructive">
-              Insufficient Wallet Balance. Ask your parent for a top-up.
-            </p>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+              <span>Insufficient Wallet Balance.</span>
+              {can('wallets.transfer') ? (
+                <Button type="button" size="sm" variant="outline" onClick={() => setAskTopUp(true)}>
+                  Request top-up
+                </Button>
+              ) : (
+                <span>Ask your parent for a top-up.</span>
+              )}
+            </div>
           ) : null}
           {m.error ? <p className="text-sm text-destructive">{errorText(m.error)}</p> : null}
           <div className={dialogActions}>
@@ -336,13 +564,25 @@ export function RechargeDialog({
               type="submit"
               loading={m.isPending}
               disabled={
-                !planId || !!short || (staff && !can(payment === 'cash' ? 'billing.cash' : 'wallets.adjust'))
+                !planId ||
+                !!short ||
+                (staff && !can(payment === 'cash' ? 'billing.cash' : 'wallets.adjust')) ||
+                priceBad ||
+                untilBad ||
+                (!!override && override.reason.length < 3)
               }
             >
               Recharge
             </Button>
           </div>
         </form>
+        {q && short ? (
+          <RequestTopUpDialog
+            open={askTopUp}
+            onOpenChange={setAskTopUp}
+            suggestPaise={q.walletPricePaise - (q.walletBalancePaise ?? 0)}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );
@@ -626,17 +866,36 @@ export function RechargesTable({
           {
             key: 'wallet',
             header: 'Wallet debit',
-            cell: (r) => (r.amountPaise ? fmtRupees(r.amountPaise) : '—'),
+            cell: (r) =>
+              r.amountPaise ? (
+                <span>
+                  {fmtRupees(r.amountPaise)}
+                  {r.sharePercent !== null ? (
+                    <span className="block text-xs text-muted-foreground">{r.sharePercent}% share</span>
+                  ) : null}
+                </span>
+              ) : (
+                '—'
+              ),
             className: 'text-right',
           },
           {
             key: 'period',
             header: 'Period',
             cell: (r) => (
-              <span className="whitespace-nowrap">
+              <span className="whitespace-nowrap" title={r.override?.reason}>
                 {fmtDate(r.periodStart)} → {fmtDate(r.newExpiresAt)}
                 {r.quantity > 1 ? (
                   <span className="block text-xs text-muted-foreground">× {r.quantity}</span>
+                ) : null}
+                {r.override ? (
+                  <span className="block text-xs text-warning-text">
+                    Edited
+                    {r.override.customerTotal
+                      ? ` · ${fmtRupees(r.override.customerTotal.setPaise)} (was ${fmtRupees(r.override.customerTotal.quotedPaise)})`
+                      : ''}
+                    {r.override.expiresAt ? ` · plan gave ${fmtDate(r.override.expiresAt.quoted)}` : ''}
+                  </span>
                 ) : null}
               </span>
             ),
@@ -898,5 +1157,248 @@ export function SubscriberBilling({ subscriberId }: { subscriberId: string }) {
         <PaymentsTable query={query} showSubscriber={false} />
       </TabsContent>
     </Tabs>
+  );
+}
+
+const REQUEST_TONE = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'danger',
+  cancelled: 'neutral',
+} as const;
+
+/** Top-up requests asked of my wallet (incoming: approve / reject) or sent by me (outgoing: withdraw). */
+export function TopupRequestsPanel({ box }: { box: 'incoming' | 'outgoing' }) {
+  const qc = useQueryClient();
+  const [status, setStatus] = useState<'pending' | 'all'>('pending');
+  const [deciding, setDeciding] = useState<{ r: TopupRequest; mode: 'approve' | 'reject' } | null>(null);
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const list = useQuery({
+    queryKey: ['topup-requests', box, status],
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/v1/wallets/topup-requests', {
+          params: { query: { box, limit: 50, ...(status === 'pending' ? { status: 'pending' } : {}) } },
+        }),
+      ),
+    refetchInterval: 60_000,
+  });
+  const done = (msg: string) => {
+    void qc.invalidateQueries({ queryKey: ['topup-requests'] });
+    void qc.invalidateQueries({ queryKey: ['wallets'] });
+    void qc.invalidateQueries({ queryKey: ['wallet'] });
+    toast.success(msg);
+    setDeciding(null);
+  };
+  const decide = useMutation({
+    meta: { silent: true },
+    mutationFn: async () => {
+      const id = deciding!.r.id;
+      if (deciding!.mode === 'approve') {
+        const p = toPaise(amount);
+        return unwrap(
+          api.POST('/api/v1/wallets/topup-requests/{id}/approve', {
+            params: { path: { id } },
+            body: { ...(p ? { amountPaise: p } : {}), ...(note.trim() ? { note: note.trim() } : {}) },
+          }),
+        );
+      }
+      return unwrap(
+        api.POST('/api/v1/wallets/topup-requests/{id}/reject', {
+          params: { path: { id } },
+          body: { note: note.trim() },
+        }),
+      );
+    },
+    onSuccess: (r) =>
+      done(
+        r.status === 'approved'
+          ? `${fmtRupees(r.approvedPaise ?? r.amountPaise)} sent to ${r.reseller.name}.`
+          : 'Request rejected.',
+      ),
+  });
+  const cancel = useMutation({
+    mutationFn: (id: string) =>
+      unwrap(api.POST('/api/v1/wallets/topup-requests/{id}/cancel', { params: { path: { id } } })),
+    onSuccess: () => done('Request withdrawn.'),
+  });
+  if (list.isError) return <ErrorState error={list.error} onRetry={() => void list.refetch()} />;
+  const items = list.data?.items;
+  const approveP = toPaise(amount);
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="font-semibold">
+          {box === 'incoming' ? 'Top-up requests' : 'My top-up requests'}
+          {list.data?.pending ? (
+            <Badge tone="warning" className="ml-2">
+              {list.data.pending} waiting
+            </Badge>
+          ) : null}
+        </h2>
+        <Tabs value={status} onValueChange={(v) => setStatus(v as typeof status)} className="ml-auto">
+          <TabsList>
+            <TabsTrigger value="pending">Waiting</TabsTrigger>
+            <TabsTrigger value="all">All</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      <DataTable
+        caption={box === 'incoming' ? 'Top-up requests to approve' : 'My top-up requests'}
+        loading={list.isLoading}
+        rows={items}
+        rowKey={(r) => r.id}
+        empty={status === 'pending' ? 'Nothing waiting.' : 'No requests yet.'}
+        columns={[
+          { key: 'at', header: 'Asked', cell: (r) => fmtDateTime(r.createdAt) },
+          ...(box === 'incoming'
+            ? [
+                {
+                  key: 'who',
+                  header: 'Reseller',
+                  cell: (r: TopupRequest) => (
+                    <div>
+                      <span className="font-medium">{r.reseller.name}</span>
+                      <div className="text-xs text-muted-foreground">
+                        {r.reseller.code} · balance {fmtRupees(r.balancePaise)}
+                      </div>
+                    </div>
+                  ),
+                },
+              ]
+            : []),
+          {
+            key: 'amt',
+            header: 'Amount',
+            className: 'text-right tabular-nums',
+            cell: (r) => (
+              <span>
+                {fmtRupees(r.amountPaise)}
+                {r.approvedPaise !== null && r.approvedPaise !== r.amountPaise ? (
+                  <span className="block text-xs text-muted-foreground">
+                    sent {fmtRupees(r.approvedPaise)}
+                  </span>
+                ) : null}
+              </span>
+            ),
+          },
+          {
+            key: 'pay',
+            header: 'Paid via',
+            hideOnMobile: true,
+            cell: (r) => [r.paidVia?.toUpperCase(), r.reference, r.note].filter(Boolean).join(' · ') || '—',
+          },
+          {
+            key: 'st',
+            header: 'Status',
+            cell: (r) => (
+              <span title={r.decisionNote ?? undefined}>
+                <Badge tone={REQUEST_TONE[r.status]}>{r.status}</Badge>
+                {r.decisionNote ? (
+                  <span className="block text-xs text-muted-foreground">{r.decisionNote}</span>
+                ) : null}
+              </span>
+            ),
+          },
+          {
+            key: 'act',
+            header: '',
+            cell: (r) =>
+              r.canDecide ? (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setAmount(String(r.amountPaise / 100));
+                      setNote('');
+                      setDeciding({ r, mode: 'approve' });
+                    }}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setNote('');
+                      setDeciding({ r, mode: 'reject' });
+                    }}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              ) : r.canCancel ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={cancel.isPending && cancel.variables === r.id}
+                  onClick={() => cancel.mutate(r.id)}
+                >
+                  Withdraw
+                </Button>
+              ) : null,
+          },
+        ]}
+      />
+      <Dialog open={!!deciding} onOpenChange={(o) => !o && setDeciding(null)}>
+        <DialogContent
+          title={
+            deciding
+              ? `${deciding.mode === 'approve' ? 'Approve' : 'Reject'} ${deciding.r.reseller.name}’s request`
+              : ''
+          }
+          description={
+            deciding?.mode === 'approve'
+              ? 'Moves the money from your wallet to theirs, recorded in both ledgers.'
+              : 'Nothing moves; they see your note.'
+          }
+        >
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              decide.mutate();
+            }}
+          >
+            {deciding?.mode === 'approve' ? (
+              <Field
+                label="Amount to send (₹)"
+                htmlFor="tr-amount"
+                hint={`Asked: ${fmtRupees(deciding.r.amountPaise)}`}
+                error={amount && !approveP ? 'Enter an amount' : undefined}
+              >
+                <Input
+                  id="tr-amount"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              </Field>
+            ) : null}
+            <Field
+              label={deciding?.mode === 'reject' ? 'Reason' : 'Note (optional)'}
+              htmlFor="tr-note"
+              error={decide.error ? errorText(decide.error) : undefined}
+            >
+              <Input id="tr-note" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
+            </Field>
+            <div className={dialogActions}>
+              <Button type="button" variant="outline" onClick={() => setDeciding(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant={deciding?.mode === 'reject' ? 'destructive' : 'default'}
+                loading={decide.isPending}
+                disabled={deciding?.mode === 'approve' ? !approveP : note.trim().length < 3}
+              >
+                {deciding?.mode === 'approve' ? `Send ${approveP ? fmtRupees(approveP) : ''}` : 'Reject'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

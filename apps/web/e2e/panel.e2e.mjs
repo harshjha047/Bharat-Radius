@@ -217,8 +217,10 @@ step('billing: top up a reseller, cash recharge, GST invoice', async () => {
   await page.getByRole('link', { name: 'Ramesh Kumar E2E' }).click();
   await page.getByRole('button', { name: 'Recharge' }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByText('Customer pays (incl. GST)').waitFor();
-  await dialog.getByText('₹589.00').waitFor();
+  // ISP Admin holds recharges.override: price and valid-until are editable, pre-filled with the plan's.
+  await dialog.getByLabel('Customer pays (₹, incl. GST)').waitFor();
+  assert.equal(await dialog.locator('#rc-price').inputValue(), '589');
+  assert.match(await dialog.locator('#rc-until').inputValue(), /^\d{4}-\d{2}-\d{2}$/);
   await dialog.getByRole('button', { name: 'Recharge' }).click();
   await page.getByText(/Recharged\. Valid until/).waitFor();
   await page.getByRole('tab', { name: 'Billing' }).click();
