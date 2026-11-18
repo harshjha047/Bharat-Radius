@@ -1,4 +1,5 @@
 import createClient from 'openapi-fetch';
+import { currentViewAs } from './view-as';
 import type { paths } from './api-types';
 
 export type { paths };
@@ -29,8 +30,11 @@ function csrfToken(portal: boolean): string | undefined {
 }
 
 function withCsrf(req: Request): Request {
-  const t = csrfToken(PORTAL.test(new URL(req.url).pathname));
+  const portal = PORTAL.test(new URL(req.url).pathname);
+  const t = csrfToken(portal);
   if (t && UNSAFE.has(req.method)) req.headers.set('x-csrf-token', t);
+  const viewAs = portal ? null : currentViewAs();
+  if (viewAs) req.headers.set('x-view-as', viewAs);
   return req;
 }
 
@@ -146,3 +150,6 @@ export type ApiData<P extends GetPaths> = paths[P] extends {
   ? R
   : never;
 export type Item<P extends GetPaths> = ApiData<P> extends { items: (infer I)[] } ? I : never;
+
+/** Message to show for a failed request. */
+export const errorText = (e: unknown) => (e instanceof ApiError ? e.message : 'Something went wrong');

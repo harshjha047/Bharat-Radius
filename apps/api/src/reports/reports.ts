@@ -32,6 +32,7 @@ export const REPORTS = {
   revenue: 'Revenue (invoices)',
   collections: 'Collections',
   subscribers: 'Active and expired subscribers',
+  recharges: 'Recharges and expiries',
   'reseller-sales': 'Reseller sales',
   usage: 'Data usage',
   tickets: 'Support tickets',
@@ -115,11 +116,13 @@ export class ReportsService {
             ? await this.collections(ctx, p)
             : name === 'subscribers'
               ? await this.subscribers(ctx, p)
-              : name === 'reseller-sales'
-                ? await this.resellerSales(ctx, p)
-                : name === 'usage'
-                  ? await this.usage(ctx, p)
-                  : await this.tickets(ctx, p);
+              : name === 'recharges'
+                ? await this.recharges(ctx, p)
+                : name === 'reseller-sales'
+                  ? await this.resellerSales(ctx, p)
+                  : name === 'usage'
+                    ? await this.usage(ctx, p)
+                    : await this.tickets(ctx, p);
     return {
       name,
       title: REPORTS[name],
@@ -439,6 +442,255 @@ export class ReportsService {
           { key: 'total', label: 'Total', kind: 'int' },
         ],
         rows: ownerRows,
+      },
+    ];
+  }
+
+  /**
+   * Recharges and expiries in the period (docx §8): recharge count / amount / users recharged, users expired in the
+   * period (still expired = pending, or renewed late), pending now, day- and month-wise, package-wise, recharge list.
+   */
+  private async recharges(ctx: AuthContext, p: Period): Promise<Table[]> {
+    const now = new Date();
+    const capEnd = p.end < now ? p.end : now;
+    const ok = { $eq: ['$status', 'SUCCESS'] };
+    const gross = { $add: ['$customerPricePaise', '$taxPaise'] };
+    const qty = { $ifNull: ['$quantity', 1] };
+    const rc = this.scoped(ctx).collection<RechargeDoc>('recharges');
+    const subs = this.scoped(ctx).collection<SubscriberDoc>('subscribers');
+    const inPeriod = { rechargeDate: { $gte: p.start, $lt: p.end } };
+    const expiredNow = {
+      status: 'active' as const,
+      billingType: 'prepaid' as const,
+      expiresAt: { $lte: now },
+    };
+    const groupBy = (fmt: string) => ({
+      $group: {
+        _id: { $dateToString: { format: fmt, date: '$rechargeDate', timezone: 'Asia/Kolkata' } },
+        n: { $sum: { $cond: [ok, 1, 0] } },
+        users: { $addToSet: { $cond: [ok, '$subscriberId', '$$REMOVE'] } },
+        amount: { $sum: { $cond: [ok, gross, 0] } },
+        reversed: { $sum: { $cond: [ok, 0, 1] } },
+      },
+    });
+    const expiredGroup = (fmt: string) => ({
+      $group: {
+        _id: { $dateToString: { format: fmt, date: '$expiresAt', timezone: 'Asia/Kolkata' } },
+        n: { $sum: 1 },
+      },
+    });
+    const [byDay, byMonth, byPlan, users, stillExpired, renewedLate, pending, expiring, joined, list] =
+      await Promise.all([
+        rc
+          .aggregate<{ _id: string; n: number; users: ObjectId[]; amount: number; reversed: number }>([
+            { $match: inPeriod },
+            groupBy('%Y-%m-%d'),
+          ])
+          .toArray(),
+        rc
+          .aggregate<{ _id: string; n: number; users: ObjectId[]; amount: number; reversed: number }>([
+            { $match: inPeriod },
+            groupBy('%Y-%m'),
+          ])
+          .toArray(),
+        rc
+          .aggregate<{ _id: ObjectId; n: number; periods: number; amount: number }>([
+            { $match: { ...inPeriod, status: 'SUCCESS' } },
+            { $group: { _id: '$planId', n: { $sum: 1 }, periods: { $sum: qty }, amount: { $sum: gross } } },
+          ])
+          .toArray(),
+        rc
+          .aggregate<{ n: number }>([
+            { $match: { ...inPeriod, status: 'SUCCESS' } },
+            { $group: { _id: '$subscriberId' } },
+            { $count: 'n' },
+          ])
+          .toArray(),
+        subs
+          .aggregate<{ _id: string; n: number }>([
+            { $match: { ...expiredNow, expiresAt: { $gte: p.start, $lt: capEnd } } },
+            expiredGroup('%Y-%m-%d'),
+          ])
+          .toArray(),
+        // Expired in the period and renewed afterwards: the recharge that renewed them started from their old expiry.
+        rc
+          .aggregate<{ _id: null; ids: ObjectId[] }>([
+            {
+              $match: {
+                status: 'SUCCESS',
+                oldExpiresAt: { $gte: p.start, $lt: capEnd },
+                $expr: { $lt: ['$oldExpiresAt', '$rechargeDate'] },
+              },
+            },
+            { $group: { _id: null, ids: { $addToSet: '$subscriberId' } } },
+          ])
+          .toArray(),
+        subs.countDocuments(expiredNow),
+        subs.countDocuments({
+          status: 'active',
+          billingType: 'prepaid',
+          expiresAt: { $gt: now, $lte: new Date(now.getTime() + 7 * 86_400_000) },
+        }),
+        subs.countDocuments({ status: { $ne: 'deleted' }, createdAt: { $gte: p.start, $lt: p.end } }),
+        rc.find(inPeriod, { sort: { rechargeDate: -1 }, limit: 5000 }).toArray(),
+      ]);
+
+    const planIds = [...new Set([...byPlan.map((x) => x._id), ...list.map((x) => x.planId)].map(String))].map(
+      (x) => new ObjectId(x),
+    );
+    const subIds = [...new Set(list.map((x) => x.subscriberId.toHexString()))].map((x) => new ObjectId(x));
+    const actorIds = [...new Set(list.map((x) => x.actorId).filter((a) => ObjectId.isValid(a)))].map(
+      (a) => new ObjectId(a),
+    );
+    const [plans, people, actors] = await Promise.all([
+      this.db
+        .collection<PlanDoc>('plans')
+        .find({ _id: { $in: planIds } }, { projection: { name: 1 } })
+        .toArray(),
+      this.db
+        .collection<SubscriberDoc>('subscribers')
+        .find({ _id: { $in: subIds } }, { projection: { customerNo: 1, username: 1, name: 1 } })
+        .toArray(),
+      this.db
+        .collection<{ _id: ObjectId; name: string }>('users')
+        .find({ _id: { $in: actorIds } }, { projection: { name: 1 } })
+        .toArray(),
+    ]);
+    const planName = new Map(plans.map((x) => [x._id.toHexString(), x.name]));
+    const person = new Map(people.map((x) => [x._id.toHexString(), x]));
+    const actor = new Map(actors.map((x) => [x._id.toHexString(), x.name]));
+    const istDay = (d: Date) => new Date(d.getTime() + 330 * 60_000).toISOString().slice(0, 10);
+
+    const expiredByDay = new Map(stillExpired.map((x) => [x._id, x.n]));
+    const lateIds = renewedLate[0]?.ids ?? [];
+    const stillExpiredTotal = stillExpired.reduce((n, x) => n + x.n, 0);
+    const dayRows = [...new Set([...byDay.map((x) => x._id), ...expiredByDay.keys()])].sort().map((day) => {
+      const x = byDay.find((d) => d._id === day);
+      return {
+        day,
+        n: x?.n ?? 0,
+        users: x?.users.length ?? 0,
+        amount: x?.amount ?? 0,
+        reversed: x?.reversed ?? 0,
+        expired: expiredByDay.get(day) ?? 0,
+      };
+    });
+    const monthExpired = new Map<string, number>();
+    for (const x of stillExpired)
+      monthExpired.set(x._id.slice(0, 7), (monthExpired.get(x._id.slice(0, 7)) ?? 0) + x.n);
+    const monthRows = [...new Set([...byMonth.map((x) => x._id), ...monthExpired.keys()])]
+      .sort()
+      .map((month) => {
+        const x = byMonth.find((d) => d._id === month);
+        return {
+          month,
+          n: x?.n ?? 0,
+          users: x?.users.length ?? 0,
+          amount: x?.amount ?? 0,
+          reversed: x?.reversed ?? 0,
+          expired: monthExpired.get(month) ?? 0,
+        };
+      });
+    const planRows = byPlan
+      .map((x) => ({
+        plan: planName.get(x._id.toHexString()) ?? 'Deleted plan',
+        n: x.n,
+        periods: x.periods,
+        amount: x.amount,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+    const listRows = list.map((x) => {
+      const s = person.get(x.subscriberId.toHexString());
+      const start =
+        x.periodStart ??
+        (x.oldExpiresAt && x.oldExpiresAt > x.rechargeDate ? x.oldExpiresAt : x.rechargeDate);
+      return {
+        date: istDay(x.rechargeDate),
+        customer: s?.customerNo ?? '',
+        username: s?.username ?? '',
+        name: s?.name ?? '',
+        plan: planName.get(x.planId.toHexString()) ?? '',
+        qty: x.quantity ?? 1,
+        start: istDay(start),
+        end: istDay(x.newExpiresAt),
+        amount: x.status === 'SUCCESS' ? x.customerPricePaise + x.taxPaise : 0,
+        status: x.status === 'SUCCESS' ? 'Done' : 'Refunded',
+        by: actor.get(x.actorId) ?? x.channel,
+      };
+    });
+    const sumKeys = ['n', 'users', 'amount', 'reversed', 'expired'];
+    const periodCols = [
+      { key: 'n', label: 'Recharges', kind: 'int' as const },
+      { key: 'users', label: 'Users recharged', kind: 'int' as const },
+      { key: 'amount', label: 'Amount incl. GST', kind: 'money' as const },
+      { key: 'reversed', label: 'Refunded', kind: 'int' as const },
+      { key: 'expired', label: 'Expired, not renewed', kind: 'int' as const },
+    ];
+    return [
+      {
+        title: 'Summary',
+        columns: [
+          { key: 'k', label: 'Measure' },
+          { key: 'v', label: 'Count', kind: 'int' },
+        ],
+        rows: [
+          { k: 'Recharges', v: byDay.reduce((n, x) => n + x.n, 0) },
+          { k: 'Users recharged', v: users[0]?.n ?? 0 },
+          { k: 'Expired in the period', v: stillExpiredTotal + lateIds.length },
+          { k: '  of them renewed later', v: lateIds.length },
+          { k: '  still not renewed', v: stillExpiredTotal },
+          { k: 'Pending recharge now (all expired)', v: pending },
+          { k: 'Expiring in the next 7 days', v: expiring },
+          { k: 'New subscribers', v: joined },
+        ],
+      },
+      {
+        title: 'Amount',
+        columns: [
+          { key: 'k', label: 'Measure' },
+          { key: 'v', label: 'Amount', kind: 'money' },
+        ],
+        rows: [{ k: 'Recharges incl. GST', v: byDay.reduce((n, x) => n + x.amount, 0) }],
+      },
+      {
+        title: 'By day',
+        columns: [{ key: 'day', label: 'Day' }, ...periodCols],
+        rows: dayRows,
+        totals: { day: 'Total', ...sumRow(dayRows, sumKeys), users: users[0]?.n ?? 0 },
+      },
+      {
+        title: 'By month',
+        columns: [{ key: 'month', label: 'Month' }, ...periodCols],
+        rows: monthRows,
+        totals: { month: 'Total', ...sumRow(monthRows, sumKeys), users: users[0]?.n ?? 0 },
+      },
+      {
+        title: 'By package',
+        columns: [
+          { key: 'plan', label: 'Package' },
+          { key: 'n', label: 'Recharges', kind: 'int' },
+          { key: 'periods', label: 'Periods sold', kind: 'int' },
+          { key: 'amount', label: 'Amount incl. GST', kind: 'money' },
+        ],
+        rows: planRows,
+        totals: { plan: 'Total', ...sumRow(planRows, ['n', 'periods', 'amount']) },
+      },
+      {
+        title: list.length === 5000 ? 'Recharges (latest 5,000)' : 'Recharges',
+        columns: [
+          { key: 'date', label: 'Date' },
+          { key: 'customer', label: 'Customer no.' },
+          { key: 'username', label: 'Username' },
+          { key: 'name', label: 'Name' },
+          { key: 'plan', label: 'Package' },
+          { key: 'qty', label: 'Qty', kind: 'int' },
+          { key: 'start', label: 'Start' },
+          { key: 'end', label: 'End' },
+          { key: 'amount', label: 'Amount incl. GST', kind: 'money' },
+          { key: 'status', label: 'Status' },
+          { key: 'by', label: 'By' },
+        ],
+        rows: listRows,
       },
     ];
   }

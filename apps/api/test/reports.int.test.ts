@@ -1,7 +1,16 @@
 import { ObjectId } from 'mongodb';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { gstLine, gstTotals } from '@isp/db-mongo';
-import { roleId, seedTenant, seedUser, signIn, startHarness, type Client, type Harness } from './harness.js';
+import {
+  roleId,
+  seedSubscriber,
+  seedTenant,
+  seedUser,
+  signIn,
+  startHarness,
+  type Client,
+  type Harness,
+} from './harness.js';
 
 let h: Harness;
 let tenant: ObjectId;
@@ -187,6 +196,69 @@ describe('reports', () => {
     expect(r.body.tables[0].rows).toEqual([
       expect.objectContaining({ level: 'L1', n: 2, reversed: 1, wallet: 80_000, customer: 118_000 }),
     ]);
+  });
+
+  it('recharges and expiries: counts, users, by day / month / package, list with start and end', async () => {
+    const r = await admin.req('GET', `/api/v1/reports/recharges${q(dec)}`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    const [summary, amount, byDay, byMonth, byPlan, list] = r.body.tables;
+    const v = (k: string) => summary.rows.find((x: { k: string }) => x.k === k)?.v;
+    expect(v('Recharges')).toBe(2);
+    expect(v('Users recharged')).toBe(2);
+    expect(amount.rows[0].v).toBe(118_000);
+    expect(byDay.rows).toEqual([
+      expect.objectContaining({ day: '2026-12-03', n: 2, users: 2, amount: 118_000, reversed: 1 }),
+    ]);
+    expect(byMonth.rows).toEqual([expect.objectContaining({ month: '2026-12', n: 2 })]);
+    expect(byPlan.rows.reduce((n: number, x: { n: number }) => n + x.n, 0)).toBe(2);
+    expect(list.rows).toHaveLength(3);
+    expect(list.rows[0]).toMatchObject({ start: '2026-12-03', end: '2026-12-03', qty: 1 });
+
+    // November: one still expired, one expired then renewed late.
+    const s1 = await seedSubscriber(h, tenant, 'exp-nov-1');
+    await h.db
+      .collection('subscribers')
+      .updateOne({ _id: s1 }, { $set: { expiresAt: new Date('2026-11-10T18:29:59Z') } });
+    const s2 = await seedSubscriber(h, tenant, 'exp-nov-2');
+    await h.db
+      .collection('subscribers')
+      .updateOne({ _id: s2 }, { $set: { expiresAt: new Date('2027-01-07T18:29:59Z') } });
+    await h.db.collection('recharges').insertOne({
+      tenantId: tenant,
+      subscriberId: s2,
+      planId: new ObjectId(),
+      siteResellerId: null,
+      ancestors: [],
+      walletId: null,
+      walletTxnId: null,
+      amountPaise: 0,
+      customerPricePaise: 50_000,
+      taxPaise: 9_000,
+      channel: 'cash',
+      status: 'SUCCESS',
+      rechargeDate: new Date('2026-11-08T06:00:00Z'),
+      oldExpiresAt: new Date('2026-11-05T18:29:59Z'),
+      newExpiresAt: new Date('2026-12-07T18:29:59Z'),
+      periodStart: new Date('2026-11-08T06:00:00Z'),
+      quantity: 1,
+      oldPlanId: null,
+      actorId: 't',
+      idempotencyKey: 'late-1',
+      createdAt: new Date('2026-11-08T06:00:00Z'),
+    });
+    const nov = await admin.req(
+      'GET',
+      `/api/v1/reports/recharges${q({ from: '2026-11-01', to: '2026-11-30' })}`,
+    );
+    const nv = (k: string) => nov.body.tables[0].rows.find((x: { k: string }) => x.k === k)?.v;
+    expect(nv('Expired in the period')).toBe(2);
+    expect(nv('  of them renewed later')).toBe(1);
+    expect(nv('  still not renewed')).toBe(1);
+    expect(nv('Pending recharge now (all expired)')).toBeGreaterThanOrEqual(1);
+    expect(nov.body.tables[2].rows).toEqual(
+      expect.arrayContaining([expect.objectContaining({ day: '2026-11-10', expired: 1 })]),
+    );
+    expect((await l1.req('GET', `/api/v1/reports/recharges${q(dec)}`)).body.tables[0].rows[0].v).toBe(2);
   });
 
   it('Excel and PDF downloads (audited)', async () => {

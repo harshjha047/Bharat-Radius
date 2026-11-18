@@ -9,10 +9,12 @@ export function periodPresets(): Record<string, [string, string]> {
   const lastMonthEnd = istDate(new Date(Date.UTC(y, m - 1, 0, 12)));
   const fyStart = m >= 4 ? `${y}-04-01` : `${y - 1}-04-01`;
   return {
+    Today: [today, today],
     'This month': [`${y}-${pad(m)}-01`, today],
     'Last month': [`${lastMonthEnd.slice(0, 8)}01`, lastMonthEnd],
     'Last 7 days': [istDate(new Date(Date.now() - 6 * 86_400_000)), today],
     'Last 30 days': [istDate(new Date(Date.now() - 29 * 86_400_000)), today],
     'This financial year': [fyStart, today],
+    'This year': [`${y}-01-01`, today],
   };
 }

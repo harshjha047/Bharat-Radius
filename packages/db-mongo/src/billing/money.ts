@@ -62,6 +62,19 @@ export function renewedExpiry(
   return endOfIstDay(new Date(base.getTime() + validityDays * DAY_MS));
 }
 
+/** Period a prepaid recharge buys: starts at the current expiry if still in service, else now. */
+export function rechargePeriod(
+  current: Date | null | undefined,
+  validityDays: number,
+  quantity = 1,
+  now = new Date(),
+): { start: Date; end: Date } {
+  return {
+    start: current && current > now ? current : now,
+    end: renewedExpiry(current, validityDays * quantity, now),
+  };
+}
+
 /** Indian financial year of a date, e.g. "2026-27". */
 export function financialYear(at: Date): string {
   const { y, m } = istParts(at);

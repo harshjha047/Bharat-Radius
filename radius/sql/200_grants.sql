@@ -36,6 +36,9 @@ GRANT EXECUTE ON FUNCTION
   pgp_sym_encrypt(text, text, text)
   TO :"app_role";
 
+-- pg_trgm (migration 006): near-match usernames in the auth log's "Why?".
+GRANT EXECUTE ON FUNCTION similarity(text, text), similarity_op(text, text) TO :"app_role";
+
 -- Statistics extension: give back to PostgreSQL's monitoring role what the REVOKEs above took from PUBLIC.
 DO $$ BEGIN
   IF to_regclass('public.pg_stat_statements') IS NOT NULL THEN

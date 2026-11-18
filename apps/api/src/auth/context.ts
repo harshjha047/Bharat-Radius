@@ -14,6 +14,8 @@ export interface AuthContext {
   familyId: string;
   mfa: 'ok' | 'enroll';
   scope: Scope;
+  /** Staff or a parent reseller working inside a child reseller's panel (X-View-As). userId stays the real user. */
+  viewAs?: { resellerId: ObjectId; code: string; name: string; byName: string };
 }
 
 export function scopeFor(u: { tenantId: ObjectId | null; type: UserType; resellerId?: ObjectId }): Scope {

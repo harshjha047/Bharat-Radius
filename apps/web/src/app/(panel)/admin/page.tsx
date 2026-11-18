@@ -4,8 +4,16 @@ import { AlertTriangle, ChevronRight, LifeBuoy, Plus, Search, Server, UserPlus, 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExpiringCard, NetworkRow, RenewalsSection, useExpiring } from '@/components/dashboard-widgets';
+import { DashboardConfig, useDashboardPrefs, type WidgetDef } from '@/components/dashboard-config';
+import {
+  ExpiringCard,
+  NetworkRow,
+  RenewalsSection,
+  useExpiring,
+  useSubscriberSummary,
+} from '@/components/dashboard-widgets';
 import { InsightsCard } from '@/components/financial-insights';
+import { NasStatistics } from '@/components/router-live';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBar } from '@/components/ui/card';
@@ -79,6 +87,15 @@ export default function Dashboard() {
   });
 
   const staff = me.data?.user.type !== 'reseller';
+  const prefs = useDashboardPrefs();
+  const { shown } = prefs;
+  const subs = useSubscriberSummary();
+  const rejects = useQuery({
+    queryKey: ['auth-log', 'summary', 'dashboard'],
+    queryFn: () => unwrap(api.GET('/api/v1/radius/auth-log/summary')),
+    enabled: staff && can('sessions.read') && shown('kpi-rejects'),
+    refetchInterval: 60_000,
+  });
   const wallet = useQuery({
     queryKey: ['wallet', 'mine'],
     queryFn: () => unwrap(api.GET('/api/v1/wallets/mine')),
@@ -104,6 +121,25 @@ export default function Dashboard() {
 
   if (!staff && me.data)
     return <ResellerHome name={me.data.user.name} wallet={wallet.data} loading={wallet.isLoading} />;
+
+  const widgets: WidgetDef[] = [
+    can('subscribers.read') && { id: 'renewals', label: 'Renewals and status' },
+    can('subscribers.read') && { id: 'expiring', label: 'Expiring soon list' },
+    (can('sessions.read') || can('nas.read')) && { id: 'routers', label: 'Routers' },
+    can('billing.read') && !can('reports.view') && { id: 'month', label: 'This month' },
+    can('sessions.read') && { id: 'kpi-online', label: 'Online now' },
+    can('subscribers.read') && { id: 'kpi-pending', label: 'Pending recharge' },
+    can('sessions.read') && { id: 'kpi-rejects', label: 'Login rejects (24 h)' },
+    can('billing.read') && { id: 'kpi-recharges', label: 'Recharges (today / month)' },
+    can('billing.read') && { id: 'kpi-unpaid', label: 'Unpaid invoices' },
+    can('tickets.read') && { id: 'kpi-tickets', label: 'Open tickets' },
+    can('nas.read') && { id: 'kpi-routers', label: 'Routers count' },
+    can('plans.read') && { id: 'kpi-plans', label: 'Plans' },
+    can('nas.read') && { id: 'nas-stats', label: 'NAS statistics (live ports)' },
+    can('sessions.read') && { id: 'network', label: 'Network charts' },
+    can('reports.view') && { id: 'insights', label: 'Financial insights' },
+    can('reports.view') && { id: 'trends', label: 'Revenue and plan trends' },
+  ].filter((w): w is WidgetDef => !!w);
 
   return (
     <div className="flex flex-col gap-5">
@@ -133,6 +169,7 @@ export default function Dashboard() {
             />
           </form>
         ) : null}
+        <DashboardConfig widgets={widgets} hidden={prefs.hidden} onSave={prefs.save} saving={prefs.saving} />
         {can('subscribers.write') ? (
           <Button asChild>
             <Link href="/admin/subscribers/new">
@@ -159,12 +196,14 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      {can('subscribers.read') ? <RenewalsSection /> : null}
+      {can('subscribers.read') && shown('renewals') ? <RenewalsSection /> : null}
 
-      <div className="flex flex-wrap gap-3">
-        {can('subscribers.read') ? <ExpiringCard tabs className="flex-[3_1_480px]" /> : null}
+      <div className="flex flex-wrap gap-3 empty:hidden">
+        {can('subscribers.read') && shown('expiring') ? (
+          <ExpiringCard tabs className="flex-[3_1_480px]" />
+        ) : null}
 
-        {can('sessions.read') || can('nas.read') ? (
+        {(can('sessions.read') || can('nas.read')) && shown('routers') ? (
           <Card className="min-w-0 flex-[2_1_380px] overflow-hidden">
             <CardBar>
               <h2 className="mr-auto text-base font-bold">Routers</h2>
@@ -234,7 +273,7 @@ export default function Dashboard() {
           </Card>
         ) : null}
 
-        {can('billing.read') && staff && b && !can('reports.view') ? (
+        {can('billing.read') && staff && b && !can('reports.view') && shown('month') ? (
           <Card className="flex min-w-0 flex-[2_1_340px] flex-col gap-4 p-5">
             <div>
               <h2 className="text-base font-bold">This month</h2>
@@ -306,8 +345,8 @@ export default function Dashboard() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
-        {can('sessions.read') ? (
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3 empty:hidden">
+        {can('sessions.read') && shown('kpi-online') ? (
           summary.isLoading ? (
             <KpiSkeleton />
           ) : (
@@ -343,35 +382,65 @@ export default function Dashboard() {
             </KpiLink>
           ) : null
         ) : null}
-        {can('billing.read') && staff ? (
+        {can('subscribers.read') && shown('kpi-pending') ? (
+          subs.isLoading ? (
+            <KpiSkeleton />
+          ) : subs.data ? (
+            <KpiLink href="/admin/subscribers?status=expired">
+              <Stat
+                dot="danger"
+                label="Pending recharge"
+                value={fmtNum(subs.data.expired)}
+                hint={`${fmtNum(subs.data.expiredThisMonth)} expired this month`}
+                {...(subs.data.expired ? { hintTone: 'danger' as const } : {})}
+              />
+            </KpiLink>
+          ) : null
+        ) : null}
+        {can('sessions.read') && shown('kpi-rejects') ? (
+          rejects.isLoading ? (
+            <KpiSkeleton />
+          ) : rejects.data ? (
+            <KpiLink href="/admin/radius-log?result=reject">
+              <Stat
+                dot={rejects.data.rejected ? 'warning' : 'success'}
+                label="Login rejects"
+                value={fmtNum(rejects.data.rejected)}
+                hint={`last 24 h · ${fmtNum(rejects.data.accepted)} accepted`}
+              />
+            </KpiLink>
+          ) : null
+        ) : null}
+        {can('billing.read') && staff && (shown('kpi-recharges') || shown('kpi-unpaid')) ? (
           billing.isLoading ? (
-            <>
-              <KpiSkeleton />
-              <KpiSkeleton />
-            </>
+            <KpiSkeleton />
           ) : b ? (
             <>
-              <KpiLink href="/admin/recharges">
-                <Stat
-                  dot="teal"
-                  label="Today’s recharges"
-                  value={fmtRupees0(b.today.rechargePaise)}
-                  hint={`${fmtNum(b.today.recharges)} recharges`}
-                />
-              </KpiLink>
-              <KpiLink href="/admin/invoices">
-                <Stat
-                  dot="danger"
-                  label="Unpaid"
-                  value={fmtRupees0(b.unpaid.balancePaise)}
-                  hint={`${fmtNum(b.unpaid.count)} invoices · ${fmtNum(b.unpaid.overdue)} overdue`}
-                  {...(b.unpaid.overdue ? { hintTone: 'danger' as const } : {})}
-                />
-              </KpiLink>
+              {shown('kpi-recharges') ? (
+                <KpiLink href="/admin/recharges">
+                  <Stat
+                    dot="teal"
+                    label="Today’s recharges"
+                    value={fmtRupees0(b.today.rechargePaise)}
+                    hint={`${fmtNum(b.today.recharges)} today · ${fmtNum(b.month.recharges)} this month`}
+                  />
+                </KpiLink>
+              ) : null}
+              {shown('kpi-unpaid') ? (
+                <KpiLink href="/admin/invoices">
+                  <Stat
+                    dot="danger"
+                    label="Unpaid"
+                    value={fmtRupees0(b.unpaid.balancePaise)}
+                    hint={`${fmtNum(b.unpaid.count)} invoices · ${fmtNum(b.unpaid.overdue)} overdue`}
+                    {...(b.unpaid.overdue ? { hintTone: 'danger' as const } : {})}
+                  />
+                </KpiLink>
+              ) : null}
             </>
           ) : null
         ) : null}
-        {can('tickets.read') ? (
+        {can('tickets.read') && shown('kpi-tickets') ? (
           tickets.isLoading ? (
             <KpiSkeleton />
           ) : tickets.data ? (
@@ -386,7 +455,7 @@ export default function Dashboard() {
             </KpiLink>
           ) : null
         ) : null}
-        {can('nas.read') ? (
+        {can('nas.read') && shown('kpi-routers') ? (
           nas.isLoading ? (
             <KpiSkeleton />
           ) : (
@@ -401,7 +470,7 @@ export default function Dashboard() {
             </KpiLink>
           )
         ) : null}
-        {can('plans.read') ? (
+        {can('plans.read') && shown('kpi-plans') ? (
           plansLoading ? (
             <KpiSkeleton />
           ) : (
@@ -417,9 +486,10 @@ export default function Dashboard() {
         ) : null}
       </div>
 
-      {can('sessions.read') && staff ? <NetworkRow /> : null}
-      {can('reports.view') ? <InsightsCard from={istDay(29)} to={istDay()} /> : null}
-      {can('reports.view') && staff ? <TrendsRow /> : null}
+      {can('nas.read') && shown('nas-stats') ? <NasStatistics routers={routers} /> : null}
+      {can('sessions.read') && staff && shown('network') ? <NetworkRow /> : null}
+      {can('reports.view') && shown('insights') ? <InsightsCard from={istDay(29)} to={istDay()} /> : null}
+      {can('reports.view') && staff && shown('trends') ? <TrendsRow /> : null}
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 font-mono text-[11px] text-muted-foreground">
         <span>All times IST · online figures refresh every 30 s, charts every 5 min</span>
@@ -609,6 +679,16 @@ function ResellerHome({
     staleTime: 5 * 60_000,
   });
   const expiring = useExpiring(7, 5);
+  const prefs = useDashboardPrefs();
+  const { shown } = prefs;
+  const widgets: WidgetDef[] = [
+    { id: 'r-wallet', label: 'Wallet balance' },
+    { id: 'r-actions', label: 'Quick actions' },
+    can('subscribers.read') && { id: 'r-renewals', label: 'Renewals and status' },
+    { id: 'r-children', label: 'Sub-resellers and customers' },
+    { id: 'r-recharges', label: 'Recharges per day' },
+    can('subscribers.read') && { id: 'r-expiring', label: 'Expiring soon list' },
+  ].filter((w): w is WidgetDef => !!w);
   const ledgerHref = wallet ? `/admin/wallets/${wallet.id}` : '/admin/wallets';
 
   // End-of-day balances, worked back from today's balance through each day's credits and debits.
@@ -651,12 +731,15 @@ function ResellerHome({
 
   return (
     <div className="flex flex-col gap-4">
-      <header className="flex flex-col gap-0.5">
-        <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Namaste, {name}</h1>
-        <span className="font-mono text-xs text-muted-foreground">
-          {wallet?.owner?.code ? `${wallet.owner.code} · ` : ''}
-          {istStamp.format(new Date())}
-        </span>
+      <header className="flex flex-wrap items-center gap-3">
+        <div className="mr-auto flex flex-col gap-0.5">
+          <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Namaste, {name}</h1>
+          <span className="font-mono text-xs text-muted-foreground">
+            {wallet?.owner?.code ? `${wallet.owner.code} · ` : ''}
+            {istStamp.format(new Date())}
+          </span>
+        </div>
+        <DashboardConfig widgets={widgets} hidden={prefs.hidden} onSave={prefs.save} saving={prefs.saving} />
       </header>
 
       {low ? (
@@ -690,84 +773,93 @@ function ResellerHome({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Card className="flex min-w-0 flex-[3_1_460px] flex-col gap-4 p-[22px]">
-          {loading || !wallet ? (
-            <div className="space-y-3" aria-busy>
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-11 w-56 rounded-lg" />
-              <Skeleton className="h-3 w-72" />
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-start gap-4">
-              <div className="mr-auto flex flex-col gap-1">
-                <span className="eyebrow">Wallet balance</span>
-                <span className="text-[44px] leading-[1.05] font-extrabold tracking-[-0.04em] text-foreground tabular-nums">
-                  {fmtRupees(wallet.balancePaise)}
-                </span>
-                <span className="text-[13px] text-muted-foreground">
-                  {wallet.creditLimitPaise ? `Credit limit ${fmtRupees(wallet.creditLimitPaise)} · ` : ''}
-                  Low-balance alert at {fmtRupees(wallet.lowBalanceThresholdPaise)}
-                </span>
+      <div className="flex flex-wrap gap-3 empty:hidden">
+        {shown('r-wallet') ? (
+          <Card className="flex min-w-0 flex-[3_1_460px] flex-col gap-4 p-[22px]">
+            {loading || !wallet ? (
+              <div className="space-y-3" aria-busy>
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-11 w-56 rounded-lg" />
+                <Skeleton className="h-3 w-72" />
               </div>
-              {wallet.canViewLedger ? (
-                <Button variant="outline" asChild>
-                  <Link href={ledgerHref}>Wallet ledger</Link>
-                </Button>
-              ) : null}
-            </div>
-          )}
-          {wallet?.canViewLedger ? (
-            report.isLoading ? (
-              <Skeleton className="h-[150px] w-full rounded-xl" />
-            ) : report.data ? (
-              <div className="flex flex-col gap-1.5">
-                <BalanceChart days={balanceDays} lowPaise={wallet.lowBalanceThresholdPaise} />
-                <span className="flex items-center gap-1.5 text-xs text-body">
-                  <span className="inline-block w-3.5 border-t-2 border-dashed border-chart-2" aria-hidden />
-                  Low-balance alert at {fmtRupees0(wallet.lowBalanceThresholdPaise)}
-                </span>
-              </div>
-            ) : null
-          ) : null}
-          {wallet ? (
-            <dl className="mt-auto grid grid-cols-3 gap-3 border-t border-divider pt-4 text-[13px]">
-              {(
-                [
-                  ['Received', wallet.totals.receivedPaise],
-                  ['Spent on recharges', wallet.totals.rechargedPaise],
-                  ['Refunded', wallet.totals.refundedPaise],
-                ] as const
-              ).map(([k, v]) => (
-                <div key={k}>
-                  <dt className="text-muted-foreground">{k}</dt>
-                  <dd className="font-bold text-foreground tabular-nums">{fmtRupees0(v)}</dd>
+            ) : (
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="mr-auto flex flex-col gap-1">
+                  <span className="eyebrow">Wallet balance</span>
+                  <span className="text-[44px] leading-[1.05] font-extrabold tracking-[-0.04em] text-foreground tabular-nums">
+                    {fmtRupees(wallet.balancePaise)}
+                  </span>
+                  <span className="text-[13px] text-muted-foreground">
+                    {wallet.creditLimitPaise ? `Credit limit ${fmtRupees(wallet.creditLimitPaise)} · ` : ''}
+                    Low-balance alert at {fmtRupees(wallet.lowBalanceThresholdPaise)}
+                  </span>
                 </div>
-              ))}
-            </dl>
-          ) : null}
-        </Card>
-        <div className="flex min-w-0 flex-[2_1_300px] flex-col gap-3">
-          {actions.map((a) => (
-            <Link
-              key={a.href}
-              href={a.href}
-              className="flex flex-1 items-center gap-3.5 rounded-2xl border bg-card px-[18px] py-4 text-inherit hover:border-input hover:text-inherit"
-            >
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent text-primary">
-                <a.icon className="size-5" strokeWidth={1.9} aria-hidden />
-              </span>
-              <span className="flex flex-1 flex-col">
-                <span className="text-[15px] font-bold text-foreground">{a.t}</span>
-                <span className="text-[13px] text-muted-foreground">{a.s}</span>
-              </span>
-              <ChevronRight className="size-[18px] text-muted-foreground" aria-hidden />
-            </Link>
-          ))}
-        </div>
+                {wallet.canViewLedger ? (
+                  <Button variant="outline" asChild>
+                    <Link href={ledgerHref}>Wallet ledger</Link>
+                  </Button>
+                ) : null}
+              </div>
+            )}
+            {wallet?.canViewLedger ? (
+              report.isLoading ? (
+                <Skeleton className="h-[150px] w-full rounded-xl" />
+              ) : report.data ? (
+                <div className="flex flex-col gap-1.5">
+                  <BalanceChart days={balanceDays} lowPaise={wallet.lowBalanceThresholdPaise} />
+                  <span className="flex items-center gap-1.5 text-xs text-body">
+                    <span
+                      className="inline-block w-3.5 border-t-2 border-dashed border-chart-2"
+                      aria-hidden
+                    />
+                    Low-balance alert at {fmtRupees0(wallet.lowBalanceThresholdPaise)}
+                  </span>
+                </div>
+              ) : null
+            ) : null}
+            {wallet ? (
+              <dl className="mt-auto grid grid-cols-3 gap-3 border-t border-divider pt-4 text-[13px]">
+                {(
+                  [
+                    ['Received', wallet.totals.receivedPaise],
+                    ['Spent on recharges', wallet.totals.rechargedPaise],
+                    ['Refunded', wallet.totals.refundedPaise],
+                  ] as const
+                ).map(([k, v]) => (
+                  <div key={k}>
+                    <dt className="text-muted-foreground">{k}</dt>
+                    <dd className="font-bold text-foreground tabular-nums">{fmtRupees0(v)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+          </Card>
+        ) : null}
+        {shown('r-actions') ? (
+          <div className="flex min-w-0 flex-[2_1_300px] flex-col gap-3">
+            {actions.map((a) => (
+              <Link
+                key={a.href}
+                href={a.href}
+                className="flex flex-1 items-center gap-3.5 rounded-2xl border bg-card px-[18px] py-4 text-inherit hover:border-input hover:text-inherit"
+              >
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent text-primary">
+                  <a.icon className="size-5" strokeWidth={1.9} aria-hidden />
+                </span>
+                <span className="flex flex-1 flex-col">
+                  <span className="text-[15px] font-bold text-foreground">{a.t}</span>
+                  <span className="text-[13px] text-muted-foreground">{a.s}</span>
+                </span>
+                <ChevronRight className="size-[18px] text-muted-foreground" aria-hidden />
+              </Link>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      {wallet && wallet.children > 0 ? (
+      {can('subscribers.read') && shown('r-renewals') ? <RenewalsSection /> : null}
+
+      {wallet && wallet.children > 0 && shown('r-children') ? (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
           <KpiLink href="/admin/resellers">
             <Stat
@@ -789,8 +881,8 @@ function ResellerHome({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        {wallet?.canViewLedger ? (
+      <div className="flex flex-wrap gap-3 empty:hidden">
+        {wallet?.canViewLedger && shown('r-recharges') ? (
           <Card className="flex min-w-0 flex-[3_1_480px] flex-col gap-3.5 p-5">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="mr-auto text-base font-bold">Recharges per day, last 30 days</h2>
@@ -809,7 +901,9 @@ function ResellerHome({
             )}
           </Card>
         ) : null}
-        {can('subscribers.read') ? <ExpiringCard limit={5} compact className="flex-[2_1_340px]" /> : null}
+        {can('subscribers.read') && shown('r-expiring') ? (
+          <ExpiringCard limit={5} compact className="flex-[2_1_340px]" />
+        ) : null}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import readXlsxFile from 'read-excel-file/node';
 import writeXlsxFile, { type SheetData } from 'write-excel-file/node';
 import { describe, expect, it } from 'vitest';
 import { FieldCrypto } from '@isp/shared';
-import { COLUMNS, SubscriberExcel } from './excel.js';
+import { COLUMNS, parseDayFirst, SubscriberExcel } from './excel.js';
 
 const T = new ObjectId();
 const P = new ObjectId();
@@ -33,7 +33,10 @@ const mongo = {
       find: (f: Record<string, any>) => ({
         toArray: async () => {
           if (name === 'plans') return plans;
-          if (f.username) return existing.filter((s) => f.username.$in.includes(s.username));
+          if (f.username)
+            return existing.filter((s) =>
+              f.username.$in.some((u: string) => u.toLowerCase() === s.username.toLowerCase()),
+            );
           return existing.filter((s) => f['network.staticIp']?.$in.includes(s.network.staticIp));
         },
       }),
@@ -82,12 +85,16 @@ describe('Excel import validation', () => {
       row({ ...base, username: 'oldplan', plan: 'Old' }),
       row({ ...base, username: 'noplan', plan: 'Nope' }),
       row({ ...base, username: 'ipdup', static_ip: '100.64.0.9' }),
-      row({ ...base, username: 'baddate', expires_on: '31/12/2026' }),
+      row({ ...base, username: 'baddate', expires_on: '31/02/2026' }),
+      row({ ...base, username: 'dayfirst', expires_on: '12.10.2026' }),
+      row({ ...base, username: 'GOOD2' }),
+      row({ ...base, username: 'Taken' }),
     ];
     const file = await writeXlsxFile(data, { dateFormat: 'yyyy-mm-dd' }).toBuffer();
     const r = await excel.validate(ctx, file);
-    expect(r.read).toBe(9);
-    expect(r.valid.map((v) => v.row)).toEqual([2, 3]);
+    expect(r.read).toBe(12);
+    expect(r.valid.map((v) => v.row)).toEqual([2, 3, 12]);
+    expect(r.valid[2]!.input.expiresAt?.toISOString()).toBe('2026-10-12T18:29:59.000Z');
     const g1 = r.valid[0]!.input;
     expect(g1).toMatchObject({
       phone: '+919876543210',
@@ -105,6 +112,24 @@ describe('Excel import validation', () => {
     expect(byRow(9)).toEqual(['plan']);
     expect(byRow(10)).toEqual(['static_ip']);
     expect(byRow(11)).toEqual(['expires_on']);
+    expect(byRow(13)).toEqual(['username']);
+    expect(byRow(14)).toEqual(['username']);
+  });
+
+  it('reads expiry dates day-first', () => {
+    for (const v of [
+      '12/10/2026',
+      '12-10-2026',
+      '12.10.2026',
+      '12//10/2026',
+      '12 10 2026',
+      '12-10-26',
+      '2026-10-12',
+    ])
+      expect(parseDayFirst(v)).toBe('2026-10-12');
+    expect(parseDayFirst('1/2/2027')).toBe('2027-02-01');
+    for (const v of ['31/02/2026', '13/13/2026', '2026/10/12', 'tomorrow', '12-10'])
+      expect(parseDayFirst(v)).toBeNull();
   });
 
   it('rejects a file without the required columns or that is not xlsx', async () => {

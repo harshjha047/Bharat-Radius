@@ -53,6 +53,13 @@ function Expiry({ s }: { s: Subscriber }) {
   );
 }
 
+const expiredRow = (s: Subscriber) => {
+  const days = daysUntil(s.expiresAt);
+  return s.status === 'active' && days !== null && days <= 0
+    ? 'bg-danger-bg/50 hover:bg-danger-bg'
+    : undefined;
+};
+
 function SubscribersList() {
   const router = useRouter();
   const params = useSearchParams();
@@ -208,6 +215,7 @@ function SubscribersList() {
             rows={rows}
             rowKey={(s) => s.id}
             onRowClick={(s) => router.push(`/admin/subscribers/${s.id}`)}
+            rowClassName={expiredRow}
             hasMore={list.hasNextPage}
             loadingMore={list.isFetchingNextPage}
             onLoadMore={() => void list.fetchNextPage()}
