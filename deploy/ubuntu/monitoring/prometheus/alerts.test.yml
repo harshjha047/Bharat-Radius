@@ -256,3 +256,19 @@ tests:
               summary: 'Walled garden (:8089) is not redirecting to the pay page: expired customers cannot pay online'
               runbook: docs/runbooks/pay-page.md
 
+  - interval: 5m
+    input_series:
+      - series: 'isp_logarchive_offload_pending_files'
+        values: '0 3x120'
+    alert_rule_test:
+      - eval_time: 5h
+        alertname: LogOffloadStuck
+        exp_alerts: []
+      - eval_time: 8h
+        alertname: LogOffloadStuck
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations:
+              summary: '3 old log file(s) could not be moved off-site and are filling this disk'
+              runbook: docs/runbooks/compliance-logs.md
+
