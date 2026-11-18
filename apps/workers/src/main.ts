@@ -60,12 +60,8 @@ const coaClient = new RadiusCoaClient(
   config.COA_SOURCE_IP && config.COA_SOURCE_IP !== '0.0.0.0' ? { sourceIp: config.COA_SOURCE_IP } : {},
 );
 const fieldCrypto = new FieldCrypto(config.FIELD_ENCRYPTION_KEY);
-const worker = new OutboxWorker(
-  db,
-  new RadiusSync(pool, db, fieldCrypto, config.RADIUS_PW_KEY),
-  log,
-  new CoaSender(pool, db, coaClient, log),
-);
+const coa = new CoaSender(pool, db, coaClient, log);
+const worker = new OutboxWorker(db, new RadiusSync(pool, db, fieldCrypto, config.RADIUS_PW_KEY), log, coa);
 
 const usage = new UsageJob(pool, client, db, log);
 const sms = new SmsSender(db, fieldCrypto, log);
@@ -74,6 +70,11 @@ const scheduler = new Scheduler(
   db,
   [
     { name: 'usage', periodMs: 15 * 60_000, run: () => usage.run() },
+    {
+      name: 'expired-sweep',
+      periodMs: 5 * 60_000,
+      run: async () => ({ disconnected: await coa.expiredSweep() }),
+    },
     { name: 'imports', periodMs: 5_000, run: () => imports.run() },
     { name: 'notifications', periodMs: 10_000, run: () => sms.run() },
     { name: 'postpaid-invoice', periodMs: 30 * 60_000, run: () => postpaidInvoices(client, db) },

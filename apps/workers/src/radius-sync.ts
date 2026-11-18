@@ -64,9 +64,10 @@ export class RadiusSync {
       t.radius.expiredAddressList,
       t.radius.expiredSessionSecs,
       t.radius.interimInterval,
+      t.radius.expiredMode ?? 'reject',
     ];
     const cols = `slug = $2, name = $3, status = $4, expired_rate = $5, expired_address_list = $6,
-                  expired_session_secs = $7, interim_interval = $8, updated_at = now()`;
+                  expired_session_secs = $7, interim_interval = $8, expired_mode = $9, updated_at = now()`;
     return upsert(tx, [
       { sql: `UPDATE tenants SET ${cols} WHERE external_id = $1 RETURNING id`, params: p },
       {
@@ -75,8 +76,8 @@ export class RadiusSync {
       },
       {
         sql: `INSERT INTO tenants (external_id, slug, name, status, expired_rate, expired_address_list,
-                                   expired_session_secs, interim_interval)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+                                   expired_session_secs, interim_interval, expired_mode)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
         params: p,
       },
     ]);

@@ -6513,6 +6513,8 @@ export interface paths {
               };
               domain: string | null;
               radius: {
+                /** @enum {string} */
+                expiredMode: 'reject' | 'walled';
                 expiredRate: string;
                 expiredAddressList: string;
                 expiredSessionSecs: number;
@@ -6575,6 +6577,8 @@ export interface paths {
               email?: string;
             };
             radius?: {
+              /** @enum {string} */
+              expiredMode?: 'reject' | 'walled';
               expiredRate?: string;
               expiredAddressList?: string;
               expiredSessionSecs?: number;
@@ -6613,6 +6617,8 @@ export interface paths {
               };
               domain: string | null;
               radius: {
+                /** @enum {string} */
+                expiredMode: 'reject' | 'walled';
                 expiredRate: string;
                 expiredAddressList: string;
                 expiredSessionSecs: number;
@@ -6694,6 +6700,8 @@ export interface paths {
                 };
                 domain: string | null;
                 radius: {
+                  /** @enum {string} */
+                  expiredMode: 'reject' | 'walled';
                   expiredRate: string;
                   expiredAddressList: string;
                   expiredSessionSecs: number;
@@ -6756,6 +6764,8 @@ export interface paths {
             };
             domain?: string;
             radius?: {
+              /** @enum {string} */
+              expiredMode?: 'reject' | 'walled';
               expiredRate?: string;
               expiredAddressList?: string;
               expiredSessionSecs?: number;
@@ -6794,6 +6804,8 @@ export interface paths {
               };
               domain: string | null;
               radius: {
+                /** @enum {string} */
+                expiredMode: 'reject' | 'walled';
                 expiredRate: string;
                 expiredAddressList: string;
                 expiredSessionSecs: number;
@@ -6876,6 +6888,8 @@ export interface paths {
               };
               domain: string | null;
               radius: {
+                /** @enum {string} */
+                expiredMode: 'reject' | 'walled';
                 expiredRate: string;
                 expiredAddressList: string;
                 expiredSessionSecs: number;
@@ -6940,6 +6954,8 @@ export interface paths {
               email?: string;
             };
             radius?: {
+              /** @enum {string} */
+              expiredMode?: 'reject' | 'walled';
               expiredRate?: string;
               expiredAddressList?: string;
               expiredSessionSecs?: number;
@@ -6981,6 +6997,8 @@ export interface paths {
               };
               domain: string | null;
               radius: {
+                /** @enum {string} */
+                expiredMode: 'reject' | 'walled';
                 expiredRate: string;
                 expiredAddressList: string;
                 expiredSessionSecs: number;

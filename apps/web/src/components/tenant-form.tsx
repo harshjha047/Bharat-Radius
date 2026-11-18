@@ -1,11 +1,11 @@
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { dialogActions } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Input, Select } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { type ApiData } from '@/lib/api';
 import { applyServerErrors, changedOnly } from '@/lib/forms';
@@ -30,6 +30,7 @@ const schema = z.object({
     z.literal(''),
     z.string().regex(/^([a-z0-9-]{1,63}\.)+[a-z]{2,63}$/, 'e.g. panel.example.in'),
   ]),
+  expiredMode: z.enum(['reject', 'walled']),
   expiredRate: z.string().regex(/^\d+[kM]?\/\d+[kM]?$/, 'upload/download, e.g. 256k/256k'),
   expiredAddressList: z.string().regex(/^[\w-]{1,32}$/, 'Letters, digits, _ -'),
   expiredSessionSecs: z.string().regex(/^\d+$/, 'Seconds'),
@@ -51,6 +52,7 @@ const defaults = (t?: Tenant): Values => ({
   phone: t?.contact.phone ?? '',
   email: t?.contact.email ?? '',
   domain: t?.domain ?? '',
+  expiredMode: t?.radius.expiredMode ?? 'reject',
   expiredRate: t?.radius.expiredRate ?? '256k/256k',
   expiredAddressList: t?.radius.expiredAddressList ?? 'expired',
   expiredSessionSecs: String(t?.radius.expiredSessionSecs ?? 3600),
@@ -80,6 +82,7 @@ function toBody(v: Values, mode: 'own' | 'create' | 'platform') {
       contact: { ...(v.phone ? { phone: v.phone } : {}), ...(v.email ? { email: v.email } : {}) },
       ...(mode !== 'own' ? { domain: v.domain || (edit ? null : undefined) } : {}),
       radius: {
+        expiredMode: v.expiredMode,
         expiredRate: v.expiredRate,
         expiredAddressList: v.expiredAddressList,
         expiredSessionSecs: Number(v.expiredSessionSecs),
@@ -106,12 +109,14 @@ export function TenantForm({
 }) {
   const {
     register,
+    control,
     handleSubmit,
     setError,
     reset,
     formState: { errors, isDirty },
   } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: defaults(tenant) });
   const err = (k: keyof Values) => errors[k]?.message;
+  const expiredMode = useWatch({ control, name: 'expiredMode' });
   const submit = handleSubmit(async (v) => {
     const b =
       mode === 'create' ? toBody(v, mode) : changedOnly(toBody(v, mode), toBody(defaults(tenant), mode));
@@ -202,6 +207,22 @@ export function TenantForm({
           <CardDescription>What RADIUS gives a customer whose validity has run out.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="When validity runs out"
+            htmlFor="t-mode"
+            error={err('expiredMode')}
+            hint={
+              expiredMode === 'reject'
+                ? 'Login refused; online customers are disconnected within 5 minutes.'
+                : 'Stays online at the speed below and is sent to the pay page.'
+            }
+            className="sm:col-span-2"
+          >
+            <Select id="t-mode" {...register('expiredMode')}>
+              <option value="reject">Disconnect (no internet)</option>
+              <option value="walled">Slow speed + pay page</option>
+            </Select>
+          </Field>
           <Field label="Speed (upload/download)" htmlFor="t-rate" error={err('expiredRate')}>
             <Input id="t-rate" {...register('expiredRate')} />
           </Field>

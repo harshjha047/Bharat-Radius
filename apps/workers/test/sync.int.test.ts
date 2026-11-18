@@ -323,6 +323,31 @@ describe('outbox → RADIUS', () => {
       expect(nasDev.received.map((r) => r.code)).toEqual([40]);
       const log = await db.collection<CoaLogDoc>('coa_log').findOne({ subscriberId: sid });
       expect(log).toMatchObject({ type: 'disconnect', result: 'ack', trigger: { type: 'kick' } });
+
+      // expired_mode = reject (default): login refused, and the sweep disconnects the live session.
+      await admin.query(
+        `UPDATE subscribers SET expires_at = now() - interval '1 hour' WHERE external_id = $1`,
+        [sid.toHexString()],
+      );
+      const rej = await admin.query<{ attribute: string; value: string }>(
+        `SELECT attribute, value FROM radius_check('127.0.0.1', $1, NULL)`,
+        [`u${run}`],
+      );
+      expect(rej.rows).toContainEqual({ attribute: 'Tmp-String-0', value: 'Subscriber account expired' });
+      const sweeper = new CoaSender(
+        pool,
+        db,
+        new RadiusCoaClient({ timeoutMs: 500, retries: 1 }),
+        pino({ level: 'silent' }),
+      );
+      expect(await sweeper.expiredSweep()).toBe(1);
+      expect(nasDev.received.map((r) => r.code)).toEqual([40, 40]);
+      expect(
+        await db.collection<CoaLogDoc>('coa_log').findOne({ subscriberId: sid, 'trigger.type': 'expired' }),
+      ).toMatchObject({ type: 'disconnect', result: 'ack' });
+
+      await admin.query(`UPDATE tenants SET expired_mode = 'walled' WHERE id = $1`, [tid]);
+      expect(await sweeper.expiredSweep()).toBe(0);
     } finally {
       await nasDev.close();
       await admin.end();

@@ -5,6 +5,7 @@ import type { CoaLogDoc, CoaReason, OutboxDoc } from '@isp/db-mongo';
 import type { CoaResult, RadiusCoaClient } from '@isp/radius-client';
 
 interface Session {
+  tenant_ext: string | null;
   subscriber_ext: string | null;
   username: string;
   acctsessionid: string;
@@ -15,7 +16,7 @@ interface Session {
 }
 
 const SESSION_SQL = `
-  SELECT s.external_id AS subscriber_ext, a.username, a.acctsessionid, host(a.framedipaddress) AS framedip,
+  SELECT t.external_id AS tenant_ext, s.external_id AS subscriber_ext, a.username, a.acctsessionid, host(a.framedipaddress) AS framedip,
          host(a.nasipaddress) AS nasip, n.secret, n.coa_port
     FROM radacct a
     JOIN tenants t ON t.id = a.tenant_id
@@ -127,6 +128,29 @@ export class CoaSender {
       return 0;
     }
     await Promise.all(rows.map((s) => this.one(s, tenantId, subscriberId, coa)));
+    return rows.length;
+  }
+
+  /**
+   * ISPs that reject expired customers: disconnect anyone still online past expiry (Session-Timeout normally ends the
+   * session; this catches expiry moved back, plan removed, or sessions older than the setting). Bounded per run.
+   */
+  async expiredSweep(limit = 500): Promise<number> {
+    const { rows } = await this.pool.query<Session>(
+      `${SESSION_SQL}
+         AND t.expired_mode = 'reject' AND s.external_id IS NOT NULL AND t.external_id IS NOT NULL
+         AND (s.plan_id IS NULL OR s.expires_at <= now())
+       LIMIT $1`,
+      [limit],
+    );
+    await Promise.all(
+      rows.map((s) =>
+        this.one(s, new ObjectId(s.tenant_ext!), new ObjectId(s.subscriber_ext!), {
+          action: 'disconnect',
+          reason: 'expired',
+        }),
+      ),
+    );
     return rows.length;
   }
 

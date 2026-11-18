@@ -17,6 +17,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | 4.8 Backups/DR | ⏳ O-18 | |
 | 4.9 Alerts | ⏳ | |
 | 4.10–4.15 | ⏳ | |
+| F-15 Expired handling | 🔀 PR | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
 
 ## Staging checks — 4.1
 
@@ -50,3 +51,13 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 5. Excel and PDF buttons download; the Excel opens with numbers (sum a column in Excel).
 6. GSTR-1 → previous month → Download: open it; `b2cs` has one row per state/rate; `docs` shows the INV series. Accountant reviews.
 7. Sign in as Test L2: Reports show only its branch; no Usage tab, no GSTR-1 card.
+
+## Staging checks — F-15 expired handling
+
+Deploy order: `sudo bash radius/scripts/install.sh staging` (migration 004 + functions) **before** `app-up.sh`.
+
+1. Settings → *When validity runs out* shows **Disconnect (no internet)**.
+2. Subscriber `test.lab`: set Valid until to yesterday while dialled in (CHR lab) → within 5 min the session drops; Activity shows *disconnect · expired*.
+3. Redial → rejected; login history reason *Subscriber account expired*.
+4. Switch the setting to *Slow speed + pay page* → redial → online at 256k, reason *Plan expired*. Switch back.
+5. Recharge `test.lab` → dials normally.

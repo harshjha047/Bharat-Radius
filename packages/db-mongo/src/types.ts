@@ -24,6 +24,8 @@ export interface TenantDoc extends Standard {
   contact?: { phone?: string; email?: string };
   branding?: { logoKey?: string; primaryColor?: string; domain?: string; subdomain?: string };
   radius: {
+    /** Absent = `reject`. */
+    expiredMode?: 'reject' | 'walled';
     expiredRate: string;
     expiredAddressList: string;
     expiredSessionSecs: number;
@@ -326,7 +328,7 @@ export interface TicketEventDoc {
 }
 
 export type CoaReason =
-  'plan_change' | 'renewal' | 'fup' | 'kick' | 'suspend' | 'network' | 'password' | 'delete';
+  'plan_change' | 'renewal' | 'fup' | 'kick' | 'suspend' | 'network' | 'password' | 'delete' | 'expired';
 
 export interface CoaLogDoc {
   _id: ObjectId;
