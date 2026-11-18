@@ -340,14 +340,20 @@ describe('outbox → RADIUS', () => {
         new RadiusCoaClient({ timeoutMs: 500, retries: 1 }),
         pino({ level: 'silent' }),
       );
-      expect(await sweeper.expiredSweep()).toBe(1);
-      expect(nasDev.received.map((r) => r.code)).toEqual([40, 40]);
+      // The sweep is global: other tests' expired sessions may be swept too.
+      expect(await sweeper.expiredSweep()).toBeGreaterThanOrEqual(1);
+      expect(nasDev.received.filter((r) => r.code === 40).length).toBeGreaterThanOrEqual(2);
       expect(
         await db.collection<CoaLogDoc>('coa_log').findOne({ subscriberId: sid, 'trigger.type': 'expired' }),
       ).toMatchObject({ type: 'disconnect', result: 'ack' });
 
       await admin.query(`UPDATE tenants SET expired_mode = 'walled' WHERE id = $1`, [tid]);
-      expect(await sweeper.expiredSweep()).toBe(0);
+      await sweeper.expiredSweep();
+      expect(
+        await db
+          .collection<CoaLogDoc>('coa_log')
+          .countDocuments({ subscriberId: sid, 'trigger.type': 'expired' }),
+      ).toBe(1);
     } finally {
       await nasDev.close();
       await admin.end();
