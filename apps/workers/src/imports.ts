@@ -1,7 +1,13 @@
 import type { Db, MongoClient } from 'mongodb';
 import type { Logger } from 'pino';
 import type { FieldCrypto } from '@isp/shared';
-import { insertSubscriber, type ImportBatchDoc, type ImportRowDoc, type SubscriberDoc } from '@isp/db-mongo';
+import {
+  insertSubscriber,
+  USERNAME_COLLATION,
+  type ImportBatchDoc,
+  type ImportRowDoc,
+  type SubscriberDoc,
+} from '@isp/db-mongo';
 
 const LEASE_MS = 10 * 60_000;
 /** One pass works at most this long, then hands back so other jobs and batches get a turn. */
@@ -124,7 +130,10 @@ export class ImportJob {
       }
       const mine = await this.db
         .collection<SubscriberDoc>('subscribers')
-        .findOne({ importBatchId: batch._id, username: row.input.username }, { projection: { _id: 1 } });
+        .findOne(
+          { importBatchId: batch._id, username: row.input.username },
+          { projection: { _id: 1 }, collation: USERNAME_COLLATION },
+        );
       if (mine) return null;
       const key = Object.keys((e as { keyPattern?: object }).keyPattern ?? {});
       return key.includes('network.staticIp')

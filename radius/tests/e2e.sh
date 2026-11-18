@@ -126,6 +126,9 @@ check "suspended ISP: its users rejected, reason logged" eq "$(reason "$TB" e2e-
 q -c "UPDATE tenants SET status='active' WHERE id=$TB"
 r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-realm@123,User-Password=Pa55-x')"
 check "username with a dotless realm (john@123) accepted" has "$r" "Received Access-Accept"
+r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=E2E-User,User-Password=Pa55-user')"
+check "username matched ignoring case (E2E-User = e2e-user)" has "$r" "Received Access-Accept"
+check "  auth log keeps the subscriber's username" eq "$(q -c "SELECT username FROM radpostauth WHERE tenant_id=$TA ORDER BY authdate DESC, id DESC LIMIT 1")" "e2e-user"
 auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-realm@.x,User-Password=Pa55-x' >/dev/null
 check "username filter reject logs the filter's reason, not 'User not found'" \
   eq "$(reason "$TA" 'e2e-realm@.x')" "Rejected: Realm begins with a dot"
@@ -172,9 +175,9 @@ r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-mac,User-Password=Pa55-x,Calling-S
 check "MAC lock: correct MAC accepted (case/dash-insensitive)" has "$r" "Received Access-Accept"
 auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-mac,User-Password=Pa55-x,Calling-Station-Id=11:22:33:44:55:66' >/dev/null
 check "MAC lock: other MAC rejected, reason logged" eq "$(reason "$TA" e2e-mac)" "MAC address not allowed"
-acct "$NAS_A" "$SECRET_A" 'Acct-Status-Type=Start,User-Name=e2e-sim,Acct-Session-Id=sim-1,NAS-IP-Address=127.0.0.1,Framed-IP-Address=100.64.1.1' >/dev/null
+acct "$NAS_A" "$SECRET_A" 'Acct-Status-Type=Start,User-Name=E2E-Sim,Acct-Session-Id=sim-1,NAS-IP-Address=127.0.0.1,Framed-IP-Address=100.64.1.1' >/dev/null
 r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-sim,User-Password=Pa55-x')"
-check "second login while online rejected (one-login limit)" has "$r" "Received Access-Reject"
+check "second login while online rejected (one-login limit; Start sent as E2E-Sim)" has "$r" "Received Access-Reject"
 check "  reason logged: already logged in" eq "$(reason "$TA" e2e-sim)" "You are already logged in - access denied"
 q -c "UPDATE radacct SET acctupdatetime = now() - interval '16 minutes' WHERE tenant_id=$TA AND username='e2e-sim'"
 r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-sim,User-Password=Pa55-x')"
