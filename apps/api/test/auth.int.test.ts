@@ -326,3 +326,22 @@ describe('roles', () => {
     });
   });
 });
+
+describe('preferences', () => {
+  it('each user saves which dashboard widgets they hide', async () => {
+    const c = await signIn(h, support);
+    expect((await c.req('GET', '/api/v1/auth/preferences')).body).toEqual({ dashboardHidden: [] });
+    const put = await c.req('PUT', '/api/v1/auth/preferences', {
+      dashboardHidden: ['trends', 'kpi-plans', 'trends'],
+    });
+    expect(put.status).toBe(200);
+    expect(put.body.dashboardHidden).toEqual(['trends', 'kpi-plans']);
+    expect((await c.req('GET', '/api/v1/auth/preferences')).body.dashboardHidden).toEqual([
+      'trends',
+      'kpi-plans',
+    ]);
+    expect((await c.req('PUT', '/api/v1/auth/preferences', { dashboardHidden: ['Bad Id'] })).status).toBe(
+      400,
+    );
+  });
+});

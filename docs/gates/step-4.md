@@ -21,6 +21,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | F-10/16 Username case, Excel dates | 🔀 PR (stacked on F-15) | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
 | F-5/12/13 Recharge quantity + period | 🔀 PR (stacked on F-10/16) | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
 | F-2/3 RADIUS log | 🔀 PR (stacked on F-5/12/13) | Network → RADIUS log: Auth log (search, Accept/Reject, reason, router, period, auto-refresh, *Why?* with fix + similar usernames) and Live (start/pause/stop, user/text/type filter, full screen, download); subscriber → Login log → *Live RADIUS log* |
+| F-4/11 Dashboard config + live cards | 🔀 PR (stacked on F-2/3) | *Customise* on staff and reseller dashboards (per user, saved on the server). New cards: Pending recharge (expired), Login rejects (24 h), month recharge count. Expired rows tinted red in the subscriber list |
 
 ## Staging checks — 4.1
 
@@ -93,3 +94,10 @@ Deploy: `install.sh staging` (migration 006: pg_trgm + indexes) then `app-up.sh`
 5. Live tab → dial / hang up `test.lab` → ACCEPT, START, STOP lines within ~2 s. *This user only* = `test.lab` → only its lines. Pause / Stop / Start; Esc leaves full screen; download saves a .txt.
 6. Subscriber `test.lab` → Login log → *Live RADIUS log* opens Live filtered to it.
 7. Sign in as Test L2 (reseller): no RADIUS log menu.
+
+## Staging checks — F-4/11
+
+1. Dashboard → *Customise* → untick *Network charts* and *Plans* → Save → both gone; sign in on another browser → still gone. *Show all* → back.
+2. Cards: *Pending recharge* = Expired count on Renewals → opens Subscribers filtered to Expired. *Login rejects* opens RADIUS log → Rejected. *Today’s recharges* hint shows today and this month.
+3. Subscribers list: an expired active customer's row is tinted red with the date in red.
+4. Sign in as Test L2: *Customise* lists only reseller cards; Renewals tiles show its branch only.

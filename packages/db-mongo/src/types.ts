@@ -65,6 +65,8 @@ export interface UserDoc extends Standard {
   /** Bumped on password change, disable, lock, logout-all: invalidates every access and refresh token. */
   tokenVersion: number;
   passwordChangedAt?: Date;
+  /** Panel preferences (dashboard configuration). */
+  prefs?: { dashboardHidden?: string[] };
 }
 
 export interface RoleDoc {

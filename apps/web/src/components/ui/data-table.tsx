@@ -19,6 +19,8 @@ interface Props<T> {
   loading?: boolean;
   empty?: ReactNode;
   onRowClick?: (row: T) => void;
+  /** Extra classes per row (e.g. tint expired customers). */
+  rowClassName?: (row: T) => string | undefined;
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
@@ -35,6 +37,7 @@ export function DataTable<T>({
   loading,
   empty,
   onRowClick,
+  rowClassName,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -93,7 +96,7 @@ export function DataTable<T>({
                   <tr
                     key={rowKey(r)}
                     onClick={onRowClick ? () => onRowClick(r) : undefined}
-                    className={cn(card, onRowClick && 'cursor-pointer hover:bg-subtle')}
+                    className={cn(card, onRowClick && 'cursor-pointer hover:bg-subtle', rowClassName?.(r))}
                   >
                     {columns.map((c, i) => (
                       <td
