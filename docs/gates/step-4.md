@@ -23,6 +23,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | F-2/3 RADIUS log | 🔀 PR (stacked on F-5/12/13) | Network → RADIUS log: Auth log (search, Accept/Reject, reason, router, period, auto-refresh, *Why?* with fix + similar usernames) and Live (start/pause/stop, user/text/type filter, full screen, download); subscriber → Login log → *Live RADIUS log* |
 | F-4/11 Dashboard config + live cards | 🔀 PR (stacked on F-2/3) | *Customise* on staff and reseller dashboards (per user, saved on the server). New cards: Pending recharge (expired), Login rejects (24 h), month recharge count. Expired rows tinted red in the subscriber list |
 | F-14 Recharges and expiries report | 🔀 PR (stacked on F-4/11) | Reports → *Recharges and expiries*: recharges, users recharged, expired in period (renewed later / still not), pending now, expiring 7 d, new; by day, by month, by package; recharge list with start/end (Excel/PDF). Presets add *Today* and *This year* |
+| F-1 Live router monitoring | 🔀 PR (stacked on F-14) | Routers → router: API login (encrypted), router health, live traffic per interface (2 s), latency (ping from router), PPPoE online router vs RADIUS, ports for the dashboard. Dashboard *NAS statistics*; subscriber *Live speed*. Own RouterOS API client: one session per router, ≤ 3 commands at once, identical polls shared, 15 s cap, offline reported in < 2 s |
 
 ## Staging checks — 4.1
 
@@ -111,3 +112,15 @@ Deploy: `install.sh staging` (migration 006: pg_trgm + indexes) then `app-up.sh`
 4. Recharge list shows Start → End per recharge; Excel download opens with the same rows.
 5. Presets: *Today*, *This year* present.
 6. As Test L2: only its branch.
+
+## Staging checks — F-1
+
+On the router (once): `/user group add name=bharat-api policy=api,read,test` · `/user add name=bharat group=bharat-api password=…` · `/ip service set api address=154.49.142.251/32` (and keep it closed to everyone else: Abhay-RB4011 has API open to the internet today).
+
+1. Routers → Abhay-RB4011 → API login: user `bharat`, password, *Save and connect* → Router card shows identity, RouterOS, uptime, CPU, memory, *PPPoE online* router vs RADIUS.
+2. Wrong password → card shows *API login refused…*; port blocked → *did not answer … within 2 s*.
+3. Traffic: pick `ether1` → graph moves every 2 s; RX/TX now, avg/peak. Switch to the uplink → new graph.
+4. Latency: 8.8.8.8 → current/avg/min/max/loss; enter another address → restarts.
+5. Ports on the dashboard: tick uplink, label “Uplink” → Save → Dashboard *NAS statistics* shows it live.
+6. Subscriber online on that router → Sessions tab → *Live speed* ↓/↑ moves; offline subscriber → *Not online*.
+7. Open the router page in 5 tabs → router `/user active print` shows one API session from the panel.

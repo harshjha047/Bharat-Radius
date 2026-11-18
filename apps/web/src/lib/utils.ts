@@ -48,6 +48,14 @@ export function fmtKbps(kbps: number): string {
   return `${kbps} kbps`;
 }
 
+/** Bits per second → "12.3 Mbps". */
+export function fmtBps(bps: number): string {
+  if (bps >= 1e9) return `${(bps / 1e9).toFixed(2)} Gbps`;
+  if (bps >= 1e6) return `${(bps / 1e6).toFixed(1)} Mbps`;
+  if (bps >= 1e3) return `${(bps / 1e3).toFixed(0)} kbps`;
+  return `${Math.round(bps)} bps`;
+}
+
 export function fmtDuration(secs: number): string {
   const d = Math.floor(secs / 86400);
   const h = Math.floor((secs % 86400) / 3600);

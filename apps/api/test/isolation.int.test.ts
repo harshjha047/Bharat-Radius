@@ -35,6 +35,13 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/tenants/:id': 'tenantA',
   '/api/v1/nas/:id': 'nasA',
   '/api/v1/nas/:id/secret': 'nasA',
+  '/api/v1/nas/:id/api': 'nasA',
+  '/api/v1/nas/:id/live/info': 'nasA',
+  '/api/v1/nas/:id/live/interfaces': 'nasA',
+  '/api/v1/nas/:id/live/traffic': 'nasA',
+  '/api/v1/nas/:id/live/ping': 'nasA',
+  '/api/v1/nas/:id/live/online': 'nasA',
+  '/api/v1/subscribers/:id/live-speed': 'subA',
   '/api/v1/plans/:id': 'planA',
   '/api/v1/subscribers/:id': 'subA',
   '/api/v1/subscribers/:id/suspend': 'subA',
@@ -86,6 +93,7 @@ const NOT_RECORD_ROUTES = new Set([
 ]);
 
 const BODIES: Record<string, unknown> = {
+  'PUT /api/v1/nas/:id/api': { enabled: true, username: 'api', password: 'x' },
   'PATCH /api/v1/users/:id': { name: 'Changed by B' },
   'POST /api/v1/users/:id/password': { password: 'Changed-By-Tenant-B-1' },
   'PATCH /api/v1/roles/:id': { name: 'Changed by B' },

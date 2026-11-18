@@ -18,6 +18,7 @@ export type ErrorCode =
   | 'WALLET_INACTIVE'
   | 'BRANCH_SUSPENDED'
   | 'GATEWAY_ERROR'
+  | 'ROUTER_UNAVAILABLE'
   | 'INTERNAL';
 
 /** The only error type services throw on purpose; anything else becomes INTERNAL with the request id. */

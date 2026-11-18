@@ -1527,6 +1527,25 @@
                           "lastSeenAt": {
                             "type": ["string", "null"]
                           },
+                          "apiEnabled": {
+                            "type": "boolean"
+                          },
+                          "monitorPorts": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "interface": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": ["string", "null"]
+                                }
+                              },
+                              "required": ["interface", "label"],
+                              "additionalProperties": false
+                            }
+                          },
                           "updatedAt": {
                             "type": "string"
                           },
@@ -1545,6 +1564,8 @@
                           "status",
                           "radiusId",
                           "lastSeenAt",
+                          "apiEnabled",
+                          "monitorPorts",
                           "updatedAt"
                         ],
                         "additionalProperties": false
@@ -1733,6 +1754,25 @@
                     "lastSeenAt": {
                       "type": ["string", "null"]
                     },
+                    "apiEnabled": {
+                      "type": "boolean"
+                    },
+                    "monitorPorts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "interface": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": ["interface", "label"],
+                        "additionalProperties": false
+                      }
+                    },
                     "updatedAt": {
                       "type": "string"
                     },
@@ -1751,6 +1791,8 @@
                     "status",
                     "radiusId",
                     "lastSeenAt",
+                    "apiEnabled",
+                    "monitorPorts",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -1881,6 +1923,25 @@
                     "lastSeenAt": {
                       "type": ["string", "null"]
                     },
+                    "apiEnabled": {
+                      "type": "boolean"
+                    },
+                    "monitorPorts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "interface": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": ["interface", "label"],
+                        "additionalProperties": false
+                      }
+                    },
                     "updatedAt": {
                       "type": "string"
                     },
@@ -1899,6 +1960,8 @@
                     "status",
                     "radiusId",
                     "lastSeenAt",
+                    "apiEnabled",
+                    "monitorPorts",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -2103,6 +2166,25 @@
                     "lastSeenAt": {
                       "type": ["string", "null"]
                     },
+                    "apiEnabled": {
+                      "type": "boolean"
+                    },
+                    "monitorPorts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "interface": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": ["interface", "label"],
+                        "additionalProperties": false
+                      }
+                    },
                     "updatedAt": {
                       "type": "string"
                     },
@@ -2121,6 +2203,8 @@
                     "status",
                     "radiusId",
                     "lastSeenAt",
+                    "apiEnabled",
+                    "monitorPorts",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -18152,6 +18236,811 @@
                     }
                   },
                   "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nas/{id}/api": {
+      "get": {
+        "summary": "Router API login (password never returned) and the ports shown with live graphs",
+        "tags": ["nas"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "host": {
+                      "type": ["string", "null"]
+                    },
+                    "port": {
+                      "type": "number"
+                    },
+                    "tls": {
+                      "type": "boolean"
+                    },
+                    "username": {
+                      "type": ["string", "null"]
+                    },
+                    "hasPassword": {
+                      "type": "boolean"
+                    },
+                    "monitorPorts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "interface": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": ["interface", "label"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["enabled", "host", "port", "tls", "username", "hasPassword", "monitorPorts"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Save the router API login and monitored ports (not a RADIUS change)",
+        "tags": ["nas"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "host": {
+                    "type": ["string", "null"]
+                  },
+                  "port": {
+                    "default": 8728,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  },
+                  "tls": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "username": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "monitorPorts": {
+                    "default": [],
+                    "maxItems": 12,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "interface": {
+                          "type": "string",
+                          "pattern": "^[\\w.@<>:/ -]{1,64}$"
+                        },
+                        "label": {
+                          "type": "string",
+                          "maxLength": 40
+                        }
+                      },
+                      "required": ["interface"]
+                    }
+                  }
+                },
+                "required": ["enabled", "username"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "host": {
+                      "type": ["string", "null"]
+                    },
+                    "port": {
+                      "type": "number"
+                    },
+                    "tls": {
+                      "type": "boolean"
+                    },
+                    "username": {
+                      "type": ["string", "null"]
+                    },
+                    "hasPassword": {
+                      "type": "boolean"
+                    },
+                    "monitorPorts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "interface": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": ["interface", "label"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["enabled", "host", "port", "tls", "username", "hasPassword", "monitorPorts"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nas/{id}/live/info": {
+      "get": {
+        "summary": "Router identity, version, uptime, CPU and memory (live from the router)",
+        "tags": ["nas"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "identity": {
+                      "type": ["string", "null"]
+                    },
+                    "version": {
+                      "type": ["string", "null"]
+                    },
+                    "board": {
+                      "type": ["string", "null"]
+                    },
+                    "uptime": {
+                      "type": ["string", "null"]
+                    },
+                    "cpuLoadPct": {
+                      "type": ["number", "null"]
+                    },
+                    "memoryUsedPct": {
+                      "type": ["number", "null"]
+                    }
+                  },
+                  "required": ["identity", "version", "board", "uptime", "cpuLoadPct", "memoryUsedPct"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nas/{id}/live/interfaces": {
+      "get": {
+        "summary": "Router interfaces (live)",
+        "tags": ["nas"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": ["string", "null"]
+                      },
+                      "running": {
+                        "type": "boolean"
+                      },
+                      "disabled": {
+                        "type": "boolean"
+                      },
+                      "comment": {
+                        "type": ["string", "null"]
+                      }
+                    },
+                    "required": ["name", "type", "running", "disabled", "comment"],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nas/{id}/live/traffic": {
+      "get": {
+        "summary": "RX/TX bits per second now for up to 12 interfaces (poll every 2 s)",
+        "tags": ["nas"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "interfaces",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "at": {
+                      "type": "string"
+                    },
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "rxBps": {
+                            "type": "number"
+                          },
+                          "txBps": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["name", "rxBps", "txBps"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["at", "interfaces"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nas/{id}/live/ping": {
+      "get": {
+        "summary": "Ping from the router (3 packets): loss and min/avg/max latency",
+        "tags": ["nas"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "address",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "8.8.8.8",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string"
+                    },
+                    "sent": {
+                      "type": "number"
+                    },
+                    "received": {
+                      "type": "number"
+                    },
+                    "lossPct": {
+                      "type": "number"
+                    },
+                    "minMs": {
+                      "type": ["number", "null"]
+                    },
+                    "avgMs": {
+                      "type": ["number", "null"]
+                    },
+                    "maxMs": {
+                      "type": ["number", "null"]
+                    },
+                    "lastMs": {
+                      "type": ["number", "null"]
+                    }
+                  },
+                  "required": ["address", "sent", "received", "lossPct", "minMs", "avgMs", "maxMs", "lastMs"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nas/{id}/live/online": {
+      "get": {
+        "summary": "PPPoE sessions the router counts (to compare with RADIUS online)",
+        "tags": ["nas"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "pppActive": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["pppActive"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/{id}/live-speed": {
+      "get": {
+        "summary": "Live download/upload of the subscriber from the router they are on",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "online": {
+                      "type": "boolean"
+                    },
+                    "nasName": {
+                      "type": ["string", "null"]
+                    },
+                    "interface": {
+                      "type": ["string", "null"]
+                    },
+                    "downloadBps": {
+                      "type": ["number", "null"]
+                    },
+                    "uploadBps": {
+                      "type": ["number", "null"]
+                    },
+                    "note": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["online", "nasName", "interface", "downloadBps", "uploadBps", "note"],
                   "additionalProperties": false
                 }
               }

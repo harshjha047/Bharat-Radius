@@ -37,6 +37,7 @@ import { TenantsController, TenantsService } from './network/tenants.js';
 import { FinancialInsightsService } from './reports/insights.js';
 import { ReportsController, ReportsService } from './reports/reports.js';
 import { ComplianceController, ComplianceService } from './compliance/compliance.js';
+import { RouterLiveController, RouterLiveService } from './network/router-live.js';
 import { RadiusLogController, RadiusLogService } from './sessions/radius-log.js';
 import { SessionsController, SessionsService } from './sessions/sessions.js';
 import {
@@ -95,6 +96,7 @@ class AppModule {
         SubscribersController,
         SessionsController,
         RadiusLogController,
+        RouterLiveController,
         ComplianceController,
         AccessLogController,
         SubscriberExcelController,
@@ -127,6 +129,7 @@ class AppModule {
         SubscribersService,
         SessionsService,
         RadiusLogService,
+        RouterLiveService,
         ComplianceService,
         SubscriberExcel,
         AuditService,
