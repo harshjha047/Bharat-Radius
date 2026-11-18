@@ -22,6 +22,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | F-5/12/13 Recharge quantity + period | 🔀 PR (stacked on F-10/16) | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
 | F-2/3 RADIUS log | 🔀 PR (stacked on F-5/12/13) | Network → RADIUS log: Auth log (search, Accept/Reject, reason, router, period, auto-refresh, *Why?* with fix + similar usernames) and Live (start/pause/stop, user/text/type filter, full screen, download); subscriber → Login log → *Live RADIUS log* |
 | F-4/11 Dashboard config + live cards | 🔀 PR (stacked on F-2/3) | *Customise* on staff and reseller dashboards (per user, saved on the server). New cards: Pending recharge (expired), Login rejects (24 h), month recharge count. Expired rows tinted red in the subscriber list |
+| F-14 Recharges and expiries report | 🔀 PR (stacked on F-4/11) | Reports → *Recharges and expiries*: recharges, users recharged, expired in period (renewed later / still not), pending now, expiring 7 d, new; by day, by month, by package; recharge list with start/end (Excel/PDF). Presets add *Today* and *This year* |
 
 ## Staging checks — 4.1
 
@@ -101,3 +102,12 @@ Deploy: `install.sh staging` (migration 006: pg_trgm + indexes) then `app-up.sh`
 2. Cards: *Pending recharge* = Expired count on Renewals → opens Subscribers filtered to Expired. *Login rejects* opens RADIUS log → Rejected. *Today’s recharges* hint shows today and this month.
 3. Subscribers list: an expired active customer's row is tinted red with the date in red.
 4. Sign in as Test L2: *Customise* lists only reseller cards; Renewals tiles show its branch only.
+
+## Staging checks — F-14
+
+1. Reports → *Recharges and expiries* → *This month*: Summary *Recharges* = Recharges page count for the month (excluding refunded); *Users recharged* ≤ that.
+2. *Expired in the period* = *renewed later* + *still not renewed*; *still not renewed* matches Subscribers → *Expired this month*.
+3. *By day* and *By month* tables; *By package* totals = Recharges.
+4. Recharge list shows Start → End per recharge; Excel download opens with the same rows.
+5. Presets: *Today*, *This year* present.
+6. As Test L2: only its branch.

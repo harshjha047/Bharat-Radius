@@ -16785,6 +16785,7 @@
                 "revenue",
                 "collections",
                 "subscribers",
+                "recharges",
                 "reseller-sales",
                 "usage",
                 "tickets"
@@ -16950,6 +16951,7 @@
                 "revenue",
                 "collections",
                 "subscribers",
+                "recharges",
                 "reseller-sales",
                 "usage",
                 "tickets"
