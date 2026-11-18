@@ -18,6 +18,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | 4.9 Alerts | ⏳ | |
 | 4.10–4.15 | ⏳ | |
 | F-15 Expired handling | 🔀 PR | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
+| F-10/16 Username case, Excel dates | 🔀 PR (stacked on F-15) | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
 
 ## Staging checks — 4.1
 
@@ -61,3 +62,12 @@ Deploy order: `sudo bash radius/scripts/install.sh staging` (migration 004 + fun
 3. Redial → rejected; login history reason *Subscriber account expired*.
 4. Switch the setting to *Slow speed + pay page* → redial → online at 256k, reason *Plan expired*. Switch back.
 5. Recharge `test.lab` → dials normally.
+
+## Staging checks — F-10/16
+
+Deploy: `install.sh staging` (migration 005) then `app-up.sh` (Mongo 015). Either stops with the clashing names if two usernames differ only in case.
+
+1. Add subscriber `Test.Lab` while `test.lab` exists → *This PPPoE username is already used*.
+2. CHR lab: dial as `TEST.LAB` → accepted; Sessions shows `test.lab`; Kick works.
+3. Portal sign-in as `TEST.LAB` → works.
+4. Excel import with `expires_on` `12/10/2026` → Valid until 12 Oct 2026; `31/02/2026` → row error.

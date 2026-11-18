@@ -3,7 +3,13 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ObjectId } from 'mongodb';
 import { FieldCrypto } from '@isp/shared';
-import { pppoeAad, type MongoHandle, type PortalSessionDoc, type SubscriberDoc } from '@isp/db-mongo';
+import {
+  pppoeAad,
+  USERNAME_COLLATION,
+  type MongoHandle,
+  type PortalSessionDoc,
+  type SubscriberDoc,
+} from '@isp/db-mongo';
 import { resolveTenant, type ClientMeta } from '../auth/auth.service.js';
 import type { AuthContext } from '../auth/context.js';
 import { hashPassword, verifyPassword } from '../auth/passwords.js';
@@ -71,11 +77,11 @@ export class PortalAuth {
     const tenantId = await resolveTenant(this.mongo.db, input.tenant, meta.host);
     const login = input.login.trim();
     const s = tenantId
-      ? await this.subs.findOne({
-          tenantId,
-          status: { $ne: 'deleted' },
-          $or: [{ username: login }, { customerNo: login.toUpperCase() }],
-        })
+      ? ((await this.subs.findOne(
+          { tenantId, username: login, status: { $ne: 'deleted' } },
+          { collation: USERNAME_COLLATION },
+        )) ??
+        (await this.subs.findOne({ tenantId, customerNo: login.toUpperCase(), status: { $ne: 'deleted' } })))
       : null;
 
     if (s?.portal?.lockedUntil && s.portal.lockedUntil > new Date()) {
