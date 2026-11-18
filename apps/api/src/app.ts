@@ -9,6 +9,7 @@ import type { Logger as PinoLogger } from 'pino';
 import { AccessLogController, AccessLogInterceptor } from './audit/access-log.js';
 import { AuditController, AuditInterceptor, AuditService } from './audit/audit.js';
 import { AuthController } from './auth/auth.controller.js';
+import { PreferencesController } from './auth/preferences.js';
 import { AuthGuard } from './auth/auth.guard.js';
 import { AuthService } from './auth/auth.service.js';
 import { Cookies } from './auth/cookies.js';
@@ -78,6 +79,7 @@ class AppModule {
         HealthController,
         OpenApiController,
         AuthController,
+        PreferencesController,
         UsersController,
         RolesController,
         TenantsController,
