@@ -121,7 +121,14 @@ export interface NasDeviceDoc extends Standard {
   lastSeenAt?: Date;
   radiusId?: number;
   /** RouterOS API login for live graphs, ping and live speed (password encrypted, AAD `nas.api:<id>`). */
-  api?: { enabled: boolean; host?: string; port: number; tls: boolean; username: string; password: EncryptedField };
+  api?: {
+    enabled: boolean;
+    host?: string;
+    port: number;
+    tls: boolean;
+    username: string;
+    password: EncryptedField;
+  };
   /** Router ports shown with a live graph (uplink, OLT VLAN …). */
   monitorPorts?: { interface: string; label?: string }[];
   version: number;
