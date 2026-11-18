@@ -197,6 +197,37 @@ groups:
           summary: 'Walled garden (:8089) is not redirecting to the pay page: expired customers cannot pay online'
           runbook: docs/runbooks/pay-page.md
 
+  - name: disk-guard
+    rules:
+      - alert: DiskGuardDrill
+        expr: isp_disk_guard_level == 1
+        labels: { severity: warning }
+        annotations:
+          summary: 'Disk over 70 %: drill running (imports paused, old logs and backups moving to Backblaze)'
+          runbook: docs/runbooks/disk-guard.md
+
+      - alert: DiskGuardMaintenance
+        expr: isp_disk_guard_level == 2
+        labels: { severity: critical }
+        annotations:
+          summary: 'Disk over 85 %: panel and portal show the maintenance page (RADIUS and payments still running)'
+          runbook: docs/runbooks/disk-guard.md
+
+      - alert: DiskReserveReleased
+        expr: isp_disk_guard_level == 3
+        labels: { severity: critical }
+        annotations:
+          summary: 'Disk over 95 %: emergency reserve released for the databases. Free space now.'
+          runbook: docs/runbooks/disk-guard.md
+
+      - alert: DiskGuardStale
+        expr: time() - isp_disk_guard_last_run_timestamp_seconds > 900
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Disk guard has not run for 15 minutes (isp-disk-guard.timer)'
+          runbook: docs/runbooks/disk-guard.md
+
   - name: synthetic
     rules:
       - alert: RadiusLoginProbeFailing

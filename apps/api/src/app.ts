@@ -45,6 +45,7 @@ import {
   XLSX_MIME,
 } from './subscribers/excel.js';
 import { PortalAuth } from './portal/portal-auth.js';
+import { guardFlag, openDuringMaintenance } from './guard.js';
 import { PayPageController, PayPageService } from './portal/pay-page.js';
 import { PortalAdminController, PortalController, PortalService } from './portal/portal.js';
 import { SubscribersController, SubscribersService } from './subscribers/subscribers.js';
@@ -175,6 +176,21 @@ export async function createApp(
   f.addContentTypeParser(XLSX_MIME, { parseAs: 'buffer', bodyLimit: MAX_IMPORT_BYTES }, (_req, body, done) =>
     done(null, body),
   );
+  // Disk guard maintenance (disk >= 85 %): staff, reseller and customer screens pause; RADIUS is not affected.
+  f.addHook('onRequest', async (req, reply) => {
+    if (!guardFlag('maintenance') || openDuringMaintenance(req.url.split('?')[0]!)) return;
+    return reply
+      .status(503)
+      .header('retry-after', '300')
+      .header('cache-control', 'no-store')
+      .send({
+        error: {
+          code: 'MAINTENANCE',
+          message: 'Scheduled maintenance. Please try again in a few minutes.',
+          requestId: req.id,
+        },
+      });
+  });
   // JSON only: form and text bodies are what cross-site "simple" requests can send without a CORS preflight.
   f.addHook('onRequest', async (req, reply) => {
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;

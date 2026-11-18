@@ -19,6 +19,7 @@ export type ErrorCode =
   | 'BRANCH_SUSPENDED'
   | 'GATEWAY_ERROR'
   | 'LINK_EXPIRED'
+  | 'MAINTENANCE'
   | 'INTERNAL';
 
 /** The only error type services throw on purpose; anything else becomes INTERNAL with the request id. */

@@ -63,6 +63,14 @@ export async function authFetch(input: Request): Promise<Response> {
   const retry = input.clone();
   const res = await fetch(withCsrf(input));
   const path = new URL(input.url).pathname;
+  if (res.status === 503 && typeof window !== 'undefined' && !path.startsWith('/api/v1/pay/')) {
+    const b = (await res
+      .clone()
+      .json()
+      .catch(() => null)) as ErrorBody | null;
+    if (b?.error?.code === 'MAINTENANCE') window.location.assign('/maintenance');
+    return res;
+  }
   if (res.status !== 401 || NO_RETRY.test(path)) return res;
   if (PORTAL.test(path)) {
     portalSignedOutListeners.forEach((fn) => fn());

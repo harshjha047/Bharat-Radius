@@ -1,0 +1,9 @@
+[Unit]
+Description=Disk guard: drill, maintenance page and reserve for the databases
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/isp-disk/disk-guard.sh run
+Nice=10
+IOSchedulingClass=idle
