@@ -93,6 +93,9 @@ describe('subscribers', () => {
     expect((await admin.req('POST', '/api/v1/subscribers', { ...base, username: 'rahul01' })).status).toBe(
       409,
     );
+    expect((await admin.req('POST', '/api/v1/subscribers', { ...base, username: 'Rahul01' })).status).toBe(
+      409,
+    );
     await admin.req('PATCH', `/api/v1/subscribers/${id}`, { network: { staticIp: '100.64.1.5' } });
     expect(
       (

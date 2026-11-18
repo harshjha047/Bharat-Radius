@@ -13,6 +13,7 @@ import {
   type PlanDoc,
   type SubscriberDoc,
   type TenantDoc,
+  USERNAME_COLLATION,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
@@ -92,7 +93,7 @@ export const COLUMNS: readonly Column[] = [
   {
     key: 'expires_on',
     example: '',
-    help: 'YYYY-MM-DD; service ends at 23:59:59 IST that day',
+    help: 'DD-MM-YYYY (day first) or YYYY-MM-DD; service ends at 23:59:59 IST that day',
     path: 'expiresAt',
   },
   { key: 'static_ip', example: '', help: 'Optional IPv4', path: 'network.staticIp' },
@@ -110,6 +111,24 @@ const istDay = (d: Date) =>
     month: '2-digit',
     day: '2-digit',
   }).format(d);
+
+/**
+ * Expiry cell text → YYYY-MM-DD, or null. ISO stays as is; anything else is day-first (Indian format):
+ * 12/10/2026, 12-10-2026, 12.10.2026, 12//10/2026 and 2-digit years all mean 12 October 2026.
+ */
+export function parseDayFirst(v: string): string | null {
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v);
+  const dm = iso ? null : /^(\d{1,2})[./\-\s]+(\d{1,2})[./\-\s]+(\d{2}|\d{4})$/.exec(v);
+  const [y, m, d] = iso
+    ? [+iso[1]!, +iso[2]!, +iso[3]!]
+    : dm
+      ? [dm[3]!.length === 2 ? 2000 + +dm[3]! : +dm[3]!, +dm[2]!, +dm[1]!]
+      : [0, 0, 0];
+  if (!y) return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
 
 /** Cell → trimmed text. Excel dates arrive as Date (midnight UTC of that calendar day). */
 function text(v: unknown): string {
@@ -306,9 +325,10 @@ export class SubscriberExcel {
           });
         } else planId = p._id;
       }
-      const expires = get('expires_on');
-      if (expires && !/^\d{4}-\d{2}-\d{2}$/.test(expires)) {
-        rowIssues.push({ row, column: 'expires_on', message: 'Use YYYY-MM-DD' });
+      const expiresRaw = get('expires_on');
+      const expires = expiresRaw ? parseDayFirst(expiresRaw) : null;
+      if (expiresRaw && !expires) {
+        rowIssues.push({ row, column: 'expires_on', message: 'Use DD-MM-YYYY (or YYYY-MM-DD)' });
       }
       const simUse = get('sim_use');
       const raw = {
@@ -329,7 +349,7 @@ export class SubscriberExcel {
         },
         gstin: opt('gstin')?.toUpperCase(),
         billingType,
-        expiresAt: expires && /^\d{4}-\d{2}-\d{2}$/.test(expires) ? `${expires}T23:59:59+05:30` : undefined,
+        expiresAt: expires ? `${expires}T23:59:59+05:30` : undefined,
         network: {
           staticIp: opt('static_ip'),
           macLock: opt('mac_lock'),
@@ -352,7 +372,7 @@ export class SubscriberExcel {
           });
         }
       }
-      const u = raw.username;
+      const u = raw.username.toLowerCase();
       if (u && seenUser.has(u))
         rowIssues.push({ row, column: 'username', message: `Same username as row ${seenUser.get(u)}` });
       if (u) seenUser.set(u, seenUser.get(u) ?? row);
@@ -373,7 +393,7 @@ export class SubscriberExcel {
         subs
           .find(
             { tenantId, username: { $in: chunk.map((r) => r.input.username) } },
-            { projection: { username: 1 } },
+            { projection: { username: 1 }, collation: USERNAME_COLLATION },
           )
           .toArray(),
         subs
@@ -388,10 +408,10 @@ export class SubscriberExcel {
           )
           .toArray(),
       ]);
-      const takenUser = new Set(users.map((s) => s.username));
+      const takenUser = new Set(users.map((s) => s.username?.toLowerCase()));
       const takenIp = new Set(ips.map((s) => s.network.staticIp));
       for (const r of chunk) {
-        if (takenUser.has(r.input.username))
+        if (takenUser.has(r.input.username.toLowerCase()))
           issues.push({ row: r.row, column: 'username', message: 'Already used by a subscriber' });
         if (r.input.network?.staticIp && takenIp.has(r.input.network.staticIp)) {
           issues.push({ row: r.row, column: 'static_ip', message: 'Already given to a subscriber' });

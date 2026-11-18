@@ -20,6 +20,7 @@ export type ErrorCode =
   | 'GATEWAY_ERROR'
   | 'LINK_EXPIRED'
   | 'MAINTENANCE'
+  | 'ROUTER_UNAVAILABLE'
   | 'INTERNAL';
 
 /** The only error type services throw on purpose; anything else becomes INTERNAL with the request id. */

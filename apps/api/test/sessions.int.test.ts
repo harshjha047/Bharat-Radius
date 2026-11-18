@@ -68,8 +68,9 @@ beforeAll(async () => {
   await pgAdmin.query(
     `INSERT INTO radpostauth (tenant_id, username, reply, reason, nasipaddress, authdate)
      VALUES ($1, $2, 'Access-Reject', 'MAC address not allowed', $3, now() - interval '2 minutes'),
-            ($1, $2, 'Access-Accept', NULL, $3, now() - interval '1 minute')`,
-    [tid, user, nasIp],
+            ($1, $2, 'Access-Accept', NULL, $3, now() - interval '1 minute'),
+            ($1, $4, 'Access-Reject', 'User not found', $3, now() - interval '3 minutes')`,
+    [tid, user, nasIp, `${user}x`],
   );
 });
 afterAll(async () => {
@@ -118,7 +119,7 @@ describe('sessions and logs', () => {
     expect(hours).toHaveLength(24);
     expect(new Date(hours[0]!.hour).getUTCMinutes()).toBe(30); // IST hours start at :30 UTC
     expect(hours.reduce((n, x) => n + x.accepted, 0)).toBe(1);
-    expect(hours.reduce((n, x) => n + x.rejected, 0)).toBe(1);
+    expect(hours.reduce((n, x) => n + x.rejected, 0)).toBe(2);
     // Another ISP sees none of it.
     const o = await other.req('GET', '/api/v1/sessions/activity');
     expect(o.body.points).toEqual([]);
@@ -164,9 +165,61 @@ describe('sessions and logs', () => {
     expect(r.body[0].username).toBe(user);
   });
 
+  it('ISP auth log: filters, reasons, Why? with similar usernames, live tail', async () => {
+    const all = await support.req('GET', '/api/v1/radius/auth-log');
+    expect(all.status).toBe(200);
+    expect(all.body.items.map((e: { username: string }) => e.username)).toEqual([user, user, `${user}x`]);
+    expect(all.body.items[0]).toMatchObject({
+      accepted: true,
+      nasName: 'POP-A',
+      subscriberId: sub.toHexString(),
+    });
+    const rej = await support.req('GET', '/api/v1/radius/auth-log?result=reject&limit=1');
+    expect(rej.body.items).toHaveLength(1);
+    expect(rej.body.items[0].reason).toBe('MAC address not allowed');
+    const page2 = await support.req(
+      'GET',
+      `/api/v1/radius/auth-log?result=reject&limit=1&cursor=${encodeURIComponent(rej.body.nextCursor)}`,
+    );
+    expect(page2.body.items[0].reason).toBe('User not found');
+    expect(page2.body.nextCursor).toBeNull();
+    const byReason = await support.req('GET', '/api/v1/radius/auth-log?reason=User%20not%20found');
+    expect(byReason.body.items).toHaveLength(1);
+
+    const sum = await support.req('GET', '/api/v1/radius/auth-log/summary');
+    expect(sum.body).toMatchObject({ accepted: 1, rejected: 2 });
+    expect(sum.body.reasons).toEqual(
+      expect.arrayContaining([{ reason: 'User not found', accepted: false, count: 1 }]),
+    );
+
+    const nf = page2.body.items[0];
+    const why = await support.req('GET', `/api/v1/radius/auth-log/why?id=${encodeURIComponent(nf.id)}`);
+    expect(why.status, JSON.stringify(why.body)).toBe(200);
+    expect(why.body).toMatchObject({ category: 'not_found', subscriber: null });
+    expect(why.body.similar[0]).toEqual({ username: user, subscriberId: sub.toHexString() });
+    const mac = rej.body.items[0];
+    const why2 = await support.req('GET', `/api/v1/radius/auth-log/why?id=${encodeURIComponent(mac.id)}`);
+    expect(why2.body).toMatchObject({
+      category: 'mac',
+      subscriber: { username: user },
+      last24h: { accepted: 1, rejected: 1 },
+    });
+
+    const after = encodeURIComponent(new Date(Date.now() - 10 * 60_000).toISOString());
+    const tail = await support.req('GET', `/api/v1/radius/tail?after=${after}`);
+    expect(tail.body.events.map((e: { type: string }) => e.type)).toEqual(['reject', 'reject', 'accept']);
+    const mine = await support.req('GET', `/api/v1/radius/tail?after=${after}&user=${user}x`);
+    expect(mine.body.events).toHaveLength(1);
+    expect((await support.req('GET', '/api/v1/radius/auth-log?from=2026-01-01&to=2026-03-01')).status).toBe(
+      400,
+    );
+  });
+
   it('another ISP sees none of it', async () => {
     expect((await other.req('GET', '/api/v1/sessions/live')).body.items).toEqual([]);
     expect((await other.req('GET', '/api/v1/sessions/summary')).body.online).toBe(0);
+    expect((await other.req('GET', '/api/v1/radius/auth-log')).body.items).toEqual([]);
+    expect((await other.req('GET', '/api/v1/radius/tail')).body.events).toEqual([]);
     expect((await other.req('GET', `/api/v1/subscribers/${sub.toHexString()}/sessions`)).status).toBe(404);
     const at = new Date().toISOString();
     expect((await other.req('GET', `/api/v1/sessions/lookup?ip=100.66.0.10&at=${at}`)).body).toEqual([]);

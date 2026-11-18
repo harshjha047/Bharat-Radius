@@ -1,4 +1,4 @@
-import { ensureCollection, ensureIndexes, type Migration } from './helpers.js';
+import { ensureCollection, ensureIndexes, USERNAME_COLLATION, type Migration } from './helpers.js';
 
 const oid = { bsonType: 'objectId' };
 const oidOrNull = { bsonType: ['objectId', 'null'] };
@@ -969,6 +969,48 @@ const legacyImport: Migration = {
   },
 };
 
+/** Usernames unique ignoring case. Fails with the clashing names (fix them first) rather than half-applying. */
+const usernameCaseInsensitive: Migration = {
+  id: '015_username_case_insensitive',
+  async up(db) {
+    const subs = db.collection('subscribers');
+    const clashes = await subs
+      .aggregate<{ _id: { t: unknown; u: string }; names: string[] }>([
+        { $match: { username: { $type: 'string', $ne: '' } } },
+        {
+          $group: {
+            _id: { t: '$tenantId', u: { $toLower: '$username' } },
+            names: { $push: '$username' },
+            n: { $sum: 1 },
+          },
+        },
+        { $match: { n: { $gt: 1 } } },
+        { $limit: 20 },
+      ])
+      .toArray();
+    if (clashes.length) {
+      throw new Error(
+        `usernames differing only in case: ${clashes.map((c) => c.names.join(' / ')).join('; ')} — rename, then rerun`,
+      );
+    }
+    const name = 'tenantId_1_username_ci';
+    const existing = await subs.indexes();
+    if (!existing.some((i) => i.name === name)) {
+      await subs.createIndex(
+        { tenantId: 1, username: 1 },
+        {
+          name,
+          unique: true,
+          collation: USERNAME_COLLATION,
+          partialFilterExpression: { username: { $type: 'string' } },
+        },
+      );
+    }
+    if (existing.some((i) => i.name === 'tenantId_1_username_1'))
+      await subs.dropIndex('tenantId_1_username_1');
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -984,4 +1026,5 @@ export const MIGRATIONS: readonly Migration[] = [
   insightIndexes,
   accessLogs,
   legacyImport,
+  usernameCaseInsensitive,
 ];

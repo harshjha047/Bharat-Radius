@@ -80,6 +80,9 @@ const nasView = z.object({
   status: z.enum(['active', 'disabled']),
   radiusId: z.number().nullable(),
   lastSeenAt: z.string().nullable(),
+  /** RouterOS API login set up and on (live graphs, ping, live speed). */
+  apiEnabled: z.boolean(),
+  monitorPorts: z.array(z.object({ interface: z.string(), label: z.string().nullable() })),
   updatedAt: z.string(),
   /** Present only in the response that created or rotated it. */
   radiusSecret: z.string().optional(),
@@ -96,6 +99,8 @@ const toView = (n: NasDeviceDoc, revealed?: string): z.output<typeof nasView> =>
   status: n.status === 'disabled' ? 'disabled' : 'active',
   radiusId: n.radiusId ?? null,
   lastSeenAt: n.lastSeenAt?.toISOString() ?? null,
+  apiEnabled: n.api?.enabled === true,
+  monitorPorts: (n.monitorPorts ?? []).map((p) => ({ interface: p.interface, label: p.label ?? null })),
   updatedAt: n.updatedAt.toISOString(),
   ...(revealed ? { radiusSecret: revealed } : {}),
 });

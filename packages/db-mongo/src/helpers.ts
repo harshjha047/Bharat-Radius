@@ -19,6 +19,9 @@ export async function ensureCollection(db: Db, name: string, jsonSchema?: Docume
   }
 }
 
+/** PPPoE usernames are unique and matched ignoring case (rahul01 = Rahul01). Pass to finds by username. */
+export const USERNAME_COLLATION = { locale: 'en', strength: 2 } as const;
+
 export async function ensureIndexes(db: Db, name: string, indexes: IndexDescription[]): Promise<void> {
   if (indexes.length) await db.collection(name).createIndexes(indexes);
 }

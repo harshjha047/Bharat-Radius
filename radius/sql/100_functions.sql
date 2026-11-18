@@ -36,7 +36,7 @@ BEGIN
     INTO s
     FROM nas n
     JOIN tenants t ON t.id = n.tenant_id
-    JOIN subscribers sub ON sub.tenant_id = n.tenant_id AND sub.username = p_user
+    JOIN subscribers sub ON sub.tenant_id = n.tenant_id AND lower(sub.username) = lower(p_user)
     LEFT JOIN plans pl ON pl.id = sub.plan_id
    WHERE n.nasname = p_nas;
 
@@ -86,7 +86,7 @@ BEGIN
     INTO r
     FROM nas n
     JOIN tenants t ON t.id = n.tenant_id AND t.status = 'active'
-    JOIN subscribers sub ON sub.tenant_id = n.tenant_id AND sub.username = p_user AND sub.status = 'active'
+    JOIN subscribers sub ON sub.tenant_id = n.tenant_id AND lower(sub.username) = lower(p_user) AND sub.status = 'active'
     LEFT JOIN plans pl ON pl.id = sub.plan_id
    WHERE n.nasname = p_nas;
 
@@ -144,9 +144,14 @@ $$;
 -- plpgsql, not sql: PostgreSQL 16 re-plans SQL-language functions on every call (+40% login throughput).
 CREATE OR REPLACE FUNCTION radius_log_auth(p_nas inet, p_user text, p_reply text, p_reason text, p_calling text)
 RETURNS integer LANGUAGE plpgsql AS $$
+DECLARE
+  v_tenant integer := (SELECT tenant_id FROM nas WHERE nasname = p_nas);
 BEGIN
   INSERT INTO radpostauth (tenant_id, username, reply, reason, nasipaddress, callingstationid, authdate)
-  VALUES ((SELECT tenant_id FROM nas WHERE nasname = p_nas), p_user, p_reply,
+  VALUES (v_tenant,
+          coalesce((SELECT sub.username FROM subscribers sub
+                     WHERE sub.tenant_id = v_tenant AND lower(sub.username) = lower(p_user)), p_user),
+          p_reply,
           nullif(p_reason, ''), p_nas, nullif(upper(p_calling), ''), now());
   RETURN 1;
 END $$;
@@ -169,6 +174,7 @@ DECLARE
   v_out bigint := (coalesce(nullif(p_out_giga, '')::bigint, 0) << 32) | coalesce(nullif(p_out_oct, '')::bigint, 0);
   v_ip inet := nullif(p_framedip, '')::inet;
   v_rows integer;
+  v_user text;
 BEGIN
   SELECT tenant_id INTO v_tenant FROM nas WHERE nasname = p_nas;
   IF v_tenant IS NULL THEN
@@ -233,7 +239,8 @@ BEGIN
     RETURN 1;
   END IF;
 
-  -- No row yet: Start, or Interim/Stop whose Start was lost.
+  -- No row yet: Start, or Interim/Stop whose Start was lost. Username stored as the subscriber's (case may differ).
+  SELECT sub.username INTO v_user FROM subscribers sub WHERE sub.tenant_id = v_tenant AND lower(sub.username) = lower(p_user);
   INSERT INTO radacct (
     tenant_id, acctsessionid, acctuniqueid, username, nasipaddress, nasportid, nasporttype,
     acctstarttime, acctupdatetime, acctstoptime, acctsessiontime, acctauthentic,
@@ -241,7 +248,7 @@ BEGIN
     calledstationid, callingstationid, acctterminatecause, servicetype, framedprotocol,
     framedipaddress, framedipv6address, framedipv6prefix, framedinterfaceid, delegatedipv6prefix)
   VALUES (
-    v_tenant, p_sid, p_uid, p_user, p_nas, nullif(p_nasportid, ''), nullif(p_nasporttype, ''),
+    v_tenant, p_sid, p_uid, coalesce(v_user, p_user), p_nas, nullif(p_nasportid, ''), nullif(p_nasporttype, ''),
     v_ts - make_interval(secs => v_sess), v_ts,
     CASE WHEN p_type = 'stop' THEN v_ts END,
     v_sess, nullif(p_authentic, ''),

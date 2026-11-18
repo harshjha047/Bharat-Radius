@@ -407,6 +407,43 @@ describe('refund, renewal dates, scope', () => {
     expect(pay.body.items[0]).toMatchObject({ method: 'cash', status: 'captured', amountPaise: 118 * RS });
   });
 
+  it('quantity buys several periods: price × N, one invoice line, period start → end, who recharged', async () => {
+    const c = await admin.req(
+      'POST',
+      '/api/v1/subscribers',
+      customer('qty3', { planId: id.plan, expiresAt: new Date(Date.now() + 5 * 86_400_000).toISOString() }),
+    );
+    const before = new Date(c.body.expiresAt).getTime();
+    const q = await admin.req('GET', `/api/v1/recharges/quote?subscriberId=${c.body.id}&quantity=3`);
+    expect(q.body).toMatchObject({ quantity: 3, customerPricePaise: 300 * RS, customerTotalPaise: 354 * RS });
+    expect(new Date(q.body.periodStart).getTime()).toBe(before);
+    const r = await admin.req(
+      'POST',
+      '/api/v1/recharges',
+      { subscriberId: c.body.id, payment: 'cash', quantity: 3 },
+      key(),
+    );
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body).toMatchObject({ quantity: 3, customerPricePaise: 300 * RS });
+    expect(r.body.by?.name).toBeTruthy();
+    expect(new Date(r.body.periodStart).getTime()).toBe(before);
+    expect(new Date(r.body.newExpiresAt)).toEqual(endOfIstDay(new Date(before + 90 * 86_400_000)));
+    const inv = (await admin.req('GET', `/api/v1/invoices?subscriberId=${c.body.id}`)).body.items[0];
+    expect(inv).toMatchObject({ taxablePaise: 300 * RS, totalPaise: 354 * RS });
+    const pay = await admin.req('GET', `/api/v1/payments?subscriberId=${c.body.id}`);
+    expect(pay.body.items[0]).toMatchObject({ amountPaise: 354 * RS });
+    expect(
+      (
+        await admin.req(
+          'POST',
+          '/api/v1/recharges',
+          { subscriberId: c.body.id, payment: 'cash', quantity: 13 },
+          key(),
+        )
+      ).status,
+    ).toBe(400);
+  });
+
   it('a reseller sees and moves only its own branch’s money (API, not just screens)', async () => {
     const l1w = await wallet(id.l1!);
     const l2w = await wallet(id.l2!);

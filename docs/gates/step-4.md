@@ -6,19 +6,27 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 
 | WP | Status | Notes |
 |---|---|---|
-| Step 3 carry-over: reseller cleared on edit | 🔀 PR #31 | Root cause: clearing the reseller chip sent `resellerId: null`; now only an explicit change is sent, with a warning + undo |
-| 4.1 Customer portal | 🔀 PR | Password sign-in (PPPoE password until a portal password is set), home/usage/bills/account, online pay + plan change (prepaid). OTP sign-in waits on O-7. Runbook `docs/runbooks/portal.md` |
-| 4.2 Walled-garden pay page | 🔀 PR | `:8089` → `/api/v1/pay/entry`: router found by its public address; the one expired customer online behind it is shown (masked) with *Pay ₹…* (renews the current plan); otherwise lookup by username / customer no. / mobile, accepted only if online behind that router. Signed 30-min token; no OTP needed (O-7 later for any-account lookup). Runbook `docs/runbooks/pay-page.md` |
-| 4.3 Tickets | 🔀 PR (stacked on 4.1) | Staff list/detail with assign, internal notes, status; portal Help; reseller branch scope; new Technician role. Runbook `docs/runbooks/tickets.md` |
-| 4.4 Reports + GSTR export | 🔀 PR (stacked on 4.3) | Revenue, collections, subscribers, reseller sales, usage, tickets; Excel/PDF; GSTR-1 workbook (offline-tool layout). Runbook `docs/runbooks/reports.md`. Accountant to check the first GSTR-1 (O-9) |
-| 4.5 KYC/CAF | ⏳ O-18 | |
-| 4.6 Compliance logs | 🔀 PR | Archive (3 years, sealed daily), router syslog + NAT logs (opt-in per router, `mikrotik/logging.rsc`), NAT IP lookup in the panel (audited), access log, `radpostauth` 1,100 days. UDP 514 still to open. Runbook `docs/runbooks/compliance-logs.md` |
-| 4.7 Importer | 🔀 PR | O-10 received 18 Nov (dump restored as `bharatradius_legacy` on the VPS: 7 sites, 22 plans, 4 routers, 136 subscribers, cleartext PPPoE passwords). `cli.js import-legacy` (dry run / `--apply` / `--sites`), re-runnable delta, reconciliation. Runbook `docs/runbooks/legacy-import.md` |
-| 4.8 Backups/DR | ✅ #36 + PR | Nightly age-encrypted backups (#36). O-18 = Backblaze B2 (owner, 18 Nov; no India region; lawyer to confirm under O-11). Follow-up PR: log archive days older than 60 days moved to B2 (gzip, not encrypted by owner's choice; SHA-1 verified; `fetch` brings days back), `LogOffloadStuck` alert. Setup: `docs/runbooks/backups.md` → Backblaze B2. Restore drill ⏳ |
-| 4.9 Alerts | ✅ #35 + PR | #35 (11 Nov): synthetic RADIUS login every minute, `RadiusLoginProbeFailing`/`Slow`/`Stale`, `OutboxErrors`, `ReconcileStale`, `BackupMissing`/`NeverRan` (resolve with 4.8). Follow-up PR: `WalledGardenDown` (blackbox on `:8089` expects 302 → `/pay`), `WorkerJobFailing` (expired-sweep, imports, expiry-reminders, usage), `ExpiredSweepStale` |
-| Disk guard | 🔀 PR | Every 5 min: ≥ 70 % drill (imports/rebuilds paused, cache + old logs/backups to B2 after verify), ≥ 85 % maintenance page (RADIUS, webhooks, pay page keep running), ≥ 95 % 5 GB reserve released. Runbook `docs/runbooks/disk-guard.md` |
+| Step 3 carry-over: reseller cleared on edit | ✅ #31 | Root cause: clearing the reseller chip sent `resellerId: null`; now only an explicit change is sent, with a warning + undo |
+| 4.1 Customer portal | ✅ #32 · OTP ⏳ O-7 | Password sign-in (PPPoE password until a portal password is set), home/usage/bills/account, online pay + plan change (prepaid). OTP sign-in waits on O-7. Runbook `docs/runbooks/portal.md` |
+| 4.2 Walled-garden pay page | ✅ #64 · router redirect ⏳ O-12 | `:8089` → `/api/v1/pay/entry`: router found by its public address; the one expired customer online behind it is shown (masked) with *Pay ₹…* (renews the current plan); otherwise lookup by username / customer no. / mobile, accepted only if online behind that router. Signed 30-min token; no OTP needed (O-7 later for any-account lookup). Runbook `docs/runbooks/pay-page.md` |
+| 4.3 Tickets | ✅ #33 | Staff list/detail with assign, internal notes, status; portal Help; reseller branch scope; new Technician role. Runbook `docs/runbooks/tickets.md` |
+| 4.4 Reports + GSTR export | ✅ #34, F-14 | Revenue, collections, subscribers, reseller sales, usage, tickets; Excel/PDF; GSTR-1 workbook (offline-tool layout). Runbook `docs/runbooks/reports.md`. Accountant to check the first GSTR-1 (O-9) |
+| 4.5 KYC/CAF | ⏳ not built (O-18 = B2 chosen) | |
+| 4.6 Compliance logs | ✅ #47 · UDP 514 ⏳ O-12 | Archive (3 years, sealed daily), router syslog + NAT logs (opt-in per router, `mikrotik/logging.rsc`), NAT IP lookup in the panel (audited), access log, `radpostauth` 1,100 days. UDP 514 still to open. Runbook `docs/runbooks/compliance-logs.md` |
+| 4.7 Importer | ✅ #54, #55 | O-10 received 18 Nov (dump restored as `bharatradius_legacy` on the VPS: 7 sites, 22 plans, 4 routers, 136 subscribers, cleartext PPPoE passwords). `cli.js import-legacy` (dry run / `--apply` / `--sites`), re-runnable delta, reconciliation. Runbook `docs/runbooks/legacy-import.md` |
+| 4.8 Backups/DR | ✅ #36, #66 · restore drill ⏳ | Nightly age-encrypted backups (#36). O-18 = Backblaze B2 (owner, 18 Nov; no India region; lawyer to confirm under O-11). Follow-up PR: log archive days older than 60 days moved to B2 (gzip, not encrypted by owner's choice; SHA-1 verified; `fetch` brings days back), `LogOffloadStuck` alert. Setup: `docs/runbooks/backups.md` → Backblaze B2. Restore drill ⏳ |
+| 4.9 Alerts | ✅ #35, #65 | #35 (11 Nov): synthetic RADIUS login every minute, `RadiusLoginProbeFailing`/`Slow`/`Stale`, `OutboxErrors`, `ReconcileStale`, `BackupMissing`/`NeverRan` (resolve with 4.8). Follow-up PR: `WalledGardenDown` (blackbox on `:8089` expects 302 → `/pay`), `WorkerJobFailing` (expired-sweep, imports, expiry-reminders, usage), `ExpiredSweepStale` |
+| Disk guard | ✅ #67 | Every 5 min: ≥ 70 % drill (imports/rebuilds paused, cache + old logs/backups to B2 after verify), ≥ 85 % maintenance page (RADIUS, webhooks, pay page keep running), ≥ 95 % 5 GB reserve released. Runbook `docs/runbooks/disk-guard.md` |
+| F-1…F-14 | ✅ this PR | #57–#63 were merged into their stacked bases and never reached `main`; landed here together |
 | 4.10–4.15 | ⏳ | |
-| F-15 Expired handling | 🔀 PR | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
+| F-15 Expired handling | ✅ #56 | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
+| F-10/16 Username case, Excel dates | 🔀 PR (stacked on F-15) | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
+| F-5/12/13 Recharge quantity + period | 🔀 PR (stacked on F-10/16) | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
+| F-2/3 RADIUS log | 🔀 PR (stacked on F-5/12/13) | Network → RADIUS log: Auth log (search, Accept/Reject, reason, router, period, auto-refresh, *Why?* with fix + similar usernames) and Live (start/pause/stop, user/text/type filter, full screen, download); subscriber → Login log → *Live RADIUS log* |
+| F-4/11 Dashboard config + live cards | 🔀 PR (stacked on F-2/3) | *Customise* on staff and reseller dashboards (per user, saved on the server). New cards: Pending recharge (expired), Login rejects (24 h), month recharge count. Expired rows tinted red in the subscriber list |
+| F-14 Recharges and expiries report | 🔀 PR (stacked on F-4/11) | Reports → *Recharges and expiries*: recharges, users recharged, expired in period (renewed later / still not), pending now, expiring 7 d, new; by day, by month, by package; recharge list with start/end (Excel/PDF). Presets add *Today* and *This year* |
+| F-1 Live router monitoring | 🔀 PR (stacked on F-14) | Routers → router: API login (encrypted), router health, live traffic per interface (2 s), latency (ping from router), PPPoE online router vs RADIUS, ports for the dashboard. Dashboard *NAS statistics*; subscriber *Live speed*. Own RouterOS API client: one session per router, ≤ 3 commands at once, identical polls shared, 15 s cap, offline reported in < 2 s |
+| F-6 Login as site | 🔀 PR (stacked on F-1) | Reseller page → *Open panel*: staff with *resellers.write*, or a parent reseller, works inside the child's panel (rights = own ∩ reseller rights); dark *Back to Admin* bar goes back one level; per browser tab; changes audited as “Name (as R-0004)” |
 
 ## Staging checks — 4.1
 
@@ -75,3 +83,68 @@ Needs: Settings → *When validity runs out* = **Slow speed + pay page**; Razorp
 5. *Not you?* → enter another username not online behind that router → *No connection with those details…*.
 6. Open the pay link again after 30 minutes → *This page has expired*.
 
+## Staging checks — F-10/16
+
+Deploy: `install.sh staging` (migration 005) then `app-up.sh` (Mongo 015). Either stops with the clashing names if two usernames differ only in case.
+
+1. Add subscriber `Test.Lab` while `test.lab` exists → *This PPPoE username is already used*.
+2. CHR lab: dial as `TEST.LAB` → accepted; Sessions shows `test.lab`; Kick works.
+3. Portal sign-in as `TEST.LAB` → works.
+4. Excel import with `expires_on` `12/10/2026` → Valid until 12 Oct 2026; `31/02/2026` → row error.
+
+## Staging checks — F-5/12/13
+
+1. Subscriber `test.sub` (active, valid until D) → Recharge → Periods **3 ×** → Starts = D, Valid until = D + 90 days, customer pays 3 × price incl. GST.
+2. Confirm → invoice PDF: one line, qty 3, period D – D+90.
+3. Recharges (and the subscriber's history): *Period* D → D+90 with “× 3”; *Recharged by* = your name.
+4. Expired subscriber → Starts = now.
+5. As Test L2 with a balance below 3 × its price → *Insufficient Wallet Balance*, nothing debited.
+
+## Staging checks — F-2/3
+
+Deploy: `install.sh staging` (migration 006: pg_trgm + indexes) then `app-up.sh`.
+
+1. Network → RADIUS log → Auth log: today's attempts newest first; counts accepted / rejected.
+2. Filter *Rejected* → reason list shows counts; pick *Wrong password* → only those rows.
+3. CHR lab: dial `test.lab` with a wrong password → row appears within 30 s (auto-refresh) → *Why?* → *Wrong password* + fix; Technical details show router, MAC, *In the database: Yes*.
+4. Dial `test.lob` → *Why?* → *No such username*, similar usernames lists `test.lab`.
+5. Live tab → dial / hang up `test.lab` → ACCEPT, START, STOP lines within ~2 s. *This user only* = `test.lab` → only its lines. Pause / Stop / Start; Esc leaves full screen; download saves a .txt.
+6. Subscriber `test.lab` → Login log → *Live RADIUS log* opens Live filtered to it.
+7. Sign in as Test L2 (reseller): no RADIUS log menu.
+
+## Staging checks — F-4/11
+
+1. Dashboard → *Customise* → untick *Network charts* and *Plans* → Save → both gone; sign in on another browser → still gone. *Show all* → back.
+2. Cards: *Pending recharge* = Expired count on Renewals → opens Subscribers filtered to Expired. *Login rejects* opens RADIUS log → Rejected. *Today’s recharges* hint shows today and this month.
+3. Subscribers list: an expired active customer's row is tinted red with the date in red.
+4. Sign in as Test L2: *Customise* lists only reseller cards; Renewals tiles show its branch only.
+
+## Staging checks — F-14
+
+1. Reports → *Recharges and expiries* → *This month*: Summary *Recharges* = Recharges page count for the month (excluding refunded); *Users recharged* ≤ that.
+2. *Expired in the period* = *renewed later* + *still not renewed*; *still not renewed* matches Subscribers → *Expired this month*.
+3. *By day* and *By month* tables; *By package* totals = Recharges.
+4. Recharge list shows Start → End per recharge; Excel download opens with the same rows.
+5. Presets: *Today*, *This year* present.
+6. As Test L2: only its branch.
+
+## Staging checks — F-1
+
+On the router (once): `/user group add name=bharat-api policy=api,read,test` · `/user add name=bharat group=bharat-api password=…` · `/ip service set api address=154.49.142.251/32` (and keep it closed to everyone else: Abhay-RB4011 has API open to the internet today).
+
+1. Routers → Abhay-RB4011 → API login: user `bharat`, password, *Save and connect* → Router card shows identity, RouterOS, uptime, CPU, memory, *PPPoE online* router vs RADIUS.
+2. Wrong password → card shows *API login refused…*; port blocked → *did not answer … within 2 s*.
+3. Traffic: pick `ether1` → graph moves every 2 s; RX/TX now, avg/peak. Switch to the uplink → new graph.
+4. Latency: 8.8.8.8 → current/avg/min/max/loss; enter another address → restarts.
+5. Ports on the dashboard: tick uplink, label “Uplink” → Save → Dashboard *NAS statistics* shows it live.
+6. Subscriber online on that router → Sessions tab → *Live speed* ↓/↑ moves; offline subscriber → *Not online*.
+7. Open the router page in 5 tabs → router `/user active print` shows one API session from the panel.
+
+## Staging checks — F-6
+
+1. Resellers → Test L2 → *Open panel* → reseller dashboard of Test L2; bar “Viewing Test L2 (R-0004) as <you>”.
+2. Recharge `test.sub` there → Test L2's wallet is debited; Recharges shows *Recharged by* = you; Audit shows “<you> (as R-0004)”.
+3. Routers / Staff menus are absent (reseller rights only).
+4. Inside Test L1's panel → its Resellers → Test L2 → *Open panel* → *Back to Admin* returns to Test L1, again → your own panel.
+5. Another browser tab stays in your own panel.
+6. Sign in as Test L2 → Test L1 has no *Open panel* (parent not reachable); a Support user gets no access.
