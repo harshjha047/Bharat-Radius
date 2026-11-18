@@ -2,16 +2,21 @@ import { Inject, Injectable, type CanActivate, type ExecutionContext } from '@ne
 import { Reflector } from '@nestjs/core';
 import type { FastifyRequest } from 'fastify';
 import { ObjectId } from 'mongodb';
+import type { MongoHandle, ResellerDoc } from '@isp/db-mongo';
+import { RESELLER_PERMISSIONS, type Permission } from '@isp/shared';
 import { CONFIG, type Config } from '../config.js';
+import { MONGO } from '../infra/infra.module.js';
 import { AppError, forbidden, notFound, unauthenticated } from '../errors.js';
 import { ENDPOINT, type EndpointOptions } from '../http/endpoint.js';
 import { PortalAuth } from '../portal/portal-auth.js';
-import { scopeFor } from './context.js';
+import { scopeFor, type AuthContext } from './context.js';
 import { COOKIE, CSRF_HEADER, Cookies } from './cookies.js';
 import { SessionUsers } from './session-users.js';
 import { Tokens } from './tokens.js';
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
+export const VIEW_AS_HEADER = 'x-view-as';
+const RESELLER_SET = new Set<Permission>(RESELLER_PERMISSIONS);
 
 /**
  * Global guard. Every route is authenticated unless it is an @Endpoint with auth: 'public'; routes without
@@ -27,7 +32,40 @@ export class AuthGuard implements CanActivate {
     @Inject(Cookies) private readonly cookies: Cookies,
     @Inject(CONFIG) private readonly config: Config,
     @Inject(PortalAuth) private readonly portal: PortalAuth,
+    @Inject(MONGO) private readonly mongo: MongoHandle,
   ) {}
+
+  /**
+   * "Login as site": ISP staff with resellers.write, or a reseller for a reseller below it, works inside that
+   * reseller's branch. Rights = the actor's rights ∩ reseller rights (never more than either). Sign-in routes keep
+   * acting on the real user.
+   */
+  private async viewAs(ctx: AuthContext, header: string, path: string): Promise<AuthContext> {
+    if (path.startsWith('/api/v1/auth/') && path !== '/api/v1/auth/me') return ctx;
+    if (!ObjectId.isValid(header)) throw new AppError(400, 'VALIDATION_FAILED', 'Bad X-View-As reseller id');
+    const id = new ObjectId(header);
+    const s = ctx.scope;
+    if (s.kind === 'platform') throw forbidden('Open the ISP first');
+    if (s.kind === 'tenant' && !ctx.permissions.has('resellers.write'))
+      throw forbidden('You cannot open reseller panels');
+    const r = await this.mongo.db
+      .collection<ResellerDoc>('resellers')
+      .findOne(
+        { _id: id, tenantId: s.tenantId, status: { $ne: 'deleted' } },
+        { projection: { code: 1, name: 1, ancestors: 1 } },
+      );
+    if (!r) throw notFound('Reseller');
+    if (s.kind === 'branch' && !r.ancestors.some((a) => a.equals(s.resellerId))) throw notFound('Reseller');
+    return {
+      ...ctx,
+      type: 'reseller',
+      name: `${ctx.name} (as ${r.code})`,
+      resellerId: r._id,
+      permissions: new Set([...ctx.permissions].filter((p) => RESELLER_SET.has(p))),
+      scope: { kind: 'branch', tenantId: s.tenantId, resellerId: r._id },
+      viewAs: { resellerId: r._id, code: r.code, name: r.name, byName: ctx.name },
+    };
+  }
 
   async canActivate(ec: ExecutionContext): Promise<boolean> {
     const opts = this.reflector.get<EndpointOptions | undefined>(ENDPOINT, ec.getHandler());
@@ -98,7 +136,16 @@ export class AuthGuard implements CanActivate {
       mfa: claims.mfa,
       scope: scopeFor(u),
     };
-    req.log = req.log.child({ userId: u._id.toHexString(), tenantId: u.tenantId?.toHexString() ?? null });
+    const viewAs = req.headers[VIEW_AS_HEADER];
+    if (typeof viewAs === 'string' && viewAs) {
+      req.ctx = await this.viewAs(req.ctx, viewAs, req.url.split('?')[0]!);
+      if (opts.permission && !req.ctx.permissions.has(opts.permission)) throw forbidden();
+    }
+    req.log = req.log.child({
+      userId: u._id.toHexString(),
+      tenantId: u.tenantId?.toHexString() ?? null,
+      ...(req.ctx.viewAs ? { viewAs: req.ctx.viewAs.resellerId.toHexString() } : {}),
+    });
     return true;
   }
 }

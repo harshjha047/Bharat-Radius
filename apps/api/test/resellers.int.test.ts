@@ -159,6 +159,43 @@ describe('a reseller sees and manages only its branch', () => {
   });
 });
 
+describe('login as site (X-View-As)', () => {
+  const as = (r: string) => ({ 'x-view-as': r });
+
+  it('staff with resellers.write work inside a reseller panel with reseller rights only', async () => {
+    const me = await admin.req('GET', '/api/v1/auth/me', undefined, as(id.l1!));
+    expect(me.status).toBe(200);
+    expect(me.body.viewAs).toMatchObject({ resellerId: id.l1, name: 'Noida Net' });
+    expect(me.body.user).toMatchObject({ type: 'reseller', resellerId: id.l1 });
+    expect(me.body.permissions).not.toContain('nas.read');
+    const list = await admin.req('GET', R, undefined, as(id.l2!));
+    expect(list.body.items.map((r: { id: string }) => r.id)).not.toContain(id.l1);
+    expect((await admin.req('GET', `${R}/${id.l1}`, undefined, as(id.l2!))).status).toBe(404);
+    expect((await admin.req('GET', '/api/v1/nas', undefined, as(id.l1!))).status).toBe(403);
+    expect((await admin.req('GET', '/api/v1/auth/me')).body.viewAs).toBeNull();
+  });
+
+  it('a reseller opens only resellers below it; support cannot open panels', async () => {
+    expect((await rUser.req('GET', '/api/v1/auth/me', undefined, as(id.l3!))).body.viewAs?.resellerId).toBe(
+      id.l3,
+    );
+    expect((await rUser.req('GET', '/api/v1/auth/me', undefined, as(id.l1!))).status).toBe(404);
+    expect((await rUser.req('GET', '/api/v1/auth/me', undefined, as(id.l2!))).status).toBe(404);
+    expect((await support.req('GET', '/api/v1/auth/me', undefined, as(id.l1!))).status).toBe(403);
+    expect((await admin.req('GET', '/api/v1/auth/me', undefined, as('nope'))).status).toBe(400);
+  });
+
+  it('changes made inside a panel are audited with the real user', async () => {
+    const c = await admin.req('POST', S, customer('c.viewas'), as(id.l3!));
+    expect(c.status, JSON.stringify(c.body)).toBe(201);
+    expect((await sub(c.body.id))?.resellerId?.toHexString()).toBe(id.l3);
+    const audit = await h.db
+      .collection<{ action: string; actor: { name: string } }>('audit_logs')
+      .findOne({ action: 'subscriber.create' }, { sort: { _id: -1 } });
+    expect(audit?.actor.name).toMatch(/\(as R-\d{4}\)$/);
+  });
+});
+
 describe('move, suspend and delete', () => {
   it('moves a whole branch in one go and refuses cycles', async () => {
     expect((await admin.req('POST', `${R}/${id.l1}/move`, { parentId: id.l3 })).status).toBe(400);

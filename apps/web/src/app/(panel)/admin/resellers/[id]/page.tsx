@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   Ban,
   ChevronRight,
+  LogIn,
   MoreHorizontal,
   MoveRight,
   Pencil,
@@ -12,6 +13,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
+import { enterViewAs } from '@/lib/view-as';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -195,6 +197,17 @@ function Actions({ d }: { d: ResellerDetail }) {
   const open_ = d.status === 'active' && !d.blockedBy;
   return (
     <>
+      {!self ? (
+        <Button
+          onClick={() => {
+            enterViewAs({ id: d.id, code: d.code, name: d.name });
+            qc.clear();
+            router.push('/admin');
+          }}
+        >
+          <LogIn /> Open panel
+        </Button>
+      ) : null}
       <Button variant="outline" onClick={() => setOpen('edit')}>
         <Pencil /> Edit
       </Button>

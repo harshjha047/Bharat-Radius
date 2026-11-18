@@ -32,6 +32,10 @@ const meView = z.object({
   permissions: z.array(z.string()),
   mfa: z.enum(['ok', 'enroll']),
   requireMfa: z.boolean(),
+  /** Set while working inside a reseller's panel ("Back to Admin" bar). */
+  viewAs: z
+    .object({ resellerId: z.string(), code: z.string(), name: z.string(), byName: z.string() })
+    .nullable(),
 });
 
 export const clientMeta = (req: FastifyRequest): ClientMeta => ({
@@ -151,11 +155,18 @@ export class AuthController {
   @Endpoint({ summary: 'Current user and permissions', tags: ['auth'], auth: 'enroll', response: meView })
   async me(@Ctx() ctx: AuthContext) {
     const su = await this.sessions.load(ctx.userId);
+    const v = ctx.viewAs;
+    const user = toUserView(su!.user);
     return {
-      user: toUserView(su!.user),
+      user: v
+        ? { ...user, type: 'reseller' as const, resellerId: v.resellerId.toHexString(), name: v.name }
+        : user,
       permissions: [...ctx.permissions].sort(),
       mfa: ctx.mfa,
       requireMfa: su!.requireMfa,
+      viewAs: v
+        ? { resellerId: v.resellerId.toHexString(), code: v.code, name: v.name, byName: v.byName }
+        : null,
     };
   }
 

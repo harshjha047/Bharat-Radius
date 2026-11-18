@@ -24,6 +24,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | F-4/11 Dashboard config + live cards | 🔀 PR (stacked on F-2/3) | *Customise* on staff and reseller dashboards (per user, saved on the server). New cards: Pending recharge (expired), Login rejects (24 h), month recharge count. Expired rows tinted red in the subscriber list |
 | F-14 Recharges and expiries report | 🔀 PR (stacked on F-4/11) | Reports → *Recharges and expiries*: recharges, users recharged, expired in period (renewed later / still not), pending now, expiring 7 d, new; by day, by month, by package; recharge list with start/end (Excel/PDF). Presets add *Today* and *This year* |
 | F-1 Live router monitoring | 🔀 PR (stacked on F-14) | Routers → router: API login (encrypted), router health, live traffic per interface (2 s), latency (ping from router), PPPoE online router vs RADIUS, ports for the dashboard. Dashboard *NAS statistics*; subscriber *Live speed*. Own RouterOS API client: one session per router, ≤ 3 commands at once, identical polls shared, 15 s cap, offline reported in < 2 s |
+| F-6 Login as site | 🔀 PR (stacked on F-1) | Reseller page → *Open panel*: staff with *resellers.write*, or a parent reseller, works inside the child's panel (rights = own ∩ reseller rights); dark *Back to Admin* bar goes back one level; per browser tab; changes audited as “Name (as R-0004)” |
 
 ## Staging checks — 4.1
 
@@ -124,3 +125,12 @@ On the router (once): `/user group add name=bharat-api policy=api,read,test` · 
 5. Ports on the dashboard: tick uplink, label “Uplink” → Save → Dashboard *NAS statistics* shows it live.
 6. Subscriber online on that router → Sessions tab → *Live speed* ↓/↑ moves; offline subscriber → *Not online*.
 7. Open the router page in 5 tabs → router `/user active print` shows one API session from the panel.
+
+## Staging checks — F-6
+
+1. Resellers → Test L2 → *Open panel* → reseller dashboard of Test L2; bar “Viewing Test L2 (R-0004) as <you>”.
+2. Recharge `test.sub` there → Test L2's wallet is debited; Recharges shows *Recharged by* = you; Audit shows “<you> (as R-0004)”.
+3. Routers / Staff menus are absent (reseller rights only).
+4. Inside Test L1's panel → its Resellers → Test L2 → *Open panel* → *Back to Admin* returns to Test L1, again → your own panel.
+5. Another browser tab stays in your own panel.
+6. Sign in as Test L2 → Test L1 has no *Open panel* (parent not reachable); a Support user gets no access.
