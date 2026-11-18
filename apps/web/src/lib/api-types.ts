@@ -496,6 +496,12 @@ export interface paths {
               /** @enum {string} */
               mfa: 'ok' | 'enroll';
               requireMfa: boolean;
+              viewAs: {
+                resellerId: string;
+                code: string;
+                name: string;
+                byName: string;
+              } | null;
             };
           };
         };

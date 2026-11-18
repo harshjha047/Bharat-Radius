@@ -15,6 +15,7 @@ import {
   Radio,
   Router,
   ScrollText,
+  ArrowLeft,
   Activity,
   Settings,
   ShieldCheck,
@@ -27,6 +28,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { clearViewAs, currentViewAs, leaveViewAs } from '@/lib/view-as';
 import { useEffect, useState, type ReactNode } from 'react';
 import { BrandMark, PoweredBy } from '@/components/brand';
 import { Button } from '@/components/ui/button';
@@ -286,6 +288,13 @@ export function Shell({ children }: { children: ReactNode }) {
   );
 
   const status = me.error instanceof ApiError ? me.error.status : null;
+  // A panel opened with "Open panel" that is no longer allowed (reseller deleted, rights changed): back to own panel.
+  useEffect(() => {
+    if ((status === 403 || status === 404) && currentViewAs()) {
+      clearViewAs();
+      void qc.resetQueries();
+    }
+  }, [status, qc]);
   const enrol = me.data?.mfa === 'enroll';
   const isSuper = me.data?.user.type === 'superadmin';
   const wrongArea =
@@ -342,6 +351,29 @@ export function Shell({ children }: { children: ReactNode }) {
           <BrandMark className="h-6" />
           <span className="flex-1 text-base font-extrabold text-foreground">BharatRadius</span>
         </header>
+        {me.data?.viewAs ? (
+          <div
+            role="status"
+            className="sticky top-0 z-20 flex flex-wrap items-center gap-2 bg-foreground px-4 py-2 text-sm text-white sm:px-8"
+          >
+            <span className="mr-auto">
+              Viewing <strong>{me.data.viewAs.name}</strong> ({me.data.viewAs.code}) as{' '}
+              {me.data.viewAs.byName}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-transparent text-white hover:bg-white/10"
+              onClick={() => {
+                leaveViewAs();
+                qc.clear();
+                router.push('/admin');
+              }}
+            >
+              <ArrowLeft /> Back to Admin
+            </Button>
+          </div>
+        ) : null}
         <main id="main" className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-5 sm:px-8 sm:py-6">
           {me.data && !enrol && !wrongArea ? children : <PageSkeleton />}
         </main>

@@ -814,9 +814,35 @@
                     },
                     "requireMfa": {
                       "type": "boolean"
+                    },
+                    "viewAs": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "resellerId": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "byName": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["resellerId", "code", "name", "byName"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
-                  "required": ["user", "permissions", "mfa", "requireMfa"],
+                  "required": ["user", "permissions", "mfa", "requireMfa", "viewAs"],
                   "additionalProperties": false
                 }
               }
