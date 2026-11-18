@@ -179,12 +179,12 @@ export class SessionsService {
     @Inject(RADIUS_DB) private readonly pool: pg.Pool | null,
   ) {}
 
-  private db(): pg.Pool {
+  db(): pg.Pool {
     if (!this.pool) throw new AppError(503, 'INTERNAL', 'RADIUS database not configured');
     return this.pool;
   }
 
-  private mongoTenant(ctx: AuthContext, requested?: string): ObjectId {
+  mongoTenant(ctx: AuthContext, requested?: string): ObjectId {
     if (ctx.scope.kind === 'branch') throw forbidden('Session views for resellers arrive with Step 3');
     if (ctx.scope.kind === 'tenant') return ctx.scope.tenantId;
     if (!requested) throw new AppError(400, 'VALIDATION_FAILED', 'tenantId is required for super-admins');
@@ -192,7 +192,7 @@ export class SessionsService {
   }
 
   /** PostgreSQL id and interim interval of the ISP; null until its first sync (then there is nothing to read). */
-  private async pgTenant(tenantId: ObjectId): Promise<{ id: number; interim: number } | null> {
+  async pgTenant(tenantId: ObjectId): Promise<{ id: number; interim: number } | null> {
     const key = tenantId.toHexString();
     const hit = this.tenantCache.get(key);
     if (hit && Date.now() - hit.at < 60_000) return hit;
