@@ -15,6 +15,7 @@ import {
   Radio,
   Router,
   ScrollText,
+  Activity,
   Settings,
   ShieldCheck,
   UserCog,
@@ -73,7 +74,10 @@ const STAFF_NAV: NavGroup[] = [
   },
   {
     label: 'Network',
-    items: [{ href: '/admin/routers', label: 'Routers', icon: Router, any: ['nas.read'] }],
+    items: [
+      { href: '/admin/routers', label: 'Routers', icon: Router, any: ['nas.read'] },
+      { href: '/admin/radius-log', label: 'RADIUS log', icon: Activity, any: ['sessions.read'] },
+    ],
   },
   {
     label: 'Partners',

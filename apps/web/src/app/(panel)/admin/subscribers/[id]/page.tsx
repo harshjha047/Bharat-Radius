@@ -92,6 +92,15 @@ export default function SubscriberPage() {
           <Sessions id={id} />
         </TabsContent>
         <TabsContent value="auth">
+          {s.username ? (
+            <div className="mb-3 flex justify-end">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/admin/radius-log?tab=live&user=${encodeURIComponent(s.username)}`}>
+                  Live RADIUS log
+                </Link>
+              </Button>
+            </div>
+          ) : null}
           <AuthLog id={id} />
         </TabsContent>
         <TabsContent value="usage">

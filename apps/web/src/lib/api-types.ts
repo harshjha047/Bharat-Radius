@@ -8020,6 +8020,314 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/radius/auth-log': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Every login attempt of the ISP (search, Accept/Reject, reason, router, date range; default 24 h) */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+          q?: string;
+          result?: 'accept' | 'reject';
+          reason?: string;
+          nasIp?: string;
+          from?: unknown;
+          to?: unknown;
+          cursor?: string;
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                at: string;
+                username: string;
+                subscriberId: string | null;
+                accepted: boolean;
+                reason: string | null;
+                nasIp: string;
+                nasName: string | null;
+                mac: string | null;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/radius/auth-log/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Accepted / rejected counts and counts per reason for a period (default 24 h) */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+          from?: unknown;
+          to?: unknown;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              accepted: number;
+              rejected: number;
+              reasons: {
+                reason: string;
+                accepted: boolean;
+                count: number;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/radius/auth-log/why': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Why a login was accepted or rejected: plain cause, fix, subscriber state, similar usernames */
+    get: {
+      parameters: {
+        query: {
+          tenantId?: string;
+          id: string;
+          at: unknown;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              entry: {
+                id: string;
+                at: string;
+                username: string;
+                subscriberId: string | null;
+                accepted: boolean;
+                reason: string | null;
+                nasIp: string;
+                nasName: string | null;
+                mac: string | null;
+              };
+              /** @enum {string} */
+              category:
+                | 'accepted'
+                | 'expired'
+                | 'not_found'
+                | 'wrong_password'
+                | 'suspended'
+                | 'disabled'
+                | 'isp_suspended'
+                | 'mac'
+                | 'already_online'
+                | 'username_format'
+                | 'other';
+              title: string;
+              explanation: string;
+              fix: string;
+              subscriber: {
+                id: string;
+                name: string;
+                username: string;
+                status: string;
+                expiresAt: string | null;
+                plan: string | null;
+                macLock: string | null;
+              } | null;
+              similar: {
+                username: string;
+                subscriberId: string | null;
+              }[];
+              last24h: {
+                accepted: number;
+                rejected: number;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/radius/tail': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live RADIUS log: auth and accounting Start/Stop events since a time (poll every 2 s) */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+          after?: unknown;
+          user?: string;
+          type?: 'all' | 'auth' | 'acct';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              now: string;
+              events: {
+                id: string;
+                at: string;
+                /** @enum {string} */
+                type: 'accept' | 'reject' | 'start' | 'stop';
+                username: string;
+                nasIp: string;
+                detail: string | null;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/portal/auth/login': {
     parameters: {
       query?: never;

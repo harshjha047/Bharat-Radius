@@ -20,6 +20,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | F-15 Expired handling | 🔀 PR | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
 | F-10/16 Username case, Excel dates | 🔀 PR (stacked on F-15) | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
 | F-5/12/13 Recharge quantity + period | 🔀 PR (stacked on F-10/16) | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
+| F-2/3 RADIUS log | 🔀 PR (stacked on F-5/12/13) | Network → RADIUS log: Auth log (search, Accept/Reject, reason, router, period, auto-refresh, *Why?* with fix + similar usernames) and Live (start/pause/stop, user/text/type filter, full screen, download); subscriber → Login log → *Live RADIUS log* |
 
 ## Staging checks — 4.1
 
@@ -80,3 +81,15 @@ Deploy: `install.sh staging` (migration 005) then `app-up.sh` (Mongo 015). Eithe
 3. Recharges (and the subscriber's history): *Period* D → D+90 with “× 3”; *Recharged by* = your name.
 4. Expired subscriber → Starts = now.
 5. As Test L2 with a balance below 3 × its price → *Insufficient Wallet Balance*, nothing debited.
+
+## Staging checks — F-2/3
+
+Deploy: `install.sh staging` (migration 006: pg_trgm + indexes) then `app-up.sh`.
+
+1. Network → RADIUS log → Auth log: today's attempts newest first; counts accepted / rejected.
+2. Filter *Rejected* → reason list shows counts; pick *Wrong password* → only those rows.
+3. CHR lab: dial `test.lab` with a wrong password → row appears within 30 s (auto-refresh) → *Why?* → *Wrong password* + fix; Technical details show router, MAC, *In the database: Yes*.
+4. Dial `test.lob` → *Why?* → *No such username*, similar usernames lists `test.lab`.
+5. Live tab → dial / hang up `test.lab` → ACCEPT, START, STOP lines within ~2 s. *This user only* = `test.lab` → only its lines. Pause / Stop / Start; Esc leaves full screen; download saves a .txt.
+6. Subscriber `test.lab` → Login log → *Live RADIUS log* opens Live filtered to it.
+7. Sign in as Test L2 (reseller): no RADIUS log menu.
