@@ -4765,6 +4765,7 @@ export interface paths {
         query: {
           subscriberId: string;
           planId?: string;
+          quantity?: number;
         };
         header?: never;
         path?: never;
@@ -4784,10 +4785,12 @@ export interface paths {
                 name: string;
                 validityDays: number;
               };
+              quantity: number;
               walletPricePaise: number;
               walletBalancePaise: number | null;
               customerPricePaise: number;
               customerTotalPaise: number;
+              periodStart: string;
               newExpiresAt: string;
             };
           };
@@ -4876,7 +4879,13 @@ export interface paths {
                 /** @enum {string} */
                 status: 'SUCCESS' | 'REVERSED';
                 oldExpiresAt: string | null;
+                periodStart: string;
                 newExpiresAt: string;
+                quantity: number;
+                by: {
+                  id: string;
+                  name: string;
+                } | null;
                 invoiceId: string | null;
                 paymentId: string | null;
                 reversal: {
@@ -4925,6 +4934,8 @@ export interface paths {
             planId?: string;
             /** @enum {string} */
             payment?: 'cash' | 'none';
+            /** @default 1 */
+            quantity?: number;
           };
         };
       };
@@ -4960,7 +4971,13 @@ export interface paths {
               /** @enum {string} */
               status: 'SUCCESS' | 'REVERSED';
               oldExpiresAt: string | null;
+              periodStart: string;
               newExpiresAt: string;
+              quantity: number;
+              by: {
+                id: string;
+                name: string;
+              } | null;
               invoiceId: string | null;
               paymentId: string | null;
               reversal: {
@@ -5047,7 +5064,13 @@ export interface paths {
               /** @enum {string} */
               status: 'SUCCESS' | 'REVERSED';
               oldExpiresAt: string | null;
+              periodStart: string;
               newExpiresAt: string;
+              quantity: number;
+              by: {
+                id: string;
+                name: string;
+              } | null;
               invoiceId: string | null;
               paymentId: string | null;
               reversal: {
@@ -5144,7 +5167,13 @@ export interface paths {
               /** @enum {string} */
               status: 'SUCCESS' | 'REVERSED';
               oldExpiresAt: string | null;
+              periodStart: string;
               newExpiresAt: string;
+              quantity: number;
+              by: {
+                id: string;
+                name: string;
+              } | null;
               invoiceId: string | null;
               paymentId: string | null;
               reversal: {

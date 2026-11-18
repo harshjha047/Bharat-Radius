@@ -129,6 +129,10 @@ export interface RechargeDoc {
   rechargeDate: Date;
   oldExpiresAt: Date | null;
   newExpiresAt: Date;
+  /** Start of the bought period (absent on recharges before 18 Nov 2026: derive from old expiry / date). */
+  periodStart?: Date;
+  /** Periods bought at once; absent = 1. amountPaise / customerPricePaise are totals. */
+  quantity?: number;
   oldPlanId: ObjectId | null;
   reversal?: {
     refundTxnId: ObjectId | null;
