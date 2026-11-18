@@ -874,7 +874,9 @@ async function reconcile(
     if (r && !d.resellerId?.equals(r)) bad.owner++;
     if ((d.status === 'disabled') !== !x.connectionEnabled) bad.status++;
   }
-  for (const [k, v] of Object.entries(bad)) if (v) out.push(`subscribers: ${v} with ${k} mismatch`);
+  for (const [k, v] of Object.entries(bad))
+    if (v)
+      out.push(k === 'missing' ? `subscribers: ${v} not imported` : `subscribers: ${v} with ${k} mismatch`);
   const walletDocs = await wallets(db).find({ tenantId, ownerType: 'reseller' }).toArray();
   const walletByOwner = new Map(walletDocs.map((w) => [w.ownerId.toHexString(), w]));
   for (const id of selected) {

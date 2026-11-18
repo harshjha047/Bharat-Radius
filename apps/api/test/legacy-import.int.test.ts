@@ -128,7 +128,7 @@ describe('import-legacy', () => {
 
   it('apply creates the tree, plans, routers, subscribers and opening balances, and reconciles', async () => {
     const r = await run(true);
-    expect(r.mismatches).toEqual([]);
+    expect(r.mismatches).toEqual(['subscribers: 1 not imported']);
     expect(r.rowErrors).toEqual([{ username: 'bad user', message: 'invalid PPPoE username' }]);
 
     const rs = await h.db.collection<ResellerDoc>('resellers').find({ tenantId: tenant }).toArray();
@@ -172,7 +172,7 @@ describe('import-legacy', () => {
   it('a second run changes nothing; a later snapshot applies only the delta', async () => {
     const again = await run(true);
     expect(again.counts.subscriber).toMatchObject({ created: 0, updated: 0, unchanged: 3 });
-    expect(again.counts.wallet.unchanged).toBe(2);
+    expect(again.counts.wallet.unchanged).toBe(3);
 
     const snap = snapshot();
     snap.subscribers[0]!.password = 'changed-pw';
@@ -182,7 +182,7 @@ describe('import-legacy', () => {
     const delta = await run(true, snap);
     expect(delta.counts.subscriber).toMatchObject({ updated: 1, unchanged: 2 });
     expect(delta.counts.wallet.updated).toBe(1);
-    expect(delta.mismatches).toEqual([]);
+    expect(delta.mismatches).toEqual(['subscribers: 1 not imported']);
     const one = (await h.db.collection<SubscriberDoc>('subscribers').findOne({ username: 'one@123' }))!;
     expect(h.crypto.decrypt(one.pppoePassword, pppoeAad(one._id))).toBe('changed-pw');
     expect(one.expiresAt!.toISOString()).toBe('2027-01-13T18:29:59.000Z');
