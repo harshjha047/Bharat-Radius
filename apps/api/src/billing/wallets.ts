@@ -20,6 +20,7 @@ import {
   ensureMasterWallet,
   move,
   rates,
+  sharePaise,
   transfer,
   walletTxns,
   wallets,
@@ -161,21 +162,41 @@ const ratesView = z.object({
   canSetWalletPrices: z.boolean(),
   /** Caller may change the reseller's own customer prices (the reseller itself, or ISP staff). */
   canSetCustomerPrices: z.boolean(),
+  /** `prepaid`: the wallet pays the wallet price per plan. `revenue_share`: sharePercent of the plan price. */
+  walletModel: z.enum(['prepaid', 'revenue_share']),
+  sharePercent: z.number().nullable(),
   items: z.array(rateView),
 });
-const ratesBody = z.object({
-  rates: z
-    .array(
-      z.object({
-        planId: hexId,
-        walletPricePaise: z.number().int().min(0).max(10_000_000_000).optional(),
-        customerPricePaise: z.number().int().min(0).max(10_000_000_000).nullable().optional(),
-        active: z.boolean().optional(),
-      }),
-    )
-    .min(1)
-    .max(500),
-});
+const ratesBody = z
+  .object({
+    rates: z
+      .array(
+        z.object({
+          planId: hexId,
+          walletPricePaise: z.number().int().min(0).max(10_000_000_000).optional(),
+          customerPricePaise: z.number().int().min(0).max(10_000_000_000).nullable().optional(),
+          active: z.boolean().optional(),
+        }),
+      )
+      .max(500)
+      .default([]),
+    /** Parent (or staff): how this reseller's wallet pays for recharges. */
+    model: z
+      .discriminatedUnion('walletModel', [
+        z.object({ walletModel: z.literal('prepaid') }),
+        z.object({
+          walletModel: z.literal('revenue_share'),
+          /** Debited from this reseller per recharge, % of the plan price excl. GST (0.01–100). */
+          sharePercent: z
+            .number()
+            .min(0.01)
+            .max(100)
+            .refine((n) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6, 'at most 2 decimals'),
+        }),
+      ])
+      .optional(),
+  })
+  .refine((b) => b.rates.length > 0 || !!b.model, 'nothing to change');
 
 type WalletView = z.output<typeof walletView>;
 
@@ -498,9 +519,12 @@ export class WalletsService {
       rates(this.db).find({ buyerId: r._id }).toArray(),
     ]);
     const byPlan = new Map(rows.map((x) => [x.planId.toHexString(), x]));
+    const share = r.walletModel === 'revenue_share' && r.shareBp !== undefined ? r.shareBp : null;
     return {
       canSetWalletPrices,
       canSetCustomerPrices,
+      walletModel: share !== null ? ('revenue_share' as const) : ('prepaid' as const),
+      sharePercent: share !== null ? share / 100 : null,
       items: plans.map((p) => {
         const x = byPlan.get(p._id.toHexString());
         return {
@@ -508,7 +532,8 @@ export class WalletsService {
           planName: p.name,
           planPricePaise: p.pricePaise,
           gstRatePercent: p.gstRatePercent,
-          walletPricePaise: x?.walletPricePaise ?? p.pricePaise,
+          walletPricePaise:
+            share !== null ? sharePaise(p.pricePaise, share) : (x?.walletPricePaise ?? p.pricePaise),
           customerPricePaise: x?.customerPricePaise ?? p.pricePaise,
           active: x?.active ?? true,
           custom: !!x,
@@ -520,6 +545,28 @@ export class WalletsService {
   /** The parent (or ISP staff) sets wallet prices and what may be sold; the reseller sets its own customer prices. */
   async putRates(ctx: AuthContext, id: ObjectId, b: z.output<typeof ratesBody>) {
     const { r, canSetWalletPrices, canSetCustomerPrices } = await this.resellerFor(ctx, id);
+    let model: { before: object; after: object } | null = null;
+    if (b.model) {
+      if (!canSetWalletPrices) throw forbidden('The billing model is set by the reseller directly above');
+      const shareBp = b.model.walletModel === 'revenue_share' ? Math.round(b.model.sharePercent * 100) : null;
+      const set = { updatedAt: new Date(), updatedBy: ctx.userId.toHexString() };
+      await this.db
+        .collection<ResellerDoc>('resellers')
+        .updateOne(
+          { _id: r._id, tenantId: r.tenantId },
+          shareBp !== null
+            ? { $set: { ...set, walletModel: 'revenue_share', shareBp }, $inc: { version: 1 } }
+            : { $set: { ...set, walletModel: 'prepaid' }, $unset: { shareBp: '' }, $inc: { version: 1 } },
+        );
+      model = {
+        before: { walletModel: r.walletModel ?? 'prepaid', shareBp: r.shareBp ?? null },
+        after: { walletModel: b.model.walletModel, shareBp },
+      };
+      if (!b.rates.length) {
+        noteChange({ before: model.before, after: model.after, entityId: r._id });
+        return this.getRates(ctx, id);
+      }
+    }
     for (const x of b.rates) {
       if ((x.walletPricePaise !== undefined || x.active !== undefined) && !canSetWalletPrices) {
         throw forbidden('Wallet prices are set by the reseller directly above');
@@ -571,7 +618,11 @@ export class WalletsService {
         };
       }),
     );
-    noteChange({ before: { rates: before }, after: { rates: b.rates }, entityId: r._id });
+    noteChange({
+      before: { rates: before, ...(model ? { model: model.before } : {}) },
+      after: { rates: b.rates, ...(model ? { model: model.after } : {}) },
+      entityId: r._id,
+    });
     return this.getRates(ctx, id);
   }
 }

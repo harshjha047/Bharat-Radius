@@ -17,16 +17,17 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | 4.8 Backups/DR | ✅ #36, #66 · restore drill ⏳ | Nightly age-encrypted backups (#36). O-18 = Backblaze B2 (owner, 18 Nov; no India region; lawyer to confirm under O-11). Follow-up PR: log archive days older than 60 days moved to B2 (gzip, not encrypted by owner's choice; SHA-1 verified; `fetch` brings days back), `LogOffloadStuck` alert. Setup: `docs/runbooks/backups.md` → Backblaze B2. Restore drill ⏳ |
 | 4.9 Alerts | ✅ #35, #65 | #35 (11 Nov): synthetic RADIUS login every minute, `RadiusLoginProbeFailing`/`Slow`/`Stale`, `OutboxErrors`, `ReconcileStale`, `BackupMissing`/`NeverRan` (resolve with 4.8). Follow-up PR: `WalledGardenDown` (blackbox on `:8089` expects 302 → `/pay`), `WorkerJobFailing` (expired-sweep, imports, expiry-reminders, usage), `ExpiredSweepStale` |
 | Disk guard | ✅ #67 | Every 5 min: ≥ 70 % drill (imports/rebuilds paused, cache + old logs/backups to B2 after verify), ≥ 85 % maintenance page (RADIUS, webhooks, pay page keep running), ≥ 95 % 5 GB reserve released. Runbook `docs/runbooks/disk-guard.md` |
-| F-1…F-14 | ✅ this PR | #57–#63 were merged into their stacked bases and never reached `main`; landed here together |
+| F-1…F-14 | ✅ #68 | #57–#63 were merged into their stacked bases and never reached `main`; landed here together |
+| F-7 Billing models, top-up requests, recharge edits | 🔀 PR | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
 | 4.10–4.15 | ⏳ | |
 | F-15 Expired handling | ✅ #56 | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
-| F-10/16 Username case, Excel dates | 🔀 PR (stacked on F-15) | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
-| F-5/12/13 Recharge quantity + period | 🔀 PR (stacked on F-10/16) | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
-| F-2/3 RADIUS log | 🔀 PR (stacked on F-5/12/13) | Network → RADIUS log: Auth log (search, Accept/Reject, reason, router, period, auto-refresh, *Why?* with fix + similar usernames) and Live (start/pause/stop, user/text/type filter, full screen, download); subscriber → Login log → *Live RADIUS log* |
-| F-4/11 Dashboard config + live cards | 🔀 PR (stacked on F-2/3) | *Customise* on staff and reseller dashboards (per user, saved on the server). New cards: Pending recharge (expired), Login rejects (24 h), month recharge count. Expired rows tinted red in the subscriber list |
-| F-14 Recharges and expiries report | 🔀 PR (stacked on F-4/11) | Reports → *Recharges and expiries*: recharges, users recharged, expired in period (renewed later / still not), pending now, expiring 7 d, new; by day, by month, by package; recharge list with start/end (Excel/PDF). Presets add *Today* and *This year* |
-| F-1 Live router monitoring | 🔀 PR (stacked on F-14) | Routers → router: API login (encrypted), router health, live traffic per interface (2 s), latency (ping from router), PPPoE online router vs RADIUS, ports for the dashboard. Dashboard *NAS statistics*; subscriber *Live speed*. Own RouterOS API client: one session per router, ≤ 3 commands at once, identical polls shared, 15 s cap, offline reported in < 2 s |
-| F-6 Login as site | 🔀 PR (stacked on F-1) | Reseller page → *Open panel*: staff with *resellers.write*, or a parent reseller, works inside the child's panel (rights = own ∩ reseller rights); dark *Back to Admin* bar goes back one level; per browser tab; changes audited as “Name (as R-0004)” |
+| F-10/16 Username case, Excel dates | ✅ #68 | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
+| F-5/12/13 Recharge quantity + period | ✅ #68 | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
+| F-2/3 RADIUS log | ✅ #68 | Network → RADIUS log: Auth log (search, Accept/Reject, reason, router, period, auto-refresh, *Why?* with fix + similar usernames) and Live (start/pause/stop, user/text/type filter, full screen, download); subscriber → Login log → *Live RADIUS log* |
+| F-4/11 Dashboard config + live cards | ✅ #68 | *Customise* on staff and reseller dashboards (per user, saved on the server). New cards: Pending recharge (expired), Login rejects (24 h), month recharge count. Expired rows tinted red in the subscriber list |
+| F-14 Recharges and expiries report | ✅ #68 | Reports → *Recharges and expiries*: recharges, users recharged, expired in period (renewed later / still not), pending now, expiring 7 d, new; by day, by month, by package; recharge list with start/end (Excel/PDF). Presets add *Today* and *This year* |
+| F-1 Live router monitoring | ✅ #68 | Routers → router: API login (encrypted), router health, live traffic per interface (2 s), latency (ping from router), PPPoE online router vs RADIUS, ports for the dashboard. Dashboard *NAS statistics*; subscriber *Live speed*. Own RouterOS API client: one session per router, ≤ 3 commands at once, identical polls shared, 15 s cap, offline reported in < 2 s |
+| F-6 Login as site | ✅ #68 | Reseller page → *Open panel*: staff with *resellers.write*, or a parent reseller, works inside the child's panel (rights = own ∩ reseller rights); dark *Back to Admin* bar goes back one level; per browser tab; changes audited as “Name (as R-0004)” |
 
 ## Staging checks — 4.1
 
@@ -148,3 +149,18 @@ On the router (once): `/user group add name=bharat-api policy=api,read,test` · 
 4. Inside Test L1's panel → its Resellers → Test L2 → *Open panel* → *Back to Admin* returns to Test L1, again → your own panel.
 5. Another browser tab stays in your own panel.
 6. Sign in as Test L2 → Test L1 has no *Open panel* (parent not reachable); a Support user gets no access.
+
+## Staging checks — F-7
+
+Deploy: `app-up.sh` (Mongo 016 `topup_requests`; built-in roles gain *recharges.override*).
+
+1. Sign in as Test L1 → Resellers → Test L2 → Prices: *Billing model* = **Revenue share**, 40 → *Save model*. Wallet price column shows 40 % of each plan's MRP, read-only.
+2. Sign in as Test L2: Prices shows *Revenue share · 40%*, no model selector. Recharge `test.sub` → *From your wallet* = ₹… (40% of plan price); confirm → wallet debited exactly that; Recharges → Wallet debit shows *40% share*.
+3. As Test L1: set Test L2 back to **Prepaid top-up** → next recharge debits the per-plan wallet price again.
+4. As Test L2: Wallets → *Request top-up* ₹500, UPI, UTR → *My top-up requests* shows Waiting; *Withdraw* works on a second one.
+5. As Test L1: Wallets → *Top-up requests* (1 waiting) → *Approve*, change to ₹300 → Test L1 −₹300, Test L2 +₹300; both ledgers show *Top-up request*. Approve again is not offered.
+6. As Test L1: *Request top-up* → staff Wallets → *Top-up requests* → *Reject* with a reason → Test L1 sees *rejected* + the reason.
+7. Test L2 wallet below a recharge price → Recharge popup → *Insufficient Wallet Balance* + *Request top-up* (amount pre-filled with the shortfall).
+8. Staff: Recharge `test.sub` → change *Customer pays* to 500, *Valid until* to a date of choice, reason → Recharge → invoice total ₹500, cash payment ₹500, Valid until = that date 11:59 pm; Recharges row shows *Edited · ₹500 (was ₹…)*. `500.50` → *Whole rupees*.
+9. Test L2: *Valid until* later than the plan gives → *At most …: add periods*; earlier → accepted, wallet debit unchanged.
+10. Support role (no *recharges.override*): popup shows the read-only totals as before.

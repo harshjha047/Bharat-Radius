@@ -4916,6 +4916,10 @@ export interface paths {
               customerTotalPaise: number;
               periodStart: string;
               newExpiresAt: string;
+              walletModel: ('prepaid' | 'revenue_share') | null;
+              sharePercent: number | null;
+              canOverride: boolean;
+              maxExpiresAt: string | null;
             };
           };
         };
@@ -5012,6 +5016,20 @@ export interface paths {
                 } | null;
                 invoiceId: string | null;
                 paymentId: string | null;
+                /** @enum {string} */
+                walletModel: 'prepaid' | 'revenue_share';
+                sharePercent: number | null;
+                override: {
+                  customerTotal: {
+                    quotedPaise: number;
+                    setPaise: number;
+                  } | null;
+                  expiresAt: {
+                    quoted: string;
+                    set: string;
+                  } | null;
+                  reason: string;
+                } | null;
                 reversal: {
                   reason: string;
                   at: string;
@@ -5060,6 +5078,11 @@ export interface paths {
             payment?: 'cash' | 'none';
             /** @default 1 */
             quantity?: number;
+            override?: {
+              customerTotalPaise?: number;
+              expiresOn?: string;
+              reason: string;
+            };
           };
         };
       };
@@ -5104,6 +5127,20 @@ export interface paths {
               } | null;
               invoiceId: string | null;
               paymentId: string | null;
+              /** @enum {string} */
+              walletModel: 'prepaid' | 'revenue_share';
+              sharePercent: number | null;
+              override: {
+                customerTotal: {
+                  quotedPaise: number;
+                  setPaise: number;
+                } | null;
+                expiresAt: {
+                  quoted: string;
+                  set: string;
+                } | null;
+                reason: string;
+              } | null;
               reversal: {
                 reason: string;
                 at: string;
@@ -5197,6 +5234,20 @@ export interface paths {
               } | null;
               invoiceId: string | null;
               paymentId: string | null;
+              /** @enum {string} */
+              walletModel: 'prepaid' | 'revenue_share';
+              sharePercent: number | null;
+              override: {
+                customerTotal: {
+                  quotedPaise: number;
+                  setPaise: number;
+                } | null;
+                expiresAt: {
+                  quoted: string;
+                  set: string;
+                } | null;
+                reason: string;
+              } | null;
               reversal: {
                 reason: string;
                 at: string;
@@ -5300,6 +5351,20 @@ export interface paths {
               } | null;
               invoiceId: string | null;
               paymentId: string | null;
+              /** @enum {string} */
+              walletModel: 'prepaid' | 'revenue_share';
+              sharePercent: number | null;
+              override: {
+                customerTotal: {
+                  quotedPaise: number;
+                  setPaise: number;
+                } | null;
+                expiresAt: {
+                  quoted: string;
+                  set: string;
+                } | null;
+                reason: string;
+              } | null;
               reversal: {
                 reason: string;
                 at: string;
@@ -5809,6 +5874,393 @@ export interface paths {
     };
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets/topup-requests': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Top-up requests asked of my wallet (incoming) or sent by me (outgoing), newest first */
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+          box?: 'incoming' | 'outgoing';
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                reseller: {
+                  id: string;
+                  code: string;
+                  name: string;
+                };
+                walletId: string;
+                balancePaise: number;
+                amountPaise: number;
+                approvedPaise: number | null;
+                paidVia: ('cash' | 'upi' | 'bank') | null;
+                reference: string | null;
+                note: string | null;
+                /** @enum {string} */
+                status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+                decisionNote: string | null;
+                createdAt: string;
+                decidedAt: string | null;
+                canDecide: boolean;
+                canCancel: boolean;
+              }[];
+              nextCursor: string | null;
+              pending: number;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Reseller asks the wallet directly above it for money */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            amountPaise: number;
+            /** @enum {string} */
+            paidVia?: 'cash' | 'upi' | 'bank';
+            reference?: string;
+            note?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              };
+              walletId: string;
+              balancePaise: number;
+              amountPaise: number;
+              approvedPaise: number | null;
+              paidVia: ('cash' | 'upi' | 'bank') | null;
+              reference: string | null;
+              note: string | null;
+              /** @enum {string} */
+              status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+              decisionNote: string | null;
+              createdAt: string;
+              decidedAt: string | null;
+              canDecide: boolean;
+              canCancel: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets/topup-requests/{id}/approve': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Send the money asked for (or another amount); a normal transfer, once per request */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            amountPaise?: number;
+            note?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              };
+              walletId: string;
+              balancePaise: number;
+              amountPaise: number;
+              approvedPaise: number | null;
+              paidVia: ('cash' | 'upi' | 'bank') | null;
+              reference: string | null;
+              note: string | null;
+              /** @enum {string} */
+              status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+              decisionNote: string | null;
+              createdAt: string;
+              decidedAt: string | null;
+              canDecide: boolean;
+              canCancel: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets/topup-requests/{id}/reject': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Turn down a top-up request with a note */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            note: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              };
+              walletId: string;
+              balancePaise: number;
+              amountPaise: number;
+              approvedPaise: number | null;
+              paidVia: ('cash' | 'upi' | 'bank') | null;
+              reference: string | null;
+              note: string | null;
+              /** @enum {string} */
+              status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+              decisionNote: string | null;
+              createdAt: string;
+              decidedAt: string | null;
+              canDecide: boolean;
+              canCancel: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/wallets/topup-requests/{id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Withdraw my own pending request */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              };
+              walletId: string;
+              balancePaise: number;
+              amountPaise: number;
+              approvedPaise: number | null;
+              paidVia: ('cash' | 'upi' | 'bank') | null;
+              reference: string | null;
+              note: string | null;
+              /** @enum {string} */
+              status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+              decisionNote: string | null;
+              createdAt: string;
+              decidedAt: string | null;
+              canDecide: boolean;
+              canCancel: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;
@@ -6519,6 +6971,9 @@ export interface paths {
             'application/json': {
               canSetWalletPrices: boolean;
               canSetCustomerPrices: boolean;
+              /** @enum {string} */
+              walletModel: 'prepaid' | 'revenue_share';
+              sharePercent: number | null;
               items: {
                 planId: string;
                 planName: string;
@@ -6563,12 +7018,23 @@ export interface paths {
       requestBody: {
         content: {
           'application/json': {
-            rates: {
+            /** @default [] */
+            rates?: {
               planId: string;
               walletPricePaise?: number;
               customerPricePaise?: number | null;
               active?: boolean;
             }[];
+            model?:
+              | {
+                  /** @constant */
+                  walletModel: 'prepaid';
+                }
+              | {
+                  /** @constant */
+                  walletModel: 'revenue_share';
+                  sharePercent: number;
+                };
           };
         };
       };
@@ -6582,6 +7048,9 @@ export interface paths {
             'application/json': {
               canSetWalletPrices: boolean;
               canSetCustomerPrices: boolean;
+              /** @enum {string} */
+              walletModel: 'prepaid' | 'revenue_share';
+              sharePercent: number | null;
               items: {
                 planId: string;
                 planName: string;
@@ -11764,6 +12233,7 @@ export interface paths {
               | 'resellers.write'
               | 'billing.read'
               | 'recharges.create'
+              | 'recharges.override'
               | 'wallets.transfer'
               | 'wallets.refund'
               | 'wallets.adjust'
@@ -11912,6 +12382,7 @@ export interface paths {
               | 'resellers.write'
               | 'billing.read'
               | 'recharges.create'
+              | 'recharges.override'
               | 'wallets.transfer'
               | 'wallets.refund'
               | 'wallets.adjust'

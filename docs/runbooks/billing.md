@@ -46,7 +46,9 @@ Settings → SMS: the provider's HTTP GET URL with placeholders `{apiKey} {sende
 ## Money rules (for support questions)
 
 - Prepaid renewal: new expiry = max(now, current expiry) + validity days, ending 23:59:59 IST.
-- A recharge debits only the wallet of the level that performs it (its wallet price, default MRP).
+- A recharge debits only the wallet of the level that performs it. *Prepaid top-up* model (default): its wallet price per plan, default MRP. *Revenue share* model: the share % its parent set × plan MRP (excl. GST), half up to the paisa. Set per child reseller on its Prices tab by the parent (staff for level 1).
+- Top-up requests: a reseller asks the wallet directly above (Wallets → *Request top-up*); the parent approves (a normal transfer, idempotent per request, may change the amount) or rejects with a reason; the requester may withdraw while waiting; at most 5 waiting per wallet.
+- Recharge popup edits (`recharges.override`: ISP Admin, Reseller Owner): customer total incl. GST (whole rupees) and valid-until (ends 23:59:59 IST), with a reason. Only the invoice, cash payment and expiry change; the wallet debit stays price/share × periods. Resellers may shorten the period but not extend it beyond what they paid for; staff may set any date after the period start. Recorded on the recharge (`override`: quoted → set) and in the audit log.
 - Recharges are refused with "Insufficient Wallet Balance" when the balance (plus credit limit) is short; nothing is deducted.
 - Refund: REFUND ledger entry, credit note, expiry rolled back if it was the latest recharge. Nothing is deleted.
 - Invoice numbers: `PREFIX/2627/00001`, consecutive per financial year; CGST+SGST when the customer's state is the ISP's GST state, otherwise IGST.

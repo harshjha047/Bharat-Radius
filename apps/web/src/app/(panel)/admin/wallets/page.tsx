@@ -4,7 +4,7 @@ import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { TopUpDialog, WalletStateBadge } from '@/components/billing';
+import { RequestTopUpDialog, TopUpDialog, TopupRequestsPanel, WalletStateBadge } from '@/components/billing';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
 import { ErrorState, PageHeader, Stat } from '@/components/ui/misc';
@@ -24,6 +24,7 @@ export default function WalletsPage() {
   const staff = me.data?.user.type !== 'reseller';
   const [filter, setFilter] = useState<Filter>('all');
   const [topUp, setTopUp] = useState<Wallet | null>(null);
+  const [asking, setAsking] = useState(false);
 
   const mine = useQuery({
     queryKey: ['wallet', 'mine'],
@@ -68,11 +69,16 @@ export default function WalletsPage() {
         }
         actions={
           m ? (
-            <Button variant="outline" asChild>
-              <Link href={`/admin/wallets/${m.id}`}>
-                {staff ? 'Master ledger' : 'My ledger'} <ArrowUpRight />
-              </Link>
-            </Button>
+            <div className="flex gap-2">
+              {!staff && can('wallets.transfer') ? (
+                <Button onClick={() => setAsking(true)}>Request top-up</Button>
+              ) : null}
+              <Button variant="outline" asChild>
+                <Link href={`/admin/wallets/${m.id}`}>
+                  {staff ? 'Master ledger' : 'My ledger'} <ArrowUpRight />
+                </Link>
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -133,6 +139,17 @@ export default function WalletsPage() {
             ? 'Your wallet is empty: recharges are blocked until you get a top-up.'
             : `Low balance: at or below ${fmtRupees(m.lowBalanceThresholdPaise)}.`}
         </p>
+      ) : null}
+
+      {m && (staff || m.children > 0) ? (
+        <div className="mb-6">
+          <TopupRequestsPanel box="incoming" />
+        </div>
+      ) : null}
+      {m && !staff ? (
+        <div className="mb-6">
+          <TopupRequestsPanel box="outgoing" />
+        </div>
       ) : null}
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)} className="mb-3">
@@ -211,6 +228,7 @@ export default function WalletsPage() {
         />
       )}
       <TopUpDialog wallet={topUp} open={!!topUp} onOpenChange={(o) => !o && setTopUp(null)} />
+      <RequestTopUpDialog open={asking} onOpenChange={setAsking} />
     </>
   );
 }

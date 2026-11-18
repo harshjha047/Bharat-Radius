@@ -11,7 +11,10 @@ import {
   recharges,
   rechargePeriod,
   reverseRecharge,
-  walletPrice,
+  endOfIstDay,
+  istDate,
+  istMidnight,
+  walletTerms,
   wallets,
   type BillingTenant,
   type MongoHandle,
@@ -37,6 +40,11 @@ import {
 } from './common.js';
 
 const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be a date in YYYY-MM-DD form');
+/** 00:00 IST of a YYYY-MM-DD day. */
+const istDayStart = (d: string) => {
+  const [y, m, day] = d.split('-').map(Number) as [number, number, number];
+  return istMidnight(y, m, day);
+};
 const createBody = z.object({
   subscriberId: objectId,
   /** Defaults to the subscriber's current plan. */
@@ -48,6 +56,19 @@ const createBody = z.object({
   payment: z.enum(['cash', 'none']).optional(),
   /** Periods bought at once (3 × 1 month). */
   quantity: z.number().int().min(1).max(12).default(1),
+  /**
+   * `recharges.override`: customer total incl. GST (whole rupees) and/or last valid day (YYYY-MM-DD, valid to
+   * 23:59:59 IST). Changes the invoice and expiry only; the wallet debit stays the plan price/share × periods.
+   * A reseller may shorten the period but not extend it past what its wallet pays for.
+   */
+  override: z
+    .object({
+      customerTotalPaise: z.number().int().min(0).max(10_000_000_000).optional(),
+      expiresOn: isoDay.optional(),
+      reason: z.string().trim().min(3).max(200),
+    })
+    .refine((o) => o.customerTotalPaise !== undefined || o.expiresOn !== undefined, 'nothing to change')
+    .optional(),
 });
 const refundBody = z.object({ reason: z.string().trim().min(5).max(200) });
 const listQuery = pageQuery.extend({
@@ -90,6 +111,15 @@ const rechargeView = z.object({
   by: z.object({ id: z.string(), name: z.string() }).nullable(),
   invoiceId: z.string().nullable(),
   paymentId: z.string().nullable(),
+  walletModel: z.enum(['prepaid', 'revenue_share']),
+  sharePercent: z.number().nullable(),
+  override: z
+    .object({
+      customerTotal: z.object({ quotedPaise: z.number(), setPaise: z.number() }).nullable(),
+      expiresAt: z.object({ quoted: z.string(), set: z.string() }).nullable(),
+      reason: z.string(),
+    })
+    .nullable(),
   reversal: z.object({ reason: z.string(), at: z.string(), creditNoteId: z.string().nullable() }).nullable(),
   replayed: z.boolean().optional(),
   createdAt: z.string(),
@@ -105,6 +135,13 @@ const quoteView = z.object({
   customerTotalPaise: z.number(),
   periodStart: z.string(),
   newExpiresAt: z.string(),
+  /** How the wallet debit is worked out for the caller. */
+  walletModel: z.enum(['prepaid', 'revenue_share']).nullable(),
+  sharePercent: z.number().nullable(),
+  /** Caller may change the price and valid-until (recharges.override). */
+  canOverride: z.boolean(),
+  /** A reseller cannot set valid-until later than this (what its wallet pays for); null for staff. */
+  maxExpiresAt: z.string().nullable(),
 });
 
 type View = z.output<typeof rechargeView>;
@@ -186,6 +223,25 @@ export class RechargesService {
         })(),
         invoiceId: d.invoiceId?.toHexString() ?? null,
         paymentId: d.paymentId?.toHexString() ?? null,
+        walletModel: d.walletModel ?? 'prepaid',
+        sharePercent: d.shareBp !== undefined ? d.shareBp / 100 : null,
+        override: d.override
+          ? {
+              customerTotal: d.override.customerTotalPaise
+                ? {
+                    quotedPaise: d.override.customerTotalPaise.quoted,
+                    setPaise: d.override.customerTotalPaise.set,
+                  }
+                : null,
+              expiresAt: d.override.expiresAt
+                ? {
+                    quoted: d.override.expiresAt.quoted.toISOString(),
+                    set: d.override.expiresAt.set.toISOString(),
+                  }
+                : null,
+              reason: d.override.reason,
+            }
+          : null,
         reversal: d.reversal
           ? {
               reason: d.reversal.reason,
@@ -222,10 +278,15 @@ export class RechargesService {
     const cp = await customerPrice(this.db, s.resellerId, plan);
     const n = q.quantity;
     const period = rechargePeriod(s.expiresAt, plan.validityDays, n);
+    const terms = self ? await walletTerms(this.db, self, plan) : null;
     return {
       plan: { id: plan._id.toHexString(), name: plan.name, validityDays: plan.validityDays },
       quantity: n,
-      walletPricePaise: self ? (await walletPrice(this.db, self, plan)) * n : 0,
+      walletPricePaise: terms ? terms.amountPaise * n : 0,
+      walletModel: terms?.walletModel ?? null,
+      sharePercent: terms?.shareBp !== undefined ? terms.shareBp / 100 : null,
+      canOverride: ctx.permissions.has('recharges.override'),
+      maxExpiresAt: self ? period.end.toISOString() : null,
       walletBalancePaise: w ? w.balancePaise : null,
       customerPricePaise: cp * n,
       customerTotalPaise: grossPrice(cp * n, plan.gstRatePercent),
@@ -247,6 +308,8 @@ export class RechargesService {
         throw forbidden('Only staff with wallet adjustment rights can give complimentary recharges');
       }
     }
+    if (b.override && !ctx.permissions.has('recharges.override'))
+      throw forbidden('You cannot change the recharge price or valid-until');
     const existing = await recharges(this.db).findOne({ idempotencyKey: key, tenantId });
     if (existing) return { ...(await this.views(ctx, [existing]))[0]!, replayed: true };
 
@@ -266,7 +329,18 @@ export class RechargesService {
           await assertBranchOpen(this.db, tenantId, sub.ancestors, session);
           const w = await wallets(this.db).findOne({ ownerId: self, tenantId }, { session });
           if (!w) throw notFound('Wallet');
-          wallet = { doc: w, resellerId: self, amountPaise: await walletPrice(this.db, self, plan, session) };
+          wallet = { doc: w, resellerId: self, ...(await walletTerms(this.db, self, plan, session)) };
+        }
+        const expiresAt = b.override?.expiresOn ? istDayStart(b.override.expiresOn) : undefined;
+        if (self && expiresAt) {
+          const paidUntil = rechargePeriod(sub.expiresAt, plan.validityDays, b.quantity).end;
+          if (endOfIstDay(expiresAt) > paidUntil) {
+            throw new AppError(
+              400,
+              'VALIDATION_FAILED',
+              `Valid until can be at most ${istDate(paidUntil)}: add periods to give more days`,
+            );
+          }
         }
         const cp = await customerPrice(this.db, sub.resellerId, plan, session);
         let paymentId: ObjectId | undefined;
@@ -279,7 +353,7 @@ export class RechargesService {
             subscriberId: sub._id,
             ancestors: sub.ancestors,
             method: 'cash',
-            amountPaise: grossPrice(cp * b.quantity, plan.gstRatePercent),
+            amountPaise: b.override?.customerTotalPaise ?? grossPrice(cp * b.quantity, plan.gstRatePercent),
             status: 'captured',
             purpose: { type: 'recharge', planId: plan._id },
             collectedBy: actor,
@@ -300,6 +374,17 @@ export class RechargesService {
           customerPricePaise: cp,
           quantity: b.quantity,
           invoice: b.payment !== 'none',
+          ...(b.override
+            ? {
+                override: {
+                  ...(b.override.customerTotalPaise !== undefined
+                    ? { customerTotalPaise: b.override.customerTotalPaise }
+                    : {}),
+                  ...(expiresAt ? { expiresAt } : {}),
+                  reason: b.override.reason,
+                },
+              }
+            : {}),
           idempotencyKey: key,
           actor,
           ...(paymentId ? { paymentId } : {}),

@@ -67,6 +67,9 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/wallets/:id/ledger': 'walletA',
   '/api/v1/wallets/:id/report': 'walletA',
   '/api/v1/wallets/:id/adjust': 'walletA',
+  '/api/v1/wallets/topup-requests/:id/approve': 'topupA',
+  '/api/v1/wallets/topup-requests/:id/reject': 'topupA',
+  '/api/v1/wallets/topup-requests/:id/cancel': 'topupA',
   '/api/v1/recharges/:id': 'rechargeA',
   '/api/v1/recharges/:id/refund': 'rechargeA',
   '/api/v1/invoices/:id': 'invoiceA',
@@ -111,6 +114,8 @@ const BODIES: Record<string, unknown> = {
   'POST /api/v1/wallets/:id/adjust': { amountPaise: 100, reason: 'B adjusting A' },
   'PATCH /api/v1/wallets/:id': { lowBalanceThresholdPaise: 1 },
   'POST /api/v1/recharges/:id/refund': { reason: 'B refunding A' },
+  'POST /api/v1/wallets/topup-requests/:id/approve': {},
+  'POST /api/v1/wallets/topup-requests/:id/reject': { note: 'B rejecting A' },
   'POST /api/v1/invoices/:id/credit-note': { reason: 'B crediting A' },
 };
 const HEADERS: Record<string, Record<string, string>> = {
@@ -196,6 +201,19 @@ beforeAll(async () => {
     updatedAt: new Date(),
   });
   ids.walletA = walletA.toHexString();
+  const topupA = await h.db.collection('topup_requests').insertOne({
+    tenantId: a,
+    resellerId: resellerA,
+    walletId: walletA,
+    parentWalletId: new ObjectId(),
+    ancestors: [resellerA],
+    amountPaise: 100,
+    status: 'pending',
+    createdBy: 'test',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  ids.topupA = topupA.insertedId.toHexString();
   const subA = new ObjectId(ids.subA);
   const invoiceA = new ObjectId();
   const party = { name: 'x', stateCode: '07', address: 'x' };

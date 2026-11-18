@@ -101,7 +101,38 @@ export function ResellerRates({ resellerId }: { resellerId: string }) {
       toast.success('Prices saved.');
     },
   });
+  const [model, setModel] = useState<{ walletModel: 'prepaid' | 'revenue_share'; share: string } | null>(
+    null,
+  );
+  const saveModel = useMutation({
+    meta: { silent: true },
+    mutationFn: (m: { walletModel: 'prepaid' } | { walletModel: 'revenue_share'; sharePercent: number }) =>
+      unwrap(
+        api.PUT('/api/v1/resellers/{id}/rates', {
+          params: { path: { id: resellerId } },
+          body: { model: m },
+        }),
+      ),
+    onSuccess: (n) => {
+      qc.setQueryData(['rates', resellerId], n);
+      setModel(null);
+      setEdits({});
+      toast.success('Billing model saved.');
+    },
+  });
   const rows = useMemo(() => q.data?.items ?? [], [q.data]);
+  const share = q.data?.walletModel === 'revenue_share';
+  const m = model ?? {
+    walletModel: q.data?.walletModel ?? 'prepaid',
+    share:
+      q.data?.sharePercent !== null && q.data?.sharePercent !== undefined ? String(q.data.sharePercent) : '',
+  };
+  const sharePct = Number(m.share);
+  const shareOk = /^\d{1,3}(\.\d{1,2})?$/.test(m.share.trim()) && sharePct > 0 && sharePct <= 100;
+  const modelDirty =
+    !!q.data &&
+    (m.walletModel !== q.data.walletModel ||
+      (m.walletModel === 'revenue_share' && shareOk && sharePct !== q.data.sharePercent));
   const value = (planId: string): RateEdit => {
     const r = rows.find((x) => x.planId === planId)!;
     return (
@@ -125,14 +156,15 @@ export function ResellerRates({ resellerId }: { resellerId: string }) {
       const c: (typeof out)[number] = { planId };
       const wp = toPaise(e.walletPrice);
       const cp = toPaise(e.customerPrice);
-      if (q.data?.canSetWalletPrices && wp !== null && wp !== r.walletPricePaise) c.walletPricePaise = wp;
+      if (q.data?.canSetWalletPrices && !share && wp !== null && wp !== r.walletPricePaise)
+        c.walletPricePaise = wp;
       if (q.data?.canSetWalletPrices && e.active !== r.active) c.active = e.active;
       if (q.data?.canSetCustomerPrices && cp !== null && cp !== r.customerPricePaise)
         c.customerPricePaise = cp;
       if (Object.keys(c).length > 1) out.push(c);
     }
     return out;
-  }, [edits, rows, q.data]);
+  }, [edits, rows, q.data, share]);
   const invalid = Object.values(edits).some(
     (e) => toPaise(e.walletPrice) === null || toPaise(e.customerPrice) === null,
   );
@@ -141,9 +173,75 @@ export function ResellerRates({ resellerId }: { resellerId: string }) {
     setEdits((x) => ({ ...x, [planId]: { ...value(planId), ...patch } }));
   return (
     <div className="space-y-3">
+      <div className="rounded-xl border p-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <Field label="Billing model" htmlFor="bm-model" className="min-w-56">
+            {q.data?.canSetWalletPrices ? (
+              <Select
+                id="bm-model"
+                value={m.walletModel}
+                onChange={(e) =>
+                  setModel({ ...m, walletModel: e.target.value as 'prepaid' | 'revenue_share' })
+                }
+              >
+                <option value="prepaid">Prepaid top-up (wallet price per plan)</option>
+                <option value="revenue_share">Revenue share (% of plan price)</option>
+              </Select>
+            ) : (
+              <p className="text-sm font-medium">
+                {share ? `Revenue share · ${q.data?.sharePercent}% of plan price` : 'Prepaid top-up'}
+              </p>
+            )}
+          </Field>
+          {q.data?.canSetWalletPrices && m.walletModel === 'revenue_share' ? (
+            <Field
+              label="Debited per recharge (%)"
+              htmlFor="bm-share"
+              error={m.share && !shareOk ? '0.01–100' : undefined}
+            >
+              <Input
+                id="bm-share"
+                inputMode="decimal"
+                className="w-28"
+                value={m.share}
+                onChange={(e) => setModel({ ...m, share: e.target.value })}
+              />
+            </Field>
+          ) : null}
+          {q.data?.canSetWalletPrices ? (
+            <div className="ml-auto flex items-center gap-2">
+              {saveModel.error ? (
+                <span className="text-sm text-destructive">{(saveModel.error as Error).message}</span>
+              ) : null}
+              <Button
+                variant="outline"
+                loading={saveModel.isPending}
+                disabled={!modelDirty || (m.walletModel === 'revenue_share' && !shareOk)}
+                onClick={() =>
+                  saveModel.mutate(
+                    m.walletModel === 'revenue_share'
+                      ? { walletModel: 'revenue_share', sharePercent: sharePct }
+                      : { walletModel: 'prepaid' },
+                  )
+                }
+              >
+                Save model
+              </Button>
+            </div>
+          ) : null}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {m.walletModel === 'revenue_share'
+            ? 'Each recharge debits this share of the plan price (excl. GST) from the reseller’s wallet; it keeps the rest of what the customer pays. Top-ups still come from the level above.'
+            : 'The level above sends money to this wallet; each recharge debits the wallet price set below.'}
+        </p>
+      </div>
       <p className="text-sm text-muted-foreground">
-        Wallet price: debited from this reseller’s wallet per recharge (set by the level above; defaults to
-        the plan price). Customer price: what this reseller charges, before GST.
+        Wallet price: debited from this reseller’s wallet per recharge
+        {share
+          ? ` (${q.data?.sharePercent}% of the plan price under revenue share)`
+          : ' (set by the level above; defaults to the plan price)'}
+        . Customer price: what this reseller charges, before GST.
       </p>
       <DataTable
         caption="Plan prices"
@@ -168,7 +266,7 @@ export function ResellerRates({ resellerId }: { resellerId: string }) {
             key: 'wallet',
             header: 'Wallet price (₹)',
             cell: (r) =>
-              q.data?.canSetWalletPrices ? (
+              q.data?.canSetWalletPrices && !share ? (
                 <Input
                   aria-label={`Wallet price for ${r.planName}`}
                   inputMode="decimal"

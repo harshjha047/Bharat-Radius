@@ -75,6 +75,23 @@ export function rechargePeriod(
   };
 }
 
+/**
+ * Taxable amount (excl. GST) whose invoice total is exactly `grossPaise` (whole rupees, as invoices round to the
+ * rupee). Picks the value nearest the exact back-calculation.
+ */
+export function taxableForGross(grossPaise: number, gstRatePercent: number): number {
+  if (!Number.isInteger(grossPaise) || grossPaise < 0 || grossPaise % 100 !== 0) {
+    throw new MoneyError(400, 'VALIDATION_FAILED', 'Enter the price in whole rupees');
+  }
+  const t0 = Math.round((grossPaise * 100) / (100 + gstRatePercent));
+  for (let d = 0; d <= 100; d++) {
+    for (const t of d ? [t0 - d, t0 + d] : [t0]) {
+      if (t >= 0 && grossPrice(t, gstRatePercent) === grossPaise) return t;
+    }
+  }
+  throw new MoneyError(400, 'VALIDATION_FAILED', 'That price cannot be reached with this GST rate');
+}
+
 /** Indian financial year of a date, e.g. "2026-27". */
 export function financialYear(at: Date): string {
   const { y, m } = istParts(at);
