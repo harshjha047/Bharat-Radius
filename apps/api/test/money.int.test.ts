@@ -427,7 +427,7 @@ describe('refund, renewal dates, scope', () => {
     expect(r.body).toMatchObject({ quantity: 3, customerPricePaise: 300 * RS });
     expect(r.body.by?.name).toBeTruthy();
     expect(new Date(r.body.periodStart).getTime()).toBe(before);
-    expect(new Date(r.body.newExpiresAt).getTime()).toBe(before + 90 * 86_400_000);
+    expect(new Date(r.body.newExpiresAt)).toEqual(endOfIstDay(new Date(before + 90 * 86_400_000)));
     const inv = (await admin.req('GET', `/api/v1/invoices?subscriberId=${c.body.id}`)).body.items[0];
     expect(inv).toMatchObject({ taxablePaise: 300 * RS, totalPaise: 354 * RS });
     const pay = await admin.req('GET', `/api/v1/payments?subscriberId=${c.body.id}`);
