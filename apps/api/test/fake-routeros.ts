@@ -4,7 +4,10 @@ import { SentenceReader, encodeSentence } from '../src/network/routeros/client.j
 /** RouterOS API stand-in for integration tests (user api / secret). */
 export function fakeRouterOs() {
   const calls: string[][] = [];
+  const sockets = new Set<net.Socket>();
   const server = net.createServer((sock) => {
+    sockets.add(sock);
+    sock.on('close', () => sockets.delete(sock));
     const reader = new SentenceReader();
     const send = (w: string[]) => sock.write(encodeSentence(w));
     sock.on('data', (d) => {
@@ -77,7 +80,12 @@ export function fakeRouterOs() {
       resolve({
         port: (server.address() as net.AddressInfo).port,
         calls,
-        close: () => new Promise((r) => server.close(() => r())),
+        // The panel keeps API sessions open (pooled): drop them, else close() waits for them.
+        close: () =>
+          new Promise((r) => {
+            for (const s of sockets) s.destroy();
+            server.close(() => r());
+          }),
       }),
     ),
   );
