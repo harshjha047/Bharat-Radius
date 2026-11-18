@@ -44,7 +44,7 @@ cleanup
 "$MAINT" "$INSTANCE" nas-watch >/dev/null
 
 q -1 -v key="$RADIUS_PW_KEY" -v nas_a="$NAS_A" -v nas_b="$NAS_B" -v sa="$SECRET_A" -v sb="$SECRET_B" <<'SQL' || { echo 'seed failed' >&2; exit 1; }
-INSERT INTO tenants (slug, name) VALUES ('e2e-a', 'E2E ISP A'), ('e2e-b', 'E2E ISP B');
+INSERT INTO tenants (slug, name, expired_mode) VALUES ('e2e-a', 'E2E ISP A', 'walled'), ('e2e-b', 'E2E ISP B', 'walled');
 INSERT INTO plans (tenant_id, name, rate_limit, fup_rate, ip_pool, sim_use)
 SELECT id, 'p50', '50M/50M', '5M/5M', NULL, 1 FROM tenants WHERE slug = 'e2e-a' UNION ALL
 SELECT id, 'pool', '20M/20M', NULL, 'pool-e2e', 1 FROM tenants WHERE slug = 'e2e-a' UNION ALL
@@ -150,6 +150,15 @@ check "  expired session limited to 3600 s" has "$r" "Session-Timeout = 3600"
 check "  accept logged with reason 'Plan expired'" eq "$(reason "$TA" e2e-expired)" "Plan expired"
 r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-noplan,User-Password=Pa55-x')"
 check "user without plan treated as expired" has "$r" 'Mikrotik-Address-List = "expired"'
+q -c "UPDATE tenants SET expired_mode = 'reject' WHERE id = $TA" >/dev/null
+r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-expired,User-Password=Pa55-x')"
+check "expired_mode=reject: expired user rejected" has "$r" "Received Access-Reject"
+check "  reject logged with reason 'Subscriber account expired'" eq "$(reason "$TA" e2e-expired)" "Subscriber account expired"
+r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-noplan,User-Password=Pa55-x')"
+check "  user without plan rejected" has "$r" "Received Access-Reject"
+r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-user,User-Password=Pa55-user')"
+check "  active user still accepted" has "$r" "Received Access-Accept"
+q -c "UPDATE tenants SET expired_mode = 'walled' WHERE id = $TA" >/dev/null
 r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-static,User-Password=Pa55-x')"
 check "static IP -> Framed-IP-Address" has "$r" "Framed-IP-Address = 100.64.9.9"
 r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-pool,User-Password=Pa55-x')"

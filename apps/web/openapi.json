@@ -14474,6 +14474,10 @@
                     "radius": {
                       "type": "object",
                       "properties": {
+                        "expiredMode": {
+                          "type": "string",
+                          "enum": ["reject", "walled"]
+                        },
                         "expiredRate": {
                           "type": "string",
                           "pattern": "^\\d+[kM]?\\/\\d+[kM]?$"
@@ -14494,6 +14498,7 @@
                         }
                       },
                       "required": [
+                        "expiredMode",
                         "expiredRate",
                         "expiredAddressList",
                         "expiredSessionSecs",
@@ -14652,6 +14657,10 @@
                   "radius": {
                     "type": "object",
                     "properties": {
+                      "expiredMode": {
+                        "type": "string",
+                        "enum": ["reject", "walled"]
+                      },
                       "expiredRate": {
                         "type": "string",
                         "pattern": "^\\d+[kM]?\\/\\d+[kM]?$"
@@ -14760,6 +14769,10 @@
                     "radius": {
                       "type": "object",
                       "properties": {
+                        "expiredMode": {
+                          "type": "string",
+                          "enum": ["reject", "walled"]
+                        },
                         "expiredRate": {
                           "type": "string",
                           "pattern": "^\\d+[kM]?\\/\\d+[kM]?$"
@@ -14780,6 +14793,7 @@
                         }
                       },
                       "required": [
+                        "expiredMode",
                         "expiredRate",
                         "expiredAddressList",
                         "expiredSessionSecs",
@@ -14976,6 +14990,10 @@
                           "radius": {
                             "type": "object",
                             "properties": {
+                              "expiredMode": {
+                                "type": "string",
+                                "enum": ["reject", "walled"]
+                              },
                               "expiredRate": {
                                 "type": "string",
                                 "pattern": "^\\d+[kM]?\\/\\d+[kM]?$"
@@ -14996,6 +15014,7 @@
                               }
                             },
                             "required": [
+                              "expiredMode",
                               "expiredRate",
                               "expiredAddressList",
                               "expiredSessionSecs",
@@ -15170,6 +15189,10 @@
                   "radius": {
                     "type": "object",
                     "properties": {
+                      "expiredMode": {
+                        "type": "string",
+                        "enum": ["reject", "walled"]
+                      },
                       "expiredRate": {
                         "type": "string",
                         "pattern": "^\\d+[kM]?\\/\\d+[kM]?$"
@@ -15279,6 +15302,10 @@
                     "radius": {
                       "type": "object",
                       "properties": {
+                        "expiredMode": {
+                          "type": "string",
+                          "enum": ["reject", "walled"]
+                        },
                         "expiredRate": {
                           "type": "string",
                           "pattern": "^\\d+[kM]?\\/\\d+[kM]?$"
@@ -15299,6 +15326,7 @@
                         }
                       },
                       "required": [
+                        "expiredMode",
                         "expiredRate",
                         "expiredAddressList",
                         "expiredSessionSecs",
@@ -15470,6 +15498,10 @@
                     "radius": {
                       "type": "object",
                       "properties": {
+                        "expiredMode": {
+                          "type": "string",
+                          "enum": ["reject", "walled"]
+                        },
                         "expiredRate": {
                           "type": "string",
                           "pattern": "^\\d+[kM]?\\/\\d+[kM]?$"
@@ -15490,6 +15522,7 @@
                         }
                       },
                       "required": [
+                        "expiredMode",
                         "expiredRate",
                         "expiredAddressList",
                         "expiredSessionSecs",
@@ -15659,6 +15692,10 @@
                   "radius": {
                     "type": "object",
                     "properties": {
+                      "expiredMode": {
+                        "type": "string",
+                        "enum": ["reject", "walled"]
+                      },
                       "expiredRate": {
                         "type": "string",
                         "pattern": "^\\d+[kM]?\\/\\d+[kM]?$"
@@ -15782,6 +15819,10 @@
                     "radius": {
                       "type": "object",
                       "properties": {
+                        "expiredMode": {
+                          "type": "string",
+                          "enum": ["reject", "walled"]
+                        },
                         "expiredRate": {
                           "type": "string",
                           "pattern": "^\\d+[kM]?\\/\\d+[kM]?$"
@@ -15802,6 +15843,7 @@
                         }
                       },
                       "required": [
+                        "expiredMode",
                         "expiredRate",
                         "expiredAddressList",
                         "expiredSessionSecs",

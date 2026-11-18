@@ -200,8 +200,20 @@ describe('tenants', () => {
   it('staff edit their own RADIUS settings; the change is queued', async () => {
     const r = await admin.req('PATCH', '/api/v1/tenant', { radius: { expiredRate: '512k/512k' } });
     expect(r.status).toBe(200);
-    expect(r.body.radius).toMatchObject({ expiredRate: '512k/512k', interimInterval: 300 });
+    expect(r.body.radius).toMatchObject({
+      expiredMode: 'reject',
+      expiredRate: '512k/512k',
+      interimInterval: 300,
+    });
     expect(await outboxFor(tenantA.toHexString())).toHaveLength(1);
+  });
+
+  it('expired handling switches between reject and walled', async () => {
+    const r = await admin.req('PATCH', '/api/v1/tenant', { radius: { expiredMode: 'walled' } });
+    expect(r.status).toBe(200);
+    expect(r.body.radius.expiredMode).toBe('walled');
+    const bad = await admin.req('PATCH', '/api/v1/tenant', { radius: { expiredMode: 'free' } });
+    expect(bad.status).toBe(400);
   });
 
   it('GSTIN must match the state code', async () => {

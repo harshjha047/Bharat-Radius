@@ -33,6 +33,7 @@ const address = z.object({
   pincode: pincode,
 });
 const radius = z.object({
+  expiredMode: z.enum(['reject', 'walled']),
   expiredRate: rate,
   expiredAddressList: z.string().regex(/^[\w-]{1,32}$/, 'must be 1–32 letters, digits, _ -'),
   expiredSessionSecs: z.number().int().min(60).max(86_400),
@@ -111,12 +112,13 @@ const toView = (t: TenantDoc & { radiusId?: number }): z.output<typeof tenantVie
   address: t.address as z.output<typeof address>,
   contact: t.contact ?? {},
   domain: t.branding?.domain ?? null,
-  radius: t.radius,
+  radius: { ...t.radius, expiredMode: t.radius.expiredMode ?? 'reject' },
   radiusId: t.radiusId ?? null,
   updatedAt: t.updatedAt.toISOString(),
 });
 
 const DEFAULT_RADIUS = {
+  expiredMode: 'reject' as const,
   expiredRate: '256k/256k',
   expiredAddressList: 'expired',
   expiredSessionSecs: 3600,

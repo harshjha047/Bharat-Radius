@@ -31,7 +31,8 @@ DECLARE
   v_mac text := upper(replace(nullif(btrim(p_mac), ''), '-', ':'));
 BEGIN
   SELECT sub.id AS sid, sub.username AS uname, sub.status AS sstatus, sub.mac_lock, sub.password_enc,
-         coalesce(sub.sim_use, pl.sim_use, 1) AS sim, t.id AS tid, t.status AS tstatus, t.interim_interval AS interim
+         coalesce(sub.sim_use, pl.sim_use, 1) AS sim, t.id AS tid, t.status AS tstatus, t.interim_interval AS interim,
+         t.expired_mode = 'reject' AND (sub.plan_id IS NULL OR sub.expires_at <= now()) AS expired
     INTO s
     FROM nas n
     JOIN tenants t ON t.id = n.tenant_id
@@ -48,6 +49,7 @@ BEGIN
     WHEN s.sstatus = 'suspended' THEN 'Account suspended'
     WHEN s.sstatus = 'disabled' THEN 'Account disabled'
     WHEN s.mac_lock IS NOT NULL AND s.mac_lock IS DISTINCT FROM v_mac THEN 'MAC address not allowed'
+    WHEN s.expired THEN 'Subscriber account expired'
   END;
 
   -- Simultaneous-use: only sessions heard from within 3 interim periods count, so a crashed router cannot lock users out.
