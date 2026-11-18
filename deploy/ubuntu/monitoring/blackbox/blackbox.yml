@@ -5,3 +5,13 @@ modules:
     http:
       valid_status_codes: [200]
       fail_if_body_not_matches_regexp: ['"status":"ok"']
+  # Walled garden (:8089): must answer every request with a redirect to the pay page.
+  http_redirect_pay:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [302]
+      no_follow_redirects: true
+      fail_if_header_not_matches:
+        - header: Location
+          regexp: '/pay(\?t=.+)?$'

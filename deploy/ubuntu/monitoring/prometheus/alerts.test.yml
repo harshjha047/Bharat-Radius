@@ -214,3 +214,45 @@ tests:
           - exp_labels: { severity: critical, fstype: ext4, mountpoint: / }
             exp_annotations:
               summary: 'Disk / will be full within 6 hours at the current rate (check /var/log/syslog, docker system df)'
+
+  - interval: 1m
+    input_series:
+      - series: 'isp_job_failing{job="expired-sweep"}'
+        values: '0 1x30'
+      - series: 'isp_job_failing{job="postpaid-invoice"}'
+        values: '0 1x30'
+      - series: 'isp_job_last_success_timestamp_seconds{job="expired-sweep"}'
+        values: '0x40'
+      - series: 'probe_success{job="blackbox-walled",instance="http://154.49.142.251:8089/generate_204"}'
+        values: '1 1 0x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: WorkerJobFailing
+        exp_alerts: []
+      - eval_time: 17m
+        alertname: WorkerJobFailing
+        exp_alerts:
+          - exp_labels: { severity: warning, job: expired-sweep }
+            exp_annotations:
+              summary: 'Worker job expired-sweep is failing'
+              runbook: docs/runbooks/outbox.md
+      - eval_time: 36m
+        alertname: ExpiredSweepStale
+        exp_alerts:
+          - exp_labels: { severity: warning, job: expired-sweep }
+            exp_annotations:
+              summary: 'Expired-customer sweep has not succeeded for 30+ minutes: expired customers may stay online'
+      - eval_time: 5m
+        alertname: WalledGardenDown
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: WalledGardenDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: blackbox-walled
+              instance: http://154.49.142.251:8089/generate_204
+            exp_annotations:
+              summary: 'Walled garden (:8089) is not redirecting to the pay page: expired customers cannot pay online'
+              runbook: docs/runbooks/pay-page.md
+
