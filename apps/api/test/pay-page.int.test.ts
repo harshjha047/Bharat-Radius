@@ -121,12 +121,20 @@ beforeAll(async () => {
       [tid],
     )
   ).rows[0]!.id;
-  const sub = (k: string, expires: string) =>
-    pgAdmin.query(
+  const sub = async (k: string, expires: string) => {
+    const days = Number.parseInt(expires, 10);
+    await h.db
+      .collection('subscribers')
+      .updateOne(
+        { _id: new ObjectId(id[k]) },
+        { $set: { expiresAt: new Date(Date.now() + days * 86_400_000) } },
+      );
+    return pgAdmin.query(
       `INSERT INTO subscribers (external_id, tenant_id, username, password_enc, plan_id, expires_at)
        VALUES ($1, $2, $3, radius_encrypt_password('x', 'k'), $4, now() + $5::interval)`,
       [id[k], tid, u(k), pid, expires],
     );
+  };
   await sub('a', '-1 day');
   await sub('b', '10 days');
   await sub('c', '-2 days');
@@ -197,7 +205,7 @@ describe('walled-garden pay page', () => {
     expect(byPhone.status, JSON.stringify(byPhone.body)).toBe(200);
     expect(byPhone.body.subscriber).toMatchObject({ customerNo: id.bNo, expired: false });
     const byNo = await c.req('POST', '/api/v1/pay/lookup', { t, login: id.aNo!.toLowerCase() }, from(nasIp));
-    expect(byNo.body.subscriber.customerNo).toBe(id.aNo);
+    expect(byNo.body.subscriber).toMatchObject({ customerNo: id.aNo, expired: true });
     const offline = await c.req('POST', '/api/v1/pay/lookup', { t, login: u('c') }, from(nasIp));
     expect(offline.status).toBe(404);
   });
