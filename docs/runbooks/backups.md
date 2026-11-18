@@ -42,8 +42,9 @@ Use a bucket key that can write and list but not delete versions (object lock / 
 
 ## Backblaze B2 (owner's choice, 18 Nov 2026)
 
-B2 has no India region; everything is age-encrypted on the server before upload, so the bucket only holds ciphertext.
-Do *Setup (once)* above first (your age key). One bucket, two folders: `isp-backups/` (nightly backups, 35 days) and `isp-logs/` (log days older than 60 days).
+B2 has no India region. Backups are age-encrypted on the server before upload (they include every server secret);
+log days go up compressed only (owner's decision, 18 Nov 2026). Do *Setup (once)* above first (your age key).
+One bucket, two folders: `isp-backups/` (nightly backups, 35 days) and `isp-logs/` (log days older than 60 days).
 
 In the Backblaze web console:
 

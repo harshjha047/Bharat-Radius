@@ -6,9 +6,10 @@
 #     previous one, so removing or editing an old file or manifest breaks the chain (verify: logs-maint.sh verify)
 #  3. the manifests also go into the encrypted nightly backup (backup.sh), so deleting the newest one is caught too
 #  4. write node-exporter metrics (archive size, free space, newest file per router) for the alerts
-#  5. off-site (when LOG_REMOTE is set in /etc/isp-logs/offload.env): sealed files older than KEEP_LOCAL_DAYS are
-#     age-encrypted to the backup key, uploaded, checked against the bucket's SHA-1, listed in MANIFEST/OFFSITE.list
-#     and only then removed here. `fetch <from> <to>` brings days back (needs the private key: AGE_IDENTITY).
+#  5. off-site (when LOG_REMOTE is set in /etc/isp-logs/offload.env): sealed files (already gzip -9) older than
+#     KEEP_LOCAL_DAYS are uploaded as they are (LOG_ENCRYPT=yes: age-encrypted to the backup key first), checked
+#     against the bucket's SHA-1, listed in MANIFEST/OFFSITE.list and only then removed here. `fetch <from> <to>`
+#     brings days back (encrypted ones need the private key: AGE_IDENTITY).
 set -Eeuo pipefail
 umask 0027
 ROOT="${ARCHIVE_ROOT:-/var/log/isp-archive}"
@@ -21,6 +22,7 @@ OFFLOAD_CONF="${OFFLOAD_CONF:-/etc/isp-logs/offload.env}"
 [[ -r $OFFLOAD_CONF ]] && . "$OFFLOAD_CONF"
 LOG_REMOTE="${LOG_REMOTE:-}"
 KEEP_LOCAL_DAYS="${KEEP_LOCAL_DAYS:-60}"
+LOG_ENCRYPT="${LOG_ENCRYPT:-no}"
 if [[ -z ${AGE_RECIPIENT:-} && -r /etc/isp-backup/backup.env ]]; then
   AGE_RECIPIENT="$(sed -n 's/^AGE_RECIPIENT=//p' /etc/isp-backup/backup.env)"
 fi
@@ -78,25 +80,30 @@ offloaded() { [[ -s $OFFSITE_LIST ]] && awk -v r="$1" '$1 == r { f = 1 } END { e
 
 offload() {
   [[ -n $LOG_REMOTE ]] || return 0
-  [[ -n ${AGE_RECIPIENT:-} ]] || { log "offload: AGE_RECIPIENT not set (backup-setup.sh); skipped"; return 0; }
-  command -v rclone >/dev/null && command -v age >/dev/null || { log "offload: rclone/age missing; skipped"; return 0; }
-  local f rel tmp local_sha remote_sha n=0 kept=0
+  command -v rclone >/dev/null || { log "offload: rclone missing; skipped"; return 0; }
+  local enc=no
+  if [[ $LOG_ENCRYPT == yes ]]; then
+    [[ -n ${AGE_RECIPIENT:-} ]] && command -v age >/dev/null || { log "offload: LOG_ENCRYPT=yes needs age + AGE_RECIPIENT; skipped"; return 0; }
+    enc=yes
+  fi
+  local f rel tmp up name local_sha remote_sha n=0 kept=0
   touch "$OFFSITE_LIST"; chmod 0440 "$OFFSITE_LIST"; chgrp isp-archive "$OFFSITE_LIST"
   tmp="$(mktemp -d)"
   # File mtime = when it was sealed (or fetched back), so a fetched day stays KEEP_LOCAL_DAYS before going again.
   while IFS= read -r -d '' f; do
     rel="${f#"$ROOT"/}"
     if ! offloaded "$rel"; then
-      age -r "$AGE_RECIPIENT" -o "$tmp/x.age" "$f"
-      local_sha="$(sha1sum "$tmp/x.age" | cut -d' ' -f1)"
-      if ! rclone copyto --retries 3 "$tmp/x.age" "$LOG_REMOTE/$rel.age"; then
+      if [[ $enc == yes ]]; then age -r "$AGE_RECIPIENT" -o "$tmp/x.age" "$f"; up="$tmp/x.age"; name="$rel.age"
+      else up="$f"; name="$rel"; fi
+      local_sha="$(sha1sum "$up" | cut -d' ' -f1)"
+      if ! rclone copyto --retries 3 "$up" "$LOG_REMOTE/$name"; then
         log "offload: upload of $rel failed; kept locally"; kept=$((kept + 1)); continue
       fi
-      remote_sha="$(rclone hashsum sha1 "$LOG_REMOTE/$rel.age" 2>/dev/null | cut -d' ' -f1)"
+      remote_sha="$(rclone hashsum sha1 "$LOG_REMOTE/$name" 2>/dev/null | cut -d' ' -f1)"
       if [[ $local_sha != "$remote_sha" ]]; then
         log "offload: $rel did not verify in the bucket; kept locally"; kept=$((kept + 1)); continue
       fi
-      printf '%s %s\n' "$rel" "$TODAY" >>"$OFFSITE_LIST"
+      printf '%s %s %s\n' "$rel" "$TODAY" "$([[ $enc == yes ]] && echo age || echo plain)" >>"$OFFSITE_LIST"
     fi
     rm -f "$f"; n=$((n + 1))
   done < <(find "$ROOT" -path "$MANIFESTS" -prune -o -type f -name '*.log.gz' -mtime +"$KEEP_LOCAL_DAYS" -print0 | sort -z)
@@ -107,19 +114,24 @@ offload() {
 
 # fetch <from YYYY-MM-DD> <to YYYY-MM-DD>: decrypt offloaded days back into the archive (panel lookups see them again)
 fetch() {
-  local from="${1:-}" to="${2:-${1:-}}" rel tmp n=0
+  local from="${1:-}" to="${2:-${1:-}}" rel mode tmp n=0
   [[ $from =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ && $to =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || die "usage: fetch YYYY-MM-DD [YYYY-MM-DD]"
   [[ -n $LOG_REMOTE ]] || die "LOG_REMOTE is not set in $OFFLOAD_CONF"
-  [[ -r ${AGE_IDENTITY:-} ]] || die "set AGE_IDENTITY to the private backup key file"
   [[ -s $OFFSITE_LIST ]] || die "nothing has been moved off-site"
   tmp="$(mktemp -d)"
-  while read -r rel; do
+  while read -r rel mode; do
     [[ -e $ROOT/$rel ]] && continue
-    rclone copyto "$LOG_REMOTE/$rel.age" "$tmp/x.age"
     install -d -g isp-archive -m 2750 "$(dirname "$ROOT/$rel")"
-    age -d -i "$AGE_IDENTITY" -o "$ROOT/$rel" "$tmp/x.age"
+    if [[ $mode == age ]]; then
+      [[ -r ${AGE_IDENTITY:-} ]] || die "$rel is encrypted: set AGE_IDENTITY to the private backup key file"
+      rclone copyto "$LOG_REMOTE/$rel.age" "$tmp/x.age"
+      age -d -i "$AGE_IDENTITY" -o "$ROOT/$rel" "$tmp/x.age"
+    else
+      rclone copyto "$LOG_REMOTE/$rel" "$ROOT/$rel"
+    fi
     chmod 0440 "$ROOT/$rel"; chgrp isp-archive "$ROOT/$rel"; n=$((n + 1))
-  done < <(awk -v a="$from" -v b="$to" '{ k = split($1, p, "/"); d = substr(p[k], 1, 10); if (d >= a && d <= b) print $1 }' "$OFFSITE_LIST")
+  done < <(awk -v a="$from" -v b="$to" '{ k = split($1, p, "/"); d = substr(p[k], 1, 10); m = ($3 == "" ? "age" : $3)
+    if (d >= a && d <= b) print $1, m }' "$OFFSITE_LIST")
   rm -rf "$tmp"
   log "fetched $n file(s) for $from … $to; they stay $KEEP_LOCAL_DAYS days"
   verify

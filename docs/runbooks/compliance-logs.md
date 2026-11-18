@@ -6,7 +6,7 @@ Not legal advice: retention below is the owner's choice (11 Nov 2026) pending th
 |---|---|---|
 | DoT licence (internet access) | Subscriber log-in/log-out details, ≥ 2 years | RADIUS sessions (`radacct`): never deleted; login attempts (`radpostauth`): 1,100 days |
 | DPDP Rules 2025, r. 6 (in force 13 May 2027) | Processing logs + personal data ≥ 1 year; access control, monitoring | Archive 3 years; audit log (changes) indefinitely; access log (who viewed a customer) 1,100 days |
-| CERT-In directions 2022 | Logs of all ICT systems 180 days, in India; NTP-synced clocks | Archive 3 years: last 60 days on the VPS (India), older days encrypted in Backblaze B2 (outside India, owner's decision 18 Nov 2026; ask O-11); `ClockNotSynced` alert |
+| CERT-In directions 2022 | Logs of all ICT systems 180 days, in India; NTP-synced clocks | Archive 3 years: last 60 days on the VPS (India), older days compressed in Backblaze B2, not encrypted (outside India; owner's decision 18 Nov 2026; ask O-11); `ClockNotSynced` alert |
 
 ## What is archived
 
@@ -64,19 +64,17 @@ Requests usually give the public IP, port and time from the website's log. NAT l
 ## Off-site copy of older days (100 GB disk)
 
 NAT logs grow by gigabytes a day once routers send them, and the VPS has 100 GB. With `LOG_REMOTE` set in
-`/etc/isp-logs/offload.env`, the nightly seal moves every sealed file older than `KEEP_LOCAL_DAYS` (60) to the bucket:
-encrypted with the backup key (`AGE_RECIPIENT`, private key offline), uploaded, checked against the bucket's SHA-1,
-listed in `MANIFEST/OFFSITE.list` (in the nightly backup), then deleted here. The panel's IP lookup sees the last 60
-days. For an older request, bring the days back (needs the private backup key):
+`/etc/isp-logs/offload.env`, the nightly seal moves every sealed file older than `KEEP_LOCAL_DAYS` (60) to the bucket
+as it is (gzip -9; not encrypted, owner's decision 18 Nov 2026; `LOG_ENCRYPT=yes` age-encrypts to the backup key
+instead), checks the bucket's SHA-1, lists it in `MANIFEST/OFFSITE.list` (in the nightly backup), then deletes it here.
+The panel's IP lookup sees the last 60 days. For an older request, bring the days back, then search as usual:
 
 ```bash
-scp isp-backup.key deploy@154.49.142.251:/tmp/age.key                  # from your computer
-sudo install -m 0600 /tmp/age.key /root/age.key && shred -u /tmp/age.key
-sudo AGE_IDENTITY=/root/age.key /opt/isp-logs/logs-maint.sh fetch 2026-07-01 2026-07-03
-sudo shred -u /root/age.key                                             # then search in the panel as usual
+sudo /opt/isp-logs/logs-maint.sh fetch 2026-07-01 2026-07-03     # encrypted days also need AGE_IDENTITY=<private key>
 ```
 
-Fetched days stay 60 days, then go again (no second upload). Setup: `docs/runbooks/backups.md` → Backblaze B2.
+Fetched days stay 60 days, then go again (no second upload). Bucket setup: `docs/runbooks/backups.md` → Backblaze B2.
+Bucket access = these logs (customer IPs and connections): keep the bucket private and its key on the server only.
 
 ## Lab test (before any real router)
 

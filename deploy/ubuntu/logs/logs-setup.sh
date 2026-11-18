@@ -54,6 +54,8 @@ install -d -m 0700 /etc/isp-logs
 # rclone remote for sealed log days older than KEEP_LOCAL_DAYS, e.g. offsite:my-bucket/isp-logs (empty = keep all here)
 LOG_REMOTE=
 KEEP_LOCAL_DAYS=60
+# Day files are already gzip -9. yes = also age-encrypt to the backup key (fetching then needs the private key).
+LOG_ENCRYPT=no
 CONF
 chmod 0600 /etc/isp-logs/offload.env
 install -m 0755 "$DIR/logs-maint.sh" "$DIR/logs-allow.sh" /opt/isp-logs/
