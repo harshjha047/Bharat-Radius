@@ -8415,8 +8415,8 @@ export interface paths {
     /** RX/TX bits per second now for up to 12 interfaces (poll every 2 s) */
     get: {
       parameters: {
-        query: {
-          interfaces: string;
+        query?: {
+          interfaces?: string;
         };
         header?: never;
         path: {

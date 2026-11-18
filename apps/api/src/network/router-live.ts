@@ -70,7 +70,7 @@ const ifaceView = z.object({
   comment: z.string().nullable(),
 });
 const trafficQuery = z.object({
-  /** Comma-separated, at most 12. */
+  /** Comma-separated, at most 12. Default: the router's dashboard ports. */
   interfaces: z
     .string()
     .transform((s) =>
@@ -79,7 +79,8 @@ const trafficQuery = z.object({
         .map((x) => x.trim())
         .filter(Boolean),
     )
-    .pipe(z.array(ifaceName).min(1).max(12)),
+    .pipe(z.array(ifaceName).min(1).max(12))
+    .optional(),
 });
 const trafficView = z.object({
   at: z.string(),
@@ -277,9 +278,12 @@ export class RouterLiveService implements OnModuleDestroy {
     }));
   }
 
-  async traffic(ctx: AuthContext, id: ObjectId, names: string[]) {
+  async traffic(ctx: AuthContext, id: ObjectId, names: string[] | undefined) {
     const n = await this.nas(ctx, id);
-    return { at: new Date().toISOString(), interfaces: await this.monitor(n, names) };
+    const list = names ?? (n.monitorPorts ?? []).map((p) => p.interface);
+    if (!list.length)
+      throw new AppError(400, 'VALIDATION_FAILED', 'Choose interfaces (or set dashboard ports)');
+    return { at: new Date().toISOString(), interfaces: await this.monitor(n, list) };
   }
 
   async ping(ctx: AuthContext, id: ObjectId, address: string): Promise<z.output<typeof pingView>> {
