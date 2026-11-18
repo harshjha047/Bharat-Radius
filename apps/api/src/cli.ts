@@ -17,6 +17,7 @@ import {
 } from '@isp/db-mongo';
 import { PLATFORM_SLUG } from './auth/auth.service.js';
 import { hashPassword, passwordSchema } from './auth/passwords.js';
+import { formatReport, importLegacy, snapshotSchema } from './migration/legacy.js';
 import { benchSearch, removeScale, seedScale } from './scale-seed.js';
 import { email as emailSchema, phone as phoneSchema } from './http/schemas.js';
 
@@ -34,7 +35,10 @@ const USAGE = `usage: node dist/cli.js <command> [options]   (MONGO_URL from the
   reset-password --tenant <slug|platform> (--email <e> | --phone <p>) [--reset-2fa]
                  new password prompted (or stdin); unlocks the account and signs it out everywhere
   run-job        <postpaid-invoice|postpaid-overdue|reconcile-wallets> [--at <ISO date>]
-                 run a billing job now (all ISPs); --at pretends it is that time (staging tests)`;
+                 run a billing job now (all ISPs); --at pretends it is that time (staging tests)
+  import-legacy  --tenant <slug> [--sites 2,5] [--apply]
+                 old BharatRadius snapshot (legacy-export.sql) on stdin; dry run unless --apply;
+                 re-runnable (second run = delta: password, plan, validity, status, owner)`;
 
 async function readPassword(): Promise<string> {
   if (!process.stdin.isTTY) {
@@ -62,7 +66,7 @@ function need(v: Record<string, string | undefined>, ...keys: string[]): void {
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
-  const flags = new Set(rest.filter((a) => ['--reset-2fa', '--remove', '--bench'].includes(a)));
+  const flags = new Set(rest.filter((a) => ['--reset-2fa', '--remove', '--bench', '--apply'].includes(a)));
   const resetMfa = flags.has('--reset-2fa');
   const { values: v, positionals } = parseArgs({
     args: rest.filter((a) => !flags.has(a)),
@@ -84,6 +88,7 @@ async function main() {
         'count',
         'plan',
         'at',
+        'sites',
       ].map((k) => [k, { type: 'string' as const }]),
     ),
     allowPositionals: true,
@@ -199,6 +204,39 @@ async function main() {
       };
       if (!job || !run[job]) throw new Error(`run-job needs one of: ${Object.keys(run).join(', ')}`);
       console.log(JSON.stringify(await run[job]()));
+      return;
+    }
+
+    if (cmd === 'import-legacy') {
+      need(v, 'tenant');
+      if (process.stdin.isTTY)
+        throw new Error('pipe the snapshot in: psql ... -f legacy-export.sql | ... import-legacy');
+      let raw = '';
+      for await (const chunk of process.stdin) raw += chunk;
+      const parsed = snapshotSchema.safeParse(JSON.parse(raw));
+      raw = '';
+      if (!parsed.success)
+        throw new Error(
+          `snapshot not recognised: ${parsed.error.issues[0]!.path.join('.')} ${parsed.error.issues[0]!.message}`,
+        );
+      const sites = (v.sites ?? '')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .map(Number);
+      if (sites.some((n) => !Number.isInteger(n)))
+        throw new Error('--sites takes old site numbers, e.g. 2,5');
+      const report = await importLegacy(client, db, parsed.data, {
+        tenant: v.tenant!,
+        apply: flags.has('--apply'),
+        sites,
+        log: (m) => console.log(m),
+      });
+      const inScope = parsed.data.subscribers.filter(
+        (x) => !sites.length || parsed.data.sites.some((st) => st.id === x.siteId && sites.includes(st.msr)),
+      ).length;
+      console.log(formatReport(report, { subscribers: inScope }));
+      if (!report.dryRun && report.mismatches.length) process.exitCode = 2;
       return;
     }
 

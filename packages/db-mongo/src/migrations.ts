@@ -960,6 +960,15 @@ const accessLogs: Migration = {
   },
 };
 
+/** Old BharatRadius importer (WP 4.7): legacy id → new id, and one record per apply run. */
+const legacyImport: Migration = {
+  id: '014_legacy_import',
+  async up(db) {
+    await ensureIndexes(db, 'legacy_map', [{ key: { tenantId: 1, kind: 1 } }]);
+    await ensureIndexes(db, 'legacy_runs', [{ key: { tenantId: 1, startedAt: -1 } }]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -974,4 +983,5 @@ export const MIGRATIONS: readonly Migration[] = [
   renewalIndexes,
   insightIndexes,
   accessLogs,
+  legacyImport,
 ];

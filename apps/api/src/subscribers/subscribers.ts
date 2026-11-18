@@ -59,13 +59,13 @@ const username = z
   .regex(/^[A-Za-z0-9._@-]{3,64}$/, '3-64 letters, digits, . _ @ -');
 /** Printable ASCII without spaces: CHAP/MS-CHAP need the exact bytes the router sends. */
 const pppoePassword = z.string().regex(/^[\x21-\x7e]{4,64}$/, '4-64 characters, no spaces');
-const mac = z
+export const mac = z
   .string()
   .trim()
   .transform((s) => s.toUpperCase().replace(/[-.]/g, ':'))
   .transform((s) => (/^[0-9A-F]{12}$/.test(s) ? s.match(/../g)!.join(':') : s))
   .pipe(z.string().regex(/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/, 'must be a MAC address'));
-const staticIp = z
+export const staticIp = z
   .string()
   .trim()
   .refine((s) => isIPv4(s), 'must be an IPv4 address');
