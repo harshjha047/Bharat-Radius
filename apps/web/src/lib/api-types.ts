@@ -8172,7 +8172,6 @@ export interface paths {
         query: {
           tenantId?: string;
           id: string;
-          at: unknown;
         };
         header?: never;
         path?: never;

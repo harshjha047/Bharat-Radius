@@ -33,7 +33,10 @@ const summaryQuery = tenantQuery.extend({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
 });
-const whyQuery = tenantQuery.extend({ id: z.string().regex(/^\d+$/), at: z.coerce.date() });
+/** `id` as returned in the list (`<authdate µs>_<row id>`). */
+const whyQuery = tenantQuery.extend({
+  id: z.string().regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z_\d+$/, 'invalid id'),
+});
 const tailQuery = tenantQuery.extend({
   /** Events at or after this time (client drops ids it already has). Default: the last 2 minutes. */
   after: z.coerce.date().optional(),
@@ -309,10 +312,11 @@ export class RadiusLogService {
     const { mongoId, pg: t } = await this.tenant(ctx, q.tenantId);
     if (!t) throw notFound('Log entry');
     const db = this.sessions.db();
+    const sep = q.id.lastIndexOf('_');
     const { rows } = await db.query<Row>(
       `SELECT ${COLUMNS} FROM radpostauth p ${JOINS}
-        WHERE p.tenant_id = $1 AND p.id = $2 AND p.authdate = $3`,
-      [t.id, q.id, q.at],
+        WHERE p.tenant_id = $1 AND p.id = $2::bigint AND p.authdate = $3::timestamptz`,
+      [t.id, q.id.slice(sep + 1), q.id.slice(0, sep)],
     );
     const row = rows[0];
     if (!row) throw notFound('Log entry');

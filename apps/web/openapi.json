@@ -18358,14 +18358,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$"
+              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{6}Z_\\d+$"
             }
-          },
-          {
-            "name": "at",
-            "in": "query",
-            "required": true,
-            "schema": {}
           }
         ],
         "responses": {

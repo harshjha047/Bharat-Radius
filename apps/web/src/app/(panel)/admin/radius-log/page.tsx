@@ -238,11 +238,9 @@ function AuthLog() {
 }
 
 function WhyDialog({ entry, onClose }: { entry: Entry | null; onClose: () => void }) {
-  const id = entry ? entry.id.slice(entry.id.lastIndexOf('_') + 1) : '';
   const why = useQuery({
     queryKey: ['auth-log', 'why', entry?.id],
-    queryFn: () =>
-      unwrap(api.GET('/api/v1/radius/auth-log/why', { params: { query: { id, at: entry!.at } } })),
+    queryFn: () => unwrap(api.GET('/api/v1/radius/auth-log/why', { params: { query: { id: entry!.id } } })),
     enabled: !!entry,
     staleTime: 60_000,
   });

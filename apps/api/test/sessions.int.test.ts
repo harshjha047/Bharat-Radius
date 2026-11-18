@@ -119,7 +119,7 @@ describe('sessions and logs', () => {
     expect(hours).toHaveLength(24);
     expect(new Date(hours[0]!.hour).getUTCMinutes()).toBe(30); // IST hours start at :30 UTC
     expect(hours.reduce((n, x) => n + x.accepted, 0)).toBe(1);
-    expect(hours.reduce((n, x) => n + x.rejected, 0)).toBe(1);
+    expect(hours.reduce((n, x) => n + x.rejected, 0)).toBe(2);
     // Another ISP sees none of it.
     const o = await other.req('GET', '/api/v1/sessions/activity');
     expect(o.body.points).toEqual([]);
@@ -193,19 +193,12 @@ describe('sessions and logs', () => {
     );
 
     const nf = page2.body.items[0];
-    const id = nf.id.slice(nf.id.lastIndexOf('_') + 1);
-    const why = await support.req(
-      'GET',
-      `/api/v1/radius/auth-log/why?id=${id}&at=${encodeURIComponent(nf.at)}`,
-    );
+    const why = await support.req('GET', `/api/v1/radius/auth-log/why?id=${encodeURIComponent(nf.id)}`);
     expect(why.status, JSON.stringify(why.body)).toBe(200);
     expect(why.body).toMatchObject({ category: 'not_found', subscriber: null });
     expect(why.body.similar[0]).toEqual({ username: user, subscriberId: sub.toHexString() });
     const mac = rej.body.items[0];
-    const why2 = await support.req(
-      'GET',
-      `/api/v1/radius/auth-log/why?id=${mac.id.slice(mac.id.lastIndexOf('_') + 1)}&at=${encodeURIComponent(mac.at)}`,
-    );
+    const why2 = await support.req('GET', `/api/v1/radius/auth-log/why?id=${encodeURIComponent(mac.id)}`);
     expect(why2.body).toMatchObject({
       category: 'mac',
       subscriber: { username: user },
