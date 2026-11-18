@@ -1,6 +1,7 @@
 import { ObjectId } from 'mongodb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { NasDeviceDoc, OutboxDoc } from '@isp/db-mongo';
+import { fakeRouterOs } from './fake-routeros.js';
 import { roleId, seedTenant, seedUser, signIn, startHarness, type Client, type Harness } from './harness.js';
 
 let h: Harness;
@@ -123,6 +124,79 @@ describe('routers (NAS)', () => {
     expect((await admin.req('POST', '/api/v1/nas', { name: 'POP-1 new', ip: '203.0.113.10' })).status).toBe(
       201,
     );
+  });
+});
+
+describe('router live (RouterOS API)', () => {
+  it('saves the API login (password never returned), reads health, interfaces, traffic, ping and router online', async () => {
+    const f = await fakeRouterOs();
+    try {
+      const n = await admin.req('POST', '/api/v1/nas', { name: 'POP-Live', ip: '203.0.113.77' });
+      const id = n.body.id;
+      expect((await admin.req('GET', `/api/v1/nas/${id}/live/info`)).status).toBe(409);
+      const bad = await admin.req('PUT', `/api/v1/nas/${id}/api`, {
+        enabled: true,
+        host: '127.0.0.1',
+        port: f.port,
+        username: 'api',
+        password: 'wrong',
+      });
+      expect(bad.status).toBe(200);
+      expect((await admin.req('GET', `/api/v1/nas/${id}/live/info`)).status).toBe(424);
+      const put = await admin.req('PUT', `/api/v1/nas/${id}/api`, {
+        enabled: true,
+        host: '127.0.0.1',
+        port: f.port,
+        username: 'api',
+        password: 'secret',
+        monitorPorts: [{ interface: 'sfp-sfpplus1', label: 'Uplink' }],
+      });
+      expect(put.body).toMatchObject({ enabled: true, hasPassword: true, username: 'api' });
+      expect(JSON.stringify(put.body)).not.toContain('secret');
+      const stored = await h.db.collection<NasDeviceDoc>('nas_devices').findOne({ _id: new ObjectId(id) });
+      expect(JSON.stringify(stored?.api)).not.toContain('"secret"');
+      expect(await outboxFor(id)).toHaveLength(1); // only the create: API settings are not a RADIUS change
+
+      const info = await admin.req('GET', `/api/v1/nas/${id}/live/info`);
+      expect(info.body).toMatchObject({
+        identity: 'POP-Live',
+        board: 'RB4011iGS+',
+        cpuLoadPct: 7,
+        memoryUsedPct: 75,
+      });
+      const ifaces = await admin.req('GET', `/api/v1/nas/${id}/live/interfaces`);
+      expect(ifaces.body.map((i: { name: string }) => i.name)).toEqual([
+        'ether1',
+        'sfp-sfpplus1',
+        '<pppoe-live1>',
+      ]);
+      const tr = await support.req('GET', `/api/v1/nas/${id}/live/traffic?interfaces=ether1,sfp-sfpplus1`);
+      expect(tr.body.interfaces).toEqual([
+        { name: 'ether1', rxBps: 5_000_000, txBps: 20_000_000 },
+        { name: 'sfp-sfpplus1', rxBps: 5_000_000, txBps: 20_000_000 },
+      ]);
+      const ping = await admin.req('GET', `/api/v1/nas/${id}/live/ping?address=1.1.1.1`);
+      expect(ping.body).toMatchObject({
+        sent: 3,
+        received: 2,
+        lossPct: 33,
+        minMs: 10,
+        avgMs: 11.25,
+        maxMs: 12.5,
+      });
+      expect((await admin.req('GET', `/api/v1/nas/${id}/live/online`)).body).toEqual({ pppActive: 7 });
+      expect((await admin.req('GET', `/api/v1/nas/${id}/live/traffic?interfaces=bad;name`)).status).toBe(400);
+      const list = await admin.req('GET', '/api/v1/nas?limit=200');
+      expect(list.body.items.find((x: { id: string }) => x.id === id)).toMatchObject({
+        apiEnabled: true,
+        monitorPorts: [{ interface: 'sfp-sfpplus1', label: 'Uplink' }],
+      });
+      expect(
+        (await support.req('PUT', `/api/v1/nas/${id}/api`, { enabled: false, username: 'x' })).status,
+      ).toBe(403);
+    } finally {
+      await f.close();
+    }
   });
 });
 

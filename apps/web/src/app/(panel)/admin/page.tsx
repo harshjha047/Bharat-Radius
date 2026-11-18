@@ -13,6 +13,7 @@ import {
   useSubscriberSummary,
 } from '@/components/dashboard-widgets';
 import { InsightsCard } from '@/components/financial-insights';
+import { NasStatistics } from '@/components/router-live';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBar } from '@/components/ui/card';
@@ -134,6 +135,7 @@ export default function Dashboard() {
     can('tickets.read') && { id: 'kpi-tickets', label: 'Open tickets' },
     can('nas.read') && { id: 'kpi-routers', label: 'Routers count' },
     can('plans.read') && { id: 'kpi-plans', label: 'Plans' },
+    can('nas.read') && { id: 'nas-stats', label: 'NAS statistics (live ports)' },
     can('sessions.read') && { id: 'network', label: 'Network charts' },
     can('reports.view') && { id: 'insights', label: 'Financial insights' },
     can('reports.view') && { id: 'trends', label: 'Revenue and plan trends' },
@@ -484,6 +486,7 @@ export default function Dashboard() {
         ) : null}
       </div>
 
+      {can('nas.read') && shown('nas-stats') ? <NasStatistics routers={routers} /> : null}
       {can('sessions.read') && staff && shown('network') ? <NetworkRow /> : null}
       {can('reports.view') && shown('insights') ? <InsightsCard from={istDay(29)} to={istDay()} /> : null}
       {can('reports.view') && staff && shown('trends') ? <TrendsRow /> : null}

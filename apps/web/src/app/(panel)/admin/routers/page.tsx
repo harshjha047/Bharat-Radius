@@ -1,6 +1,7 @@
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, KeyRound, MoreHorizontal, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
+import { Activity, Eye, KeyRound, MoreHorizontal, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { RouterForm } from '@/components/router-form';
@@ -38,6 +39,7 @@ function RadiusTarget({ t }: { t: Target | undefined }) {
 export default function RoutersPage() {
   const can = useCan();
   const qc = useQueryClient();
+  const router = useRouter();
   const write = can('nas.write');
   const [editing, setEditing] = useState<Nas | 'new' | null>(null);
   const [secret, setSecret] = useState<{ nas: Nas; value: string; fresh: boolean } | null>(null);
@@ -121,9 +123,21 @@ export default function RoutersPage() {
           loading={list.isLoading}
           rows={list.data?.items}
           rowKey={(n) => n.id}
+          onRowClick={(n) => router.push(`/admin/routers/${n.id}`)}
           empty="No routers yet."
           columns={[
-            { key: 'name', header: 'Router', cell: (n) => n.name },
+            {
+              key: 'name',
+              header: 'Router',
+              cell: (n) => (
+                <span className="flex items-center gap-2">
+                  {n.name}
+                  {n.apiEnabled ? (
+                    <Activity className="size-3.5 text-primary" aria-label="Live graphs on" />
+                  ) : null}
+                </span>
+              ),
+            },
             { key: 'ip', header: 'IP', cell: (n) => <span className="font-mono text-xs">{n.ip}</span> },
             { key: 'pop', header: 'POP', cell: (n) => n.location.popName ?? '—', hideOnMobile: true },
             {
@@ -152,37 +166,40 @@ export default function RoutersPage() {
                     header: '',
                     className: 'text-right',
                     cell: (n: Nas) => (
-                      <Menu>
-                        <MenuTrigger asChild>
-                          <Button variant="ghost" size="icon" aria-label={`Actions for ${n.name}`}>
-                            <MoreHorizontal />
-                          </Button>
-                        </MenuTrigger>
-                        <MenuContent>
-                          <MenuItem onSelect={() => setEditing(n)}>
-                            <Pencil /> Edit
-                          </MenuItem>
-                          <MenuItem onSelect={() => reveal.mutate(n)}>
-                            <Eye /> Show RADIUS secret
-                          </MenuItem>
-                          <MenuItem onSelect={() => setConfirm({ kind: 'rotate', nas: n })}>
-                            <KeyRound /> New secret
-                          </MenuItem>
-                          {n.status === 'active' ? (
-                            <MenuItem onSelect={() => setConfirm({ kind: 'disable', nas: n })}>
-                              <Pause /> Disable
+                      // Menu items render in a portal; their clicks still bubble to the row through React.
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Menu>
+                          <MenuTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label={`Actions for ${n.name}`}>
+                              <MoreHorizontal />
+                            </Button>
+                          </MenuTrigger>
+                          <MenuContent>
+                            <MenuItem onSelect={() => setEditing(n)}>
+                              <Pencil /> Edit
                             </MenuItem>
-                          ) : (
-                            <MenuItem onSelect={() => patch.mutate({ n, body: { status: 'active' } })}>
-                              <Play /> Enable
+                            <MenuItem onSelect={() => reveal.mutate(n)}>
+                              <Eye /> Show RADIUS secret
                             </MenuItem>
-                          )}
-                          <MenuSeparator />
-                          <MenuItem destructive onSelect={() => setConfirm({ kind: 'delete', nas: n })}>
-                            <Trash2 /> Delete
-                          </MenuItem>
-                        </MenuContent>
-                      </Menu>
+                            <MenuItem onSelect={() => setConfirm({ kind: 'rotate', nas: n })}>
+                              <KeyRound /> New secret
+                            </MenuItem>
+                            {n.status === 'active' ? (
+                              <MenuItem onSelect={() => setConfirm({ kind: 'disable', nas: n })}>
+                                <Pause /> Disable
+                              </MenuItem>
+                            ) : (
+                              <MenuItem onSelect={() => patch.mutate({ n, body: { status: 'active' } })}>
+                                <Play /> Enable
+                              </MenuItem>
+                            )}
+                            <MenuSeparator />
+                            <MenuItem destructive onSelect={() => setConfirm({ kind: 'delete', nas: n })}>
+                              <Trash2 /> Delete
+                            </MenuItem>
+                          </MenuContent>
+                        </Menu>
+                      </div>
                     ),
                   },
                 ]

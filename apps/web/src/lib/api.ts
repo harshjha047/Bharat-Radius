@@ -138,3 +138,6 @@ export type ApiData<P extends GetPaths> = paths[P] extends {
   ? R
   : never;
 export type Item<P extends GetPaths> = ApiData<P> extends { items: (infer I)[] } ? I : never;
+
+/** Message to show for a failed request. */
+export const errorText = (e: unknown) => (e instanceof ApiError ? e.message : 'Something went wrong');

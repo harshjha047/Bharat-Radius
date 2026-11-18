@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { LiveSpeed } from '@/components/router-live';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -89,6 +90,11 @@ export default function SubscriberPage() {
           <Overview s={s} />
         </TabsContent>
         <TabsContent value="sessions">
+          {can('sessions.read') ? (
+            <div className="mb-3">
+              <LiveSpeed id={id} />
+            </div>
+          ) : null}
           <Sessions id={id} />
         </TabsContent>
         <TabsContent value="auth">

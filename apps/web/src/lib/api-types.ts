@@ -970,6 +970,11 @@ export interface paths {
                 status: 'active' | 'disabled';
                 radiusId: number | null;
                 lastSeenAt: string | null;
+                apiEnabled: boolean;
+                monitorPorts: {
+                  interface: string;
+                  label: string | null;
+                }[];
                 updatedAt: string;
                 radiusSecret?: string;
               }[];
@@ -1048,6 +1053,11 @@ export interface paths {
               status: 'active' | 'disabled';
               radiusId: number | null;
               lastSeenAt: string | null;
+              apiEnabled: boolean;
+              monitorPorts: {
+                interface: string;
+                label: string | null;
+              }[];
               updatedAt: string;
               radiusSecret?: string;
             };
@@ -1119,6 +1129,11 @@ export interface paths {
               status: 'active' | 'disabled';
               radiusId: number | null;
               lastSeenAt: string | null;
+              apiEnabled: boolean;
+              monitorPorts: {
+                interface: string;
+                label: string | null;
+              }[];
               updatedAt: string;
               radiusSecret?: string;
             };
@@ -1245,6 +1260,11 @@ export interface paths {
               status: 'active' | 'disabled';
               radiusId: number | null;
               lastSeenAt: string | null;
+              apiEnabled: boolean;
+              monitorPorts: {
+                interface: string;
+                label: string | null;
+              }[];
               updatedAt: string;
               radiusSecret?: string;
             };
@@ -8103,6 +8123,504 @@ export interface paths {
                 mac: string | null;
               }[];
               nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/nas/{id}/api': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Router API login (password never returned) and the ports shown with live graphs */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              enabled: boolean;
+              host: string | null;
+              port: number;
+              tls: boolean;
+              username: string | null;
+              hasPassword: boolean;
+              monitorPorts: {
+                interface: string;
+                label: string | null;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    /** Save the router API login and monitored ports (not a RADIUS change) */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            enabled: boolean;
+            host?: string | null;
+            /** @default 8728 */
+            port?: number;
+            /** @default false */
+            tls?: boolean;
+            username: string;
+            password?: string;
+            /** @default [] */
+            monitorPorts?: {
+              interface: string;
+              label?: string;
+            }[];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              enabled: boolean;
+              host: string | null;
+              port: number;
+              tls: boolean;
+              username: string | null;
+              hasPassword: boolean;
+              monitorPorts: {
+                interface: string;
+                label: string | null;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/nas/{id}/live/info': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Router identity, version, uptime, CPU and memory (live from the router) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              identity: string | null;
+              version: string | null;
+              board: string | null;
+              uptime: string | null;
+              cpuLoadPct: number | null;
+              memoryUsedPct: number | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/nas/{id}/live/interfaces': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Router interfaces (live) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              name: string;
+              type: string | null;
+              running: boolean;
+              disabled: boolean;
+              comment: string | null;
+            }[];
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/nas/{id}/live/traffic': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** RX/TX bits per second now for up to 12 interfaces (poll every 2 s) */
+    get: {
+      parameters: {
+        query: {
+          interfaces: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              at: string;
+              interfaces: {
+                name: string;
+                rxBps: number;
+                txBps: number;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/nas/{id}/live/ping': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Ping from the router (3 packets): loss and min/avg/max latency */
+    get: {
+      parameters: {
+        query?: {
+          address?: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              address: string;
+              sent: number;
+              received: number;
+              lossPct: number;
+              minMs: number | null;
+              avgMs: number | null;
+              maxMs: number | null;
+              lastMs: number | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/nas/{id}/live/online': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** PPPoE sessions the router counts (to compare with RADIUS online) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              pppActive: number;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/live-speed': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live download/upload of the subscriber from the router they are on */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              online: boolean;
+              nasName: string | null;
+              interface: string | null;
+              downloadBps: number | null;
+              uploadBps: number | null;
+              note: string | null;
             };
           };
         };
