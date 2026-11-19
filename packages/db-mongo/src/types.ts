@@ -218,6 +218,8 @@ export interface ResellerDoc extends Standard {
   walletModel?: 'prepaid' | 'revenue_share';
   /** Basis points debited under revenue share (4000 = 40 %). */
   shareBp?: number;
+  /** F-8: name and logo shown in this reseller's panel and to its customers (inherited by sub-resellers). */
+  branding?: { name?: string; logo?: { key: string; mimeType: string; sha256: string } };
   /** Suspended blocks the reseller's panel and new recharges in its whole branch; customers stay online. */
   status: ResellerStatus;
   suspendReason?: string;
@@ -260,7 +262,15 @@ export interface SubscriberDoc extends Standard {
   suspendReason?: string;
   network: { staticIp?: string; macLock?: string; simUse?: number; popName?: string };
   fup?: { active: boolean; cycleStart?: Date; usedBytes?: number };
-  kyc: { status: 'pending' | 'verified' | 'rejected'; cafNo?: string; aadhaarLast4?: string };
+  kyc: {
+    status: 'pending' | 'verified' | 'rejected';
+    cafNo?: string;
+    aadhaarLast4?: string;
+    /** Who verified or rejected, when, and why (rejection reason / remark). */
+    decidedBy?: string;
+    decidedAt?: Date;
+    note?: string;
+  };
   tags: string[];
   notes?: string;
   /** Lower-case prefix tokens (name words, username, phone, customer no.) for indexed search. */
@@ -407,5 +417,38 @@ export interface AuditLogDoc {
   ip?: string;
   userAgent?: string;
   requestId?: string;
+  createdAt: Date;
+}
+
+export type KycKind =
+  | 'aadhaar'
+  | 'pan'
+  | 'voter_id'
+  | 'passport'
+  | 'driving_licence'
+  | 'photo'
+  | 'caf_signed'
+  | 'address_proof'
+  | 'other';
+
+/** One identity/CAF file of a subscriber. The file lives encrypted in the private store under `storageKey`. */
+export interface KycDocumentDoc {
+  _id: ObjectId;
+  tenantId: ObjectId;
+  subscriberId: ObjectId;
+  /** The subscriber's owner chain (reseller ancestors + owner) for branch scoping. */
+  ancestors: ObjectId[];
+  kind: KycKind;
+  storageKey: string;
+  sha256: string;
+  mimeType: string;
+  sizeBytes: number;
+  fileName?: string;
+  /** e.g. XXXX-XXXX-1234; full Aadhaar numbers are never stored. */
+  maskedNumber?: string;
+  uploadedBy: string;
+  uploadedVia: 'staff' | 'reseller' | 'portal' | 'import';
+  /** Removed from view (wrong file); the object is deleted from storage, the row stays for the audit trail. */
+  removed?: { by: string; at: Date; reason: string };
   createdAt: Date;
 }

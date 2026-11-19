@@ -59,4 +59,29 @@ export class FieldCrypto {
   needsRotation(f: EncryptedField): boolean {
     return f.keyId !== this.currentId;
   }
+
+  /** Files at rest: `ISPF1` | key-id length | key id | iv (12) | tag (16) | ciphertext. `aad` binds it to its key. */
+  encryptBytes(plain: Buffer, aad: string): Buffer {
+    const iv = randomBytes(12);
+    const c = createCipheriv('aes-256-gcm', this.keys.get(this.currentId)!, iv);
+    c.setAAD(Buffer.from(aad));
+    const data = Buffer.concat([c.update(plain), c.final()]);
+    const id = Buffer.from(this.currentId);
+    return Buffer.concat([FILE_MAGIC, Buffer.from([id.length]), id, iv, c.getAuthTag(), data]);
+  }
+
+  decryptBytes(blob: Buffer, aad: string): Buffer {
+    if (blob.length < 34 || !blob.subarray(0, 5).equals(FILE_MAGIC)) throw new Error('not an encrypted file');
+    const n = blob[5]!;
+    const keyId = blob.subarray(6, 6 + n).toString();
+    const key = this.keys.get(keyId);
+    if (!key) throw new Error(`unknown field key id "${keyId}"`);
+    const o = 6 + n;
+    const d = createDecipheriv('aes-256-gcm', key, blob.subarray(o, o + 12));
+    d.setAAD(Buffer.from(aad));
+    d.setAuthTag(blob.subarray(o + 12, o + 28));
+    return Buffer.concat([d.update(blob.subarray(o + 28)), d.final()]);
+  }
 }
+
+const FILE_MAGIC = Buffer.from('ISPF1');
