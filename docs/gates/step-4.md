@@ -19,6 +19,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | Disk guard | ✅ #67 | Every 5 min: ≥ 70 % drill (imports/rebuilds paused, cache + old logs/backups to B2 after verify), ≥ 85 % maintenance page (RADIUS, webhooks, pay page keep running), ≥ 95 % 5 GB reserve released. Runbook `docs/runbooks/disk-guard.md` |
 | F-1…F-14 | ✅ #68 | #57–#63 were merged into their stacked bases and never reached `main`; landed here together |
 | F-7 Billing models, top-up requests, recharge edits | 🔀 PR | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
+| F-17 Unknown router / wrong secret | 🔀 PR | `log-events.sh` timer (FreeRADIUS log + ufw blocks) → `radius_events` (PG 007); RADIUS log → *Routers* tab (health per router, address check), banner, *Why?* router hint |
 | 4.10–4.15 | ⏳ | |
 | F-15 Expired handling | ✅ #56 | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
 | F-10/16 Username case, Excel dates | ✅ #68 | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
@@ -164,3 +165,19 @@ Deploy: `app-up.sh` (Mongo 016 `topup_requests`; built-in roles gain *recharges.
 8. Staff: Recharge `test.sub` → change *Customer pays* to 500, *Valid until* to a date of choice, reason → Recharge → invoice total ₹500, cash payment ₹500, Valid until = that date 11:59 pm; Recharges row shows *Edited · ₹500 (was ₹…)*. `500.50` → *Whole rupees*.
 9. Test L2: *Valid until* later than the plan gives → *At most …: add periods*; earlier → accepted, wallet debit unchanged.
 10. Support role (no *recharges.override*): popup shows the read-only totals as before.
+
+## Staging checks — F-17 unknown router / wrong secret
+
+Deploy: `git pull && sudo bash radius/scripts/install.sh staging && sudo bash deploy/ubuntu/app/app-up.sh`
+(PG 007, timer `isp-radius-events@staging`). `systemctl list-timers 'isp-radius-events*'` shows it.
+
+1. CHR lab: `sudo bash deploy/ubuntu/lab/chr-lab.sh up`, then on the CHR set a wrong secret
+   (`/radius set 0 secret=<any other value>`) and dial `test.lab`. Within 2 minutes: Network → RADIUS log →
+   *Routers* tab → CHR *wrong RADIUS secret on the router* (RouterOS that signs requests with
+   Message-Authenticator). Older RouterOS without it: the login is logged as *wrong password*; dial 3 different test
+   users → *RADIUS secret probably wrong* and the yellow banner on the Auth log.
+2. Open the reject in the Auth log (if any) → *Why?* shows *Router problem: …different RADIUS secret*.
+3. Put the right secret back → after 24 h the router returns to OK (or check the count stops rising).
+4. *Router not reaching RADIUS?* → enter an address that is not a router but sends RADIUS (e.g. a second
+   router pointed at staging) → *blocked by the firewall*. Enter `8.8.8.8` → *Nothing has arrived*.
+5. Super-admin sign-in → same tab lists unknown addresses.

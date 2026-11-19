@@ -211,6 +211,31 @@ check "later Interim reopens a stale-closed session" eq "$(q -c "SELECT (acctsto
 check "sessions land in monthly partitions, not the default" eq "$(q -c "SELECT count(*) FROM radacct_default WHERE tenant_id IN ($TA,$TB)")" "0"
 check "partition maintenance is idempotent" eq "$(q -c "SELECT radius_ensure_partitions(1)")" "0"
 
+echo "[unusable packets (F-17)]"
+EVENTS="${EVENTS:-$(dirname "$MAINT")/log-events.sh}"
+sample="$(printf '%s\n' \
+  "Thu Nov 19 13:00:01 2026 : Error: Ignoring request to auth address * port $AUTH_PORT bound to server default from unknown client 203.0.113.9 port 40000 proto udp" \
+  "Thu Nov 19 13:00:02 2026 : Error: Received packet from 198.51.100.7 with invalid Message-Authenticator!  (Shared secret is incorrect.) Dropping packet without response." \
+  "Thu Nov 19 13:00:03 2026 : Error: Received Accounting-Request packet from client e2e-nas-a with invalid Request Authenticator!  (Shared secret is incorrect.)" \
+  "Thu Nov  9 13:00:04 2026 : [12.3] [UFW BLOCK] IN=eth0 OUT= SRC=192.0.2.44 DST=10.0.0.1 LEN=60 PROTO=UDP SPT=5000 DPT=$ACCT_PORT LEN=40" \
+  "Thu Nov  9 13:00:05 2026 : [12.4] [UFW BLOCK] IN=eth0 OUT= SRC=192.0.2.45 DST=10.0.0.1 LEN=60 PROTO=UDP SPT=5000 DPT=53 LEN=40" \
+  | "$EVENTS" "$INSTANCE" parse)"
+check "log parser: unknown client with its address and port" has "$sample" "^unknown_client	203.0.113.9	$AUTH_PORT	Thu Nov 19 13:00:01 2026$"
+check "  wrong secret (auth, by address)" has "$sample" "^bad_secret	198.51.100.7	$AUTH_PORT	"
+check "  wrong secret (accounting, by router name)" has "$sample" "^bad_secret_name	e2e-nas-a	$ACCT_PORT	"
+check "  firewall block on this instance's port only" eq "$(grep -c firewall_block <<<"$sample")" "1"
+q -c "DELETE FROM radius_events WHERE src_ip = '$NAS_A'" >/dev/null
+for i in 1 2; do
+  auth "$NAS_A" "wrong-secret-$i-xyz" 'User-Name=e2e-user,User-Password=Pa55-user,Message-Authenticator=0x00' >/dev/null
+done
+sleep 1
+"$EVENTS" "$INSTANCE" || true
+check "wrong shared secret from a router is recorded (radius_events)" \
+  eq "$(q -c "SELECT (coalesce(sum(packets), 0) >= 1)::text FROM radius_events WHERE kind = 'bad_secret' AND src_ip = '$NAS_A' AND minute > now() - interval '5 minutes'")" "true"
+"$EVENTS" "$INSTANCE" || true
+check "  re-running the ingester does not count lines twice" \
+  eq "$(q -c "SELECT (sum(packets) <= 2)::text FROM radius_events WHERE kind = 'bad_secret' AND src_ip = '$NAS_A'")" "true"
+
 if [[ "${DB_OUTAGE_TEST:-0}" == 1 ]]; then
   echo "[database outage] (stops PostgreSQL briefly; CI/lab only)"
   if [[ -d /run/systemd/system ]]; then pgstop() { systemctl stop postgresql@16-main; }; pgstart() { systemctl start postgresql@16-main; }

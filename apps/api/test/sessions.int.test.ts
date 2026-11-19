@@ -215,6 +215,58 @@ describe('sessions and logs', () => {
     );
   });
 
+  it('router problems: wrong secret seen, unknown addresses checked by exact IP only (F-17)', async () => {
+    const unknownIp = `198.19.${Number.parseInt(run.slice(2, 4), 16)}.7`;
+    await pgAdmin.query(
+      `INSERT INTO radius_events (kind, src_ip, dst_port, minute, packets)
+       VALUES ('bad_secret', $1, 1812, date_trunc('minute', now() - interval '5 minutes'), 4),
+              ('unknown_client', $2, 1812, date_trunc('minute', now() - interval '3 minutes'), 2),
+              ('firewall_block', $2, 1813, date_trunc('minute', now() - interval '2 minutes'), 1)`,
+      [nasIp, unknownIp],
+    );
+    const p = await support.req('GET', '/api/v1/radius/router-problems');
+    expect(p.status, JSON.stringify(p.body)).toBe(200);
+    expect(p.body.problems).toBe(1);
+    expect(p.body.routers[0]).toMatchObject({
+      nasIp,
+      name: 'POP-A',
+      problem: 'bad_secret',
+      badSecret: { packets: 4 },
+      accepted24h: 1,
+    });
+    const mine = await support.req('GET', `/api/v1/radius/address-check?ip=${nasIp}`);
+    expect(mine.body).toMatchObject({
+      registered: 'mine',
+      routerName: 'POP-A',
+      events: [{ kind: 'bad_secret' }],
+    });
+    expect(mine.body.verdict).toMatch(/secret/);
+    const unk = await support.req('GET', `/api/v1/radius/address-check?ip=${unknownIp}`);
+    expect(unk.body).toMatchObject({ registered: 'none', routerName: null });
+    expect(unk.body.events.map((e: { kind: string }) => e.kind).sort()).toEqual([
+      'firewall_block',
+      'unknown_client',
+    ]);
+    expect(unk.body.verdict).toMatch(/not a router in the panel/);
+    // Another ISP learns only that the address is taken, not its traffic.
+    const theirs = await other.req('GET', `/api/v1/radius/address-check?ip=${nasIp}`);
+    expect(theirs.body).toMatchObject({ registered: 'other', events: [], routerName: null });
+    expect((await other.req('GET', '/api/v1/radius/router-problems')).body.routers).toEqual([]);
+    expect((await support.req('GET', '/api/v1/radius/unknown-clients')).status).toBe(404);
+    // A wrong-password reject on that router points at the router, not the customer.
+    await pgAdmin.query(
+      `INSERT INTO radpostauth (tenant_id, username, reply, reason, nasipaddress, authdate)
+       SELECT tenant_id, $2, 'Access-Reject', 'Wrong password (PAP)', nasname, now() - interval '30 seconds'
+         FROM nas WHERE nasname = $1::inet`,
+      [nasIp, user],
+    );
+    const list = await support.req('GET', '/api/v1/radius/auth-log?result=reject');
+    const wp = list.body.items.find((i: { reason: string }) => i.reason === 'Wrong password (PAP)');
+    const why = await support.req('GET', `/api/v1/radius/auth-log/why?id=${encodeURIComponent(wp.id)}`);
+    expect(why.body.category).toBe('wrong_password');
+    expect(why.body.routerHint).toMatch(/different RADIUS secret/);
+  });
+
   it('another ISP sees none of it', async () => {
     expect((await other.req('GET', '/api/v1/sessions/live')).body.items).toEqual([]);
     expect((await other.req('GET', '/api/v1/sessions/summary')).body.online).toBe(0);

@@ -1,0 +1,7 @@
+[Unit]
+Description=isp-radius record unusable RADIUS packets (%i)
+After=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/isp-radius/scripts/log-events.sh %i
