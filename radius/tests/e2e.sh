@@ -232,9 +232,10 @@ sleep 1
 "$EVENTS" "$INSTANCE" || true
 check "wrong shared secret from a router is recorded (radius_events)" \
   eq "$(q -c "SELECT (coalesce(sum(packets), 0) >= 1)::text FROM radius_events WHERE kind = 'bad_secret' AND src_ip = '$NAS_A' AND minute > now() - interval '5 minutes'")" "true"
+first="$(q -c "SELECT sum(packets) FROM radius_events WHERE kind = 'bad_secret' AND src_ip = '$NAS_A'")"
 "$EVENTS" "$INSTANCE" || true
 check "  re-running the ingester does not count lines twice" \
-  eq "$(q -c "SELECT (sum(packets) <= 2)::text FROM radius_events WHERE kind = 'bad_secret' AND src_ip = '$NAS_A'")" "true"
+  eq "$(q -c "SELECT sum(packets) FROM radius_events WHERE kind = 'bad_secret' AND src_ip = '$NAS_A'")" "$first"
 
 if [[ "${DB_OUTAGE_TEST:-0}" == 1 ]]; then
   echo "[database outage] (stops PostgreSQL briefly; CI/lab only)"

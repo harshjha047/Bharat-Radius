@@ -21145,6 +21145,7 @@
             "session": []
           }
         ],
+        "x-permission": "nas.read",
         "responses": {
           "200": {
             "description": "OK",
@@ -27100,10 +27101,6 @@
                         "subscribers.kick",
                         "subscribers.password.reveal",
                         "subscribers.export",
-                        "kyc.view",
-                        "kyc.upload",
-                        "kyc.verify",
-                        "branding.manage",
                         "sessions.read",
                         "compliance.lookup",
                         "nas.read",
@@ -27262,10 +27259,6 @@
                         "subscribers.kick",
                         "subscribers.password.reveal",
                         "subscribers.export",
-                        "kyc.view",
-                        "kyc.upload",
-                        "kyc.verify",
-                        "branding.manage",
                         "sessions.read",
                         "compliance.lookup",
                         "nas.read",
