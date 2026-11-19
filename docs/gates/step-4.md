@@ -21,9 +21,10 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | F-7 Billing models, top-up requests, recharge edits | ✅ #69 | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
 | F-8 Reseller name and logo | ✅ #70 | Reseller → Branding or own My account; panel header and its customers' portal; inherited down the tree |
 | F-7 Billing models, top-up requests, recharge edits | 🔀 PR | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
-| F-17 Unknown router / wrong secret | 🔀 PR | `log-events.sh` timer (FreeRADIUS log + ufw blocks) → `radius_events` (PG 007); RADIUS log → *Routers* tab (health per router, address check), banner, *Why?* router hint |
-| 4.10 Production prep | 🔀 PR | Nonce CSP (no inline scripts), `PANEL_HOSTS`, DPDP privacy notice + consent (portal, paper), `preflight.sh`, restore-drill marker; runbook `go-live.md`. Owner: O-23, O-17, notice text |
-| 4.11–4.15 | ⏳ | |
+| F-17 Unknown router / wrong secret | ✅ #71 | `log-events.sh` timer (FreeRADIUS log + ufw blocks) → `radius_events` (PG 007); RADIUS log → *Routers* tab (health per router, address check), banner, *Why?* router hint |
+| 4.10 Production prep | ✅ #72–#74 | Nonce CSP (no inline scripts), `PANEL_HOSTS`, DPDP privacy notice + consent (portal, paper), `preflight.sh`, restore-drill marker; runbook `go-live.md`. Owner: O-23, O-17, notice text |
+| 4.11 Import dry run (production) | ◑ 19 Nov | Imported into `radius` + MongoDB `isp` (panel on production since 19 Nov); re-run: all unchanged. Open: privacy notice, 12 ₹1 plans, 3 `legacy-fix` (O-21) |
+| 4.12–4.15 | ⏳ | 4.12 waits on O-12 (inbound UDP 1812/1813 at NetForChoice) |
 | F-15 Expired handling | ✅ #56 | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
 | F-10/16 Username case, Excel dates | ✅ #68 | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
 | F-5/12/13 Recharge quantity + period | ✅ #68 | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
@@ -216,3 +217,18 @@ Deploy: `git pull && sudo bash deploy/ubuntu/app/app-up.sh`.
    *Signed CAF received* records it.
 5. `sudo bash deploy/ubuntu/preflight.sh staging` → PASS/WARN list; FAILs name the fix.
 6. After the restore drill (`restore-test.sh`), preflight shows *restore drill passed <date>*.
+
+## 4.11 Import dry run on production — 19 Nov 2026
+
+| Check | Result |
+|---|---|
+| Backups | First backup + B2 off-site (`bharatradius-offsite/isp-backups`); nightly 01:30 IST |
+| Restore drill | PASSED 2026-11-19T13:33Z (backup ≤ live in every table) — after fix #74 |
+| Production RADIUS | `install.sh production`: migrations 004–007, timers incl. `isp-radius-events@production` |
+| Panel | `RADIUS_INSTANCE=production`, `RADIUS_PUBLIC_HOST=154.49.142.251`; tenant `bharat` + ISP Admin created fresh |
+| Import (17 Nov dump) | resellers 7, plans 14 created + 8 reused (22), routers 4, subscribers 136/136, wallets 4 + Fab Five at ₹0 |
+| Re-run | all unchanged (0 created / 0 updated / 0 failed) |
+| Preflight production | 26 PASS · WARN files on local disk (O-11), 12 plans ₹1 (O-21) · FAIL privacy notice not yet published |
+
+Before 4.12: publish the privacy notice; real MRP on the 12 FAB5 plans; fix 3 `legacy-fix` subscribers; O-12 ports;
+fresh dump + `import-legacy --sites <n> --apply` at the cutover itself.
