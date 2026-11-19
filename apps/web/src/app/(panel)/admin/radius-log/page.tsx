@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounced } from '@/hooks/use-debounced';
 import { api, unwrap, type ApiData } from '@/lib/api';
+import { useCan, useMe } from '@/lib/auth';
 import { cn, fmtDate, fmtDateTime } from '@/lib/utils';
 
 type Entry = ApiData<'/api/v1/radius/auth-log'>['items'][number];
@@ -261,6 +262,12 @@ function WhyDialog({ entry, onClose }: { entry: Entry | null; onClose: () => voi
         ) : null}
         {w ? (
           <div className="space-y-4 text-sm">
+            {w.routerHint ? (
+              <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-warning-text">
+                <span className="font-semibold">Router problem: </span>
+                {w.routerHint}
+              </p>
+            ) : null}
             <p>{w.explanation}</p>
             <p className="rounded-xl bg-muted p-3">
               <span className="font-semibold">Fix: </span>
@@ -543,10 +550,192 @@ function LiveLog() {
   );
 }
 
+const PROBLEM_TEXT = {
+  bad_secret: 'wrong RADIUS secret on the router',
+  suspect_secret: 'customers fail with “wrong password”: RADIUS secret probably wrong',
+  silent: 'no login attempts in 24 h',
+} as const;
+
+/** F-17: routers whose packets RADIUS cannot use, at the top of the log. */
+function RouterProblemsBanner({ onOpen }: { onOpen: () => void }) {
+  const can = useCan();
+  const q = useQuery({
+    queryKey: ['radius', 'router-problems'],
+    queryFn: () => unwrap(api.GET('/api/v1/radius/router-problems')),
+    refetchInterval: 60_000,
+    enabled: can('nas.read'),
+  });
+  const bad =
+    q.data?.routers.filter((r) => r.problem === 'bad_secret' || r.problem === 'suspect_secret') ?? [];
+  if (!bad.length) return null;
+  return (
+    <div
+      className="mb-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-warning-text"
+      role="status"
+    >
+      <p className="font-semibold">Router problem{bad.length > 1 ? 's' : ''}</p>
+      <ul className="mt-1 space-y-0.5">
+        {bad.map((r) => (
+          <li key={r.nasIp}>
+            {r.name} ({r.nasIp}): {PROBLEM_TEXT[r.problem!]}
+            {r.badSecret
+              ? ` · ${r.badSecret.packets}+ packets, last ${fmtDateTime(r.badSecret.lastSeen)}`
+              : ''}
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="mt-1 underline" onClick={onOpen}>
+        Open router checks
+      </button>
+    </div>
+  );
+}
+
+const KIND_TEXT = {
+  unknown_client: 'reached RADIUS, but this address is not a router in the panel',
+  firewall_block: 'blocked by the firewall (address not on the router allow-list)',
+  bad_secret: 'reached RADIUS with the wrong secret',
+} as const;
+
+function RouterChecks() {
+  const can = useCan();
+  const me = useMe();
+  const problems = useQuery({
+    queryKey: ['radius', 'router-problems'],
+    queryFn: () => unwrap(api.GET('/api/v1/radius/router-problems')),
+    refetchInterval: 60_000,
+    enabled: can('nas.read'),
+  });
+  const [ip, setIp] = useState('');
+  const [asked, setAsked] = useState('');
+  const check = useQuery({
+    queryKey: ['radius', 'address', asked],
+    queryFn: () => unwrap(api.GET('/api/v1/radius/address-check', { params: { query: { ip: asked } } })),
+    enabled: !!asked,
+  });
+  const superAdmin = me.data?.user.type === 'superadmin';
+  const unknown = useQuery({
+    queryKey: ['radius', 'unknown'],
+    queryFn: () => unwrap(api.GET('/api/v1/radius/unknown-clients')),
+    enabled: superAdmin,
+  });
+  if (!can('nas.read')) return <p className="text-sm text-muted-foreground">Needs the routers permission.</p>;
+  const c = check.data;
+  return (
+    <div className="space-y-6">
+      {problems.isError ? (
+        <ErrorState error={problems.error} onRetry={() => void problems.refetch()} />
+      ) : null}
+      <DataTable
+        caption="RADIUS health per router"
+        loading={problems.isLoading}
+        rows={problems.data?.routers}
+        rowKey={(r) => r.nasIp}
+        empty="No routers yet."
+        columns={[
+          {
+            key: 'r',
+            header: 'Router',
+            cell: (r) => (
+              <span>
+                <span className="font-medium">{r.name}</span>
+                <span className="block font-mono text-xs text-muted-foreground">{r.nasIp}</span>
+              </span>
+            ),
+          },
+          {
+            key: 'last',
+            header: 'Last login attempt',
+            cell: (r) => (r.lastAuthAt ? fmtDateTime(r.lastAuthAt) : '—'),
+          },
+          {
+            key: 'n',
+            header: '24 h',
+            className: 'tabular-nums',
+            cell: (r) => `${r.accepted24h} ok · ${r.rejected24h} rejected`,
+          },
+          {
+            key: 'p',
+            header: 'Status',
+            cell: (r) =>
+              r.problem ? (
+                <Badge tone={r.problem === 'silent' ? 'neutral' : 'warning'}>{PROBLEM_TEXT[r.problem]}</Badge>
+              ) : (
+                <Badge tone="success">OK</Badge>
+              ),
+          },
+        ]}
+      />
+      <div className="rounded-xl border p-4">
+        <p className="font-semibold">Router not reaching RADIUS?</p>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Enter the public address the router sends from. You see what arrived from it in the last 7 days.
+        </p>
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setAsked(ip.trim());
+          }}
+        >
+          <Input
+            aria-label="Router address"
+            className="w-56 font-mono"
+            placeholder="e.g. 103.109.222.166"
+            value={ip}
+            onChange={(e) => setIp(e.target.value)}
+          />
+          <Button type="submit" variant="outline" loading={check.isFetching} disabled={!ip.trim()}>
+            Check
+          </Button>
+        </form>
+        {check.error ? (
+          <p className="mt-2 text-sm text-destructive">{(check.error as Error).message}</p>
+        ) : null}
+        {c ? (
+          <div className="mt-3 space-y-2 text-sm">
+            <p className="font-medium">{c.verdict}</p>
+            {c.events.length ? (
+              <ul className="space-y-0.5 text-muted-foreground">
+                {c.events.map((e) => (
+                  <li key={`${e.kind}-${e.port}`}>
+                    Port {e.port}: {KIND_TEXT[e.kind]} · {e.packets}+ packets · last {fmtDateTime(e.lastSeen)}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Routers must send to {c.radius.host ?? 'this server'} · auth {c.radius.authPort} · accounting{' '}
+              {c.radius.acctPort}.
+            </p>
+          </div>
+        ) : null}
+      </div>
+      {superAdmin ? (
+        <DataTable
+          caption="Addresses sending RADIUS that are no ISP's router (24 h)"
+          loading={unknown.isLoading}
+          rows={unknown.data?.items}
+          rowKey={(r) => `${r.ip}-${r.kind}-${r.port}`}
+          empty="None."
+          columns={[
+            { key: 'ip', header: 'Address', cell: (r) => <span className="font-mono">{r.ip}</span> },
+            { key: 'k', header: 'What happened', cell: (r) => KIND_TEXT[r.kind] },
+            { key: 'port', header: 'Port', cell: (r) => r.port },
+            { key: 'n', header: 'Packets', cell: (r) => `${r.packets}+` },
+            { key: 'at', header: 'Last', cell: (r) => fmtDateTime(r.lastSeen) },
+          ]}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function RadiusLogPage() {
   const params = useSearchParams();
   const router = useRouter();
-  const tab = params.get('tab') === 'live' ? 'live' : 'auth';
+  const t = params.get('tab');
+  const tab = t === 'live' || t === 'routers' ? t : 'auth';
   return (
     <>
       <PageHeader
@@ -556,15 +745,20 @@ function RadiusLogPage() {
       <Tabs
         value={tab}
         onValueChange={(v) =>
-          router.replace(v === 'live' ? '/admin/radius-log?tab=live' : '/admin/radius-log')
+          router.replace(v === 'auth' ? '/admin/radius-log' : `/admin/radius-log?tab=${v}`)
         }
       >
         <TabsList>
           <TabsTrigger value="auth">Auth log</TabsTrigger>
           <TabsTrigger value="live">Live</TabsTrigger>
+          <TabsTrigger value="routers">Routers</TabsTrigger>
         </TabsList>
         <TabsContent value="auth">
+          <RouterProblemsBanner onOpen={() => router.replace('/admin/radius-log?tab=routers')} />
           <AuthLog />
+        </TabsContent>
+        <TabsContent value="routers">
+          <RouterChecks />
         </TabsContent>
         <TabsContent value="live">
           <LiveLog />

@@ -11,6 +11,7 @@ import pg from 'pg';
 import { connectMongo, pendingMigrations, type MongoHandle } from '@isp/db-mongo';
 import { FieldCrypto } from '@isp/shared';
 import { CONFIG, type Config } from '../config.js';
+import { Files, LocalStore, S3Store } from '../storage/storage.js';
 
 export const MONGO = Symbol('MONGO');
 export const RADIUS_DB = Symbol('RADIUS_DB');
@@ -68,9 +69,27 @@ export class InfraModule {
           },
         },
         { provide: FieldCrypto, useFactory: () => new FieldCrypto(config.FIELD_ENCRYPTION_KEY) },
+        {
+          provide: Files,
+          inject: [FieldCrypto],
+          useFactory: (crypto: FieldCrypto) => {
+            const c = config;
+            const store = c.FILES_S3_BUCKET
+              ? new S3Store({
+                  endpoint: c.FILES_S3_ENDPOINT!,
+                  region: c.FILES_S3_REGION!,
+                  bucket: c.FILES_S3_BUCKET,
+                  accessKeyId: c.FILES_S3_KEY_ID!,
+                  secretAccessKey: c.FILES_S3_SECRET!,
+                  prefix: c.FILES_S3_PREFIX,
+                })
+              : new LocalStore(c.FILES_DIR);
+            return new Files(store, crypto);
+          },
+        },
         Shutdown,
       ],
-      exports: [CONFIG, MONGO, RADIUS_DB, FieldCrypto],
+      exports: [CONFIG, MONGO, RADIUS_DB, FieldCrypto, Files],
     };
   }
 }

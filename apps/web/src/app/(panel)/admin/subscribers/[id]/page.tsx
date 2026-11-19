@@ -50,6 +50,11 @@ import {
   relTime,
 } from '@/lib/utils';
 
+const SubscriberKyc = dynamic(() => import('@/components/kyc'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-64 w-full" />,
+});
+
 const UsageChart = dynamic(() => import('@/components/usage-chart'), {
   ssr: false,
   loading: () => <Skeleton className="h-64 w-full" />,
@@ -84,6 +89,7 @@ export default function SubscriberPage() {
           <TabsTrigger value="usage">Usage</TabsTrigger>
           <TabsTrigger value="coa">Router actions</TabsTrigger>
           {can('billing.read') ? <TabsTrigger value="billing">Billing</TabsTrigger> : null}
+          <TabsTrigger value="kyc">KYC</TabsTrigger>
           {can('audit.view') ? <TabsTrigger value="history">History</TabsTrigger> : null}
           {can('audit.view') ? <TabsTrigger value="views">Viewed by</TabsTrigger> : null}
         </TabsList>
@@ -118,6 +124,9 @@ export default function SubscriberPage() {
         </TabsContent>
         <TabsContent value="billing">
           <SubscriberBilling subscriberId={id} />
+        </TabsContent>
+        <TabsContent value="kyc">
+          <SubscriberKyc subscriberId={id} />
         </TabsContent>
         <TabsContent value="history">
           <History id={id} />

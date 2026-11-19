@@ -76,6 +76,14 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/invoices/:id/pdf': 'invoiceA',
   '/api/v1/invoices/:id/credit-note': 'invoiceA',
   '/api/v1/payments/:id': 'paymentA',
+  '/api/v1/subscribers/:id/kyc': 'subA',
+  '/api/v1/subscribers/:id/kyc/documents': 'subA',
+  '/api/v1/subscribers/:id/kyc/verify': 'subA',
+  '/api/v1/subscribers/:id/caf': 'subA',
+  '/api/v1/kyc-documents/:id/file': 'kycA',
+  '/api/v1/kyc-documents/:id/remove': 'kycA',
+  '/api/v1/resellers/:id/branding': 'resellerA',
+  '/api/v1/resellers/:id/branding/logo': 'resellerA',
   '/api/v1/subscribers/:id/consent': 'subA',
 };
 
@@ -94,6 +102,8 @@ const NOT_RECORD_ROUTES = new Set([
   '/api/v1/portal/tickets/:id/close',
   '/api/v1/reports/:name',
   '/api/v1/reports/:name/download',
+  // Public logo image (shown on login and portal pages; not personal data). Changing it is tested above.
+  '/api/v1/branding/:id/logo',
 ]);
 
 const BODIES: Record<string, unknown> = {
@@ -117,8 +127,14 @@ const BODIES: Record<string, unknown> = {
   'POST /api/v1/recharges/:id/refund': { reason: 'B refunding A' },
   'POST /api/v1/subscribers/:id/consent': { via: 'staff' },
   'POST /api/v1/wallets/topup-requests/:id/approve': {},
+  'POST /api/v1/subscribers/:id/kyc/verify': { status: 'pending' },
+  'POST /api/v1/kyc-documents/:id/remove': { reason: 'B removing A' },
+  'PUT /api/v1/resellers/:id/branding': { name: 'B brand' },
   'POST /api/v1/wallets/topup-requests/:id/reject': { note: 'B rejecting A' },
   'POST /api/v1/invoices/:id/credit-note': { reason: 'B crediting A' },
+};
+const QUERIES: Record<string, string> = {
+  'POST /api/v1/subscribers/:id/kyc/documents': '?kind=photo',
 };
 const HEADERS: Record<string, Record<string, string>> = {
   'POST /api/v1/wallets/:id/adjust': { 'idempotency-key': 'isolation-test-key' },
@@ -216,6 +232,20 @@ beforeAll(async () => {
     updatedAt: new Date(),
   });
   ids.topupA = topupA.insertedId.toHexString();
+  const kycA = await h.db.collection('kyc_documents').insertOne({
+    tenantId: a,
+    subscriberId: new ObjectId(ids.subA),
+    ancestors: [],
+    kind: 'photo',
+    storageKey: `kyc/${a.toHexString()}/${ids.subA}/isolation.jpg`,
+    sha256: 'x',
+    mimeType: 'image/jpeg',
+    sizeBytes: 1,
+    uploadedBy: 'test',
+    uploadedVia: 'staff',
+    createdAt: new Date(),
+  });
+  ids.kycA = kycA.insertedId.toHexString();
   const subA = new ObjectId(ids.subA);
   const invoiceA = new ObjectId();
   const party = { name: 'x', stateCode: '07', address: 'x' };
@@ -323,7 +353,7 @@ describe('tenant isolation', () => {
       const before = await snapshot();
       const res = await bAdmin.req(
         r.method as 'GET',
-        r.path.replace(':id', id),
+        r.path.replace(':id', id) + (QUERIES[`${r.method} ${r.path}`] ?? ''),
         BODIES[`${r.method} ${r.path}`],
         HEADERS[`${r.method} ${r.path}`],
       );

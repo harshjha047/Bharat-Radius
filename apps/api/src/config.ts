@@ -44,7 +44,28 @@ const schema = z
     SESSION_CACHE_TTL_MS: z.coerce.number().int().min(0).max(60_000).default(30_000),
     /** Read-only NAT log archive (/var/log/isp-archive/nat mounted into the container); unset = NAT lookup off. */
     NAT_ARCHIVE_DIR: z.string().optional(),
+    /** Private files (KYC, CAF, logos), encrypted before storage. Bucket when FILES_S3_* is set, else this dir. */
+    FILES_DIR: z.string().default('/var/lib/isp-files'),
+    FILES_S3_ENDPOINT: z.url().optional(),
+    FILES_S3_REGION: z.string().trim().min(1).optional(),
+    FILES_S3_BUCKET: z.string().trim().min(3).optional(),
+    FILES_S3_KEY_ID: z.string().trim().min(1).optional(),
+    FILES_S3_SECRET: z.string().trim().min(1).optional(),
+    FILES_S3_PREFIX: z.string().trim().default('isp-files'),
   })
+  .refine(
+    (c) =>
+      [c.FILES_S3_ENDPOINT, c.FILES_S3_REGION, c.FILES_S3_BUCKET, c.FILES_S3_KEY_ID, c.FILES_S3_SECRET].every(
+        (v) => v === undefined,
+      ) ||
+      [c.FILES_S3_ENDPOINT, c.FILES_S3_REGION, c.FILES_S3_BUCKET, c.FILES_S3_KEY_ID, c.FILES_S3_SECRET].every(
+        (v) => v !== undefined,
+      ),
+    {
+      message: 'set all of FILES_S3_ENDPOINT, _REGION, _BUCKET, _KEY_ID, _SECRET or none',
+      path: ['FILES_S3_BUCKET'],
+    },
+  )
   .transform((c) => {
     const prod = c.NODE_ENV === 'production';
     const origins = new Set([new URL(c.PUBLIC_BASE_URL).origin]);

@@ -33,7 +33,9 @@ import { PaymentsController, PaymentsService, WebhooksService } from './billing/
 import { RechargesController, RechargesService } from './billing/recharges.js';
 import { BillingSettingsController, BillingSettingsService } from './billing/settings.js';
 import { TopupRequestsController, TopupRequestsService } from './billing/topup-requests.js';
+import { KYC_UPLOAD_PATH, KycController, KycService, MAX_KYC_BYTES } from './documents/kyc.js';
 import { PrivacyController, PrivacyService } from './portal/privacy.js';
+import { BrandingController, BrandingService, LOGO_UPLOAD_PATH } from './resellers/branding.js';
 import { WalletsController, WalletsService } from './billing/wallets.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
 import { FinancialInsightsService } from './reports/insights.js';
@@ -94,6 +96,8 @@ class AppModule {
         ResellersController,
         WalletsController,
         TopupRequestsController,
+        KycController,
+        BrandingController,
         PrivacyController,
         RechargesController,
         InvoicesController,
@@ -129,6 +133,8 @@ class AppModule {
         ResellersService,
         WalletsService,
         TopupRequestsService,
+        KycService,
+        BrandingService,
         PrivacyService,
         RechargesService,
         InvoicesService,
@@ -190,6 +196,11 @@ export async function createApp(
   f.addContentTypeParser(XLSX_MIME, { parseAs: 'buffer', bodyLimit: MAX_IMPORT_BYTES }, (_req, body, done) =>
     done(null, body),
   );
+  // KYC files and logos arrive as the raw file; these media types also need a CORS preflight (CSRF-safe).
+  const FILE_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+  f.addContentTypeParser(FILE_MIME, { parseAs: 'buffer', bodyLimit: MAX_KYC_BYTES }, (_req, body, done) =>
+    done(null, body),
+  );
   // Disk guard maintenance (disk >= 85 %): staff, reseller and customer screens pause; RADIUS is not affected.
   f.addHook('onRequest', async (req, reply) => {
     if (!guardFlag('maintenance') || openDuringMaintenance(req.url.split('?')[0]!)) return;
@@ -214,6 +225,13 @@ export async function createApp(
       req.headers['content-type'] === XLSX_MIME
     )
       return;
+    const path = req.url.split('?')[0]!;
+    if (
+      (req.method === 'POST' && KYC_UPLOAD_PATH.test(path)) ||
+      (req.method === 'PUT' && LOGO_UPLOAD_PATH.test(path))
+    ) {
+      if (FILE_MIME.includes((req.headers['content-type'] ?? '').split(';')[0]!.trim().toLowerCase())) return;
+    }
     const hasBody =
       Number(req.headers['content-length'] ?? 0) > 0 || req.headers['transfer-encoding'] !== undefined;
     if (hasBody && !/^application\/json\b/i.test(req.headers['content-type'] ?? '')) {

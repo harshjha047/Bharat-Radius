@@ -1,5 +1,5 @@
 'use client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
@@ -11,7 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ErrorState, Field, KeyValue } from '@/components/ui/misc';
 import { Skeleton } from '@/components/ui/skeleton';
-import { api, fieldErrors, unwrap } from '@/lib/api';
+import { KIND_LABEL, KYC_TONE, KycUploadForm } from '@/components/kyc';
+import { Badge } from '@/components/ui/badge';
+import { api, fieldErrors, unwrap, uploadFile } from '@/lib/api';
+import { fmtDate } from '@/lib/utils';
 
 export default function PortalAccount() {
   const me = usePortalMe();
@@ -43,10 +46,71 @@ export default function PortalAccount() {
           </p>
         </CardContent>
       </Card>
+      <PortalKyc />
       <PortalPrivacyCard />
       <PasswordCard hasPortalPassword={m.hasPortalPassword} />
       <SignOut />
     </>
+  );
+}
+
+const KYC_KINDS = [
+  'aadhaar',
+  'pan',
+  'voter_id',
+  'passport',
+  'driving_licence',
+  'photo',
+  'address_proof',
+] as const;
+
+/** Customers upload their own ID and photo; staff check and verify them. Files cannot be opened here. */
+function PortalKyc() {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['portal', 'kyc'], queryFn: () => unwrap(api.GET('/api/v1/portal/kyc')) });
+  if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
+  if (!q.data) return <Skeleton className="h-40 w-full" />;
+  const k = q.data;
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center gap-3">
+        <CardTitle>KYC documents</CardTitle>
+        <Badge tone={KYC_TONE[k.status]}>{k.status}</Badge>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        {k.documents.length ? (
+          <ul className="space-y-1">
+            {k.documents.map((d) => (
+              <li key={d.id} className="flex justify-between gap-2">
+                <span>
+                  {KIND_LABEL[d.kind]}
+                  {d.maskedNumber ? ` · ${d.maskedNumber}` : ''}
+                </span>
+                <span className="text-muted-foreground">{fmtDate(d.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground">No documents yet.</p>
+        )}
+        {k.status !== 'verified' ? (
+          <>
+            {k.missing.length ? (
+              <p className="text-warning-text">Still needed: {k.missing.join(', ')}</p>
+            ) : null}
+            <KycUploadForm
+              kinds={KYC_KINDS}
+              onUpload={async (file, kind) => {
+                const qs = new URLSearchParams({ kind });
+                await uploadFile(`/api/v1/portal/kyc/documents?${qs}`, file);
+                void qc.invalidateQueries({ queryKey: ['portal', 'kyc'] });
+              }}
+              withNumber={false}
+            />
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 

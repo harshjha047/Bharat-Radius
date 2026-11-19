@@ -335,7 +335,7 @@ EOF
     instance_vars "$inst"
     systemctl enable -q "$SERVICE"
     systemctl restart "$SERVICE"
-    for t in stale partitions nas-watch; do systemctl enable -q --now "isp-radius-$t@$inst.timer"; done
+    for t in stale partitions nas-watch events; do systemctl enable -q --now "isp-radius-$t@$inst.timer"; done
   done
   # Synthetic login (WP 4.9): needs the node exporter's textfile directory.
   if [[ -d /var/lib/prometheus/node-exporter ]]; then

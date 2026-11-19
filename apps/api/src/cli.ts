@@ -15,9 +15,12 @@ import {
   type TenantDoc,
   type UserDoc,
 } from '@isp/db-mongo';
+import { FieldCrypto } from '@isp/shared';
 import { PLATFORM_SLUG } from './auth/auth.service.js';
 import { hashPassword, passwordSchema } from './auth/passwords.js';
+import { formatKycReport, importKycFiles } from './documents/import.js';
 import { formatReport, importLegacy, snapshotSchema } from './migration/legacy.js';
+import { filesFromEnv } from './storage/storage.js';
 import { benchSearch, removeScale, seedScale } from './scale-seed.js';
 import { email as emailSchema, phone as phoneSchema } from './http/schemas.js';
 
@@ -38,7 +41,10 @@ const USAGE = `usage: node dist/cli.js <command> [options]   (MONGO_URL from the
                  run a billing job now (all ISPs); --at pretends it is that time (staging tests)
   import-legacy  --tenant <slug> [--sites 2,5] [--apply]
                  old BharatRadius snapshot (legacy-export.sql) on stdin; dry run unless --apply;
-                 re-runnable (second run = delta: password, plan, validity, status, owner)`;
+                 re-runnable (second run = delta: password, plan, validity, status, owner)
+  import-kyc     --tenant <slug> --dir <path> [--apply]
+                 old CAF / ID files (JPEG, PNG, WebP, PDF) matched by username, customer no., phone or old id
+                 in the folder or file name; stored encrypted; dry run unless --apply; re-runnable`;
 
 async function readPassword(): Promise<string> {
   if (!process.stdin.isTTY) {
@@ -89,6 +95,7 @@ async function main() {
         'plan',
         'at',
         'sites',
+        'dir',
       ].map((k) => [k, { type: 'string' as const }]),
     ),
     allowPositionals: true,
@@ -204,6 +211,21 @@ async function main() {
       };
       if (!job || !run[job]) throw new Error(`run-job needs one of: ${Object.keys(run).join(', ')}`);
       console.log(JSON.stringify(await run[job]()));
+      return;
+    }
+
+    if (cmd === 'import-kyc') {
+      need(v, 'tenant', 'dir');
+      const key = process.env.FIELD_ENCRYPTION_KEY;
+      if (!key) throw new Error('FIELD_ENCRYPTION_KEY is required (run inside the api container)');
+      const report = await importKycFiles(db, filesFromEnv(process.env, new FieldCrypto(key)), {
+        tenant: v.tenant!,
+        dir: v.dir!,
+        apply: flags.has('--apply'),
+        log: (m) => console.log(m),
+      });
+      console.log(formatKycReport(report));
+      if (report.rejected.length) process.exitCode = 2;
       return;
     }
 

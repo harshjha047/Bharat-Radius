@@ -3,6 +3,7 @@ import { Controller, Get, Inject, Injectable, Query } from '@nestjs/common';
 import { z } from 'zod';
 import { USERNAME_COLLATION, type MongoHandle, type PlanDoc, type SubscriberDoc } from '@isp/db-mongo';
 import type { AuthContext } from '../auth/context.js';
+import { CONFIG, type Config } from '../config.js';
 import { AppError, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import { hexId } from '../http/schemas.js';
@@ -92,6 +93,55 @@ const whyView = z.object({
     .nullable(),
   similar: z.array(z.object({ username: z.string(), subscriberId: z.string().nullable() })),
   last24h: z.object({ accepted: z.number(), rejected: z.number() }),
+  /** F-17: the router itself looks misconfigured (wrong shared secret), not the customer. */
+  routerHint: z.string().nullable(),
+});
+
+const problemsView = z.object({
+  routers: z.array(
+    z.object({
+      nasIp: z.string(),
+      name: z.string(),
+      lastAuthAt: z.string().nullable(),
+      accepted24h: z.number(),
+      rejected24h: z.number(),
+      /** Packets dropped because the router's shared secret differs from the panel's (last 24 h, at least). */
+      badSecret: z.object({ packets: z.number(), lastSeen: z.string() }).nullable(),
+      /** PAP logins can't show a wrong secret directly: 3+ different users "wrong password" and no accept in 1 h. */
+      suspectSecret: z.boolean(),
+      problem: z.enum(['bad_secret', 'suspect_secret', 'silent']).nullable(),
+    }),
+  ),
+  problems: z.number(),
+});
+const addressQuery = tenantQuery.extend({ ip });
+const addressView = z.object({
+  ip: z.string(),
+  /** `mine`: one of the caller's routers; `other`: registered to another ISP; `none`: not a router. */
+  registered: z.enum(['mine', 'other', 'none']),
+  routerName: z.string().nullable(),
+  events: z.array(
+    z.object({
+      kind: z.enum(['unknown_client', 'firewall_block', 'bad_secret']),
+      port: z.number(),
+      packets: z.number(),
+      firstSeen: z.string(),
+      lastSeen: z.string(),
+    }),
+  ),
+  verdict: z.string(),
+  radius: z.object({ host: z.string().nullable(), authPort: z.number(), acctPort: z.number() }),
+});
+const unknownView = z.object({
+  items: z.array(
+    z.object({
+      ip: z.string(),
+      kind: z.enum(['unknown_client', 'firewall_block']),
+      port: z.number(),
+      packets: z.number(),
+      lastSeen: z.string(),
+    }),
+  ),
 });
 const tailView = z.object({
   now: z.string(),
@@ -250,6 +300,7 @@ export class RadiusLogService {
   constructor(
     @Inject(MONGO) private readonly mongo: MongoHandle,
     @Inject(SessionsService) private readonly sessions: SessionsService,
+    @Inject(CONFIG) private readonly config: Config,
   ) {}
 
   private async tenant(ctx: AuthContext, requested?: string) {
@@ -347,14 +398,24 @@ export class RadiusLogService {
           )
         : Promise.resolve({ rows: [] as { username: string; external_id: string | null }[] }),
     ]);
-    const plan = sub?.planId
-      ? await this.mongo.db
-          .collection<PlanDoc>('plans')
-          .findOne({ _id: sub.planId }, { projection: { name: 1 } })
-      : null;
+    const [plan, health] = await Promise.all([
+      sub?.planId
+        ? this.mongo.db.collection<PlanDoc>('plans').findOne({ _id: sub.planId }, { projection: { name: 1 } })
+        : null,
+      !entry.accepted && (base.category === 'wrong_password' || base.category === 'other')
+        ? this.routerHealth(t.id, entry.nasIp)
+        : null,
+    ]);
+    const h = health?.[0];
+    const routerHint = h?.badSecret
+      ? `Router ${h.name} (${h.nasIp}) is sending with a different RADIUS secret than the panel has (${h.badSecret.packets}+ packets in 24 h). Fix the secret on the router, not the customer password.`
+      : h?.suspectSecret
+        ? `Several different customers on ${h.name} (${h.nasIp}) failed with "wrong password" in the last hour and nobody logged in: the router's RADIUS secret is probably wrong.`
+        : null;
     return {
       entry,
       ...base,
+      routerHint,
       subscriber: sub
         ? {
             id: sub._id.toHexString(),
@@ -371,6 +432,162 @@ export class RadiusLogService {
         accepted: Number(counts.rows[0]?.accepted ?? 0),
         rejected: Number(counts.rows[0]?.rejected ?? 0),
       },
+    };
+  }
+
+  /** Per router of the ISP: last 24 h traffic, wrong-secret drops, PAP wrong-secret pattern. `only` = one IP. */
+  private async routerHealth(pgTenant: number, only?: string) {
+    const db = this.sessions.db();
+    const { rows } = await db.query<{
+      nasip: string;
+      name: string;
+      last_at: Date | null;
+      acc: string;
+      rej: string;
+      bad_packets: string | null;
+      bad_last: Date | null;
+      wp_users: string;
+      acc_1h: string;
+    }>(
+      `SELECT host(n.nasname) AS nasip, n.shortname AS name, a.last_at, coalesce(a.acc, 0) AS acc,
+              coalesce(a.rej, 0) AS rej, e.packets AS bad_packets, e.last AS bad_last,
+              coalesce(h.wp_users, 0) AS wp_users, coalesce(h.acc, 0) AS acc_1h
+         FROM nas n
+         LEFT JOIN LATERAL (
+           SELECT max(authdate) AS last_at,
+                  count(*) FILTER (WHERE reply = 'Access-Accept') AS acc,
+                  count(*) FILTER (WHERE reply <> 'Access-Accept') AS rej
+             FROM radpostauth
+            WHERE tenant_id = n.tenant_id AND nasipaddress = n.nasname AND authdate > now() - interval '24 hours'
+         ) a ON true
+         LEFT JOIN LATERAL (
+           SELECT sum(packets) AS packets, max(minute) AS last
+             FROM radius_events
+            WHERE kind = 'bad_secret' AND src_ip = n.nasname AND minute > now() - interval '24 hours'
+         ) e ON true
+         LEFT JOIN LATERAL (
+           SELECT count(DISTINCT username) FILTER (WHERE reply <> 'Access-Accept' AND reason ILIKE '%password%') AS wp_users,
+                  count(*) FILTER (WHERE reply = 'Access-Accept') AS acc
+             FROM radpostauth
+            WHERE tenant_id = n.tenant_id AND nasipaddress = n.nasname AND authdate > now() - interval '1 hour'
+         ) h ON true
+        WHERE n.tenant_id = $1 ${only ? 'AND n.nasname = $2::inet' : ''}
+        ORDER BY n.shortname`,
+      only ? [pgTenant, only] : [pgTenant],
+    );
+    return rows.map((r) => {
+      const badSecret =
+        r.bad_packets && Number(r.bad_packets) > 0
+          ? { packets: Number(r.bad_packets), lastSeen: r.bad_last!.toISOString() }
+          : null;
+      const suspectSecret = !badSecret && Number(r.wp_users) >= 3 && Number(r.acc_1h) === 0;
+      return {
+        nasIp: r.nasip,
+        name: r.name,
+        lastAuthAt: r.last_at?.toISOString() ?? null,
+        accepted24h: Number(r.acc),
+        rejected24h: Number(r.rej),
+        badSecret,
+        suspectSecret,
+        problem: badSecret
+          ? ('bad_secret' as const)
+          : suspectSecret
+            ? ('suspect_secret' as const)
+            : !r.last_at
+              ? ('silent' as const)
+              : null,
+      };
+    });
+  }
+
+  async problems(ctx: AuthContext, q: z.output<typeof tenantQuery>) {
+    const { pg: t } = await this.tenant(ctx, q.tenantId);
+    if (!t) return { routers: [], problems: 0 };
+    const routers = await this.routerHealth(t.id);
+    return { routers, problems: routers.filter((r) => r.problem && r.problem !== 'silent').length };
+  }
+
+  /** Is anything arriving from this address, and why is RADIUS not answering it? Exact address only. */
+  async address(ctx: AuthContext, q: z.output<typeof addressQuery>) {
+    const platform = ctx.scope.kind === 'platform' && !q.tenantId;
+    const t = platform ? null : (await this.tenant(ctx, q.tenantId)).pg;
+    const db = this.sessions.db();
+    const [nas, ev] = await Promise.all([
+      db.query<{ tenant_id: number; shortname: string }>(
+        'SELECT tenant_id, shortname FROM nas WHERE nasname = $1::inet',
+        [q.ip],
+      ),
+      db.query<{
+        kind: 'unknown_client' | 'firewall_block' | 'bad_secret';
+        port: number;
+        packets: string;
+        first: Date;
+        last: Date;
+      }>(
+        `SELECT kind, dst_port AS port, sum(packets) AS packets, min(minute) AS first, max(minute) AS last
+           FROM radius_events WHERE src_ip = $1::inet AND minute > now() - interval '7 days'
+          GROUP BY 1, 2 ORDER BY max(minute) DESC`,
+        [q.ip],
+      ),
+    ]);
+    const n = nas.rows[0];
+    const registered = !n ? 'none' : t && n.tenant_id === t.id ? 'mine' : 'other';
+    // Another ISP's router: do not show its traffic.
+    const events =
+      registered === 'other' && !platform
+        ? []
+        : ev.rows.map((e) => ({
+            kind: e.kind,
+            port: e.port,
+            packets: Number(e.packets),
+            firstSeen: e.first.toISOString(),
+            lastSeen: e.last.toISOString(),
+          }));
+    const kinds = new Set(events.map((e) => e.kind));
+    const { host, authPort, acctPort } = this.config.radiusTarget;
+    const target = { host, authPort, acctPort };
+    const verdict =
+      registered === 'other' && !platform
+        ? 'This address is a router of another ISP on this platform.'
+        : registered === 'mine' && kinds.has('bad_secret')
+          ? 'Packets arrive, but the RADIUS secret on the router does not match the panel. Set the same secret on both.'
+          : registered === 'mine'
+            ? 'This is one of your routers and its packets are accepted. If customers still fail, open the RADIUS log.'
+            : kinds.size
+              ? 'Packets from this address reach the server, but it is not a router in the panel. Add a router with exactly this address (the one the server sees, after any NAT).'
+              : 'Nothing has arrived from this address in 7 days. Check the RADIUS server address and ports on the router, and that this is the address the router sends from (after NAT).';
+    return {
+      ip: q.ip,
+      registered: registered as 'mine' | 'other' | 'none',
+      routerName: registered === 'mine' ? n!.shortname : null,
+      events,
+      verdict,
+      radius: target,
+    };
+  }
+
+  /** Super-admin: addresses sending RADIUS that are not a router of any ISP (last 24 h). */
+  async unknown() {
+    const { rows } = await this.sessions.db().query<{
+      ip: string;
+      kind: 'unknown_client' | 'firewall_block';
+      port: number;
+      packets: string;
+      last: Date;
+    }>(
+      `SELECT host(src_ip) AS ip, kind, dst_port AS port, sum(packets) AS packets, max(minute) AS last
+         FROM radius_events
+        WHERE kind IN ('unknown_client', 'firewall_block') AND minute > now() - interval '24 hours'
+        GROUP BY 1, 2, 3 ORDER BY max(minute) DESC LIMIT 200`,
+    );
+    return {
+      items: rows.map((r) => ({
+        ip: r.ip,
+        kind: r.kind,
+        port: r.port,
+        packets: Number(r.packets),
+        lastSeen: r.last.toISOString(),
+      })),
     };
   }
 
@@ -489,6 +706,43 @@ export class RadiusLogController {
   })
   why(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof whyQuery>) {
     return this.log.why(ctx, q);
+  }
+
+  @Get('radius/router-problems')
+  @Endpoint({
+    summary: 'Routers with RADIUS problems: wrong shared secret (seen or likely), no logins in 24 h',
+    tags: ['sessions'],
+    permission: 'nas.read',
+    query: tenantQuery,
+    response: problemsView,
+  })
+  problems(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof tenantQuery>) {
+    return this.log.problems(ctx, q);
+  }
+
+  @Get('radius/address-check')
+  @Endpoint({
+    summary:
+      'What arrived from one address in 7 days (unknown router, firewall, wrong secret) and what to fix',
+    tags: ['sessions'],
+    permission: 'nas.read',
+    query: addressQuery,
+    response: addressView,
+  })
+  address(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof addressQuery>) {
+    return this.log.address(ctx, q);
+  }
+
+  @Get('radius/unknown-clients')
+  @Endpoint({
+    summary: 'Addresses sending RADIUS that are not a router of any ISP (super-admin, 24 h)',
+    tags: ['sessions'],
+    platformOnly: true,
+    permission: 'nas.read',
+    response: unknownView,
+  })
+  unknownClients() {
+    return this.log.unknown();
   }
 
   @Get('radius/tail')

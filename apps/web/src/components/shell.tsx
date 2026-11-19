@@ -157,15 +157,25 @@ function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () 
   );
 }
 
-const Brand = ({ me }: { me: Me | undefined }) => (
-  <div className="flex items-center gap-2.5 px-5 pt-5">
-    <BrandMark />
-    <div className="flex min-w-0 flex-col">
-      <span className="text-base font-extrabold tracking-[-0.03em] text-foreground">BharatRadius</span>
-      <span className="eyebrow truncate text-[10px]">{me ? areaLabel(me) : '\u00a0'}</span>
+/** Reseller panels show the reseller's own name and logo (F-8); "Powered by" stays at the bottom. */
+const Brand = ({ me }: { me: Me | undefined }) => {
+  const b = me?.branding;
+  return (
+    <div className="flex items-center gap-2.5 px-5 pt-5">
+      {b?.logoUrl ? (
+        <img src={b.logoUrl} alt="" className="h-9 w-auto max-w-24 object-contain" />
+      ) : (
+        <BrandMark />
+      )}
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate text-base font-extrabold tracking-[-0.03em] text-foreground">
+          {b?.name ?? 'BharatRadius'}
+        </span>
+        <span className="eyebrow truncate text-[10px]">{me ? areaLabel(me) : '\u00a0'}</span>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /** Reseller's own wallet, always in view: they cannot recharge customers without it. */
 function WalletCard() {
@@ -348,8 +358,14 @@ export function Shell({ children }: { children: ReactNode }) {
               </D.Content>
             </D.Portal>
           </D.Root>
-          <BrandMark className="h-6" />
-          <span className="flex-1 text-base font-extrabold text-foreground">BharatRadius</span>
+          {me.data?.branding?.logoUrl ? (
+            <img src={me.data.branding.logoUrl} alt="" className="h-6 w-auto max-w-20 object-contain" />
+          ) : (
+            <BrandMark className="h-6" />
+          )}
+          <span className="flex-1 truncate text-base font-extrabold text-foreground">
+            {me.data?.branding?.name ?? 'BharatRadius'}
+          </span>
         </header>
         {me.data?.viewAs ? (
           <div

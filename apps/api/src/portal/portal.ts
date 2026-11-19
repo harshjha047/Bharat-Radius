@@ -34,6 +34,7 @@ import { PaymentsService, paymentView, toPaymentView } from '../billing/payments
 import { AppError, notFound, tooMany } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import { idParams, objectId, okResponse, page, pageOf, pageQuery } from '../http/schemas.js';
+import { brandingView, effectiveBranding } from '../resellers/branding.js';
 import { MONGO } from '../infra/infra.module.js';
 import { SessionsService } from '../sessions/sessions.js';
 import { PortalAuth } from './portal-auth.js';
@@ -97,6 +98,8 @@ const meView = z.object({
   gateways: z.array(gateway),
   hasPortalPassword: z.boolean(),
   isp: z.object({ name: z.string(), phone: z.string().nullable(), email: z.string().nullable() }),
+  /** F-8: the customer's reseller (or nearest parent) name and logo; null = the ISP's. */
+  branding: brandingView.nullable(),
 });
 const usageView = z.object({
   days: z.array(
@@ -183,7 +186,7 @@ export class PortalService {
 
   async me(ctx: AuthContext): Promise<z.output<typeof meView>> {
     const s = await this.self(ctx);
-    const [tenant, plan, due] = await Promise.all([
+    const [tenant, plan, due, branding] = await Promise.all([
       this.db
         .collection<BillingTenant>('tenants')
         .findOne({ _id: s.tenantId }, { projection: { name: 1, contact: 1, gateways: 1 } }),
@@ -195,6 +198,7 @@ export class PortalService {
           { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: '$balancePaise' } } },
         ])
         .next(),
+      effectiveBranding(this.db, s.tenantId, s.ancestors),
     ]);
     const g = tenant?.gateways;
     return {
@@ -222,6 +226,7 @@ export class PortalService {
         phone: tenant?.contact?.phone ?? null,
         email: tenant?.contact?.email ?? null,
       },
+      branding,
     };
   }
 

@@ -370,6 +370,457 @@
         }
       }
     },
+    "/api/v1/resellers/{id}/branding": {
+      "get": {
+        "summary": "Name and logo set on this reseller, and what its panel and customers actually see",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "resellers.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": ["string", "null"]
+                    },
+                    "logoUrl": {
+                      "type": ["string", "null"]
+                    },
+                    "effective": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": ["string", "null"]
+                        },
+                        "logoUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "fromResellerId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["name", "logoUrl", "fromResellerId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["name", "logoUrl", "effective"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Set (or clear with null) the name shown to this reseller and its customers",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "branding.manage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": ["string", "null"]
+                    },
+                    "logoUrl": {
+                      "type": ["string", "null"]
+                    },
+                    "effective": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": ["string", "null"]
+                        },
+                        "logoUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "fromResellerId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["name", "logoUrl", "fromResellerId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["name", "logoUrl", "effective"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resellers/{id}/branding/logo": {
+      "put": {
+        "summary": "Upload this reseller’s logo",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "branding.manage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": ["string", "null"]
+                    },
+                    "logoUrl": {
+                      "type": ["string", "null"]
+                    },
+                    "effective": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": ["string", "null"]
+                        },
+                        "logoUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "fromResellerId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["name", "logoUrl", "fromResellerId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["name", "logoUrl", "effective"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove this reseller’s logo",
+        "tags": ["resellers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "branding.manage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": ["string", "null"]
+                    },
+                    "logoUrl": {
+                      "type": ["string", "null"]
+                    },
+                    "effective": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": ["string", "null"]
+                        },
+                        "logoUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "fromResellerId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["name", "logoUrl", "fromResellerId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["name", "logoUrl", "effective"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/branding/{id}/logo": {
+      "get": {
+        "summary": "Reseller logo image (public, cached; ?v= changes with the image)",
+        "tags": ["resellers"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "summary": "Staff and reseller sign-in",
@@ -840,9 +1291,32 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "branding": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": ["string", "null"]
+                            },
+                            "logoUrl": {
+                              "type": ["string", "null"]
+                            },
+                            "fromResellerId": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["name", "logoUrl", "fromResellerId"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
-                  "required": ["user", "permissions", "mfa", "requireMfa", "viewAs"],
+                  "required": ["user", "permissions", "mfa", "requireMfa", "viewAs", "branding"],
                   "additionalProperties": false
                 }
               }
@@ -14187,6 +14661,966 @@
         }
       }
     },
+    "/api/v1/subscribers/{id}/kyc": {
+      "get": {
+        "summary": "KYC status, CAF number and the list of documents (no files)",
+        "tags": ["kyc"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "subscribers.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "verified", "rejected"]
+                    },
+                    "cafNo": {
+                      "type": ["string", "null"]
+                    },
+                    "aadhaarLast4": {
+                      "type": ["string", "null"]
+                    },
+                    "note": {
+                      "type": ["string", "null"]
+                    },
+                    "decidedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "aadhaar",
+                              "pan",
+                              "voter_id",
+                              "passport",
+                              "driving_licence",
+                              "photo",
+                              "caf_signed",
+                              "address_proof",
+                              "other"
+                            ]
+                          },
+                          "mimeType": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "number"
+                          },
+                          "fileName": {
+                            "type": ["string", "null"]
+                          },
+                          "maskedNumber": {
+                            "type": ["string", "null"]
+                          },
+                          "uploadedVia": {
+                            "type": "string",
+                            "enum": ["staff", "reseller", "portal", "import"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "mimeType",
+                          "sizeBytes",
+                          "fileName",
+                          "maskedNumber",
+                          "uploadedVia",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "missing": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "canView": {
+                      "type": "boolean"
+                    },
+                    "canUpload": {
+                      "type": "boolean"
+                    },
+                    "canVerify": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "cafNo",
+                    "aadhaarLast4",
+                    "note",
+                    "decidedAt",
+                    "documents",
+                    "missing",
+                    "canView",
+                    "canUpload",
+                    "canVerify"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/{id}/kyc/documents": {
+      "post": {
+        "summary": "Upload one KYC / CAF document (type checked by content; stored encrypted)",
+        "tags": ["kyc"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "kyc.upload",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "aadhaar",
+                "pan",
+                "voter_id",
+                "passport",
+                "driving_licence",
+                "photo",
+                "caf_signed",
+                "address_proof",
+                "other"
+              ]
+            }
+          },
+          {
+            "name": "number",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 30,
+              "pattern": "^[A-Za-z0-9 -]*$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "aadhaar",
+                        "pan",
+                        "voter_id",
+                        "passport",
+                        "driving_licence",
+                        "photo",
+                        "caf_signed",
+                        "address_proof",
+                        "other"
+                      ]
+                    },
+                    "mimeType": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "type": "number"
+                    },
+                    "fileName": {
+                      "type": ["string", "null"]
+                    },
+                    "maskedNumber": {
+                      "type": ["string", "null"]
+                    },
+                    "uploadedVia": {
+                      "type": "string",
+                      "enum": ["staff", "reseller", "portal", "import"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "mimeType",
+                    "sizeBytes",
+                    "fileName",
+                    "maskedNumber",
+                    "uploadedVia",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kyc-documents/{id}/file": {
+      "get": {
+        "summary": "Open one document (every view is written to the audit log)",
+        "tags": ["kyc"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "kyc.view",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kyc-documents/{id}/remove": {
+      "post": {
+        "summary": "Remove a wrong document (file deleted; the record stays for the audit trail)",
+        "tags": ["kyc"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "kyc.verify",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  }
+                },
+                "required": ["reason"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": ["ok"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/{id}/kyc/verify": {
+      "post": {
+        "summary": "Mark KYC verified (needs identity, address, photo, signed CAF), rejected (with reason) or pending",
+        "tags": ["kyc"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "kyc.verify",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["verified", "rejected", "pending"]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "cafNo": {
+                    "type": "string",
+                    "maxLength": 40
+                  }
+                },
+                "required": ["status"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "verified", "rejected"]
+                    },
+                    "cafNo": {
+                      "type": ["string", "null"]
+                    },
+                    "aadhaarLast4": {
+                      "type": ["string", "null"]
+                    },
+                    "note": {
+                      "type": ["string", "null"]
+                    },
+                    "decidedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "aadhaar",
+                              "pan",
+                              "voter_id",
+                              "passport",
+                              "driving_licence",
+                              "photo",
+                              "caf_signed",
+                              "address_proof",
+                              "other"
+                            ]
+                          },
+                          "mimeType": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "number"
+                          },
+                          "fileName": {
+                            "type": ["string", "null"]
+                          },
+                          "maskedNumber": {
+                            "type": ["string", "null"]
+                          },
+                          "uploadedVia": {
+                            "type": "string",
+                            "enum": ["staff", "reseller", "portal", "import"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "mimeType",
+                          "sizeBytes",
+                          "fileName",
+                          "maskedNumber",
+                          "uploadedVia",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "missing": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "canView": {
+                      "type": "boolean"
+                    },
+                    "canUpload": {
+                      "type": "boolean"
+                    },
+                    "canVerify": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "cafNo",
+                    "aadhaarLast4",
+                    "note",
+                    "decidedAt",
+                    "documents",
+                    "missing",
+                    "canView",
+                    "canUpload",
+                    "canVerify"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/{id}/caf": {
+      "get": {
+        "summary": "Pre-filled Customer Application Form (PDF) to print and sign; assigns the CAF number once",
+        "tags": ["kyc"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "subscribers.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/kyc": {
+      "get": {
+        "summary": "My KYC status and uploaded documents",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "verified", "rejected"]
+                    },
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "aadhaar",
+                              "pan",
+                              "voter_id",
+                              "passport",
+                              "driving_licence",
+                              "photo",
+                              "caf_signed",
+                              "address_proof",
+                              "other"
+                            ]
+                          },
+                          "mimeType": {
+                            "type": "string"
+                          },
+                          "sizeBytes": {
+                            "type": "number"
+                          },
+                          "fileName": {
+                            "type": ["string", "null"]
+                          },
+                          "maskedNumber": {
+                            "type": ["string", "null"]
+                          },
+                          "uploadedVia": {
+                            "type": "string",
+                            "enum": ["staff", "reseller", "portal", "import"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "mimeType",
+                          "sizeBytes",
+                          "fileName",
+                          "maskedNumber",
+                          "uploadedVia",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "missing": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": ["status", "documents", "missing"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/kyc/documents": {
+      "post": {
+        "summary": "Upload one of my KYC documents (raw file body, up to 5 MB)",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "aadhaar",
+                "pan",
+                "voter_id",
+                "passport",
+                "driving_licence",
+                "photo",
+                "caf_signed",
+                "address_proof",
+                "other"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "aadhaar",
+                        "pan",
+                        "voter_id",
+                        "passport",
+                        "driving_licence",
+                        "photo",
+                        "caf_signed",
+                        "address_proof",
+                        "other"
+                      ]
+                    },
+                    "mimeType": {
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "type": "number"
+                    },
+                    "fileName": {
+                      "type": ["string", "null"]
+                    },
+                    "maskedNumber": {
+                      "type": ["string", "null"]
+                    },
+                    "uploadedVia": {
+                      "type": "string",
+                      "enum": ["staff", "reseller", "portal", "import"]
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "mimeType",
+                    "sizeBytes",
+                    "fileName",
+                    "maskedNumber",
+                    "uploadedVia",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tenant/privacy": {
       "get": {
         "summary": "The privacy notice customers accept (DPDP), its version, and a draft to start from",
@@ -21338,6 +22772,9 @@
                       },
                       "required": ["accepted", "rejected"],
                       "additionalProperties": false
+                    },
+                    "routerHint": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -21348,8 +22785,368 @@
                     "fix",
                     "subscriber",
                     "similar",
-                    "last24h"
+                    "last24h",
+                    "routerHint"
                   ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/radius/router-problems": {
+      "get": {
+        "summary": "Routers with RADIUS problems: wrong shared secret (seen or likely), no logins in 24 h",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "routers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nasIp": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "lastAuthAt": {
+                            "type": ["string", "null"]
+                          },
+                          "accepted24h": {
+                            "type": "number"
+                          },
+                          "rejected24h": {
+                            "type": "number"
+                          },
+                          "badSecret": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "packets": {
+                                    "type": "number"
+                                  },
+                                  "lastSeen": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["packets", "lastSeen"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "suspectSecret": {
+                            "type": "boolean"
+                          },
+                          "problem": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": ["bad_secret", "suspect_secret", "silent"]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "nasIp",
+                          "name",
+                          "lastAuthAt",
+                          "accepted24h",
+                          "rejected24h",
+                          "badSecret",
+                          "suspectSecret",
+                          "problem"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "problems": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["routers", "problems"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/radius/address-check": {
+      "get": {
+        "summary": "What arrived from one address in 7 days (unknown router, firewall, wrong secret) and what to fix",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ip": {
+                      "type": "string"
+                    },
+                    "registered": {
+                      "type": "string",
+                      "enum": ["mine", "other", "none"]
+                    },
+                    "routerName": {
+                      "type": ["string", "null"]
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["unknown_client", "firewall_block", "bad_secret"]
+                          },
+                          "port": {
+                            "type": "number"
+                          },
+                          "packets": {
+                            "type": "number"
+                          },
+                          "firstSeen": {
+                            "type": "string"
+                          },
+                          "lastSeen": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "port", "packets", "firstSeen", "lastSeen"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "verdict": {
+                      "type": "string"
+                    },
+                    "radius": {
+                      "type": "object",
+                      "properties": {
+                        "host": {
+                          "type": ["string", "null"]
+                        },
+                        "authPort": {
+                          "type": "number"
+                        },
+                        "acctPort": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["host", "authPort", "acctPort"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["ip", "registered", "routerName", "events", "verdict", "radius"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/radius/unknown-clients": {
+      "get": {
+        "summary": "Addresses sending RADIUS that are not a router of any ISP (super-admin, 24 h)",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ip": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["unknown_client", "firewall_block"]
+                          },
+                          "port": {
+                            "type": "number"
+                          },
+                          "packets": {
+                            "type": "number"
+                          },
+                          "lastSeen": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["ip", "kind", "port", "packets", "lastSeen"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["items"],
                   "additionalProperties": false
                 }
               }
@@ -21888,6 +23685,29 @@
                       },
                       "required": ["name", "phone", "email"],
                       "additionalProperties": false
+                    },
+                    "branding": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": ["string", "null"]
+                            },
+                            "logoUrl": {
+                              "type": ["string", "null"]
+                            },
+                            "fromResellerId": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["name", "logoUrl", "fromResellerId"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -21907,7 +23727,8 @@
                     "duePaise",
                     "gateways",
                     "hasPortalPassword",
-                    "isp"
+                    "isp",
+                    "branding"
                   ],
                   "additionalProperties": false
                 }
@@ -27268,6 +29089,10 @@
                         "subscribers.kick",
                         "subscribers.password.reveal",
                         "subscribers.export",
+                        "kyc.view",
+                        "kyc.upload",
+                        "kyc.verify",
+                        "branding.manage",
                         "sessions.read",
                         "compliance.lookup",
                         "nas.read",
@@ -27426,6 +29251,10 @@
                         "subscribers.kick",
                         "subscribers.password.reveal",
                         "subscribers.export",
+                        "kyc.view",
+                        "kyc.upload",
+                        "kyc.verify",
+                        "branding.manage",
                         "sessions.read",
                         "compliance.lookup",
                         "nas.read",

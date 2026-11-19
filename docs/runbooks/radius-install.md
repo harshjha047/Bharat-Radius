@@ -76,3 +76,24 @@ sudo $S staging apply                                # make ufw match the file
 Managed rules carry the comment `isp-radius <instance>: <name>`. Rules with any other comment are left alone and listed as a note, so delete old manual rules yourself (`sudo ufw status numbered`, `sudo ufw delete <n>`). Routers in the panel need no manual entry. Use `add` only for sources that are not routers in the panel (e.g. a temporary test from your own connection).
 
 The synthetic probe (loopback) and the app's CoA (outbound to routers on 3799) do not need entries.
+
+## Unusable packets: unknown routers and wrong secrets (F-17)
+
+`isp-radius-events@<instance>.timer` runs `/opt/isp-radius/scripts/log-events.sh <instance>` every minute. It
+reads new lines of the FreeRADIUS log (`unknown client`, `invalid Message-/Request Authenticator` = wrong shared
+secret) and the kernel log (`[UFW BLOCK]` on this instance's RADIUS ports = address not on the allow-list), and
+stores one row per kind, address, port and minute in `radius_events` (30 days). Both logs rate-limit, so counts are
+"at least". The panel shows it under **Network → RADIUS log → Routers** and in *Why?*:
+
+- *wrong RADIUS secret on the router*: packets from a known router fail the secret check (Message-Authenticator or
+  accounting). Set the same secret on the router as the panel shows (Routers → router → secret).
+- *probably wrong secret*: PAP logins carry no proof of the secret, so a wrong one looks like "wrong password";
+  3+ different customers failing that way on one router within an hour, with no successful login, flags it.
+- *Router not reaching RADIUS?*: enter the router's public address; it shows whether its packets arrive, are
+  blocked by the firewall, or reach RADIUS while the address is not a router in the panel (typical behind NAT:
+  add the router with the address the server sees). Only an exact address is answered; another ISP's router is
+  reported as taken, without its traffic. Super-admins see all unknown addresses.
+
+Check by hand: `sudo /opt/isp-radius/scripts/log-events.sh staging && sudo -u postgres psql -d radius_staging -c
+"SELECT * FROM radius_events ORDER BY minute DESC LIMIT 20"`. Firewall blocks are logged only when ufw logging is
+on (`sudo ufw logging low`, the default).

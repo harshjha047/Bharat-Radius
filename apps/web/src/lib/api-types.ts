@@ -159,6 +159,282 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/resellers/{id}/branding': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Name and logo set on this reseller, and what its panel and customers actually see */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              name: string | null;
+              logoUrl: string | null;
+              effective: {
+                name: string | null;
+                logoUrl: string | null;
+                fromResellerId: string | null;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    /** Set (or clear with null) the name shown to this reseller and its customers */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            name: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              name: string | null;
+              logoUrl: string | null;
+              effective: {
+                name: string | null;
+                logoUrl: string | null;
+                fromResellerId: string | null;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/resellers/{id}/branding/logo': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Upload this reseller’s logo */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              name: string | null;
+              logoUrl: string | null;
+              effective: {
+                name: string | null;
+                logoUrl: string | null;
+                fromResellerId: string | null;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    /** Remove this reseller’s logo */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              name: string | null;
+              logoUrl: string | null;
+              effective: {
+                name: string | null;
+                logoUrl: string | null;
+                fromResellerId: string | null;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/branding/{id}/logo': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Reseller logo image (public, cached; ?v= changes with the image) */
+    get: {
+      parameters: {
+        query?: {
+          v?: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/login': {
     parameters: {
       query?: never;
@@ -501,6 +777,11 @@ export interface paths {
                 code: string;
                 name: string;
                 byName: string;
+              } | null;
+              branding: {
+                name: string | null;
+                logoUrl: string | null;
+                fromResellerId: string | null;
               } | null;
             };
           };
@@ -6267,6 +6548,600 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/subscribers/{id}/kyc': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** KYC status, CAF number and the list of documents (no files) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {string} */
+              status: 'pending' | 'verified' | 'rejected';
+              cafNo: string | null;
+              aadhaarLast4: string | null;
+              note: string | null;
+              decidedAt: string | null;
+              documents: {
+                id: string;
+                /** @enum {string} */
+                kind:
+                  | 'aadhaar'
+                  | 'pan'
+                  | 'voter_id'
+                  | 'passport'
+                  | 'driving_licence'
+                  | 'photo'
+                  | 'caf_signed'
+                  | 'address_proof'
+                  | 'other';
+                mimeType: string;
+                sizeBytes: number;
+                fileName: string | null;
+                maskedNumber: string | null;
+                /** @enum {string} */
+                uploadedVia: 'staff' | 'reseller' | 'portal' | 'import';
+                createdAt: string;
+              }[];
+              missing: string[];
+              canView: boolean;
+              canUpload: boolean;
+              canVerify: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/kyc/documents': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Upload one KYC / CAF document (type checked by content; stored encrypted) */
+    post: {
+      parameters: {
+        query: {
+          kind:
+            | 'aadhaar'
+            | 'pan'
+            | 'voter_id'
+            | 'passport'
+            | 'driving_licence'
+            | 'photo'
+            | 'caf_signed'
+            | 'address_proof'
+            | 'other';
+          number?: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              /** @enum {string} */
+              kind:
+                | 'aadhaar'
+                | 'pan'
+                | 'voter_id'
+                | 'passport'
+                | 'driving_licence'
+                | 'photo'
+                | 'caf_signed'
+                | 'address_proof'
+                | 'other';
+              mimeType: string;
+              sizeBytes: number;
+              fileName: string | null;
+              maskedNumber: string | null;
+              /** @enum {string} */
+              uploadedVia: 'staff' | 'reseller' | 'portal' | 'import';
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/kyc-documents/{id}/file': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Open one document (every view is written to the audit log) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/kyc-documents/{id}/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Remove a wrong document (file deleted; the record stays for the audit trail) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            reason: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @constant */
+              ok: true;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/kyc/verify': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mark KYC verified (needs identity, address, photo, signed CAF), rejected (with reason) or pending */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            status: 'verified' | 'rejected' | 'pending';
+            note?: string;
+            cafNo?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {string} */
+              status: 'pending' | 'verified' | 'rejected';
+              cafNo: string | null;
+              aadhaarLast4: string | null;
+              note: string | null;
+              decidedAt: string | null;
+              documents: {
+                id: string;
+                /** @enum {string} */
+                kind:
+                  | 'aadhaar'
+                  | 'pan'
+                  | 'voter_id'
+                  | 'passport'
+                  | 'driving_licence'
+                  | 'photo'
+                  | 'caf_signed'
+                  | 'address_proof'
+                  | 'other';
+                mimeType: string;
+                sizeBytes: number;
+                fileName: string | null;
+                maskedNumber: string | null;
+                /** @enum {string} */
+                uploadedVia: 'staff' | 'reseller' | 'portal' | 'import';
+                createdAt: string;
+              }[];
+              missing: string[];
+              canView: boolean;
+              canUpload: boolean;
+              canVerify: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/caf': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Pre-filled Customer Application Form (PDF) to print and sign; assigns the CAF number once */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portal/kyc': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** My KYC status and uploaded documents */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              /** @enum {string} */
+              status: 'pending' | 'verified' | 'rejected';
+              documents: {
+                id: string;
+                /** @enum {string} */
+                kind:
+                  | 'aadhaar'
+                  | 'pan'
+                  | 'voter_id'
+                  | 'passport'
+                  | 'driving_licence'
+                  | 'photo'
+                  | 'caf_signed'
+                  | 'address_proof'
+                  | 'other';
+                mimeType: string;
+                sizeBytes: number;
+                fileName: string | null;
+                maskedNumber: string | null;
+                /** @enum {string} */
+                uploadedVia: 'staff' | 'reseller' | 'portal' | 'import';
+                createdAt: string;
+              }[];
+              missing: string[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portal/kyc/documents': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Upload one of my KYC documents (raw file body, up to 5 MB) */
+    post: {
+      parameters: {
+        query: {
+          kind:
+            | 'aadhaar'
+            | 'pan'
+            | 'voter_id'
+            | 'passport'
+            | 'driving_licence'
+            | 'photo'
+            | 'caf_signed'
+            | 'address_proof'
+            | 'other';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              /** @enum {string} */
+              kind:
+                | 'aadhaar'
+                | 'pan'
+                | 'voter_id'
+                | 'passport'
+                | 'driving_licence'
+                | 'photo'
+                | 'caf_signed'
+                | 'address_proof'
+                | 'other';
+              mimeType: string;
+              sizeBytes: number;
+              fileName: string | null;
+              maskedNumber: string | null;
+              /** @enum {string} */
+              uploadedVia: 'staff' | 'reseller' | 'portal' | 'import';
+              createdAt: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/tenant/privacy': {
     parameters: {
       query?: never;
@@ -9673,6 +10548,211 @@ export interface paths {
                 accepted: number;
                 rejected: number;
               };
+              routerHint: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/radius/router-problems': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Routers with RADIUS problems: wrong shared secret (seen or likely), no logins in 24 h */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              routers: {
+                nasIp: string;
+                name: string;
+                lastAuthAt: string | null;
+                accepted24h: number;
+                rejected24h: number;
+                badSecret: {
+                  packets: number;
+                  lastSeen: string;
+                } | null;
+                suspectSecret: boolean;
+                problem: ('bad_secret' | 'suspect_secret' | 'silent') | null;
+              }[];
+              problems: number;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/radius/address-check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** What arrived from one address in 7 days (unknown router, firewall, wrong secret) and what to fix */
+    get: {
+      parameters: {
+        query: {
+          tenantId?: string;
+          ip: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              ip: string;
+              /** @enum {string} */
+              registered: 'mine' | 'other' | 'none';
+              routerName: string | null;
+              events: {
+                /** @enum {string} */
+                kind: 'unknown_client' | 'firewall_block' | 'bad_secret';
+                port: number;
+                packets: number;
+                firstSeen: string;
+                lastSeen: string;
+              }[];
+              verdict: string;
+              radius: {
+                host: string | null;
+                authPort: number;
+                acctPort: number;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/radius/unknown-clients': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Addresses sending RADIUS that are not a router of any ISP (super-admin, 24 h) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                ip: string;
+                /** @enum {string} */
+                kind: 'unknown_client' | 'firewall_block';
+                port: number;
+                packets: number;
+                lastSeen: string;
+              }[];
             };
           };
         };
@@ -10008,6 +11088,11 @@ export interface paths {
                 phone: string | null;
                 email: string | null;
               };
+              branding: {
+                name: string | null;
+                logoUrl: string | null;
+                fromResellerId: string | null;
+              } | null;
             };
           };
         };
@@ -12561,6 +13646,10 @@ export interface paths {
               | 'subscribers.kick'
               | 'subscribers.password.reveal'
               | 'subscribers.export'
+              | 'kyc.view'
+              | 'kyc.upload'
+              | 'kyc.verify'
+              | 'branding.manage'
               | 'sessions.read'
               | 'compliance.lookup'
               | 'nas.read'
@@ -12710,6 +13799,10 @@ export interface paths {
               | 'subscribers.kick'
               | 'subscribers.password.reveal'
               | 'subscribers.export'
+              | 'kyc.view'
+              | 'kyc.upload'
+              | 'kyc.verify'
+              | 'branding.manage'
               | 'sessions.read'
               | 'compliance.lookup'
               | 'nas.read'
