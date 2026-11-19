@@ -205,8 +205,12 @@ describe('KYC documents', () => {
     const src = await mkdtemp(join(tmpdir(), 'isp-caf-'));
     const { mkdir, writeFile } = await import('node:fs/promises');
     await mkdir(join(src, 'kyc.direct'));
-    await writeFile(join(src, 'kyc.direct', 'aadhar front.jpg'), JPG);
-    await writeFile(join(src, 'kyc.direct', 'CAF.pdf'), PDF);
+    // Different bytes from the files uploaded above (the same file for the same customer is skipped).
+    await writeFile(
+      join(src, 'kyc.direct', 'aadhar front.jpg'),
+      Buffer.concat([JPG, Buffer.from('old-aadhaar')]),
+    );
+    await writeFile(join(src, 'kyc.direct', 'CAF.pdf'), Buffer.concat([PDF, Buffer.from('% old caf\n')]));
     await writeFile(join(src, 'nobody_photo.png'), PNG);
     const files = new Files(new LocalStore(dir), h.crypto);
     const dry = await importKycFiles(h.db, files, { tenant: 'alpha', dir: src, apply: false, log: () => {} });
