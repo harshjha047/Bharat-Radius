@@ -11,14 +11,15 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | 4.2 Walled-garden pay page | ✅ #64 · router redirect ⏳ O-12 | `:8089` → `/api/v1/pay/entry`: router found by its public address; the one expired customer online behind it is shown (masked) with *Pay ₹…* (renews the current plan); otherwise lookup by username / customer no. / mobile, accepted only if online behind that router. Signed 30-min token; no OTP needed (O-7 later for any-account lookup). Runbook `docs/runbooks/pay-page.md` |
 | 4.3 Tickets | ✅ #33 | Staff list/detail with assign, internal notes, status; portal Help; reseller branch scope; new Technician role. Runbook `docs/runbooks/tickets.md` |
 | 4.4 Reports + GSTR export | ✅ #34, F-14 | Revenue, collections, subscribers, reseller sales, usage, tickets; Excel/PDF; GSTR-1 workbook (offline-tool layout). Runbook `docs/runbooks/reports.md`. Accountant to check the first GSTR-1 (O-9) |
-| 4.5 KYC/CAF | ⏳ not built (O-18 = B2 chosen) | |
+| 4.5 KYC/CAF | 🔀 PR | Files AES-256-GCM encrypted by the API, local disk or B2 (`files-setup.sh`); upload (staff, resellers, portal), audited viewing, verify/reject, CAF PDF with number, `import-kyc` for old files. Runbook `kyc.md` |
 | 4.6 Compliance logs | ✅ #47 · UDP 514 ⏳ O-12 | Archive (3 years, sealed daily), router syslog + NAT logs (opt-in per router, `mikrotik/logging.rsc`), NAT IP lookup in the panel (audited), access log, `radpostauth` 1,100 days. UDP 514 still to open. Runbook `docs/runbooks/compliance-logs.md` |
 | 4.7 Importer | ✅ #54, #55 | O-10 received 18 Nov (dump restored as `bharatradius_legacy` on the VPS: 7 sites, 22 plans, 4 routers, 136 subscribers, cleartext PPPoE passwords). `cli.js import-legacy` (dry run / `--apply` / `--sites`), re-runnable delta, reconciliation. Runbook `docs/runbooks/legacy-import.md` |
 | 4.8 Backups/DR | ✅ #36, #66 · restore drill ⏳ | Nightly age-encrypted backups (#36). O-18 = Backblaze B2 (owner, 18 Nov; no India region; lawyer to confirm under O-11). Follow-up PR: log archive days older than 60 days moved to B2 (gzip, not encrypted by owner's choice; SHA-1 verified; `fetch` brings days back), `LogOffloadStuck` alert. Setup: `docs/runbooks/backups.md` → Backblaze B2. Restore drill ⏳ |
 | 4.9 Alerts | ✅ #35, #65 | #35 (11 Nov): synthetic RADIUS login every minute, `RadiusLoginProbeFailing`/`Slow`/`Stale`, `OutboxErrors`, `ReconcileStale`, `BackupMissing`/`NeverRan` (resolve with 4.8). Follow-up PR: `WalledGardenDown` (blackbox on `:8089` expects 302 → `/pay`), `WorkerJobFailing` (expired-sweep, imports, expiry-reminders, usage), `ExpiredSweepStale` |
 | Disk guard | ✅ #67 | Every 5 min: ≥ 70 % drill (imports/rebuilds paused, cache + old logs/backups to B2 after verify), ≥ 85 % maintenance page (RADIUS, webhooks, pay page keep running), ≥ 95 % 5 GB reserve released. Runbook `docs/runbooks/disk-guard.md` |
 | F-1…F-14 | ✅ #68 | #57–#63 were merged into their stacked bases and never reached `main`; landed here together |
-| F-7 Billing models, top-up requests, recharge edits | 🔀 PR | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
+| F-7 Billing models, top-up requests, recharge edits | ✅ #69 | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
+| F-8 Reseller name and logo | 🔀 PR (with 4.5) | Reseller → Branding or own My account; panel header and its customers' portal; inherited down the tree |
 | 4.10–4.15 | ⏳ | |
 | F-15 Expired handling | ✅ #56 | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
 | F-10/16 Username case, Excel dates | ✅ #68 | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
@@ -164,3 +165,23 @@ Deploy: `app-up.sh` (Mongo 016 `topup_requests`; built-in roles gain *recharges.
 8. Staff: Recharge `test.sub` → change *Customer pays* to 500, *Valid until* to a date of choice, reason → Recharge → invoice total ₹500, cash payment ₹500, Valid until = that date 11:59 pm; Recharges row shows *Edited · ₹500 (was ₹…)*. `500.50` → *Whole rupees*.
 9. Test L2: *Valid until* later than the plan gives → *At most …: add periods*; earlier → accepted, wallet debit unchanged.
 10. Support role (no *recharges.override*): popup shows the read-only totals as before.
+
+## Staging checks — 4.5 KYC / CAF and F-8 branding
+
+Deploy: `git pull && sudo bash deploy/ubuntu/app/app-up.sh` (Mongo 017; creates `/var/lib/isp-files`). Bucket
+later: `docs/runbooks/kyc.md`.
+
+1. Staff: subscriber → **KYC** tab → *Missing: identity proof, address proof, photo, signed CAF*.
+2. *Create CAF form* → PDF opens, number `CAF/C…` shows next to the status.
+3. Upload Aadhaar (number `1234 5678 9012`) as a JPEG → row shows `XXXX-XXXX-9012`; eye icon opens it.
+   Audit log shows `kyc.view` with your name.
+4. Upload a `.txt` renamed to `.jpg` → *Only JPEG, PNG, WebP or PDF files*. A 6 MB file → *Files up to 5 MB*.
+5. *Verify* is disabled until photo and signed CAF are uploaded; then Verify → status *verified*.
+   Reject needs a reason.
+6. Trash icon → reason → file gone from the list; History shows the upload and the removal.
+7. Sign in as Test L2: customer → KYC → can upload, no eye icon, no Verify. Another branch's customer → not found.
+8. Portal (`test.sub`) → *Account* → KYC documents → upload PAN → staff see it with *by portal*.
+9. Test L1 → *My account* → Branding: name *Test Fibre*, upload a logo → sidebar shows it. Test L2 and `test.sub`'s
+   portal header show *Test Fibre* + logo; staff panel still shows BharatRadius. Test L2 sets its own name → it
+   wins for L2 and its customers.
+10. On the VPS: `sudo ls /var/lib/isp-files/kyc/*/*` lists files; `sudo head -c 5 <file>` prints `ISPF1` (encrypted).

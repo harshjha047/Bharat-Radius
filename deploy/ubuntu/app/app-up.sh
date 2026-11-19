@@ -57,6 +57,8 @@ getent group isp-archive >/dev/null || groupadd -g 2470 isp-archive
 # Owner syslog + setgid, as logs-setup.sh sets it: rsyslogd runs as syslog and must be able to create files here.
 WRITER=syslog; id -u syslog >/dev/null 2>&1 || WRITER=root
 install -d -o "$WRITER" -g isp-archive -m 2750 /var/log/isp-archive /var/log/isp-archive/nat
+# Private files (WP 4.5): owned by the container user (node, uid 1000); content is encrypted by the API.
+install -d -o 1000 -g 1000 -m 0700 /var/lib/isp-files
 gen() { openssl rand -hex "${1:-24}"; }
 [[ -s $ETC/mongo.keyfile ]] || openssl rand -base64 756 | tr -d '\n' >"$ETC/mongo.keyfile"
 [[ -s $ETC/mongo_root_pw ]] || gen >"$ETC/mongo_root_pw"
@@ -85,6 +87,8 @@ umask 077
   echo "PUBLIC_BASE_URL=https://new.bharatradius.com"
   echo "MONGO_POOL_MAX=20"
   echo "TZ_BILLING=Asia/Kolkata"
+  # Off-site private file bucket (B2 S3 API), written by deploy/ubuntu/app/files-setup.sh; absent = local disk.
+  [[ ! -s $ETC/files.env ]] || cat "$ETC/files.env"
 } >"$ETC/app.env.new"
 mv "$ETC/app.env.new" "$ETC/app.env"
 rm -f "$ETC/staging.env"

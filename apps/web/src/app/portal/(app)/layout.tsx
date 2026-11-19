@@ -55,9 +55,17 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-30 border-b bg-card">
         <div className="mx-auto flex h-[60px] max-w-[1120px] items-center gap-2.5 px-4 sm:h-[68px] sm:gap-6 sm:px-6">
           <span className="mr-auto flex items-center gap-2.5 max-sm:mr-0">
-            <BrandMark className="h-7 sm:h-8" />
+            {me.data?.branding?.logoUrl ? (
+              <img
+                src={me.data.branding.logoUrl}
+                alt=""
+                className="h-7 w-auto max-w-28 object-contain sm:h-8"
+              />
+            ) : (
+              <BrandMark className="h-7 sm:h-8" />
+            )}
             <span className="text-lg font-extrabold tracking-[-0.03em] text-foreground max-sm:hidden">
-              BharatRadius
+              {me.data?.branding?.name ?? 'BharatRadius'}
             </span>
           </span>
           <div className="min-w-0 flex-1 sm:hidden">
@@ -67,7 +75,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                   Namaste, {me.data.name.split(' ')[0]}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {me.data.isp.name} · {me.data.customerNo}
+                  {me.data.branding?.name ?? me.data.isp.name} · {me.data.customerNo}
                 </p>
               </>
             ) : (

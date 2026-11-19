@@ -18,6 +18,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AuditChanges, actionLabel } from '@/components/audit-changes';
+import { ResellerBranding } from '@/components/branding';
 import { ResellerLogins, ResellerRates, ResellerWallet } from '@/components/reseller-billing';
 import { ResellerForm } from '@/components/reseller-form';
 import { ResellerPicker, type ResellerRef } from '@/components/reseller-picker';
@@ -101,6 +102,7 @@ export default function ResellerPage() {
           <TabsTrigger value="rates">Prices</TabsTrigger>
           {can('users.read') ? <TabsTrigger value="logins">Sign-ins</TabsTrigger> : null}
           <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="branding">Branding</TabsTrigger>
           {can('audit.view') ? <TabsTrigger value="history">History</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="children">
@@ -120,6 +122,9 @@ export default function ResellerPage() {
         </TabsContent>
         <TabsContent value="details">
           <Details d={d} />
+        </TabsContent>
+        <TabsContent value="branding">
+          <ResellerBranding resellerId={id} />
         </TabsContent>
         <TabsContent value="history">
           <History id={id} />

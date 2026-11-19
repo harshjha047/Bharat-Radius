@@ -3,6 +3,7 @@
 #   mongo     all databases of isp-mongo (mongodump archive, gzip)          → verified with mongorestore --dryRun
 #   postgres  each RADIUS database (pg_dump custom format)                  → verified with pg_restore --list
 #   etc       /etc/isp-radius /etc/isp-app (secrets: only ever stored age-encrypted) + log-archive manifests
+#   files     /var/lib/isp-files (KYC, CAF, logos; already encrypted by the API) when files are kept on local disk
 # Every file is age-encrypted to AGE_RECIPIENT (the owner's public key; the private key never touches this server),
 # kept locally KEEP_LOCAL_DAYS and copied off-site with rclone to RCLONE_REMOTE when set (KEEP_REMOTE_DAYS there).
 # Success per kind → isp_backup_last_success_timestamp_seconds{kind} (alerts BackupMissing / BackupNeverRan).
@@ -76,6 +77,14 @@ tar -czf "$WORK/etc.tar.gz" -C / "${dirs[@]#/}"
 tar -tzf "$WORK/etc.tar.gz" >/dev/null || die "etc archive failed verification"
 seal etc "$WORK/etc.tar.gz" etc.tar.gz
 
+# ---- files (local store only; a bucket keeps its own copies)
+if [[ ! -s /etc/isp-app/files.env && -d /var/lib/isp-files ]] && [[ -n $(ls -A /var/lib/isp-files 2>/dev/null) ]]; then
+  log "files: archiving /var/lib/isp-files"
+  tar -czf "$WORK/files.tar.gz" -C / var/lib/isp-files
+  tar -tzf "$WORK/files.tar.gz" >/dev/null || die "files archive failed verification"
+  seal files "$WORK/files.tar.gz" files.tar.gz
+fi
+
 # ---- off-site
 OFFSITE=0
 if [[ -n $RCLONE_REMOTE ]]; then
@@ -104,6 +113,11 @@ for kind in "${!SIZE[@]}"; do
   } >"$METRICS"
 done
 rm -f "$METRICS.new"
+# Files moved to the bucket (or none yet): no local files backup is expected, so drop its old metrics.
+if [[ -z ${SIZE[files]:-} && -f $METRICS ]]; then
+  grep -v '{kind="files"}' "$METRICS" >"$METRICS.new" || true
+  mv "$METRICS.new" "$METRICS"
+fi
 if [[ -d $OUT_DIR ]]; then
   tmp="$(mktemp "$OUT_DIR/.isp_backup.XXXXXX")"
   {

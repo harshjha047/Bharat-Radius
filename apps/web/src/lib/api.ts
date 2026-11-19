@@ -128,6 +128,37 @@ export async function download(path: string, fallbackName: string): Promise<void
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Opens a protected file (PDF, image) in a new tab through the same auth path. */
+export async function openFile(path: string): Promise<void> {
+  const tab = window.open('', '_blank');
+  const res = await authFetch(new Request(path, { credentials: 'same-origin' }));
+  if (!res.ok) {
+    tab?.close();
+    throw await toApiError(res);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  if (tab) tab.location.href = url;
+  else window.location.assign(url);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Sends a file as the raw request body (KYC documents, logos). */
+export async function uploadFile<T>(path: string, file: File, method: 'POST' | 'PUT' = 'POST'): Promise<T> {
+  const res = await authFetch(
+    new Request(path, {
+      method,
+      body: file,
+      credentials: 'same-origin',
+      headers: {
+        'content-type': file.type || 'application/octet-stream',
+        'x-file-name': encodeURIComponent(file.name),
+      },
+    }),
+  );
+  if (!res.ok) throw await toApiError(res);
+  return (await res.json()) as T;
+}
+
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 /** Field errors from a 400 VALIDATION_FAILED response, keyed by dotted path. */
