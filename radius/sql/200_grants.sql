@@ -25,6 +25,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON tenants, nas, plans, plan_attributes, su
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO :"app_role";
 GRANT SELECT, UPDATE ON radacct TO :"app_role";
 GRANT SELECT ON radpostauth TO :"app_role";
+-- F-17: unusable packets (unknown address, firewall, wrong secret), written by log-events.sh as postgres.
+GRANT SELECT ON radius_events TO :"app_role";
 GRANT SELECT, INSERT, UPDATE, DELETE ON usage_daily, usage_seen TO :"app_role";
 GRANT EXECUTE ON FUNCTION
   radius_encrypt_password(text, text),

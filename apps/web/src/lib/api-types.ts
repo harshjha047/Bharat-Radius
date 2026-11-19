@@ -10210,6 +10210,211 @@ export interface paths {
                 accepted: number;
                 rejected: number;
               };
+              routerHint: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/radius/router-problems': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Routers with RADIUS problems: wrong shared secret (seen or likely), no logins in 24 h */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              routers: {
+                nasIp: string;
+                name: string;
+                lastAuthAt: string | null;
+                accepted24h: number;
+                rejected24h: number;
+                badSecret: {
+                  packets: number;
+                  lastSeen: string;
+                } | null;
+                suspectSecret: boolean;
+                problem: ('bad_secret' | 'suspect_secret' | 'silent') | null;
+              }[];
+              problems: number;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/radius/address-check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** What arrived from one address in 7 days (unknown router, firewall, wrong secret) and what to fix */
+    get: {
+      parameters: {
+        query: {
+          tenantId?: string;
+          ip: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              ip: string;
+              /** @enum {string} */
+              registered: 'mine' | 'other' | 'none';
+              routerName: string | null;
+              events: {
+                /** @enum {string} */
+                kind: 'unknown_client' | 'firewall_block' | 'bad_secret';
+                port: number;
+                packets: number;
+                firstSeen: string;
+                lastSeen: string;
+              }[];
+              verdict: string;
+              radius: {
+                host: string | null;
+                authPort: number;
+                acctPort: number;
+              };
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/radius/unknown-clients': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Addresses sending RADIUS that are not a router of any ISP (super-admin, 24 h) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                ip: string;
+                /** @enum {string} */
+                kind: 'unknown_client' | 'firewall_block';
+                port: number;
+                packets: number;
+                lastSeen: string;
+              }[];
             };
           };
         };

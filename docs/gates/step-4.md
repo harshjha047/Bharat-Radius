@@ -11,7 +11,7 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | 4.2 Walled-garden pay page | ✅ #64 · router redirect ⏳ O-12 | `:8089` → `/api/v1/pay/entry`: router found by its public address; the one expired customer online behind it is shown (masked) with *Pay ₹…* (renews the current plan); otherwise lookup by username / customer no. / mobile, accepted only if online behind that router. Signed 30-min token; no OTP needed (O-7 later for any-account lookup). Runbook `docs/runbooks/pay-page.md` |
 | 4.3 Tickets | ✅ #33 | Staff list/detail with assign, internal notes, status; portal Help; reseller branch scope; new Technician role. Runbook `docs/runbooks/tickets.md` |
 | 4.4 Reports + GSTR export | ✅ #34, F-14 | Revenue, collections, subscribers, reseller sales, usage, tickets; Excel/PDF; GSTR-1 workbook (offline-tool layout). Runbook `docs/runbooks/reports.md`. Accountant to check the first GSTR-1 (O-9) |
-| 4.5 KYC/CAF | 🔀 PR | Files AES-256-GCM encrypted by the API, local disk or B2 (`files-setup.sh`); upload (staff, resellers, portal), audited viewing, verify/reject, CAF PDF with number, `import-kyc` for old files. Runbook `kyc.md` |
+| 4.5 KYC/CAF | ✅ #70 | Files AES-256-GCM encrypted by the API, local disk or B2 (`files-setup.sh`); upload (staff, resellers, portal), audited viewing, verify/reject, CAF PDF with number, `import-kyc` for old files. Runbook `kyc.md` |
 | 4.6 Compliance logs | ✅ #47 · UDP 514 ⏳ O-12 | Archive (3 years, sealed daily), router syslog + NAT logs (opt-in per router, `mikrotik/logging.rsc`), NAT IP lookup in the panel (audited), access log, `radpostauth` 1,100 days. UDP 514 still to open. Runbook `docs/runbooks/compliance-logs.md` |
 | 4.7 Importer | ✅ #54, #55 | O-10 received 18 Nov (dump restored as `bharatradius_legacy` on the VPS: 7 sites, 22 plans, 4 routers, 136 subscribers, cleartext PPPoE passwords). `cli.js import-legacy` (dry run / `--apply` / `--sites`), re-runnable delta, reconciliation. Runbook `docs/runbooks/legacy-import.md` |
 | 4.8 Backups/DR | ✅ #36, #66 · restore drill ⏳ | Nightly age-encrypted backups (#36). O-18 = Backblaze B2 (owner, 18 Nov; no India region; lawyer to confirm under O-11). Follow-up PR: log archive days older than 60 days moved to B2 (gzip, not encrypted by owner's choice; SHA-1 verified; `fetch` brings days back), `LogOffloadStuck` alert. Setup: `docs/runbooks/backups.md` → Backblaze B2. Restore drill ⏳ |
@@ -19,7 +19,9 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | Disk guard | ✅ #67 | Every 5 min: ≥ 70 % drill (imports/rebuilds paused, cache + old logs/backups to B2 after verify), ≥ 85 % maintenance page (RADIUS, webhooks, pay page keep running), ≥ 95 % 5 GB reserve released. Runbook `docs/runbooks/disk-guard.md` |
 | F-1…F-14 | ✅ #68 | #57–#63 were merged into their stacked bases and never reached `main`; landed here together |
 | F-7 Billing models, top-up requests, recharge edits | ✅ #69 | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
-| F-8 Reseller name and logo | 🔀 PR (with 4.5) | Reseller → Branding or own My account; panel header and its customers' portal; inherited down the tree |
+| F-8 Reseller name and logo | ✅ #70 | Reseller → Branding or own My account; panel header and its customers' portal; inherited down the tree |
+| F-7 Billing models, top-up requests, recharge edits | 🔀 PR | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
+| F-17 Unknown router / wrong secret | 🔀 PR | `log-events.sh` timer (FreeRADIUS log + ufw blocks) → `radius_events` (PG 007); RADIUS log → *Routers* tab (health per router, address check), banner, *Why?* router hint |
 | 4.10–4.15 | ⏳ | |
 | F-15 Expired handling | ✅ #56 | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
 | F-10/16 Username case, Excel dates | ✅ #68 | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
@@ -185,3 +187,18 @@ later: `docs/runbooks/kyc.md`.
    portal header show *Test Fibre* + logo; staff panel still shows BharatRadius. Test L2 sets its own name → it
    wins for L2 and its customers.
 10. On the VPS: `sudo ls /var/lib/isp-files/kyc/*/*` lists files; `sudo head -c 5 <file>` prints `ISPF1` (encrypted).
+## Staging checks — F-17 unknown router / wrong secret
+
+Deploy: `git pull && sudo bash radius/scripts/install.sh staging && sudo bash deploy/ubuntu/app/app-up.sh`
+(PG 007, timer `isp-radius-events@staging`). `systemctl list-timers 'isp-radius-events*'` shows it.
+
+1. CHR lab: `sudo bash deploy/ubuntu/lab/chr-lab.sh up`, then on the CHR set a wrong secret
+   (`/radius set 0 secret=<any other value>`) and dial `test.lab`. Within 2 minutes: Network → RADIUS log →
+   *Routers* tab → CHR *wrong RADIUS secret on the router* (RouterOS that signs requests with
+   Message-Authenticator). Older RouterOS without it: the login is logged as *wrong password*; dial 3 different test
+   users → *RADIUS secret probably wrong* and the yellow banner on the Auth log.
+2. Open the reject in the Auth log (if any) → *Why?* shows *Router problem: …different RADIUS secret*.
+3. Put the right secret back → after 24 h the router returns to OK (or check the count stops rising).
+4. *Router not reaching RADIUS?* → enter an address that is not a router but sends RADIUS (e.g. a second
+   router pointed at staging) → *blocked by the firewall*. Enter `8.8.8.8` → *Nothing has arrived*.
+5. Super-admin sign-in → same tab lists unknown addresses.

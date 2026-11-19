@@ -13,6 +13,7 @@ case "$TASK" in
     ;;
   partitions)
     echo "created $(q "SELECT radius_ensure_partitions(1)") partitions; dropped $(q "SELECT radius_drop_old_postauth(${POSTAUTH_KEEP_DAYS:-1100})") radpostauth partitions"
+    q "DELETE FROM radius_events WHERE minute < now() - interval '30 days'" >/dev/null
     ;;
   nas-watch)
     new="$(q "SELECT radius_nas_hash()")"

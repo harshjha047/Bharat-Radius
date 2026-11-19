@@ -22242,6 +22242,9 @@
                       },
                       "required": ["accepted", "rejected"],
                       "additionalProperties": false
+                    },
+                    "routerHint": {
+                      "type": ["string", "null"]
                     }
                   },
                   "required": [
@@ -22252,8 +22255,368 @@
                     "fix",
                     "subscriber",
                     "similar",
-                    "last24h"
+                    "last24h",
+                    "routerHint"
                   ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/radius/router-problems": {
+      "get": {
+        "summary": "Routers with RADIUS problems: wrong shared secret (seen or likely), no logins in 24 h",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "routers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nasIp": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "lastAuthAt": {
+                            "type": ["string", "null"]
+                          },
+                          "accepted24h": {
+                            "type": "number"
+                          },
+                          "rejected24h": {
+                            "type": "number"
+                          },
+                          "badSecret": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "packets": {
+                                    "type": "number"
+                                  },
+                                  "lastSeen": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["packets", "lastSeen"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "suspectSecret": {
+                            "type": "boolean"
+                          },
+                          "problem": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": ["bad_secret", "suspect_secret", "silent"]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "nasIp",
+                          "name",
+                          "lastAuthAt",
+                          "accepted24h",
+                          "rejected24h",
+                          "badSecret",
+                          "suspectSecret",
+                          "problem"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "problems": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["routers", "problems"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/radius/address-check": {
+      "get": {
+        "summary": "What arrived from one address in 7 days (unknown router, firewall, wrong secret) and what to fix",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ip": {
+                      "type": "string"
+                    },
+                    "registered": {
+                      "type": "string",
+                      "enum": ["mine", "other", "none"]
+                    },
+                    "routerName": {
+                      "type": ["string", "null"]
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["unknown_client", "firewall_block", "bad_secret"]
+                          },
+                          "port": {
+                            "type": "number"
+                          },
+                          "packets": {
+                            "type": "number"
+                          },
+                          "firstSeen": {
+                            "type": "string"
+                          },
+                          "lastSeen": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kind", "port", "packets", "firstSeen", "lastSeen"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "verdict": {
+                      "type": "string"
+                    },
+                    "radius": {
+                      "type": "object",
+                      "properties": {
+                        "host": {
+                          "type": ["string", "null"]
+                        },
+                        "authPort": {
+                          "type": "number"
+                        },
+                        "acctPort": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["host", "authPort", "acctPort"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["ip", "registered", "routerName", "events", "verdict", "radius"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/radius/unknown-clients": {
+      "get": {
+        "summary": "Addresses sending RADIUS that are not a router of any ISP (super-admin, 24 h)",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ip": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["unknown_client", "firewall_block"]
+                          },
+                          "port": {
+                            "type": "number"
+                          },
+                          "packets": {
+                            "type": "number"
+                          },
+                          "lastSeen": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["ip", "kind", "port", "packets", "lastSeen"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["items"],
                   "additionalProperties": false
                 }
               }
