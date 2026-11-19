@@ -37,6 +37,8 @@ export interface TenantDoc extends Standard {
   billing?: Partial<TenantBilling>;
   gateways?: TenantGateways;
   sms?: TenantSms;
+  /** DPDP: the privacy notice customers accept; a new text is a new version. */
+  privacy?: { notice: string; version: number; updatedAt: Date; updatedBy: string };
   version: number;
 }
 
@@ -270,6 +272,15 @@ export interface SubscriberDoc extends Standard {
   importBatchId?: ObjectId;
   /** Customer portal (Step 4). No passwordHash = sign in with the PPPoE password until one is set. */
   portal?: SubscriberPortal;
+  /** DPDP consent: the privacy notice version accepted, when and how. */
+  consent?: {
+    version: number;
+    at: Date;
+    via: 'portal' | 'caf' | 'staff';
+    ip?: string;
+    by?: string;
+    note?: string;
+  };
   deletedAt?: Date;
   version: number;
 }

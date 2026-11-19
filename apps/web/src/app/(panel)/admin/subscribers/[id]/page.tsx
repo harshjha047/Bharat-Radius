@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { actionLabel, AuditChanges } from '@/components/audit-changes';
 import { PaymentLinkDialog, RechargeDialog, SubscriberBilling } from '@/components/billing';
+import { SubscriberConsent } from '@/components/privacy';
 import { PageSkeleton } from '@/components/shell';
 import { SubscriberState, SyncState } from '@/components/status';
 import { Badge } from '@/components/ui/badge';
@@ -495,6 +496,7 @@ function Overview({ s }: { s: Subscriber }) {
                 [a.line1, a.line2, a.city, a.district, a.state, a.pincode].filter(Boolean).join(', '),
               ],
               ['KYC', s.kycStatus],
+              ['Privacy consent', <SubscriberConsent key="consent" subscriberId={s.id} />],
               [
                 'Tags',
                 s.tags.length

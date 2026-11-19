@@ -76,6 +76,7 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/invoices/:id/pdf': 'invoiceA',
   '/api/v1/invoices/:id/credit-note': 'invoiceA',
   '/api/v1/payments/:id': 'paymentA',
+  '/api/v1/subscribers/:id/consent': 'subA',
 };
 
 /**
@@ -114,6 +115,7 @@ const BODIES: Record<string, unknown> = {
   'POST /api/v1/wallets/:id/adjust': { amountPaise: 100, reason: 'B adjusting A' },
   'PATCH /api/v1/wallets/:id': { lowBalanceThresholdPaise: 1 },
   'POST /api/v1/recharges/:id/refund': { reason: 'B refunding A' },
+  'POST /api/v1/subscribers/:id/consent': { via: 'staff' },
   'POST /api/v1/wallets/topup-requests/:id/approve': {},
   'POST /api/v1/wallets/topup-requests/:id/reject': { note: 'B rejecting A' },
   'POST /api/v1/invoices/:id/credit-note': { reason: 'B crediting A' },

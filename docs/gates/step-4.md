@@ -19,7 +19,8 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | Disk guard | ✅ #67 | Every 5 min: ≥ 70 % drill (imports/rebuilds paused, cache + old logs/backups to B2 after verify), ≥ 85 % maintenance page (RADIUS, webhooks, pay page keep running), ≥ 95 % 5 GB reserve released. Runbook `docs/runbooks/disk-guard.md` |
 | F-1…F-14 | ✅ #68 | #57–#63 were merged into their stacked bases and never reached `main`; landed here together |
 | F-7 Billing models, top-up requests, recharge edits | 🔀 PR | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
-| 4.10–4.15 | ⏳ | |
+| 4.10 Production prep | 🔀 PR | Nonce CSP (no inline scripts), `PANEL_HOSTS`, DPDP privacy notice + consent (portal, paper), `preflight.sh`, restore-drill marker; runbook `go-live.md`. Owner: O-23, O-17, notice text |
+| 4.11–4.15 | ⏳ | |
 | F-15 Expired handling | ✅ #56 | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
 | F-10/16 Username case, Excel dates | ✅ #68 | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
 | F-5/12/13 Recharge quantity + period | ✅ #68 | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
@@ -164,3 +165,17 @@ Deploy: `app-up.sh` (Mongo 016 `topup_requests`; built-in roles gain *recharges.
 8. Staff: Recharge `test.sub` → change *Customer pays* to 500, *Valid until* to a date of choice, reason → Recharge → invoice total ₹500, cash payment ₹500, Valid until = that date 11:59 pm; Recharges row shows *Edited · ₹500 (was ₹…)*. `500.50` → *Whole rupees*.
 9. Test L2: *Valid until* later than the plan gives → *At most …: add periods*; earlier → accepted, wallet debit unchanged.
 10. Support role (no *recharges.override*): popup shows the read-only totals as before.
+
+## Staging checks — 4.10 production prep
+
+Deploy: `git pull && sudo bash deploy/ubuntu/app/app-up.sh`.
+
+1. Browser dev tools → any panel page → response header `Content-Security-Policy` has `script-src 'self'
+   'nonce-…' 'strict-dynamic'`; Console shows no CSP errors on login, dashboard, subscriber, portal, pay page.
+2. ISP settings → *Privacy notice* → *Start from the draft* → *Publish v1*.
+3. Portal (`test.sub`) → notice pops up → *I accept*; Account → Privacy shows *version 1*. Staff: subscriber →
+   Overview → *Privacy consent v1 via portal*.
+4. Change one word in the notice → *Publish v2* → portal asks again; staff see *(current is v2)* and
+   *Signed CAF received* records it.
+5. `sudo bash deploy/ubuntu/preflight.sh staging` → PASS/WARN list; FAILs name the fix.
+6. After the restore drill (`restore-test.sh`), preflight shows *restore drill passed <date>*.

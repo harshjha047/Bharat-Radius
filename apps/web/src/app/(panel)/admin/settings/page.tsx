@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageSkeleton } from '@/components/shell';
+import { PrivacyNoticeCard } from '@/components/privacy';
 import { TenantForm } from '@/components/tenant-form';
 import { Button } from '@/components/ui/button';
 import { ErrorState, PageHeader } from '@/components/ui/misc';
@@ -39,6 +40,7 @@ export default function SettingsPage() {
         submitting={save.isPending}
         onSubmit={(b) => save.mutateAsync(b)}
       />
+      <PrivacyNoticeCard />
     </>
   );
 }

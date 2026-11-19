@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { portalKeys, usePortalMe } from '@/components/portal';
+import { PortalPrivacyCard } from '@/components/privacy';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,7 @@ export default function PortalAccount() {
           </p>
         </CardContent>
       </Card>
+      <PortalPrivacyCard />
       <PasswordCard hasPortalPassword={m.hasPortalPassword} />
       <SignOut />
     </>

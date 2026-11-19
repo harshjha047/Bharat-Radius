@@ -14187,6 +14187,536 @@
         }
       }
     },
+    "/api/v1/tenant/privacy": {
+      "get": {
+        "summary": "The privacy notice customers accept (DPDP), its version, and a draft to start from",
+        "tags": ["tenants"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tenant.settings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": ["string", "null"]
+                    },
+                    "version": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "draft": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["text", "version", "updatedAt", "draft"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Publish the privacy notice; a changed text is a new version every customer is asked to accept",
+        "tags": ["tenants"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "tenant.settings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 100,
+                    "maxLength": 8000
+                  }
+                },
+                "required": ["text"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": ["string", "null"]
+                    },
+                    "version": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "draft": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["text", "version", "updatedAt", "draft"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/{id}/consent": {
+      "get": {
+        "summary": "Which privacy notice version the customer accepted, when and how",
+        "tags": ["subscribers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "subscribers.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": ["number", "null"]
+                    },
+                    "at": {
+                      "type": ["string", "null"]
+                    },
+                    "via": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["portal", "caf", "staff"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "current": {
+                      "type": "number"
+                    },
+                    "upToDate": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["version", "at", "via", "current", "upToDate"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Record consent given on the signed CAF or in person (current notice version)",
+        "tags": ["subscribers"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "subscribers.write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "via": {
+                    "type": "string",
+                    "enum": ["caf", "staff"]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "required": ["via"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": ["number", "null"]
+                    },
+                    "at": {
+                      "type": ["string", "null"]
+                    },
+                    "via": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["portal", "caf", "staff"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "current": {
+                      "type": "number"
+                    },
+                    "upToDate": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["version", "at", "via", "current", "upToDate"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/privacy": {
+      "get": {
+        "summary": "The ISP privacy notice and whether I have accepted the current version",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": ["string", "null"]
+                    },
+                    "version": {
+                      "type": "number"
+                    },
+                    "acceptedVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "acceptedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "needsConsent": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["text", "version", "acceptedVersion", "acceptedAt", "needsConsent"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portal/privacy/accept": {
+      "post": {
+        "summary": "Accept the current privacy notice",
+        "tags": ["portal"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["version"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": ["string", "null"]
+                    },
+                    "version": {
+                      "type": "number"
+                    },
+                    "acceptedVersion": {
+                      "type": ["number", "null"]
+                    },
+                    "acceptedAt": {
+                      "type": ["string", "null"]
+                    },
+                    "needsConsent": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["text", "version", "acceptedVersion", "acceptedAt", "needsConsent"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/wallets": {
       "get": {
         "summary": "Wallet accounts (staff: all; reseller: its direct children)",
@@ -26738,6 +27268,10 @@
                         "subscribers.kick",
                         "subscribers.password.reveal",
                         "subscribers.export",
+                        "kyc.view",
+                        "kyc.upload",
+                        "kyc.verify",
+                        "branding.manage",
                         "sessions.read",
                         "compliance.lookup",
                         "nas.read",
@@ -26896,6 +27430,10 @@
                         "subscribers.kick",
                         "subscribers.password.reveal",
                         "subscribers.export",
+                        "kyc.view",
+                        "kyc.upload",
+                        "kyc.verify",
+                        "branding.manage",
                         "sessions.read",
                         "compliance.lookup",
                         "nas.read",
