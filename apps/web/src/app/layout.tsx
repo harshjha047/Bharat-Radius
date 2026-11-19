@@ -7,6 +7,9 @@ import { canonicalOrigin } from '@/lib/site';
 import { Providers } from './providers';
 import './globals.css';
 
+// Pages render per request so Next.js can put the proxy's CSP nonce on its inline scripts.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   metadataBase: new URL(canonicalOrigin()),
   title: { default: 'BharatRadius', template: '%s · BharatRadius' },

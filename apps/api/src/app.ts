@@ -34,6 +34,7 @@ import { RechargesController, RechargesService } from './billing/recharges.js';
 import { BillingSettingsController, BillingSettingsService } from './billing/settings.js';
 import { TopupRequestsController, TopupRequestsService } from './billing/topup-requests.js';
 import { KYC_UPLOAD_PATH, KycController, KycService, MAX_KYC_BYTES } from './documents/kyc.js';
+import { PrivacyController, PrivacyService } from './portal/privacy.js';
 import { BrandingController, BrandingService, LOGO_UPLOAD_PATH } from './resellers/branding.js';
 import { WalletsController, WalletsService } from './billing/wallets.js';
 import { TenantsController, TenantsService } from './network/tenants.js';
@@ -97,6 +98,7 @@ class AppModule {
         TopupRequestsController,
         KycController,
         BrandingController,
+        PrivacyController,
         RechargesController,
         InvoicesController,
         PaymentsController,
@@ -133,6 +135,7 @@ class AppModule {
         TopupRequestsService,
         KycService,
         BrandingService,
+        PrivacyService,
         RechargesService,
         InvoicesService,
         PaymentsService,

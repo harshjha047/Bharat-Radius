@@ -7,6 +7,9 @@
 #     shows it with the host and ports routers must use. Remembered in /etc/isp-app/settings.env, so a plain rerun
 #     never switches instance. production uses MongoDB database "isp", staging "isp_staging".
 #   RADIUS_PUBLIC_HOST: address routers send RADIUS to (default: this host's primary public IPv4).
+#   PANEL_HOSTS: space-separated host names Caddy serves the panel on (default new.bharatradius.com); the first is
+#     the canonical address (links in SMS, invoices, pay page). Add an ISP's own domain only after its DNS points
+#     here, or Caddy keeps retrying its certificate. Remembered in settings.env like the two above.
 set -Eeuo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,10 +33,15 @@ install -d -m 0755 /run/isp-guard
 SETTINGS="$ETC/settings.env"
 if [[ -r $SETTINGS ]]; then
   while IFS='=' read -r k v; do
-    case "$k" in RADIUS_INSTANCE|RADIUS_PUBLIC_HOST) [[ -v $k ]] || printf -v "$k" '%s' "$v" ;; esac
+    case "$k" in RADIUS_INSTANCE|RADIUS_PUBLIC_HOST|PANEL_HOSTS) [[ -v $k ]] || printf -v "$k" '%s' "$v" ;; esac
   done <"$SETTINGS"
 fi
 RADIUS_INSTANCE="${RADIUS_INSTANCE:-staging}"
+PANEL_HOSTS="${PANEL_HOSTS:-new.bharatradius.com}"
+read -r -a HOSTS <<<"$PANEL_HOSTS"
+for h in "${HOSTS[@]}"; do [[ $h =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ && $h == *.* ]] || die "PANEL_HOSTS: '$h' is not a host name"; done
+PRIMARY_HOST="${HOSTS[0]}"
+EXTRA_ORIGINS=""; for h in "${HOSTS[@]:1}"; do EXTRA_ORIGINS+="${EXTRA_ORIGINS:+,}https://$h"; done
 case "$RADIUS_INSTANCE" in
   staging) MONGO_DB=isp_staging ;;
   production) MONGO_DB=isp ;;
@@ -84,7 +92,8 @@ umask 077
   echo "RADIUS_ACCT_PORT=${R_ACCT}"
   [[ -z $RADIUS_PUBLIC_HOST ]] || echo "RADIUS_PUBLIC_HOST=${RADIUS_PUBLIC_HOST}"
   cat "$ETC/app_keys.env"
-  echo "PUBLIC_BASE_URL=https://new.bharatradius.com"
+  echo "PUBLIC_BASE_URL=https://${PRIMARY_HOST}"
+  [[ -z $EXTRA_ORIGINS ]] || echo "ALLOWED_ORIGINS=${EXTRA_ORIGINS}"
   echo "MONGO_POOL_MAX=20"
   echo "TZ_BILLING=Asia/Kolkata"
   # Off-site private file bucket (B2 S3 API), written by deploy/ubuntu/app/files-setup.sh; absent = local disk.
@@ -92,7 +101,7 @@ umask 077
 } >"$ETC/app.env.new"
 mv "$ETC/app.env.new" "$ETC/app.env"
 rm -f "$ETC/staging.env"
-printf 'RADIUS_INSTANCE=%s\nRADIUS_PUBLIC_HOST=%s\n' "$RADIUS_INSTANCE" "$RADIUS_PUBLIC_HOST" >"$SETTINGS"
+printf 'RADIUS_INSTANCE=%s\nRADIUS_PUBLIC_HOST=%s\nPANEL_HOSTS=%s\n' "$RADIUS_INSTANCE" "$RADIUS_PUBLIC_HOST" "$PANEL_HOSTS" >"$SETTINGS"
 umask 022
 log "panel → RADIUS $RADIUS_INSTANCE ($R_DB): routers use ${RADIUS_PUBLIC_HOST:-<host>} auth $R_AUTH / acct $R_ACCT, MongoDB $MONGO_DB"
 
@@ -156,7 +165,9 @@ grep -q '"status":"ok"' <<<"$health" || die "API not healthy"
 CF="$ACS_CADDY_DIR/Caddyfile"
 [[ -f $CF ]] || die "$CF not found"
 install -d -m 0755 "$ACS_CADDY_DIR/sites"
-install -m 0644 "$DIR/caddy/isp.caddy" "$ACS_CADDY_DIR/sites/isp.caddy.new"
+# The site block's first line lists every panel host (PANEL_HOSTS).
+sed "s|^new.bharatradius.com {|${HOSTS[*]} {|" "$DIR/caddy/isp.caddy" >"$ACS_CADDY_DIR/sites/isp.caddy.new"
+chmod 0644 "$ACS_CADDY_DIR/sites/isp.caddy.new"
 install -d -m 0700 /var/backups/isp-app
 backup="/var/backups/isp-app/Caddyfile.$(date +%Y%m%d%H%M%S)"
 cp -p "$CF" "$backup"
@@ -165,7 +176,7 @@ mv "$ACS_CADDY_DIR/sites/isp.caddy.new" "$ACS_CADDY_DIR/sites/isp.caddy"
 if docker exec "$ACS_CADDY_CONTAINER" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/tmp/isp-caddy-validate.log 2>&1; then
   docker exec "$ACS_CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
   if cmp -s "$backup" "$CF"; then rm -f "$backup"; fi
-  log "Caddy reloaded with new.bharatradius.com"
+  log "Caddy reloaded with ${HOSTS[*]}"
 else
   cp -p "$backup" "$CF"; rm -f "$ACS_CADDY_DIR/sites/isp.caddy"
   tail -20 /tmp/isp-caddy-validate.log >&2

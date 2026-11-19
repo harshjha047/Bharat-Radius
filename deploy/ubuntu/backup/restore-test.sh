@@ -94,3 +94,5 @@ log "etc: $n entries"
 
 if (( FAIL )); then die "restore drill FAILED for $STAMP"; fi
 log "restore drill PASSED for $STAMP (backup ≤ live everywhere, nothing empty that is not empty live)"
+# Last passed drill, read by deploy/ubuntu/preflight.sh (monthly drill before and after go-live).
+printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$STAMP" >"$BACKUP_DIR/.restore-drill"

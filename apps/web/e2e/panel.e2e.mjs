@@ -47,6 +47,10 @@ before(async () => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
   page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(String(e)));
+  // Any script or style the CSP blocks would break the page silently; fail the run instead.
+  page.on('console', (m) => {
+    if (m.type() === 'error' && /Content Security Policy/i.test(m.text())) errors.push(m.text());
+  });
 });
 
 after(async () => {
@@ -68,6 +72,15 @@ const step = (name, fn) =>
 // Dashboard KPI tiles also link to Plans/Routers ("Plans 0 active"), so click the sidebar entry.
 const sidebarLink = (name) =>
   page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name, exact: true });
+
+step('pages carry a nonce CSP without inline scripts', async () => {
+  const res = await page.goto(`${BASE}/login`);
+  const csp = res.headers()['content-security-policy'] ?? '';
+  assert.match(csp, /script-src 'self' 'nonce-[A-Za-z0-9+/=]+' 'strict-dynamic'/);
+  assert.doesNotMatch(csp.split(';').find((d) => d.includes('script-src')) ?? '', /unsafe-inline/);
+  // Hydrated (scripts ran under the CSP): the form is interactive.
+  await page.locator('button[type="submit"]').first().waitFor();
+});
 
 step('signed-out visit goes to sign-in', async () => {
   await page.goto(`${BASE}/admin/subscribers`);

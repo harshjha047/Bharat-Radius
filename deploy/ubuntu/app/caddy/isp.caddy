@@ -15,8 +15,7 @@ new.bharatradius.com {
 		reverse_proxy isp-grafana:3000
 	}
 	handle {
-		# Next.js inlines its bootstrap script and styles; everything else is same-origin.
-		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		# Content-Security-Policy comes from the web app (apps/web/src/proxy.ts): a nonce per page, no inline scripts.
 		header Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		reverse_proxy isp-web:3000
 	}

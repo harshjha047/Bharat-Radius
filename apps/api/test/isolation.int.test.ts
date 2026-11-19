@@ -84,6 +84,7 @@ const FIXTURES: Record<string, keyof typeof ids> = {
   '/api/v1/kyc-documents/:id/remove': 'kycA',
   '/api/v1/resellers/:id/branding': 'resellerA',
   '/api/v1/resellers/:id/branding/logo': 'resellerA',
+  '/api/v1/subscribers/:id/consent': 'subA',
 };
 
 /**
@@ -124,6 +125,7 @@ const BODIES: Record<string, unknown> = {
   'POST /api/v1/wallets/:id/adjust': { amountPaise: 100, reason: 'B adjusting A' },
   'PATCH /api/v1/wallets/:id': { lowBalanceThresholdPaise: 1 },
   'POST /api/v1/recharges/:id/refund': { reason: 'B refunding A' },
+  'POST /api/v1/subscribers/:id/consent': { via: 'staff' },
   'POST /api/v1/wallets/topup-requests/:id/approve': {},
   'POST /api/v1/subscribers/:id/kyc/verify': { status: 'pending' },
   'POST /api/v1/kyc-documents/:id/remove': { reason: 'B removing A' },

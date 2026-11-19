@@ -7142,6 +7142,344 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/tenant/privacy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The privacy notice customers accept (DPDP), its version, and a draft to start from */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              text: string | null;
+              version: number;
+              updatedAt: string | null;
+              draft: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    /** Publish the privacy notice; a changed text is a new version every customer is asked to accept */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            text: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              text: string | null;
+              version: number;
+              updatedAt: string | null;
+              draft: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/consent': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Which privacy notice version the customer accepted, when and how */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              version: number | null;
+              at: string | null;
+              via: ('portal' | 'caf' | 'staff') | null;
+              current: number;
+              upToDate: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Record consent given on the signed CAF or in person (current notice version) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            via: 'caf' | 'staff';
+            note?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              version: number | null;
+              at: string | null;
+              via: ('portal' | 'caf' | 'staff') | null;
+              current: number;
+              upToDate: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portal/privacy': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The ISP privacy notice and whether I have accepted the current version */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              text: string | null;
+              version: number;
+              acceptedVersion: number | null;
+              acceptedAt: string | null;
+              needsConsent: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portal/privacy/accept': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Accept the current privacy notice */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            version: number;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              text: string | null;
+              version: number;
+              acceptedVersion: number | null;
+              acceptedAt: string | null;
+              needsConsent: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/wallets': {
     parameters: {
       query?: never;

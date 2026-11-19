@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
 import { BrandMark, PoweredBy } from '@/components/brand';
 import { usePortalMe } from '@/components/portal';
+import { PortalConsent } from '@/components/privacy';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, onPortalSignedOut, unwrap } from '@/lib/api';
@@ -122,6 +123,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
       </header>
       <main className="mx-auto flex max-w-[1120px] flex-col gap-3.5 px-4 py-4 sm:gap-5 sm:px-6 sm:py-8">
         {children}
+        {me.data ? <PortalConsent /> : null}
         <footer className="flex flex-wrap items-center justify-center gap-2 py-3 text-[13px] text-muted-foreground sm:mt-2 sm:justify-between sm:border-t sm:pt-3">
           {me.data?.isp.phone ? (
             <span className="max-sm:hidden">
