@@ -55,11 +55,18 @@ if [[ -n $hdr ]]; then
 else
   fail "https://$host/login not reachable"
 fi
-for f in /etc/isp-app/app.env /etc/isp-app/app_keys.env /etc/isp-app/files.env "/etc/isp-radius/$INST.env" "/etc/isp-radius/$INST.app.env"; do
+for f in /etc/isp-app/app.env /etc/isp-app/app_keys.env /etc/isp-app/files.env "/etc/isp-radius/$INST.app.env"; do
   [[ -e $f ]] || continue
   m="$(stat -c '%a %U' "$f")"
   [[ $m == '600 root' || $m == '400 root' ]] && pass "$f root-only" || fail "$f is $m (want 600 root)"
 done
+# FreeRADIUS env: install.sh sets root:freerad 0640 (the service group); nobody else may read it.
+f="/etc/isp-radius/$INST.env"
+if [[ -e $f ]]; then
+  m="$(stat -c '%a %U %G' "$f")"
+  [[ $m == '640 root freerad' || $m == '600 root root' || $m == '600 root freerad' ]] && pass "$f readable by root and freerad only" \
+    || fail "$f is $m (want 640 root freerad: sudo bash radius/scripts/install.sh $INST)"
+fi
 [[ -s /etc/isp-app/files.env ]] && pass "KYC / logo files in the off-site bucket" \
   || warn "KYC / logo files on local disk (/var/lib/isp-files); bucket: docs/runbooks/kyc.md"
 
