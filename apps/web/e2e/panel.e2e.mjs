@@ -78,7 +78,8 @@ step('pages carry a nonce CSP without inline scripts', async () => {
   const csp = res.headers()['content-security-policy'] ?? '';
   assert.match(csp, /script-src 'self' 'nonce-[A-Za-z0-9+/=]+' 'strict-dynamic'/);
   assert.doesNotMatch(csp.split(';').find((d) => d.includes('script-src')) ?? '', /unsafe-inline/);
-  await page.getByRole('button', { name: 'Sign in' }).waitFor();
+  // Hydrated (scripts ran under the CSP): the form is interactive.
+  await page.locator('button[type="submit"]').first().waitFor();
 });
 
 step('signed-out visit goes to sign-in', async () => {
