@@ -76,7 +76,8 @@ for f in "$SRC"/*.pgdump.age; do
   runuser -u postgres -- dropdb --if-exists "$scratch"
   runuser -u postgres -- createdb "$scratch"
   chown postgres "$WORK" "$WORK/$name"
-  runuser -u postgres -- pg_restore --no-owner --no-privileges -j 2 -d "$scratch" "$WORK/$name" || bad "pg_restore $db"
+  # Root opens the root-only dump and streams it: the postgres user cannot read $WORK (0700 root).
+  runuser -u postgres -- pg_restore --no-owner --no-privileges -d "$scratch" <"$WORK/$name" || bad "pg_restore $db"
   for t in subscribers nas plans radacct radpostauth usage_daily; do
     back="$(runuser -u postgres -- psql -XtAd "$scratch" -c "SELECT count(*) FROM $t" 2>/dev/null || echo -1)"
     live="$(runuser -u postgres -- psql -XtAd "$db" -c "SELECT count(*) FROM $t" 2>/dev/null || echo -1)"
