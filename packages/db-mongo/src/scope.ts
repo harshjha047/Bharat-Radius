@@ -69,6 +69,10 @@ export const POLICIES: Record<string, CollectionPolicy> = {
   message_templates: { tenantField: 'tenantId', branch: 'deny' },
   notifications: { tenantField: 'tenantId', branch: 'deny' },
   tickets: { tenantField: 'tenantId', branch: { ownerField: 'ancestors', ancestorsField: 'ancestors' } },
+  kyc_documents: {
+    tenantField: 'tenantId',
+    branch: { ownerField: 'ancestors', ancestorsField: 'ancestors' },
+  },
   // Read through the ticket (already scoped); resellers never query events directly.
   ticket_events: { tenantField: 'tenantId', branch: 'deny' },
 };

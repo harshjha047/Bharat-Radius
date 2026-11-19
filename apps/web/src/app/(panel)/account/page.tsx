@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { ConfirmDialog, Field, KeyValue, PageHeader } from '@/components/ui/misc';
 import { api, fieldErrors, unwrap } from '@/lib/api';
 import { ME_KEY, useMe } from '@/lib/auth';
+import { ResellerBranding } from '@/components/branding';
 import { useRoles } from '@/lib/queries';
 import { fmtDateTime } from '@/lib/utils';
 
@@ -199,6 +200,9 @@ export default function AccountPage() {
     <>
       <PageHeader title="My account" />
       <div className="space-y-5">
+        {u.type === 'reseller' && u.resellerId && me.data!.permissions.includes('branding.manage') ? (
+          <ResellerBranding resellerId={u.resellerId} />
+        ) : null}
         <Card>
           <CardHeader>
             <CardTitle>{u.name}</CardTitle>

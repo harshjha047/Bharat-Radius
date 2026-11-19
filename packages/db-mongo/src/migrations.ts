@@ -1050,6 +1050,56 @@ const topupRequests: Migration = {
   },
 };
 
+/** WP 4.5: KYC / CAF documents (files encrypted in the private store; rows hold keys and metadata only). */
+const kycDocuments: Migration = {
+  id: '017_kyc_documents',
+  async up(db) {
+    const oid = { bsonType: 'objectId' };
+    await ensureCollection(db, 'kyc_documents', {
+      bsonType: 'object',
+      required: [
+        'tenantId',
+        'subscriberId',
+        'ancestors',
+        'kind',
+        'storageKey',
+        'sha256',
+        'mimeType',
+        'sizeBytes',
+        'uploadedBy',
+        'uploadedVia',
+        'createdAt',
+      ],
+      properties: {
+        tenantId: oid,
+        subscriberId: oid,
+        ancestors: { bsonType: 'array', items: oid },
+        kind: {
+          enum: [
+            'aadhaar',
+            'pan',
+            'voter_id',
+            'passport',
+            'driving_licence',
+            'photo',
+            'caf_signed',
+            'address_proof',
+            'other',
+          ],
+        },
+        storageKey: { bsonType: 'string' },
+        sizeBytes: { bsonType: ['int', 'long'], minimum: 1 },
+        uploadedVia: { enum: ['staff', 'reseller', 'portal', 'import'] },
+      },
+    });
+    await ensureIndexes(db, 'kyc_documents', [
+      { key: { tenantId: 1, subscriberId: 1, createdAt: -1 } },
+      { key: { tenantId: 1, ancestors: 1 } },
+      { key: { storageKey: 1 }, unique: true },
+    ]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -1067,4 +1117,5 @@ export const MIGRATIONS: readonly Migration[] = [
   legacyImport,
   usernameCaseInsensitive,
   topupRequests,
+  kycDocuments,
 ];

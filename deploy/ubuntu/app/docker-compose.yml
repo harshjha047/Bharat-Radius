@@ -58,6 +58,8 @@ services:
       - /var/log/isp-archive/nat:/archive/nat:ro
       # Disk guard flags (maintenance, pause-heavy), written by deploy/ubuntu/disk/disk-guard.sh
       - /run/isp-guard:/run/isp-guard:ro
+      # Private files (KYC, CAF, logos), AES-256-GCM encrypted by the API; used when no FILES_S3_* bucket is set.
+      - /var/lib/isp-files:/var/lib/isp-files
     group_add: ['2470']
     networks:
       internal: {}
