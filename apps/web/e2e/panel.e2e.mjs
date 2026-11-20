@@ -189,7 +189,7 @@ step('audit log lists the changes and sign-in', async () => {
 });
 
 step('resellers: tree, drill-down and a customer added from a reseller', async () => {
-  await (await sidebarLink('Partners')).click();
+  await (await sidebarLink('Resellers')).click();
   await page.getByRole('button', { name: 'New reseller' }).click();
   await page.fill('#r-name', 'E2E Noida Net');
   await page.fill('#r-owner', 'Amit');
@@ -222,7 +222,7 @@ step('resellers: tree, drill-down and a customer added from a reseller', async (
 });
 
 step('billing: top up a reseller, cash recharge, GST invoice', async () => {
-  await (await sidebarLink('Wallet')).click();
+  await (await sidebarLink('Wallets')).click();
   await page
     .getByRole('row', { name: /E2E Noida Net/ })
     .getByRole('button', { name: 'Top up' })

@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   BarChart3,
   Building2,
-  ChevronDown,
   Eye,
   FileSpreadsheet,
   Handshake,
@@ -57,7 +56,7 @@ interface NavGroup {
 
 const STAFF_NAV: NavGroup[] = [
   {
-    label: 'Dashboard',
+    label: '',
     icon: LayoutDashboard,
     items: [
       {
@@ -71,7 +70,7 @@ const STAFF_NAV: NavGroup[] = [
   {
     label: 'Partners',
     icon: Handshake,
-    items: [{ href: '/admin/resellers', label: 'Partners', icon: Network, any: ['resellers.read'] }],
+    items: [{ href: '/admin/resellers', label: 'Resellers', icon: Network, any: ['resellers.read'] }],
   },
   {
     label: 'Customers',
@@ -86,10 +85,10 @@ const STAFF_NAV: NavGroup[] = [
     label: 'Billing',
     icon: IndianRupee,
     items: [
-      { href: '/admin/wallets', label: 'Wallet', icon: Wallet, any: ['billing.read'] },
-      { href: '/admin/recharges', label: 'Recharge', icon: RefreshCw, any: ['billing.read'] },
-      { href: '/admin/invoices', label: 'Invoice', icon: ReceiptText, any: ['billing.read'] },
-      { href: '/admin/payments', label: 'Payment', icon: IndianRupee, any: ['billing.read'] },
+      { href: '/admin/wallets', label: 'Wallets', icon: Wallet, any: ['billing.read'] },
+      { href: '/admin/recharges', label: 'Recharges', icon: RefreshCw, any: ['billing.read'] },
+      { href: '/admin/invoices', label: 'Invoices', icon: ReceiptText, any: ['billing.read'] },
+      { href: '/admin/payments', label: 'Payments', icon: IndianRupee, any: ['billing.read'] },
     ],
   },
   {
@@ -111,7 +110,7 @@ const STAFF_NAV: NavGroup[] = [
   {
     label: 'Support',
     icon: LifeBuoy,
-    items: [{ href: '/admin/tickets', label: 'Support', icon: LifeBuoy, any: ['tickets.read'] }],
+    items: [{ href: '/admin/tickets', label: 'Tickets', icon: LifeBuoy, any: ['tickets.read'] }],
   },
   {
     label: 'System',
@@ -144,7 +143,12 @@ const visible = (me: Me) =>
   (me.user.type === 'superadmin' ? SUPER_NAV : STAFF_NAV)
     .map((g) => ({
       ...g,
-      items: g.items.filter((i) => !i.any || i.any.some((p) => me.permissions.includes(p))),
+      items: g.items
+        .filter((i) => !i.any || i.any.some((p) => me.permissions.includes(p)))
+        // A reseller's resellers are its sub-resellers.
+        .map((i) =>
+          me.user.type === 'reseller' && i.href === '/admin/resellers' ? { ...i, label: 'Sub-resellers' } : i,
+        ),
     }))
     .filter((g) => g.items.length > 0);
 
@@ -259,7 +263,7 @@ const LINK =
 const LINK_ACTIVE =
   'bg-sidebar-active font-bold text-sidebar-active-foreground hover:bg-sidebar-active hover:text-sidebar-active-foreground';
 
-/** One link per section; sections with several pages fold open, the one holding the current page stays open. */
+/** Flat menu: an uppercase heading per section, every page visible with its icon and live count. */
 function NavLinks({
   groups,
   badges,
@@ -270,82 +274,43 @@ function NavLinks({
   onNavigate?: () => void;
 }) {
   const path = usePathname();
-  const [toggled, setToggled] = useState<Record<string, boolean>>({});
   return (
-    <nav aria-label="Main" className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3.5">
+    <nav aria-label="Main" className="flex flex-1 flex-col overflow-y-auto px-3.5">
       {groups.map((g) => {
-        const only = g.items.length === 1 ? g.items[0]! : null;
-        if (only) {
-          const active = isActive(only.href, path);
-          return (
-            <Link
-              key={g.label}
-              href={only.href}
-              onClick={onNavigate}
-              aria-current={active ? 'page' : undefined}
-              className={cn(LINK, active && LINK_ACTIVE)}
-            >
-              <g.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
-              <span className="flex-1 truncate">{g.label}</span>
-              <Count badge={badges[only.href]} />
-            </Link>
-          );
-        }
-        const holdsActive = g.items.some((i) => isActive(i.href, path));
-        const open = toggled[g.label] ?? holdsActive;
-        // Folded sections still surface a problem inside them (an empty wallet, open tickets).
-        const urgent = open
-          ? undefined
-          : g.items
-              .map((i) => badges[i.href])
-              .find((x) => x && (x.tone === 'danger' || x.tone === 'warning'));
-        const id = `nav-${g.label.toLowerCase()}`;
+        const id = g.label ? `nav-${g.label.toLowerCase()}` : undefined;
         return (
-          <div key={g.label} className="flex flex-col">
-            <button
-              type="button"
-              aria-expanded={open}
-              aria-controls={id}
-              onClick={() => setToggled((t) => ({ ...t, [g.label]: !open }))}
-              className={cn(LINK, 'w-full text-left', holdsActive && !open && 'text-foreground')}
-            >
-              <g.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
-              <span className="flex-1 truncate">{g.label}</span>
-              <Count badge={urgent} />
-              <ChevronDown
-                className={cn('size-4 shrink-0 transition-transform duration-200', open && 'rotate-180')}
-                aria-hidden
-              />
-            </button>
-            <div
-              id={id}
-              hidden={!open}
-              className="ml-[19px] flex flex-col gap-0.5 border-l border-divider py-0.5 pl-2.5"
-            >
-              {g.items.map((i) => {
-                const active = isActive(i.href, path);
-                return (
-                  <Link
-                    key={i.href}
-                    href={i.href}
-                    onClick={onNavigate}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(LINK, 'h-8 text-[13px]', active && LINK_ACTIVE)}
-                  >
-                    <span className="flex-1 truncate">{i.label}</span>
-                    <Count badge={badges[i.href]} />
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+          <section key={g.label || 'home'} aria-labelledby={id} className="flex flex-col gap-0.5 pb-2">
+            {g.label ? (
+              <h2
+                id={id}
+                className="px-2.5 pt-3 pb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
+              >
+                {g.label}
+              </h2>
+            ) : null}
+            {g.items.map((i) => {
+              const active = isActive(i.href, path);
+              return (
+                <Link
+                  key={i.href}
+                  href={i.href}
+                  onClick={onNavigate}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(LINK, 'h-10', active && LINK_ACTIVE)}
+                >
+                  <i.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
+                  <span className="flex-1 truncate">{i.label}</span>
+                  <Count badge={badges[i.href]} />
+                </Link>
+              );
+            })}
+          </section>
         );
       })}
     </nav>
   );
 }
 
-/** Reseller panels show the reseller's own name and logo (F-8); "Powered by" stays at the bottom. */
 const Brand = ({ me }: { me: Me | undefined }) => {
   const b = me?.branding;
   return (
