@@ -37,6 +37,9 @@ regexes = [
   ''':<[a-z_-]+>@''',
   '''^<[a-z_-]+>$''',
   '''^ci-app-pw$''',
+  # A script variable (PowerShell `$appPw`, RouterOS `$radiusSecret`), not a literal value.
+  # Allowlist regexes match the captured secret alone, so `secret=\$...` above never matches it.
+  '''^\$[A-Za-z_][A-Za-z0-9_]*$''',
 ]
 paths = [
   '''node_modules/''',

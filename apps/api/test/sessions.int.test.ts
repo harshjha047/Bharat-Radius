@@ -191,6 +191,11 @@ describe('sessions and logs', () => {
     expect(sum.body.reasons).toEqual(
       expect.arrayContaining([{ reason: 'User not found', accepted: false, count: 1 }]),
     );
+    // Every hour of the default 24 h window, adding up to the totals.
+    expect(sum.body.byHour.length).toBeGreaterThanOrEqual(24);
+    const perHour = sum.body.byHour as { accepted: number; rejected: number }[];
+    expect(perHour.reduce((n, h) => n + h.accepted, 0)).toBe(1);
+    expect(perHour.reduce((n, h) => n + h.rejected, 0)).toBe(2);
 
     const nf = page2.body.items[0];
     const why = await support.req('GET', `/api/v1/radius/auth-log/why?id=${encodeURIComponent(nf.id)}`);

@@ -330,7 +330,10 @@ describe('roles', () => {
 describe('preferences', () => {
   it('each user saves which dashboard widgets they hide', async () => {
     const c = await signIn(h, support);
-    expect((await c.req('GET', '/api/v1/auth/preferences')).body).toEqual({ dashboardHidden: [] });
+    expect((await c.req('GET', '/api/v1/auth/preferences')).body).toEqual({
+      dashboardHidden: [],
+      dashboardOrder: [],
+    });
     const put = await c.req('PUT', '/api/v1/auth/preferences', {
       dashboardHidden: ['trends', 'kpi-plans', 'trends'],
     });
@@ -343,5 +346,21 @@ describe('preferences', () => {
     expect((await c.req('PUT', '/api/v1/auth/preferences', { dashboardHidden: ['Bad Id'] })).status).toBe(
       400,
     );
+  });
+
+  it('saves the dashboard order, and keeps it when a save leaves the order out', async () => {
+    const c = await signIn(h, support);
+    const put = await c.req('PUT', '/api/v1/auth/preferences', {
+      dashboardHidden: [],
+      dashboardOrder: ['r-network', 'r-renewals', 'r-network'],
+    });
+    expect(put.status).toBe(200);
+    expect(put.body.dashboardOrder).toEqual(['r-network', 'r-renewals']);
+    const older = await c.req('PUT', '/api/v1/auth/preferences', { dashboardHidden: ['trends'] });
+    expect(older.body).toEqual({ dashboardHidden: ['trends'], dashboardOrder: ['r-network', 'r-renewals'] });
+    expect(
+      (await c.req('PUT', '/api/v1/auth/preferences', { dashboardHidden: [], dashboardOrder: ['Bad'] }))
+        .status,
+    ).toBe(400);
   });
 });

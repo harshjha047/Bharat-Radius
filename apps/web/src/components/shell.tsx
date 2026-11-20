@@ -6,6 +6,7 @@ import {
   BarChart3,
   Building2,
   ChevronDown,
+  Eye,
   FileSpreadsheet,
   Handshake,
   IndianRupee,
@@ -40,7 +41,7 @@ import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } fr
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, ApiError, onSignedOut, unwrap } from '@/lib/api';
 import { useMe, type Me, type Permission } from '@/lib/auth';
-import { cn, fmtRupees } from '@/lib/utils';
+import { cn, fmtNum, fmtRupees } from '@/lib/utils';
 
 interface NavItem {
   href: string;
@@ -150,6 +151,106 @@ const visible = (me: Me) =>
 const areaLabel = (me: Me) =>
   me.user.type === 'superadmin' ? 'Platform' : me.user.type === 'reseller' ? 'Reseller' : 'Admin';
 
+type BadgeTone = 'plain' | 'success' | 'warning' | 'danger' | 'info';
+interface NavBadge {
+  text: string;
+  tone: BadgeTone;
+  /** Read out instead of the bare text ("4 of 5 have low wallets"). */
+  label?: string;
+}
+const BADGE_TONE: Record<BadgeTone, string> = {
+  plain: 'text-muted-foreground',
+  success: 'text-success-text',
+  warning: 'text-warning-text',
+  danger: 'text-danger-text',
+  info: 'text-info-text',
+};
+
+/**
+ * Small live numbers beside menu items, coloured by status instead of dots: green live, orange
+ * needs attention, red blocked, grey plain totals. Shares query keys with the dashboard.
+ */
+function useNavBadges(me: Me | undefined): Record<string, NavBadge> {
+  const has = (p: Permission) => !!me?.permissions.includes(p);
+  const reseller = me?.user.type === 'reseller';
+  const subs = useQuery({
+    queryKey: ['subscribers', 'summary'],
+    queryFn: () => unwrap(api.GET('/api/v1/subscribers/summary')),
+    enabled: has('subscribers.read'),
+    staleTime: 60_000,
+  });
+  const sessions = useQuery({
+    queryKey: ['sessions', 'summary'],
+    queryFn: () => unwrap(api.GET('/api/v1/sessions/summary')),
+    enabled: has('sessions.read'),
+    staleTime: 30_000,
+  });
+  const plans = useQuery({
+    queryKey: ['plans', 'all'],
+    queryFn: () => unwrap(api.GET('/api/v1/plans', { params: { query: { limit: 200 } } })),
+    enabled: has('plans.read'),
+    staleTime: 5 * 60_000,
+  });
+  const tickets = useQuery({
+    queryKey: ['tickets', 'counts'],
+    queryFn: () => unwrap(api.GET('/api/v1/tickets/counts')),
+    enabled: has('tickets.read'),
+    staleTime: 60_000,
+  });
+  const wallet = useQuery({
+    queryKey: ['wallet', 'mine'],
+    queryFn: () => unwrap(api.GET('/api/v1/wallets/mine')),
+    enabled: reseller && has('billing.read'),
+    staleTime: 30_000,
+  });
+  const b: Record<string, NavBadge> = {};
+  if (subs.data) b['/admin/subscribers'] = { text: fmtNum(subs.data.total), tone: 'plain' };
+  if (sessions.data) {
+    const n = sessions.data.online;
+    b['/admin/sessions'] = { text: fmtNum(n), tone: n ? 'success' : 'plain', label: `${n} online` };
+  }
+  if (plans.data) b['/admin/plans'] = { text: fmtNum(plans.data.items.length), tone: 'plain' };
+  if (tickets.data) {
+    const open = tickets.data.open + tickets.data.in_progress;
+    b['/admin/tickets'] = {
+      text: fmtNum(open),
+      tone: open ? 'warning' : 'plain',
+      label: `${open} open tickets`,
+    };
+  }
+  const w = wallet.data;
+  if (w) {
+    const bad = w.state === 'empty' || w.state === 'frozen';
+    b['/admin/wallets'] = {
+      text: fmtRupees(w.balancePaise),
+      tone: bad ? 'danger' : w.state === 'low' ? 'warning' : 'plain',
+      label: `Balance ${fmtRupees(w.balancePaise)}${w.state === 'normal' ? '' : `, ${w.state}`}`,
+    };
+    if (w.children > 0) {
+      b['/admin/resellers'] = w.lowChildren
+        ? {
+            text: `${w.lowChildren} low`,
+            tone: 'warning',
+            label: `${w.lowChildren} of ${w.children} have low wallets`,
+          }
+        : { text: fmtNum(w.children), tone: 'plain' };
+    }
+  }
+  return b;
+}
+
+function Count({ badge }: { badge: NavBadge | undefined }) {
+  if (!badge) return null;
+  return (
+    <span
+      className={cn('shrink-0 font-mono text-xs font-medium tabular-nums', BADGE_TONE[badge.tone])}
+      {...(badge.label ? { 'aria-label': badge.label } : {})}
+    >
+      {badge.text}
+    </span>
+  );
+}
+
 const isActive = (href: string, path: string) =>
   href === '/admin' ? path === '/admin' : path === href || path.startsWith(`${href}/`);
 
@@ -159,7 +260,15 @@ const LINK_ACTIVE =
   'bg-sidebar-active font-bold text-sidebar-active-foreground hover:bg-sidebar-active hover:text-sidebar-active-foreground';
 
 /** One link per section; sections with several pages fold open, the one holding the current page stays open. */
-function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
+function NavLinks({
+  groups,
+  badges,
+  onNavigate,
+}: {
+  groups: NavGroup[];
+  badges: Record<string, NavBadge>;
+  onNavigate?: () => void;
+}) {
   const path = usePathname();
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   return (
@@ -178,11 +287,18 @@ function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () 
             >
               <g.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
               <span className="flex-1 truncate">{g.label}</span>
+              <Count badge={badges[only.href]} />
             </Link>
           );
         }
         const holdsActive = g.items.some((i) => isActive(i.href, path));
         const open = toggled[g.label] ?? holdsActive;
+        // Folded sections still surface a problem inside them (an empty wallet, open tickets).
+        const urgent = open
+          ? undefined
+          : g.items
+              .map((i) => badges[i.href])
+              .find((x) => x && (x.tone === 'danger' || x.tone === 'warning'));
         const id = `nav-${g.label.toLowerCase()}`;
         return (
           <div key={g.label} className="flex flex-col">
@@ -195,6 +311,7 @@ function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () 
             >
               <g.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
               <span className="flex-1 truncate">{g.label}</span>
+              <Count badge={urgent} />
               <ChevronDown
                 className={cn('size-4 shrink-0 transition-transform duration-200', open && 'rotate-180')}
                 aria-hidden
@@ -216,6 +333,7 @@ function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () 
                     className={cn(LINK, 'h-8 text-[13px]', active && LINK_ACTIVE)}
                   >
                     <span className="flex-1 truncate">{i.label}</span>
+                    <Count badge={badges[i.href]} />
                   </Link>
                 );
               })}
@@ -247,50 +365,14 @@ const Brand = ({ me }: { me: Me | undefined }) => {
   );
 };
 
-/** Reseller's own wallet, always in view: they cannot recharge customers without it. */
-function WalletCard() {
-  const mine = useQuery({
-    queryKey: ['wallet', 'mine'],
-    queryFn: () => unwrap(api.GET('/api/v1/wallets/mine')),
-    staleTime: 30_000,
-  });
-  const w = mine.data;
-  return (
-    <Link
-      href="/admin/wallets"
-      className="mx-3.5 flex flex-col gap-0.5 rounded-xl border px-3 py-2.5 text-inherit hover:bg-subtle hover:text-inherit"
-    >
-      <span className="eyebrow text-[10px]">Wallet</span>
-      {w ? (
-        <>
-          <span className="text-lg font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
-            {fmtRupees(w.balancePaise)}
-          </span>
-          {w.state === 'low' || w.state === 'empty' || w.state === 'frozen' ? (
-            <span
-              className={cn(
-                'text-xs font-semibold',
-                w.state === 'low' ? 'text-warning-text' : 'text-danger-text',
-              )}
-            >
-              {w.state === 'low' ? 'Low balance · top up soon' : w.state === 'empty' ? 'Empty' : 'Frozen'}
-            </span>
-          ) : null}
-        </>
-      ) : (
-        <Skeleton className="my-1 h-5 w-24" />
-      )}
-    </Link>
-  );
-}
-
 function Sidebar({ me, onNavigate }: { me: Me | undefined; onNavigate?: () => void }) {
+  // A reseller's wallet balance sits on its Wallet menu item, coloured by state: always in view.
+  const badges = useNavBadges(me);
   return (
     <div className="flex h-full flex-col gap-[18px] bg-sidebar pb-4">
       <Brand me={me} />
-      {me?.user.type === 'reseller' ? <WalletCard /> : null}
       {me ? (
-        <NavLinks groups={visible(me)} onNavigate={onNavigate} />
+        <NavLinks groups={visible(me)} badges={badges} onNavigate={onNavigate} />
       ) : (
         <div className="flex-1 space-y-2 px-3.5">
           {Array.from({ length: 8 }, (_, i) => (
@@ -440,16 +522,19 @@ export function Shell({ children }: { children: ReactNode }) {
         {me.data?.viewAs ? (
           <div
             role="status"
-            className="sticky top-0 z-20 flex flex-wrap items-center gap-2 bg-foreground px-4 py-2 text-sm text-white sm:px-8"
+            className="sticky top-0 z-20 flex flex-wrap items-center gap-2 bg-[linear-gradient(180deg,#e3d8f6_0%,#eee8f8_45%,var(--background)_100%)] px-4 py-2 text-[13px] text-body sm:px-8"
           >
-            <span className="mr-auto">
-              Viewing <strong>{me.data.viewAs.name}</strong> ({me.data.viewAs.code}) as{' '}
-              {me.data.viewAs.byName}
+            <span className="mr-auto flex min-w-0 items-center gap-2">
+              <Eye className="size-[15px] shrink-0" aria-hidden />
+              <span className="sr-only">Viewing</span>
+              <span className="truncate">
+                {me.data.viewAs.name} ({me.data.viewAs.code}) · {me.data.viewAs.byName}
+              </span>
             </span>
             <Button
               size="sm"
               variant="outline"
-              className="bg-transparent text-white hover:bg-white/10"
+              className="border-input bg-card/70 text-body hover:bg-card"
               onClick={() => {
                 leaveViewAs();
                 qc.clear();

@@ -17,6 +17,7 @@ const cursor = z
   .regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z_\d+$/, 'invalid cursor')
   .optional();
 const MAX_RANGE_DAYS = 31;
+const IST_MS = 330 * 60_000;
 
 const listQuery = tenantQuery.extend({
   /** Username or MAC prefix. */
@@ -61,6 +62,8 @@ const summaryView = z.object({
   accepted: z.number(),
   rejected: z.number(),
   reasons: z.array(z.object({ reason: z.string(), accepted: z.boolean(), count: z.number() })),
+  /** Accepted / rejected per hour (IST hour start, every hour of the period, oldest first); empty past 48 h. */
+  byHour: z.array(z.object({ hour: z.string(), accepted: z.number(), rejected: z.number() })),
 });
 const whyView = z.object({
   entry: entryView,
@@ -361,18 +364,52 @@ export class RadiusLogService {
 
   async summary(ctx: AuthContext, q: z.output<typeof summaryQuery>) {
     const { pg: t, branch } = await this.tenant(ctx, q.tenantId);
-    if (!t) return { accepted: 0, rejected: 0, reasons: [] };
     const [from, to] = range(q.from, q.to);
+    const hourly = to.getTime() - from.getTime() <= 48 * 3_600_000;
+    const hourMs = 3_600_000;
+    const firstHour = Math.floor((from.getTime() + IST_MS) / hourMs) * hourMs - IST_MS;
+    const hours = hourly
+      ? Array.from({ length: Math.floor((to.getTime() - firstHour) / hourMs) + 1 }, (_, i) =>
+          new Date(firstHour + i * hourMs).toISOString(),
+        )
+      : [];
+    if (!t) {
+      return {
+        accepted: 0,
+        rejected: 0,
+        reasons: [],
+        byHour: hours.map((hour) => ({ hour, accepted: 0, rejected: 0 })),
+      };
+    }
     const params: unknown[] = [t.id, from, to];
     const mine = RadiusLogService.mine(branch, params);
-    const { rows } = await this.sessions.db().query<{ reason: string | null; accepted: boolean; n: string }>(
-      `SELECT reason, reply = 'Access-Accept' AS accepted, count(*) AS n
-         FROM radpostauth
-        WHERE tenant_id = $1 AND authdate >= $2 AND authdate <= $3 ${mine}
-        GROUP BY 1, 2 ORDER BY 3 DESC`,
-      params,
-    );
+    const db = this.sessions.db();
+    const [{ rows }, perHour] = await Promise.all([
+      db.query<{ reason: string | null; accepted: boolean; n: string }>(
+        `SELECT reason, reply = 'Access-Accept' AS accepted, count(*) AS n
+           FROM radpostauth
+          WHERE tenant_id = $1 AND authdate >= $2 AND authdate <= $3 ${mine}
+          GROUP BY 1, 2 ORDER BY 3 DESC`,
+        params,
+      ),
+      hourly
+        ? db.query<{ hour: Date; accepted: string; rejected: string }>(
+            `SELECT date_trunc('hour', authdate AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata' AS hour,
+                    count(*) FILTER (WHERE reply = 'Access-Accept') AS accepted,
+                    count(*) FILTER (WHERE reply <> 'Access-Accept') AS rejected
+               FROM radpostauth
+              WHERE tenant_id = $1 AND authdate >= $2 AND authdate <= $3 ${mine}
+              GROUP BY 1`,
+            params,
+          )
+        : Promise.resolve({ rows: [] }),
+    ]);
+    const counted = new Map(perHour.rows.map((r) => [r.hour.toISOString(), r]));
     return {
+      byHour: hours.map((hour) => {
+        const r = counted.get(hour);
+        return { hour, accepted: Number(r?.accepted ?? 0), rejected: Number(r?.rejected ?? 0) };
+      }),
       accepted: rows.filter((r) => r.accepted).reduce((s, r) => s + Number(r.n), 0),
       rejected: rows.filter((r) => !r.accepted).reduce((s, r) => s + Number(r.n), 0),
       reasons: rows

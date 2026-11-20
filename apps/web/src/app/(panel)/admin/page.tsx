@@ -9,7 +9,6 @@ import {
   LifeBuoy,
   ReceiptText,
   RefreshCw,
-  Router as RouterIcon,
   Search,
   Server,
   UserPlus,
@@ -22,17 +21,19 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
-import { DashboardConfig, useDashboardPrefs, type WidgetDef } from '@/components/dashboard-config';
+import { arrange, DashboardConfig, useDashboardPrefs, type WidgetDef } from '@/components/dashboard-config';
 import {
   ExpiringCard,
   NetworkRow,
+  RenewalsCard,
   RenewalsSection,
+  SubscriberStatusCard,
   useExpiring,
   useSubscriberSummary,
 } from '@/components/dashboard-widgets';
+import { NotificationBell, ResellerNetwork, type Notice } from '@/components/reseller-dashboard';
 import { InsightsCard } from '@/components/financial-insights';
 import { NasStatistics } from '@/components/router-live';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBar } from '@/components/ui/card';
 import { ErrorState, Stat } from '@/components/ui/misc';
@@ -901,7 +902,6 @@ function ResellerHome({
   loading: boolean;
 }) {
   const can = useCan();
-  const low = wallet && (wallet.state === 'low' || wallet.state === 'empty' || wallet.state === 'frozen');
   const from = istDay(29);
   const report = useQuery({
     queryKey: ['wallet-report', wallet?.id, from, istDay()],
@@ -916,17 +916,24 @@ function ResellerHome({
   });
   const expiring = useExpiring(7, 5);
   const prefs = useDashboardPrefs();
-  const { shown } = prefs;
-  const widgets: WidgetDef[] = [
-    { id: 'r-wallet', label: 'Wallet balance' },
-    { id: 'r-actions', label: 'Quick actions' },
-    (can('sessions.read') || can('nas.read')) && { id: 'r-network', label: 'My network (online, routers)' },
-    can('subscribers.read') && { id: 'r-renewals', label: 'Renewals and status' },
-    { id: 'r-children', label: 'Sub-resellers and customers' },
-    { id: 'r-recharges', label: 'Recharges per day' },
-    can('subscribers.read') && { id: 'r-expiring', label: 'Expiring soon list' },
-  ].filter((w): w is WidgetDef => !!w);
   const ledgerHref = wallet ? `/admin/wallets/${wallet.id}` : '/admin/wallets';
+
+  // Default order and visibility. Wallet, quick actions and sub-resellers already live in the
+  // sidebar, so they start switched off; each user can switch them back on and reorder everything.
+  const widgets: WidgetDef[] = [
+    can('subscribers.read') && { id: 'r-renewals', label: 'Renewals' },
+    can('subscribers.read') && { id: 'r-status', label: 'Subscriber status' },
+    (can('sessions.read') || can('nas.read')) && {
+      id: 'r-network',
+      label: 'My network (online, routers, logins, live log)',
+    },
+    wallet?.canViewLedger && { id: 'r-recharges', label: 'Recharges per day' },
+    can('subscribers.read') && { id: 'r-expiring', label: 'Expiring soon list' },
+    { id: 'r-wallet', label: 'Wallet balance', defaultHidden: true },
+    { id: 'r-actions', label: 'Quick actions', defaultHidden: true },
+    wallet &&
+      wallet.children > 0 && { id: 'r-children', label: 'Sub-resellers and customers', defaultHidden: true },
+  ].filter((w): w is WidgetDef => !!w);
 
   // End-of-day balances, worked back from today's balance through each day's credits and debits.
   const byDay = new Map((report.data?.rows ?? []).map((r) => [r.day, r]));
@@ -966,139 +973,134 @@ function ResellerHome({
     },
   ].filter(Boolean) as { href: string; icon: typeof Users; t: string; s: string }[];
 
-  return (
-    <div className="flex flex-col gap-4">
-      <header className="flex flex-wrap items-center gap-3">
-        <div className="mr-auto flex flex-col gap-0.5">
-          <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Namaste, {name}</h1>
-          <span className="font-mono text-xs text-muted-foreground">
-            {wallet?.owner?.code ? `${wallet.owner.code} · ` : ''}
-            {istStamp.format(new Date())}
-          </span>
-        </div>
-        <DashboardConfig widgets={widgets} hidden={prefs.hidden} onSave={prefs.save} saving={prefs.saving} />
-      </header>
+  const notices: Notice[] = [];
+  if (wallet && (wallet.state === 'empty' || wallet.state === 'frozen' || wallet.state === 'low')) {
+    const week = expiring.data?.total
+      ? ` ${expiring.data.total === 1 ? '1 customer expires' : `${fmtNum(expiring.data.total)} customers expire`} in the next 7 days.`
+      : '';
+    notices.push({
+      id: 'wallet',
+      tone: wallet.state === 'low' ? 'warning' : 'danger',
+      title:
+        wallet.state === 'frozen'
+          ? 'Wallet is frozen'
+          : wallet.state === 'empty'
+            ? 'Wallet is empty'
+            : `Wallet is low: ${fmtRupees(wallet.balancePaise)} left`,
+      body:
+        wallet.state === 'frozen'
+          ? (wallet.frozenReason ?? 'Contact your provider.')
+          : wallet.state === 'empty'
+            ? `Customer recharges are blocked.${week}`
+            : `Ask your provider to top up so recharges keep going through.${week}`,
+      ...(wallet.canViewLedger ? { href: ledgerHref, hrefLabel: 'See ledger' } : {}),
+    });
+  }
 
-      {low ? (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center gap-3 rounded-[14px] bg-warning-bg px-4 py-3.5 text-warning-text"
-        >
-          <AlertTriangle className="size-5 shrink-0" aria-hidden />
-          <div className="flex min-w-60 flex-1 flex-col gap-0.5">
-            <span className="text-sm font-bold">
-              {wallet.state === 'frozen'
-                ? 'Wallet is frozen'
-                : wallet.state === 'empty'
-                  ? 'Wallet is empty: recharges are blocked'
-                  : `Wallet is low: ${fmtRupees(wallet.balancePaise)} left`}
+  const render: Record<string, () => React.ReactNode> = {
+    'r-renewals': () => <RenewalsCard />,
+    'r-status': () => <SubscriberStatusCard />,
+    'r-network': () => <ResellerNetwork />,
+    'r-expiring': () => <ExpiringCard limit={5} compact />,
+    'r-recharges': () => (
+      <Card className="flex min-w-0 flex-col gap-3.5 p-5">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 className="mr-auto text-base font-bold">Recharges per day, last 30 days</h2>
+          {report.data ? (
+            <span className="text-[13px] text-muted-foreground">
+              {plural(rechargeCount, 'recharge')} · {fmtRupees(rechargePaise)}
             </span>
-            <span className="text-[13px]">
-              {wallet.state === 'frozen'
-                ? (wallet.frozenReason ?? 'Contact your provider.')
-                : 'Ask your provider to top up so customer recharges keep going through.'}
-              {wallet.state !== 'frozen' && expiring.data?.total
-                ? ` ${expiring.data.total === 1 ? '1 customer expires' : `${fmtNum(expiring.data.total)} customers expire`} this week.`
-                : ''}
-            </span>
-          </div>
-          {wallet.canViewLedger ? (
-            <Link href={ledgerHref} className="text-sm font-bold text-warning-text hover:text-warning-text">
-              See ledger
-            </Link>
           ) : null}
         </div>
-      ) : null}
-
-      <div className="flex flex-wrap gap-3 empty:hidden">
-        {shown('r-wallet') ? (
-          <Card className="flex min-w-0 flex-[3_1_460px] flex-col gap-4 p-[22px]">
-            {loading || !wallet ? (
-              <div className="space-y-3" aria-busy>
-                <Skeleton className="h-3 w-28" />
-                <Skeleton className="h-11 w-56 rounded-lg" />
-                <Skeleton className="h-3 w-72" />
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-start gap-4">
-                <div className="mr-auto flex flex-col gap-1">
-                  <span className="eyebrow">Wallet balance</span>
-                  <span className="text-[44px] leading-[1.05] font-extrabold tracking-[-0.04em] text-foreground tabular-nums">
-                    {fmtRupees(wallet.balancePaise)}
-                  </span>
-                  <span className="text-[13px] text-muted-foreground">
-                    {wallet.creditLimitPaise ? `Credit limit ${fmtRupees(wallet.creditLimitPaise)} · ` : ''}
-                    Low-balance alert at {fmtRupees(wallet.lowBalanceThresholdPaise)}
-                  </span>
-                </div>
-                {wallet.canViewLedger ? (
-                  <Button variant="outline" asChild>
-                    <Link href={ledgerHref}>Wallet ledger</Link>
-                  </Button>
-                ) : null}
-              </div>
-            )}
-            {wallet?.canViewLedger ? (
-              report.isLoading ? (
-                <Skeleton className="h-[150px] w-full rounded-xl" />
-              ) : report.data ? (
-                <div className="flex flex-col gap-1.5">
-                  <BalanceChart days={balanceDays} lowPaise={wallet.lowBalanceThresholdPaise} />
-                  <span className="flex items-center gap-1.5 text-xs text-body">
-                    <span
-                      className="inline-block w-3.5 border-t-2 border-dashed border-chart-2"
-                      aria-hidden
-                    />
-                    Low-balance alert at {fmtRupees0(wallet.lowBalanceThresholdPaise)}
-                  </span>
-                </div>
-              ) : null
-            ) : null}
-            {wallet ? (
-              <dl className="mt-auto grid grid-cols-3 gap-3 border-t border-divider pt-4 text-[13px]">
-                {(
-                  [
-                    ['Received', wallet.totals.receivedPaise],
-                    ['Spent on recharges', wallet.totals.rechargedPaise],
-                    ['Refunded', wallet.totals.refundedPaise],
-                  ] as const
-                ).map(([k, v]) => (
-                  <div key={k}>
-                    <dt className="text-muted-foreground">{k}</dt>
-                    <dd className="font-bold text-foreground tabular-nums">{fmtRupees0(v)}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-          </Card>
-        ) : null}
-        {shown('r-actions') ? (
-          <div className="flex min-w-0 flex-[2_1_300px] flex-col gap-3">
-            {actions.map((a) => (
-              <Link
-                key={a.href}
-                href={a.href}
-                className="flex flex-1 items-center gap-3.5 rounded-2xl border bg-card px-[18px] py-4 text-inherit hover:border-input hover:text-inherit"
-              >
-                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent text-primary">
-                  <a.icon className="size-5" strokeWidth={1.9} aria-hidden />
-                </span>
-                <span className="flex flex-1 flex-col">
-                  <span className="text-[15px] font-bold text-foreground">{a.t}</span>
-                  <span className="text-[13px] text-muted-foreground">{a.s}</span>
-                </span>
-                <ChevronRight className="size-[18px] text-muted-foreground" aria-hidden />
-              </Link>
-            ))}
+        {report.isError ? (
+          <ErrorState error={report.error} onRetry={() => void report.refetch()} />
+        ) : report.isLoading ? (
+          <Skeleton className="h-[180px] w-full rounded-xl" />
+        ) : (
+          <RechargesChart days={rechargeDays} />
+        )}
+      </Card>
+    ),
+    'r-wallet': () => (
+      <Card className="flex min-w-0 flex-col gap-4 p-[22px]">
+        {loading || !wallet ? (
+          <div className="space-y-3" aria-busy>
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-11 w-56 rounded-lg" />
+            <Skeleton className="h-3 w-72" />
           </div>
+        ) : (
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="mr-auto flex flex-col gap-1">
+              <span className="eyebrow">Wallet balance</span>
+              <span className="text-[44px] leading-[1.05] font-extrabold tracking-[-0.04em] text-foreground tabular-nums">
+                {fmtRupees(wallet.balancePaise)}
+              </span>
+              <span className="text-[13px] text-muted-foreground">
+                {wallet.creditLimitPaise ? `Credit limit ${fmtRupees(wallet.creditLimitPaise)} · ` : ''}
+                Low-balance alert at {fmtRupees(wallet.lowBalanceThresholdPaise)}
+              </span>
+            </div>
+            {wallet.canViewLedger ? (
+              <Button variant="outline" asChild>
+                <Link href={ledgerHref}>Wallet ledger</Link>
+              </Button>
+            ) : null}
+          </div>
+        )}
+        {wallet?.canViewLedger ? (
+          report.isLoading ? (
+            <Skeleton className="h-[150px] w-full rounded-xl" />
+          ) : report.data ? (
+            <div className="flex flex-col gap-1.5">
+              <BalanceChart days={balanceDays} lowPaise={wallet.lowBalanceThresholdPaise} />
+              <span className="flex items-center gap-1.5 text-xs text-body">
+                <span className="inline-block w-3.5 border-t-2 border-dashed border-chart-2" aria-hidden />
+                Low-balance alert at {fmtRupees0(wallet.lowBalanceThresholdPaise)}
+              </span>
+            </div>
+          ) : null
         ) : null}
+        {wallet ? (
+          <dl className="mt-auto grid grid-cols-3 gap-3 border-t border-divider pt-4 text-[13px]">
+            {(
+              [
+                ['Received', wallet.totals.receivedPaise],
+                ['Spent on recharges', wallet.totals.rechargedPaise],
+                ['Refunded', wallet.totals.refundedPaise],
+              ] as const
+            ).map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="font-bold text-foreground tabular-nums">{fmtRupees0(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </Card>
+    ),
+    'r-actions': () => (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {actions.map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            className="flex flex-1 items-center gap-3.5 rounded-2xl border bg-card px-[18px] py-4 text-inherit hover:border-input hover:text-inherit"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent text-primary">
+              <a.icon className="size-5" strokeWidth={1.9} aria-hidden />
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-[15px] font-bold text-foreground">{a.t}</span>
+              <span className="text-[13px] text-muted-foreground">{a.s}</span>
+            </span>
+            <ChevronRight className="size-[18px] text-muted-foreground" aria-hidden />
+          </Link>
+        ))}
       </div>
-
-      {(can('sessions.read') || can('nas.read')) && shown('r-network') ? <ResellerNetwork /> : null}
-
-      {can('subscribers.read') && shown('r-renewals') ? <RenewalsSection /> : null}
-
-      {wallet && wallet.children > 0 && shown('r-children') ? (
+    ),
+    'r-children': () =>
+      wallet ? (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
           <KpiLink href="/admin/resellers">
             <Stat
@@ -1118,125 +1120,51 @@ function ResellerHome({
             />
           </KpiLink>
         </div>
-      ) : null}
+      ) : null,
+  };
+  const shownWidgets = prefs.loaded ? arrange(widgets, prefs.order).filter(prefs.isShown) : [];
 
-      <div className="flex flex-wrap gap-3 empty:hidden">
-        {wallet?.canViewLedger && shown('r-recharges') ? (
-          <Card className="flex min-w-0 flex-[3_1_480px] flex-col gap-3.5 p-5">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 className="mr-auto text-base font-bold">Recharges per day, last 30 days</h2>
-              {report.data ? (
-                <span className="text-[13px] text-muted-foreground">
-                  {plural(rechargeCount, 'recharge')} · {fmtRupees(rechargePaise)}
-                </span>
-              ) : null}
-            </div>
-            {report.isError ? (
-              <ErrorState error={report.error} onRetry={() => void report.refetch()} />
-            ) : report.isLoading ? (
-              <Skeleton className="h-[180px] w-full rounded-xl" />
-            ) : (
-              <RechargesChart days={rechargeDays} />
-            )}
-          </Card>
-        ) : null}
-        {can('subscribers.read') && shown('r-expiring') ? (
-          <ExpiringCard limit={5} compact className="flex-[2_1_340px]" />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-/** Reseller: its customers online now and the routers it added or its customers use. */
-function ResellerNetwork() {
-  const can = useCan();
-  const summary = useQuery({
-    queryKey: ['sessions', 'summary'],
-    queryFn: () => unwrap(api.GET('/api/v1/sessions/summary')),
-    enabled: can('sessions.read'),
-    refetchInterval: 30_000,
-  });
-  const nas = useQuery({
-    queryKey: ['nas', 'all'],
-    queryFn: () => unwrap(api.GET('/api/v1/nas', { params: { query: { limit: 200 } } })),
-    enabled: can('nas.read'),
-  });
-  const onlineByIp = new Map((summary.data?.byNas ?? []).map((n) => [n.nasIp, n.online]));
-  const routers = (nas.data?.items ?? [])
-    .map((r) => ({ r, online: onlineByIp.get(r.ip) ?? 0 }))
-    .sort((a, b) => b.online - a.online);
   return (
-    <Card className="overflow-hidden">
-      <CardBar>
-        <h2 className="mr-auto text-base font-bold">My network</h2>
-        {can('sessions.read') ? (
-          <Link href="/admin/radius-log" className="text-[13px] font-bold">
-            Logs
-          </Link>
-        ) : null}
-        {can('nas.read') ? (
-          <Link href="/admin/routers" className="text-[13px] font-bold">
-            Routers
-          </Link>
-        ) : null}
-      </CardBar>
-      <div className="grid gap-0 divide-y divide-divider md:grid-cols-[220px_1fr] md:divide-x md:divide-y-0">
-        <Link
-          href="/admin/sessions"
-          className="flex flex-col gap-1 p-5 text-inherit hover:bg-subtle hover:text-inherit"
-        >
-          <span className="flex items-center gap-2 text-[13px] font-semibold text-body">
-            <Wifi className="size-4 text-primary" aria-hidden /> Customers online
+    <div className="flex flex-col gap-4">
+      <header className="flex flex-wrap items-end gap-3">
+        <div className="mr-auto flex flex-col gap-0.5">
+          <span className="font-mono text-xs text-muted-foreground">
+            {wallet?.owner?.code ? `${wallet.owner.code} · ` : ''}
+            {istStamp.format(new Date())}
           </span>
-          {summary.isLoading ? (
-            <Skeleton className="h-9 w-24 rounded-lg" />
-          ) : (
-            <span className="text-[34px] leading-tight font-extrabold tracking-[-0.03em] text-foreground tabular-nums">
-              {fmtNum(summary.data?.online ?? 0)}
-            </span>
-          )}
-          <span className="text-xs text-muted-foreground">refreshes every 30 s</span>
-        </Link>
-        {nas.isLoading ? (
-          <div className="space-y-2 p-5">
-            {Array.from({ length: 3 }, (_, i) => (
-              <Skeleton key={i} className="h-9" />
-            ))}
-          </div>
-        ) : routers.length === 0 ? (
-          <div className="flex flex-col items-start justify-center gap-2 p-5 text-sm text-muted-foreground">
-            <p>No routers yet. Add your own MikroTik, or routers appear once your customers connect.</p>
-            {can('nas.write') ? (
-              <Button size="sm" variant="outline" asChild>
-                <Link href="/admin/routers">
-                  <RouterIcon /> Add router
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        ) : (
-          <ul className="divide-y divide-divider">
-            {routers.slice(0, 5).map(({ r, online }) => (
-              <li key={r.id}>
-                <Link
-                  href={`/admin/routers/${r.id}`}
-                  className="flex items-center gap-3 px-5 py-2.5 text-inherit hover:bg-subtle hover:text-inherit"
-                >
-                  <Server className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-                    {r.name}
-                  </span>
-                  <Badge tone={r.canManage ? 'success' : 'neutral'}>{r.canManage ? 'Yours' : 'ISP'}</Badge>
-                  <span className="w-20 text-right text-xs text-body tabular-nums">
-                    {fmtNum(online)} online
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Card>
+          <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Namaste, {name}</h1>
+        </div>
+        <NotificationBell notices={notices} />
+        <DashboardConfig
+          widgets={widgets}
+          hidden={prefs.hidden}
+          order={prefs.order}
+          arranged={prefs.arranged}
+          sortable
+          onSave={prefs.save}
+          saving={prefs.saving}
+        />
+        {can('subscribers.write') ? (
+          <Button asChild>
+            <Link href="/admin/subscribers/new">
+              <UserPlus /> Add customer
+            </Link>
+          </Button>
+        ) : null}
+      </header>
+
+      {!prefs.loaded ? (
+        <div className="flex flex-col gap-4" aria-busy>
+          <Skeleton className="h-[150px] rounded-2xl" />
+          <Skeleton className="h-[150px] rounded-2xl" />
+        </div>
+      ) : shownWidgets.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">
+          Everything is switched off. Use Customise to choose what the dashboard shows.
+        </Card>
+      ) : (
+        shownWidgets.map((w) => <div key={w.id}>{render[w.id]?.()}</div>)
+      )}
+    </div>
   );
 }

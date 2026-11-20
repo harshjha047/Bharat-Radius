@@ -229,3 +229,93 @@ export function RechargesChart({ days }: { days: DayCount[] }) {
     </div>
   );
 }
+
+/** Accepted and rejected colours for the line chart (checked for colour-blind separation on white). */
+export const LOGIN_COLORS = { accepted: '#3AA570', rejected: 'var(--danger-text)' } as const;
+
+const istRange = (iso: string) => {
+  const s = new Date(iso);
+  const e = new Date(s.getTime() + 3_600_000);
+  return `${hourLabel(s.toISOString())} – ${hourLabel(e.toISOString())}`;
+};
+
+function LoginsTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { dataKey?: string | number; value?: number | string }[];
+  label?: string | number;
+}) {
+  if (!active || !payload?.length) return null;
+  const v = (k: string) => fmtNum(Number(payload.find((p) => p.dataKey === k)?.value ?? 0));
+  return (
+    <div className="flex flex-col gap-1.5 rounded-[10px] bg-foreground px-3 py-2 text-white shadow-lg">
+      <span className="font-mono text-[11px] text-[#cfc7d3]">{istRange(String(label))} IST</span>
+      <span className="flex gap-4">
+        <span className="flex flex-col">
+          <span className="text-base font-bold tabular-nums">{v('accepted')}</span>
+          <span className="text-[11px] text-[#cfc7d3]">Accepted</span>
+        </span>
+        <span className="flex flex-col">
+          <span className="text-base font-bold tabular-nums">{v('rejected')}</span>
+          <span className="text-[11px] text-[#cfc7d3]">Rejected</span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
+/** RADIUS logins per hour as two lines (accepted, rejected) with soft fills and a crosshair tooltip. */
+export function LoginsLineChart({ hours, className }: { hours: AuthHour[]; className?: string }) {
+  return (
+    <div
+      className={className ?? 'h-[180px] w-full'}
+      role="img"
+      aria-label="Accepted and rejected logins per hour, last 24 hours"
+    >
+      <ResponsiveContainer>
+        <ComposedChart data={hours} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="logins-acc" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor={LOGIN_COLORS.accepted} stopOpacity={0.22} />
+              <stop offset="1" stopColor={LOGIN_COLORS.accepted} stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="logins-rej" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor={LOGIN_COLORS.rejected} stopOpacity={0.14} />
+              <stop offset="1" stopColor={LOGIN_COLORS.rejected} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} stroke="var(--divider)" strokeDasharray="3 3" />
+          <XAxis dataKey="hour" tickFormatter={hourLabel} minTickGap={36} {...axis} />
+          <YAxis tickFormatter={compact} width={28} allowDecimals={false} {...axis} />
+          <Tooltip
+            content={<LoginsTooltip />}
+            cursor={{ stroke: 'var(--muted-foreground)', strokeDasharray: '3 3' }}
+          />
+          <Area
+            type="linear"
+            dataKey="accepted"
+            stroke={LOGIN_COLORS.accepted}
+            strokeWidth={2}
+            fill="url(#logins-acc)"
+            activeDot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: LOGIN_COLORS.accepted }}
+            dot={false}
+            isAnimationActive={false}
+          />
+          <Area
+            type="linear"
+            dataKey="rejected"
+            stroke={LOGIN_COLORS.rejected}
+            strokeWidth={2}
+            fill="url(#logins-rej)"
+            activeDot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: LOGIN_COLORS.rejected }}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
