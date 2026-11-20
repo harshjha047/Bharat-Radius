@@ -76,7 +76,9 @@ async function sidebarLink(name) {
   await mainNav().getByRole('link').first().waitFor();
   const closed = mainNav().locator('button[aria-expanded="false"]:visible');
   while (await closed.count()) await closed.first().click();
-  return mainNav().getByRole('link', { name, exact: true });
+  // Entries may carry a live count after the label ("Plans 2", "Online now 112").
+  const label = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`);
+  return mainNav().getByRole('link', { name: label });
 }
 /** Sileo toasts: title and description are separate nodes; match the whole toast. */
 const toastWith = (text) => page.locator('[data-sileo-toast]').filter({ hasText: text }).first();

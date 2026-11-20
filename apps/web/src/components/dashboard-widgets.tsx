@@ -1,6 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { Phone, Zap } from 'lucide-react';
+import { ArrowRight, Phone, Zap } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -143,120 +143,143 @@ export function useSubscriberSummary() {
   });
 }
 
-const TONE = {
-  danger: {
-    border: 'border-danger-border',
-    label: 'text-danger-text',
-    dot: 'bg-danger-text',
-    note: 'text-danger-text',
-  },
-  warning: {
-    border: 'border-[#f5d9a8]',
-    label: 'text-warning-text',
-    dot: 'bg-warning',
-    note: 'text-warning-text',
-  },
-  plain: { border: 'border-border', label: 'text-body', dot: 'bg-primary', note: 'text-muted-foreground' },
+/** Number colour by status: orange needs action, blue coming up, red lapsed/problem, green healthy, grey nothing. */
+const NUM = {
+  warning: 'text-warning-text',
+  info: 'text-info-text',
+  danger: 'text-danger-text',
+  success: 'text-success-text',
+  plain: 'text-muted-foreground',
 } as const;
+type Tone = keyof typeof NUM;
 
-/** Phase 1 renewals: what expires today, tomorrow and this week, and what lapsed this month. */
-export function RenewalsSection() {
+const SEG =
+  'group flex flex-col gap-1.5 rounded-[14px] px-4 pt-3 pb-3.5 text-inherit transition-colors hover:bg-subtle hover:text-inherit';
+
+function SegHead({ label }: { label: string }) {
+  return (
+    <span className="flex items-center justify-between gap-2 text-[13px] text-muted-foreground">
+      {label}
+      <ArrowRight
+        className="size-4 -translate-x-1 opacity-0 transition group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+        aria-hidden
+      />
+    </span>
+  );
+}
+
+/** Expiring today / tomorrow / next 7 days / expired this month; each count opens the subscriber list. */
+export function RenewalsCard() {
   const q = useSubscriberSummary();
   const d = q.data;
   const tiles = d
     ? ([
-        ['today', 'Expiring today', d.expiringToday, d.renewPaise.today, 'danger'],
-        ['tomorrow', 'Tomorrow', d.expiringTomorrow, d.renewPaise.tomorrow, 'warning'],
-        ['7d', 'Next 7 days', d.expiring7d, d.renewPaise.next7d, 'plain'],
-        ['expired-month', 'Expired this month', d.expiredThisMonth, d.renewPaise.expiredThisMonth, 'danger'],
+        ['today', 'Expiring today', d.expiringToday, d.renewPaise.today, 'warning', 'to renew'],
+        ['tomorrow', 'Tomorrow', d.expiringTomorrow, d.renewPaise.tomorrow, 'warning', 'to renew'],
+        ['7d', 'Next 7 days', d.expiring7d, d.renewPaise.next7d, 'info', 'to renew'],
+        [
+          'expired-month',
+          'Expired this month',
+          d.expiredThisMonth,
+          d.renewPaise.expiredThisMonth,
+          'danger',
+          'to win back',
+        ],
       ] as const)
     : [];
-  const status = d
-    ? ([
-        ['active', 'Active', d.active, 'bg-chart-1'],
-        ['expired', 'Expired', d.expired, 'bg-danger-text'],
-        ['suspended', 'Suspended', d.suspended, 'bg-chart-2'],
-        ['disabled', 'Disabled', d.disabled, 'bg-muted-foreground'],
-      ] as const)
-    : [];
-
   return (
-    <section aria-labelledby="renewals-h" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 id="renewals-h" className="mr-auto text-lg font-extrabold tracking-[-0.02em]">
-          Renewals
-        </h2>
-        <span className="text-[13px] text-muted-foreground">Each count opens the subscriber list</span>
-      </div>
+    <Card className="flex flex-col gap-2 px-2 pt-5 pb-2" aria-labelledby="renewals-h">
+      <h2 id="renewals-h" className="px-4 text-[15px] font-bold">
+        Renewals
+      </h2>
       {q.isError ? (
-        <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+        <div className="px-4 pb-3">
+          <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+        </div>
       ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {q.isLoading
-              ? [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[112px] rounded-2xl" />)
-              : tiles.map(([key, label, n, paise, tone]) => {
-                  const t = TONE[n === 0 ? 'plain' : tone];
-                  return (
-                    <Link
-                      key={key}
-                      href={`/admin/subscribers?expiry=${key}`}
-                      className={cn(
-                        'flex flex-col gap-1.5 rounded-2xl border bg-card px-[18px] py-4 text-inherit hover:border-input hover:text-inherit',
-                        t.border,
-                      )}
-                    >
-                      <span className={cn('flex items-center gap-2 text-[13px] font-bold', t.label)}>
-                        <span className={cn('size-2 rounded-full', t.dot)} aria-hidden />
-                        {label}
-                      </span>
-                      <span className="text-[28px] leading-none font-extrabold tracking-[-0.03em] text-foreground tabular-nums">
-                        {fmtNum(n)}
-                      </span>
-                      <span className="flex justify-between gap-2 text-xs font-semibold">
-                        <span className={t.note}>{n ? `${fmtRupees0(paise)} to renew` : 'None'}</span>
-                        <span className="text-primary max-sm:hidden">View →</span>
-                      </span>
-                    </Link>
-                  );
-                })}
-          </div>
-          {d && d.total > 0 ? (
-            <Card className="flex flex-col gap-3 px-[18px] py-4">
-              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <span className="text-[15px] font-bold text-foreground">All subscribers</span>
-                <span className="text-[22px] font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
-                  {fmtNum(d.total)}
-                </span>
-                <span className="ml-auto text-[13px] text-muted-foreground">
-                  {((d.active / d.total) * 100).toFixed(1)}% active
-                </span>
-              </div>
-              <div
-                role="img"
-                aria-label={status.map(([, l, n]) => `${l} ${fmtNum(n)}`).join(', ')}
-                className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-muted"
-              >
-                {status.map(([k, , n, c]) =>
-                  n ? <span key={k} className={c} style={{ flex: `${n} 1 0` }} /> : null,
-                )}
-              </div>
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {status.map(([k, l, n, c]) => (
-                  <Link
-                    key={k}
-                    href={`/admin/subscribers?status=${k}`}
-                    className="flex items-center gap-2 text-[13px] text-body hover:text-foreground"
+        <div className="grid grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-divider">
+          {q.isLoading
+            ? [0, 1, 2, 3].map((i) => <Skeleton key={i} className="m-3 h-[74px] rounded-xl" />)
+            : tiles.map(([key, label, n, paise, tone, note]) => (
+                <Link key={key} href={`/admin/subscribers?expiry=${key}`} className={SEG}>
+                  <SegHead label={label} />
+                  <span
+                    className={cn(
+                      'text-[32px] leading-none font-extrabold tracking-[-0.03em] tabular-nums',
+                      NUM[n === 0 ? 'plain' : (tone as Tone)],
+                    )}
                   >
-                    <span className={cn('size-2.5 rounded-[3px]', c)} aria-hidden />
-                    {l} <strong className="text-foreground tabular-nums">{fmtNum(n)}</strong>
-                  </Link>
-                ))}
-              </div>
-            </Card>
-          ) : null}
-        </>
+                    {fmtNum(n)}
+                  </span>
+                  <span className="text-[13px] text-muted-foreground">
+                    {n ? `${fmtRupees0(paise)} ${note}` : 'Nothing due'}
+                  </span>
+                </Link>
+              ))}
+        </div>
       )}
+    </Card>
+  );
+}
+
+/** All subscribers split by status: a thin bar, then each status as a link to the filtered list. */
+export function SubscriberStatusCard() {
+  const q = useSubscriberSummary();
+  const d = q.data;
+  if (q.isError) return null;
+  if (q.isLoading || !d) return <Skeleton className="h-[150px] rounded-2xl" />;
+  if (d.total === 0) return null;
+  const status = [
+    ['active', 'Active', d.active, 'bg-[#3AA570]', 'success'],
+    ['expired', 'Expired', d.expired, 'bg-danger-text', 'danger'],
+    ['suspended', 'Suspended', d.suspended, 'bg-warning', 'warning'],
+    ['disabled', 'Disabled', d.disabled, 'bg-muted-foreground', 'plain'],
+  ] as const;
+  return (
+    <Card className="flex flex-col gap-3.5 px-2 pt-5 pb-2" aria-labelledby="status-h">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4">
+        <h2 id="status-h" className="text-[15px] font-bold">
+          Subscribers <span className="ml-1.5 text-muted-foreground tabular-nums">{fmtNum(d.total)}</span>
+        </h2>
+        <span className="text-[13px] text-muted-foreground">
+          <strong className="font-bold text-success-text">{((d.active / d.total) * 100).toFixed(1)}%</strong>{' '}
+          active
+        </span>
+      </div>
+      <div
+        role="img"
+        aria-label={status.map(([, l, n]) => `${l} ${fmtNum(n)}`).join(', ')}
+        className="mx-4 flex h-2 gap-[3px]"
+      >
+        {status.map(([k, , n, c]) =>
+          n ? <span key={k} className={cn('rounded-full', c)} style={{ flex: `${n} 1 0` }} /> : null,
+        )}
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-divider">
+        {status.map(([k, l, n, , tone]) => (
+          <Link key={k} href={`/admin/subscribers?status=${k}`} className={SEG}>
+            <SegHead label={l} />
+            <span
+              className={cn(
+                'text-[26px] leading-tight font-extrabold tracking-[-0.02em] tabular-nums',
+                NUM[n === 0 ? 'plain' : tone],
+              )}
+            >
+              {fmtNum(n)}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/** Renewals plus the status breakdown (admin dashboard keeps them together). */
+export function RenewalsSection() {
+  return (
+    <section className="flex flex-col gap-3">
+      <RenewalsCard />
+      <SubscriberStatusCard />
     </section>
   );
 }

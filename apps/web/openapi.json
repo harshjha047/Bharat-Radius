@@ -1704,9 +1704,17 @@
                         "type": "string",
                         "pattern": "^[a-z0-9-]{1,40}$"
                       }
+                    },
+                    "dashboardOrder": {
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]{1,40}$"
+                      }
                     }
                   },
-                  "required": ["dashboardHidden"],
+                  "required": ["dashboardHidden", "dashboardOrder"],
                   "additionalProperties": false
                 }
               }
@@ -1767,6 +1775,14 @@
                       "type": "string",
                       "pattern": "^[a-z0-9-]{1,40}$"
                     }
+                  },
+                  "dashboardOrder": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9-]{1,40}$"
+                    }
                   }
                 },
                 "required": ["dashboardHidden"]
@@ -1790,9 +1806,17 @@
                         "type": "string",
                         "pattern": "^[a-z0-9-]{1,40}$"
                       }
+                    },
+                    "dashboardOrder": {
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]{1,40}$"
+                      }
                     }
                   },
-                  "required": ["dashboardHidden"],
+                  "required": ["dashboardHidden", "dashboardOrder"],
                   "additionalProperties": false
                 }
               }
@@ -22681,9 +22705,28 @@
                         "required": ["reason", "accepted", "count"],
                         "additionalProperties": false
                       }
+                    },
+                    "byHour": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "hour": {
+                            "type": "string"
+                          },
+                          "accepted": {
+                            "type": "number"
+                          },
+                          "rejected": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["hour", "accepted", "rejected"],
+                        "additionalProperties": false
+                      }
                     }
                   },
-                  "required": ["accepted", "rejected", "reasons"],
+                  "required": ["accepted", "rejected", "reasons", "byHour"],
                   "additionalProperties": false
                 }
               }

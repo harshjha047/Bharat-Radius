@@ -68,7 +68,7 @@ export interface UserDoc extends Standard {
   tokenVersion: number;
   passwordChangedAt?: Date;
   /** Panel preferences (dashboard configuration). */
-  prefs?: { dashboardHidden?: string[] };
+  prefs?: { dashboardHidden?: string[]; dashboardOrder?: string[] };
 }
 
 export interface RoleDoc {

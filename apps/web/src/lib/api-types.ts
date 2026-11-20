@@ -1080,6 +1080,7 @@ export interface paths {
           content: {
             'application/json': {
               dashboardHidden: string[];
+              dashboardOrder: string[];
             };
           };
         };
@@ -1113,6 +1114,7 @@ export interface paths {
         content: {
           'application/json': {
             dashboardHidden: string[];
+            dashboardOrder?: string[];
           };
         };
       };
@@ -1125,6 +1127,7 @@ export interface paths {
           content: {
             'application/json': {
               dashboardHidden: string[];
+              dashboardOrder: string[];
             };
           };
         };
@@ -10472,6 +10475,11 @@ export interface paths {
                 reason: string;
                 accepted: boolean;
                 count: number;
+              }[];
+              byHour: {
+                hour: string;
+                accepted: number;
+                rejected: number;
               }[];
             };
           };
