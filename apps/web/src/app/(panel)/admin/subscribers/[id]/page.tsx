@@ -18,7 +18,7 @@ import Link from 'next/link';
 import { LiveSpeed } from '@/components/router-live';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { actionLabel, AuditChanges } from '@/components/audit-changes';
 import { PaymentLinkDialog, RechargeDialog, SubscriberBilling } from '@/components/billing';
 import { SubscriberConsent } from '@/components/privacy';

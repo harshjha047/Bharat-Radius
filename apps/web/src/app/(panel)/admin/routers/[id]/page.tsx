@@ -1,11 +1,11 @@
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plug } from 'lucide-react';
+import { ArrowLeft, Plug, ScrollText } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { usePolledSeries, type TrafficPoint } from '@/components/router-live';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -408,7 +408,7 @@ export default function RouterPage() {
   const ifaces = useQuery({
     queryKey: ['router-live', id, 'interfaces'],
     queryFn: () => unwrap(api.GET('/api/v1/nas/{id}/live/interfaces', { params: { path: { id } } })),
-    enabled: !!n?.apiEnabled,
+    enabled: !!n?.apiEnabled && n.canManage,
     staleTime: 60_000,
     retry: false,
   });
@@ -422,44 +422,69 @@ export default function RouterPage() {
         title={n?.name ?? 'Router'}
         description={n ? `${n.ip}${n.location.popName ? ` · ${n.location.popName}` : ''}` : undefined}
         actions={
-          <Button variant="outline" asChild>
-            <Link href="/admin/routers">
-              <ArrowLeft /> Routers
-            </Link>
-          </Button>
+          <>
+            {n ? (
+              <Button variant="outline" asChild>
+                <Link href={`/admin/radius-log?nas=${encodeURIComponent(n.ip)}`}>
+                  <ScrollText /> Logs
+                </Link>
+              </Button>
+            ) : null}
+            <Button variant="outline" asChild>
+              <Link href="/admin/routers">
+                <ArrowLeft /> Routers
+              </Link>
+            </Button>
+          </>
         }
       />
       {nas.isError ? <ErrorState error={nas.error} onRetry={() => void nas.refetch()} /> : null}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ApiForm id={id} />
-        {n?.apiEnabled ? (
-          <Info id={id} ip={n.ip} />
-        ) : (
-          <Card>
-            <CardContent className="py-8 text-sm text-muted-foreground">
-              <Badge tone="neutral">Live graphs off</Badge>
-              <p className="mt-2">
-                Save the router’s API login to see traffic, latency and router health here.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-        {n?.apiEnabled ? (
-          ifaces.isError ? (
-            <Card className="lg:col-span-2">
-              <CardContent className="py-6 text-sm text-destructive">{errorText(ifaces.error)}</CardContent>
-            </Card>
-          ) : names.length ? (
-            <>
-              <Traffic id={id} interfaces={names} />
-              <Ping id={id} />
-              <MonitoredPorts id={id} interfaces={names} />
-            </>
+      {!n ? (
+        nas.isLoading ? (
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        ) : null
+      ) : !n.canManage ? (
+        <Card>
+          <CardContent className="space-y-2 py-6 text-sm">
+            <Badge tone="neutral">ISP router</Badge>
+            <p className="text-muted-foreground">
+              Your customers connect through this router. The ISP manages it; you can see your customers’
+              logins on it under Logs.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ApiForm id={id} />
+          {n?.apiEnabled ? (
+            <Info id={id} ip={n.ip} />
           ) : (
-            <Skeleton className="h-64 w-full rounded-2xl lg:col-span-2" />
-          )
-        ) : null}
-      </div>
+            <Card>
+              <CardContent className="py-8 text-sm text-muted-foreground">
+                <Badge tone="neutral">Live graphs off</Badge>
+                <p className="mt-2">
+                  Save the router’s API login to see traffic, latency and router health here.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {n?.apiEnabled ? (
+            ifaces.isError ? (
+              <Card className="lg:col-span-2">
+                <CardContent className="py-6 text-sm text-destructive">{errorText(ifaces.error)}</CardContent>
+              </Card>
+            ) : names.length ? (
+              <>
+                <Traffic id={id} interfaces={names} />
+                <Ping id={id} />
+                <MonitoredPorts id={id} interfaces={names} />
+              </>
+            ) : (
+              <Skeleton className="h-64 w-full rounded-2xl lg:col-span-2" />
+            )
+          ) : null}
+        </div>
+      )}
     </>
   );
 }

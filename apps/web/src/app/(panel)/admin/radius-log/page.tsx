@@ -38,7 +38,7 @@ function AuthLog() {
     params.get('result') === 'reject' ? 'reject' : '',
   );
   const [reason, setReason] = useState('');
-  const [nasIp, setNasIp] = useState('');
+  const [nasIp, setNasIp] = useState(params.get('nas') ?? '');
   const [range, setRange] = useState<Range>('24h');
   // Window start fixed per choice, so pages and refetches see the same window until the user changes it.
   const [from, setFrom] = useState(() => new Date(Date.now() - RANGES['24h']).toISOString());
@@ -614,6 +614,7 @@ function RouterChecks() {
     enabled: !!asked,
   });
   const superAdmin = me.data?.user.type === 'superadmin';
+  const reseller = me.data?.user.type === 'reseller';
   const unknown = useQuery({
     queryKey: ['radius', 'unknown'],
     queryFn: () => unwrap(api.GET('/api/v1/radius/unknown-clients')),
@@ -631,7 +632,7 @@ function RouterChecks() {
         loading={problems.isLoading}
         rows={problems.data?.routers}
         rowKey={(r) => r.nasIp}
-        empty="No routers yet."
+        empty={reseller ? 'No routers added by you yet.' : 'No routers yet.'}
         columns={[
           {
             key: 'r',
@@ -666,7 +667,7 @@ function RouterChecks() {
           },
         ]}
       />
-      <div className="rounded-xl border p-4">
+      <div className="rounded-xl border p-4" hidden={reseller}>
         <p className="font-semibold">Router not reaching RADIUS?</p>
         <p className="mb-3 text-sm text-muted-foreground">
           Enter the public address the router sends from. You see what arrived from it in the last 7 days.
@@ -736,11 +737,16 @@ function RadiusLogPage() {
   const router = useRouter();
   const t = params.get('tab');
   const tab = t === 'live' || t === 'routers' ? t : 'auth';
+  const reseller = useMe().data?.user.type === 'reseller';
   return (
     <>
       <PageHeader
         title="RADIUS log"
-        description="Every login attempt with the reason, and a live view of RADIUS."
+        description={
+          reseller
+            ? 'Logins of your customers and everything on routers you added, with the reason.'
+            : 'Every login attempt with the reason, and a live view of RADIUS.'
+        }
       />
       <Tabs
         value={tab}

@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { fieldErrors } from './api';
 
 type SetError = (path: string, error: { type: string; message: string }) => void;

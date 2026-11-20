@@ -1831,6 +1831,981 @@
         }
       }
     },
+    "/api/v1/sessions/live": {
+      "get": {
+        "summary": "Users online now (search username, IP or MAC prefix; filter by router)",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "nasIp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{6}Z_\\d+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "username": {
+                            "type": "string"
+                          },
+                          "subscriberId": {
+                            "type": ["string", "null"]
+                          },
+                          "nasIp": {
+                            "type": "string"
+                          },
+                          "nasName": {
+                            "type": ["string", "null"]
+                          },
+                          "framedIp": {
+                            "type": ["string", "null"]
+                          },
+                          "mac": {
+                            "type": ["string", "null"]
+                          },
+                          "startedAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          },
+                          "stoppedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "sessionSecs": {
+                            "type": "number"
+                          },
+                          "uploadBytes": {
+                            "type": "number"
+                          },
+                          "downloadBytes": {
+                            "type": "number"
+                          },
+                          "terminateCause": {
+                            "type": ["string", "null"]
+                          },
+                          "stale": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "username",
+                          "subscriberId",
+                          "nasIp",
+                          "nasName",
+                          "framedIp",
+                          "mac",
+                          "startedAt",
+                          "updatedAt",
+                          "stoppedAt",
+                          "sessionSecs",
+                          "uploadBytes",
+                          "downloadBytes",
+                          "terminateCause",
+                          "stale"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/summary": {
+      "get": {
+        "summary": "Online count, total and per router",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "online": {
+                      "type": "number"
+                    },
+                    "stale": {
+                      "type": "number"
+                    },
+                    "byNas": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nasIp": {
+                            "type": "string"
+                          },
+                          "nasName": {
+                            "type": ["string", "null"]
+                          },
+                          "online": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["nasIp", "nasName", "online"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["online", "stale", "byNas"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/activity": {
+      "get": {
+        "summary": "Online users over the last 24 h vs last week, and logins vs rejects per hour",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "points": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "at": {
+                            "type": "string"
+                          },
+                          "online": {
+                            "type": "number"
+                          },
+                          "lastWeek": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["at", "online", "lastWeek"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hours": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "hour": {
+                            "type": "string"
+                          },
+                          "accepted": {
+                            "type": "number"
+                          },
+                          "rejected": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["hour", "accepted", "rejected"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["points", "hours"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/lookup": {
+      "get": {
+        "summary": "Who used an IP address at a given time",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "required": true,
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "username": {
+                        "type": "string"
+                      },
+                      "subscriberId": {
+                        "type": ["string", "null"]
+                      },
+                      "nasIp": {
+                        "type": "string"
+                      },
+                      "nasName": {
+                        "type": ["string", "null"]
+                      },
+                      "framedIp": {
+                        "type": ["string", "null"]
+                      },
+                      "mac": {
+                        "type": ["string", "null"]
+                      },
+                      "startedAt": {
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "type": "string"
+                      },
+                      "stoppedAt": {
+                        "type": ["string", "null"]
+                      },
+                      "sessionSecs": {
+                        "type": "number"
+                      },
+                      "uploadBytes": {
+                        "type": "number"
+                      },
+                      "downloadBytes": {
+                        "type": "number"
+                      },
+                      "terminateCause": {
+                        "type": ["string", "null"]
+                      },
+                      "stale": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "username",
+                      "subscriberId",
+                      "nasIp",
+                      "nasName",
+                      "framedIp",
+                      "mac",
+                      "startedAt",
+                      "updatedAt",
+                      "stoppedAt",
+                      "sessionSecs",
+                      "uploadBytes",
+                      "downloadBytes",
+                      "terminateCause",
+                      "stale"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/{id}/sessions": {
+      "get": {
+        "summary": "Session history (default last 90 days)",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{6}Z_\\d+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "username": {
+                            "type": "string"
+                          },
+                          "subscriberId": {
+                            "type": ["string", "null"]
+                          },
+                          "nasIp": {
+                            "type": "string"
+                          },
+                          "nasName": {
+                            "type": ["string", "null"]
+                          },
+                          "framedIp": {
+                            "type": ["string", "null"]
+                          },
+                          "mac": {
+                            "type": ["string", "null"]
+                          },
+                          "startedAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          },
+                          "stoppedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "sessionSecs": {
+                            "type": "number"
+                          },
+                          "uploadBytes": {
+                            "type": "number"
+                          },
+                          "downloadBytes": {
+                            "type": "number"
+                          },
+                          "terminateCause": {
+                            "type": ["string", "null"]
+                          },
+                          "stale": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "username",
+                          "subscriberId",
+                          "nasIp",
+                          "nasName",
+                          "framedIp",
+                          "mac",
+                          "startedAt",
+                          "updatedAt",
+                          "stoppedAt",
+                          "sessionSecs",
+                          "uploadBytes",
+                          "downloadBytes",
+                          "terminateCause",
+                          "stale"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/{id}/usage": {
+      "get": {
+        "summary": "Daily data usage (IST days, default last 31) and the current data-cap cycle",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "subscribers.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d\\d-\\d\\d$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d\\d-\\d\\d$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "days": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "day": {
+                            "type": "string"
+                          },
+                          "uploadBytes": {
+                            "type": "number"
+                          },
+                          "downloadBytes": {
+                            "type": "number"
+                          },
+                          "sessionSecs": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["day", "uploadBytes", "downloadBytes", "sessionSecs"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "cycle": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": ["string", "null"]
+                            },
+                            "usedBytes": {
+                              "type": "number"
+                            },
+                            "capBytes": {
+                              "type": "number"
+                            },
+                            "fupActive": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["start", "usedBytes", "capBytes", "fupActive"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["days", "cycle"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscribers/{id}/auth-log": {
+      "get": {
+        "summary": "Login attempts with the reject reason (default last 90 days)",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {}
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{6}Z_\\d+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "at": {
+                            "type": "string"
+                          },
+                          "accepted": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "type": ["string", "null"]
+                          },
+                          "nasIp": {
+                            "type": "string"
+                          },
+                          "mac": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": ["at", "accepted", "reason", "nasIp", "mac"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["items", "nextCursor"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/nas/radius-target": {
       "get": {
         "summary": "RADIUS host and ports routers must send to (this panel feeds that instance)",
@@ -1951,6 +2926,15 @@
               "type": "string",
               "enum": ["active", "disabled"]
             }
+          },
+          {
+            "name": "resellerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
           }
         ],
         "responses": {
@@ -2046,6 +3030,32 @@
                               "additionalProperties": false
                             }
                           },
+                          "owner": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "code", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "canManage": {
+                            "type": "boolean"
+                          },
                           "updatedAt": {
                             "type": "string"
                           },
@@ -2066,6 +3076,8 @@
                           "lastSeenAt",
                           "apiEnabled",
                           "monitorPorts",
+                          "owner",
+                          "canManage",
                           "updatedAt"
                         ],
                         "additionalProperties": false
@@ -2273,6 +3285,32 @@
                         "additionalProperties": false
                       }
                     },
+                    "owner": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "canManage": {
+                      "type": "boolean"
+                    },
                     "updatedAt": {
                       "type": "string"
                     },
@@ -2293,6 +3331,8 @@
                     "lastSeenAt",
                     "apiEnabled",
                     "monitorPorts",
+                    "owner",
+                    "canManage",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -2442,6 +3482,32 @@
                         "additionalProperties": false
                       }
                     },
+                    "owner": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "canManage": {
+                      "type": "boolean"
+                    },
                     "updatedAt": {
                       "type": "string"
                     },
@@ -2462,6 +3528,8 @@
                     "lastSeenAt",
                     "apiEnabled",
                     "monitorPorts",
+                    "owner",
+                    "canManage",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -2685,6 +3753,32 @@
                         "additionalProperties": false
                       }
                     },
+                    "owner": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "canManage": {
+                      "type": "boolean"
+                    },
                     "updatedAt": {
                       "type": "string"
                     },
@@ -2705,6 +3799,8 @@
                     "lastSeenAt",
                     "apiEnabled",
                     "monitorPorts",
+                    "owner",
+                    "canManage",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -20487,981 +21583,6 @@
                     }
                   },
                   "required": ["configured", "hits", "filesScanned", "bytesScanned", "truncated"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "required": ["code", "message", "requestId"],
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object"
-                        },
-                        "requestId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sessions/live": {
-      "get": {
-        "summary": "Users online now (search username, IP or MAC prefix; filter by router)",
-        "tags": ["sessions"],
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "x-permission": "sessions.read",
-        "parameters": [
-          {
-            "name": "tenantId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{24}$"
-            }
-          },
-          {
-            "name": "q",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 64
-            }
-          },
-          {
-            "name": "nasIp",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{6}Z_\\d+$"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 200
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "username": {
-                            "type": "string"
-                          },
-                          "subscriberId": {
-                            "type": ["string", "null"]
-                          },
-                          "nasIp": {
-                            "type": "string"
-                          },
-                          "nasName": {
-                            "type": ["string", "null"]
-                          },
-                          "framedIp": {
-                            "type": ["string", "null"]
-                          },
-                          "mac": {
-                            "type": ["string", "null"]
-                          },
-                          "startedAt": {
-                            "type": "string"
-                          },
-                          "updatedAt": {
-                            "type": "string"
-                          },
-                          "stoppedAt": {
-                            "type": ["string", "null"]
-                          },
-                          "sessionSecs": {
-                            "type": "number"
-                          },
-                          "uploadBytes": {
-                            "type": "number"
-                          },
-                          "downloadBytes": {
-                            "type": "number"
-                          },
-                          "terminateCause": {
-                            "type": ["string", "null"]
-                          },
-                          "stale": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "username",
-                          "subscriberId",
-                          "nasIp",
-                          "nasName",
-                          "framedIp",
-                          "mac",
-                          "startedAt",
-                          "updatedAt",
-                          "stoppedAt",
-                          "sessionSecs",
-                          "uploadBytes",
-                          "downloadBytes",
-                          "terminateCause",
-                          "stale"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "nextCursor": {
-                      "type": ["string", "null"]
-                    }
-                  },
-                  "required": ["items", "nextCursor"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "required": ["code", "message", "requestId"],
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object"
-                        },
-                        "requestId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sessions/summary": {
-      "get": {
-        "summary": "Online count, total and per router",
-        "tags": ["sessions"],
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "x-permission": "sessions.read",
-        "parameters": [
-          {
-            "name": "tenantId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{24}$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "online": {
-                      "type": "number"
-                    },
-                    "stale": {
-                      "type": "number"
-                    },
-                    "byNas": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "nasIp": {
-                            "type": "string"
-                          },
-                          "nasName": {
-                            "type": ["string", "null"]
-                          },
-                          "online": {
-                            "type": "number"
-                          }
-                        },
-                        "required": ["nasIp", "nasName", "online"],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": ["online", "stale", "byNas"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "required": ["code", "message", "requestId"],
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object"
-                        },
-                        "requestId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sessions/activity": {
-      "get": {
-        "summary": "Online users over the last 24 h vs last week, and logins vs rejects per hour",
-        "tags": ["sessions"],
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "x-permission": "sessions.read",
-        "parameters": [
-          {
-            "name": "tenantId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{24}$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "points": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "at": {
-                            "type": "string"
-                          },
-                          "online": {
-                            "type": "number"
-                          },
-                          "lastWeek": {
-                            "type": "number"
-                          }
-                        },
-                        "required": ["at", "online", "lastWeek"],
-                        "additionalProperties": false
-                      }
-                    },
-                    "hours": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "hour": {
-                            "type": "string"
-                          },
-                          "accepted": {
-                            "type": "number"
-                          },
-                          "rejected": {
-                            "type": "number"
-                          }
-                        },
-                        "required": ["hour", "accepted", "rejected"],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": ["points", "hours"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "required": ["code", "message", "requestId"],
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object"
-                        },
-                        "requestId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sessions/lookup": {
-      "get": {
-        "summary": "Who used an IP address at a given time",
-        "tags": ["sessions"],
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "x-permission": "sessions.read",
-        "parameters": [
-          {
-            "name": "tenantId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{24}$"
-            }
-          },
-          {
-            "name": "ip",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "at",
-            "in": "query",
-            "required": true,
-            "schema": {}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string"
-                      },
-                      "username": {
-                        "type": "string"
-                      },
-                      "subscriberId": {
-                        "type": ["string", "null"]
-                      },
-                      "nasIp": {
-                        "type": "string"
-                      },
-                      "nasName": {
-                        "type": ["string", "null"]
-                      },
-                      "framedIp": {
-                        "type": ["string", "null"]
-                      },
-                      "mac": {
-                        "type": ["string", "null"]
-                      },
-                      "startedAt": {
-                        "type": "string"
-                      },
-                      "updatedAt": {
-                        "type": "string"
-                      },
-                      "stoppedAt": {
-                        "type": ["string", "null"]
-                      },
-                      "sessionSecs": {
-                        "type": "number"
-                      },
-                      "uploadBytes": {
-                        "type": "number"
-                      },
-                      "downloadBytes": {
-                        "type": "number"
-                      },
-                      "terminateCause": {
-                        "type": ["string", "null"]
-                      },
-                      "stale": {
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "username",
-                      "subscriberId",
-                      "nasIp",
-                      "nasName",
-                      "framedIp",
-                      "mac",
-                      "startedAt",
-                      "updatedAt",
-                      "stoppedAt",
-                      "sessionSecs",
-                      "uploadBytes",
-                      "downloadBytes",
-                      "terminateCause",
-                      "stale"
-                    ],
-                    "additionalProperties": false
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "required": ["code", "message", "requestId"],
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object"
-                        },
-                        "requestId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/subscribers/{id}/sessions": {
-      "get": {
-        "summary": "Session history (default last 90 days)",
-        "tags": ["sessions"],
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "x-permission": "sessions.read",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{24}$"
-            }
-          },
-          {
-            "name": "from",
-            "in": "query",
-            "required": false,
-            "schema": {}
-          },
-          {
-            "name": "to",
-            "in": "query",
-            "required": false,
-            "schema": {}
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{6}Z_\\d+$"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 200
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "username": {
-                            "type": "string"
-                          },
-                          "subscriberId": {
-                            "type": ["string", "null"]
-                          },
-                          "nasIp": {
-                            "type": "string"
-                          },
-                          "nasName": {
-                            "type": ["string", "null"]
-                          },
-                          "framedIp": {
-                            "type": ["string", "null"]
-                          },
-                          "mac": {
-                            "type": ["string", "null"]
-                          },
-                          "startedAt": {
-                            "type": "string"
-                          },
-                          "updatedAt": {
-                            "type": "string"
-                          },
-                          "stoppedAt": {
-                            "type": ["string", "null"]
-                          },
-                          "sessionSecs": {
-                            "type": "number"
-                          },
-                          "uploadBytes": {
-                            "type": "number"
-                          },
-                          "downloadBytes": {
-                            "type": "number"
-                          },
-                          "terminateCause": {
-                            "type": ["string", "null"]
-                          },
-                          "stale": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "username",
-                          "subscriberId",
-                          "nasIp",
-                          "nasName",
-                          "framedIp",
-                          "mac",
-                          "startedAt",
-                          "updatedAt",
-                          "stoppedAt",
-                          "sessionSecs",
-                          "uploadBytes",
-                          "downloadBytes",
-                          "terminateCause",
-                          "stale"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "nextCursor": {
-                      "type": ["string", "null"]
-                    }
-                  },
-                  "required": ["items", "nextCursor"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "required": ["code", "message", "requestId"],
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object"
-                        },
-                        "requestId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/subscribers/{id}/usage": {
-      "get": {
-        "summary": "Daily data usage (IST days, default last 31) and the current data-cap cycle",
-        "tags": ["sessions"],
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "x-permission": "subscribers.read",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{24}$"
-            }
-          },
-          {
-            "name": "from",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d\\d-\\d\\d$"
-            }
-          },
-          {
-            "name": "to",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d\\d-\\d\\d$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "days": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "day": {
-                            "type": "string"
-                          },
-                          "uploadBytes": {
-                            "type": "number"
-                          },
-                          "downloadBytes": {
-                            "type": "number"
-                          },
-                          "sessionSecs": {
-                            "type": "number"
-                          }
-                        },
-                        "required": ["day", "uploadBytes", "downloadBytes", "sessionSecs"],
-                        "additionalProperties": false
-                      }
-                    },
-                    "cycle": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "start": {
-                              "type": ["string", "null"]
-                            },
-                            "usedBytes": {
-                              "type": "number"
-                            },
-                            "capBytes": {
-                              "type": "number"
-                            },
-                            "fupActive": {
-                              "type": "boolean"
-                            }
-                          },
-                          "required": ["start", "usedBytes", "capBytes", "fupActive"],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "required": ["days", "cycle"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "required": ["code", "message", "requestId"],
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object"
-                        },
-                        "requestId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/subscribers/{id}/auth-log": {
-      "get": {
-        "summary": "Login attempts with the reject reason (default last 90 days)",
-        "tags": ["sessions"],
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "x-permission": "sessions.read",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{24}$"
-            }
-          },
-          {
-            "name": "from",
-            "in": "query",
-            "required": false,
-            "schema": {}
-          },
-          {
-            "name": "to",
-            "in": "query",
-            "required": false,
-            "schema": {}
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{6}Z_\\d+$"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 200
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "at": {
-                            "type": "string"
-                          },
-                          "accepted": {
-                            "type": "boolean"
-                          },
-                          "reason": {
-                            "type": ["string", "null"]
-                          },
-                          "nasIp": {
-                            "type": "string"
-                          },
-                          "mac": {
-                            "type": ["string", "null"]
-                          }
-                        },
-                        "required": ["at", "accepted", "reason", "nasIp", "mac"],
-                        "additionalProperties": false
-                      }
-                    },
-                    "nextCursor": {
-                      "type": ["string", "null"]
-                    }
-                  },
-                  "required": ["items", "nextCursor"],
                   "additionalProperties": false
                 }
               }

@@ -1100,6 +1100,17 @@ const kycDocuments: Migration = {
   },
 };
 
+/** Resellers add routers: a router may belong to a reseller branch. */
+const resellerRouters: Migration = {
+  id: '018_reseller_routers',
+  async up(db) {
+    await ensureIndexes(db, 'nas_devices', [
+      { key: { tenantId: 1, resellerId: 1 }, partialFilterExpression: { resellerId: { $type: 'objectId' } } },
+      { key: { tenantId: 1, ancestors: 1 }, partialFilterExpression: { ancestors: { $type: 'array' } } },
+    ]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -1118,4 +1129,5 @@ export const MIGRATIONS: readonly Migration[] = [
   usernameCaseInsensitive,
   topupRequests,
   kycDocuments,
+  resellerRouters,
 ];

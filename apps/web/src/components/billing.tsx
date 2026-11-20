@@ -8,7 +8,7 @@ import {
 } from '@tanstack/react-query';
 import { FileText } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';

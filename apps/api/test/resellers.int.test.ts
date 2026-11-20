@@ -167,11 +167,11 @@ describe('login as site (X-View-As)', () => {
     expect(me.status).toBe(200);
     expect(me.body.viewAs).toMatchObject({ resellerId: id.l1, name: 'Noida Net' });
     expect(me.body.user).toMatchObject({ type: 'reseller', resellerId: id.l1 });
-    expect(me.body.permissions).not.toContain('nas.read');
+    expect(me.body.permissions).toContain('nas.read');
     const list = await admin.req('GET', R, undefined, as(id.l2!));
     expect(list.body.items.map((r: { id: string }) => r.id)).not.toContain(id.l1);
     expect((await admin.req('GET', `${R}/${id.l1}`, undefined, as(id.l2!))).status).toBe(404);
-    expect((await admin.req('GET', '/api/v1/nas', undefined, as(id.l1!))).status).toBe(403);
+    expect((await admin.req('GET', '/api/v1/nas', undefined, as(id.l1!))).status).toBe(200);
     expect((await admin.req('GET', '/api/v1/auth/me')).body.viewAs).toBeNull();
   });
 
@@ -193,6 +193,43 @@ describe('login as site (X-View-As)', () => {
       .collection<{ action: string; actor: { name: string } }>('audit_logs')
       .findOne({ action: 'subscriber.create' }, { sort: { _id: -1 } });
     expect(audit?.actor.name).toMatch(/\(as R-\d{4}\)$/);
+  });
+});
+
+describe('reseller routers', () => {
+  const N = '/api/v1/nas';
+  const as = (r: string) => ({ 'x-view-as': r });
+  let mine: string;
+  let isp: string;
+
+  it('a reseller adds a router to its branch; above sees it, below and siblings do not', async () => {
+    const c = await rUser.req('POST', N, { name: 'L2 POP', ip: '198.51.100.21' });
+    expect(c.status, JSON.stringify(c.body)).toBe(201);
+    expect(c.body).toMatchObject({ canManage: true, owner: { id: id.l2 } });
+    expect(c.body.radiusSecret).toBeTruthy();
+    mine = c.body.id;
+    isp = (await admin.req('POST', N, { name: 'ISP core', ip: '198.51.100.22' })).body.id;
+
+    const staff = await admin.req('GET', `${N}?limit=200`);
+    expect(staff.body.items.find((n: { id: string }) => n.id === mine)).toMatchObject({
+      owner: { id: id.l2 },
+    });
+    expect(
+      (await admin.req('GET', `${N}?resellerId=${id.l1}`)).body.items.map((n: { id: string }) => n.id),
+    ).toEqual([mine]);
+    const seen = (await rUser.req('GET', N)).body.items.map((n: { id: string }) => n.id);
+    expect(seen).toEqual([mine]);
+    expect((await admin.req('GET', `${N}/${mine}`, undefined, as(id.l1!))).status).toBe(200);
+    expect((await rUser.req('GET', `${N}/${mine}`, undefined, as(id.l3!))).status).toBe(404);
+    expect((await rUser.req('GET', `${N}/${isp}`)).status).toBe(404);
+  });
+
+  it('it manages only its own routers', async () => {
+    expect((await rUser.req('PATCH', `${N}/${mine}`, { name: 'L2 POP A' })).status).toBe(200);
+    expect((await rUser.req('GET', `${N}/${mine}/secret`)).status).toBe(200);
+    expect((await rUser.req('PATCH', `${N}/${isp}`, { name: 'x' })).status).toBe(404);
+    expect((await rUser.req('DELETE', `${N}/${isp}`)).status).toBe(404);
+    expect((await rUser.req('GET', '/api/v1/radius/address-check?ip=198.51.100.22')).status).toBe(403);
   });
 });
 

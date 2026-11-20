@@ -69,9 +69,17 @@ const step = (name, fn) =>
     }
   });
 
-// Dashboard KPI tiles also link to Plans/Routers ("Plans 0 active"), so click the sidebar entry.
-const sidebarLink = (name) =>
-  page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name, exact: true });
+// Dashboard tiles also link to Plans/Routers, so click the sidebar entry. Sidebar sections fold: open them first.
+const mainNav = () => page.getByRole('navigation', { name: 'Main' });
+async function sidebarLink(name) {
+  // The sidebar renders after /auth/me; wait for its first entry before opening sections.
+  await mainNav().getByRole('link').first().waitFor();
+  const closed = mainNav().locator('button[aria-expanded="false"]:visible');
+  while (await closed.count()) await closed.first().click();
+  return mainNav().getByRole('link', { name, exact: true });
+}
+/** Sileo toasts: title and description are separate nodes; match the whole toast. */
+const toastWith = (text) => page.locator('[data-sileo-toast]').filter({ hasText: text }).first();
 
 step('pages carry a nonce CSP without inline scripts', async () => {
   const res = await page.goto(`${BASE}/login`);
@@ -95,11 +103,11 @@ step('ISP Admin must enrol 2FA, then lands on the dashboard', async () => {
   await page.fill('#code', totp(secret));
   await page.getByRole('button', { name: 'Turn on' }).click();
   await page.waitForURL(/\/admin$/);
-  await page.getByText(/Hello, E2E/).waitFor();
+  await page.getByText(/Good (morning|afternoon|evening), E2E/).waitFor();
 });
 
 step('create a plan', async () => {
-  await sidebarLink('Plans').click();
+  await (await sidebarLink('Plans')).click();
   await page.getByRole('button', { name: 'New plan' }).click();
   await page.fill('#p-name', 'E2E Home 50');
   await page.fill('#p-down', '50');
@@ -114,7 +122,7 @@ step('create a plan', async () => {
 });
 
 step('add a router; the generated secret is shown once', async () => {
-  await sidebarLink('Routers').click();
+  await (await sidebarLink('Routers')).click();
   await page.getByRole('button', { name: 'Add router' }).click();
   await page.fill('#n-name', 'E2E POP-1');
   await page.fill('#n-ip', '198.51.100.7');
@@ -126,7 +134,7 @@ step('add a router; the generated secret is shown once', async () => {
 });
 
 step('create a subscriber with a generated password', async () => {
-  await sidebarLink('Subscribers').click();
+  await (await sidebarLink('Subscribers')).click();
   await page.getByRole('link', { name: 'New subscriber' }).click();
   await page.fill('#username', 'e2e.ramesh');
   await page.selectOption('#planId', { label: 'E2E Home 50' });
@@ -169,7 +177,7 @@ step('edit sends only the change and shows in history', async () => {
 });
 
 step('audit log lists the changes and sign-in', async () => {
-  await page.getByRole('link', { name: 'Audit log' }).click();
+  await (await sidebarLink('Audit log')).click();
   await page
     .getByRole('cell', { name: /subscriber\s*Create/ })
     .first()
@@ -179,7 +187,7 @@ step('audit log lists the changes and sign-in', async () => {
 });
 
 step('resellers: tree, drill-down and a customer added from a reseller', async () => {
-  await page.getByRole('link', { name: 'Resellers' }).click();
+  await (await sidebarLink('Partners')).click();
   await page.getByRole('button', { name: 'New reseller' }).click();
   await page.fill('#r-name', 'E2E Noida Net');
   await page.fill('#r-owner', 'Amit');
@@ -212,14 +220,14 @@ step('resellers: tree, drill-down and a customer added from a reseller', async (
 });
 
 step('billing: top up a reseller, cash recharge, GST invoice', async () => {
-  await page.getByRole('link', { name: 'Wallets' }).click();
+  await (await sidebarLink('Wallet')).click();
   await page
     .getByRole('row', { name: /E2E Noida Net/ })
     .getByRole('button', { name: 'Top up' })
     .click();
   await page.fill('#t-amount', '1000');
   await page.getByRole('button', { name: /^Send/ }).click();
-  await page.getByText(/E2E Noida Net now has/).waitFor();
+  await toastWith(/E2E Noida Net now has/).waitFor();
   await page
     .getByRole('row', { name: /E2E Noida Net/ })
     .getByText('₹1,000.00')
@@ -235,7 +243,7 @@ step('billing: top up a reseller, cash recharge, GST invoice', async () => {
   assert.equal(await dialog.locator('#rc-price').inputValue(), '589');
   assert.match(await dialog.locator('#rc-until').inputValue(), /^\d{4}-\d{2}-\d{2}$/);
   await dialog.getByRole('button', { name: 'Recharge' }).click();
-  await page.getByText(/Recharged\. Valid until/).waitFor();
+  await toastWith(/Valid until/).waitFor();
   await page.getByRole('tab', { name: 'Billing' }).click();
   await page.getByRole('tab', { name: 'Invoices' }).click();
   await page.getByText(/^INV\/\d{4}\/\d{5}$/).waitFor();
@@ -249,7 +257,7 @@ step('phone layout: cards, no sideways scrolling, menu works', async () => {
   await page.getByRole('link', { name: 'Ramesh Kumar E2E' }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0);
   await page.getByRole('button', { name: 'Open menu' }).click();
-  await page.getByRole('link', { name: 'Online now' }).click();
+  await (await sidebarLink('Online now')).click();
   await page.waitForURL(/\/admin\/sessions/);
   await page.setViewportSize({ width: 1280, height: 860 });
 });
@@ -265,8 +273,8 @@ step('sign out', async () => {
 step('Support sees only what the role allows', async () => {
   await signIn(page, SUPPORT);
   await page.waitForURL(/\/admin$/);
-  const nav = page.getByRole('navigation', { name: 'Main' });
-  await nav.getByRole('link', { name: 'Subscribers' }).waitFor();
+  const nav = mainNav();
+  await (await sidebarLink('Subscribers')).waitFor();
   for (const hidden of ['Staff & roles', 'Audit log', 'ISP settings', 'Import & export']) {
     assert.equal(await nav.getByRole('link', { name: hidden }).count(), 0, `${hidden} should be hidden`);
   }

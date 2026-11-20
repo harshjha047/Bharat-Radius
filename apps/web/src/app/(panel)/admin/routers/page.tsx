@@ -1,9 +1,20 @@
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, Eye, KeyRound, MoreHorizontal, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
+import {
+  Activity,
+  Eye,
+  KeyRound,
+  MoreHorizontal,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  ScrollText,
+  Trash2,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { RouterForm } from '@/components/router-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +24,7 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/compo
 import { ConfirmDialog, ErrorState, PageHeader, SecretBox } from '@/components/ui/misc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, unwrap } from '@/lib/api';
-import { useCan } from '@/lib/auth';
+import { useCan, useMe } from '@/lib/auth';
 import type { Nas } from '@/lib/queries';
 import { relTime } from '@/lib/utils';
 
@@ -41,6 +52,8 @@ export default function RoutersPage() {
   const qc = useQueryClient();
   const router = useRouter();
   const write = can('nas.write');
+  const reseller = useMe().data?.user.type === 'reseller';
+  const logs = (n: Nas) => router.push(`/admin/radius-log?nas=${encodeURIComponent(n.ip)}`);
   const [editing, setEditing] = useState<Nas | 'new' | null>(null);
   const [secret, setSecret] = useState<{ nas: Nas; value: string; fresh: boolean } | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
@@ -103,7 +116,11 @@ export default function RoutersPage() {
     <>
       <PageHeader
         title="Routers"
-        description="MikroTik routers that send logins to RADIUS. A router must be here before its customers can connect."
+        description={
+          reseller
+            ? 'Routers you added, and the ISP routers your customers connect through. Add your own MikroTik here.'
+            : 'MikroTik routers that send logins to RADIUS. A router must be here before its customers can connect.'
+        }
         actions={
           write ? (
             <Button onClick={() => setEditing('new')}>
@@ -124,7 +141,11 @@ export default function RoutersPage() {
           rows={list.data?.items}
           rowKey={(n) => n.id}
           onRowClick={(n) => router.push(`/admin/routers/${n.id}`)}
-          empty="No routers yet."
+          empty={
+            reseller
+              ? 'No routers yet. Add your own, or they appear once your customers connect.'
+              : 'No routers yet.'
+          }
           columns={[
             {
               key: 'name',
@@ -140,6 +161,26 @@ export default function RoutersPage() {
             },
             { key: 'ip', header: 'IP', cell: (n) => <span className="font-mono text-xs">{n.ip}</span> },
             { key: 'pop', header: 'POP', cell: (n) => n.location.popName ?? '—', hideOnMobile: true },
+            {
+              key: 'owner',
+              header: reseller ? 'Access' : 'Owner',
+              hideOnMobile: true,
+              cell: (n) =>
+                reseller ? (
+                  n.canManage ? (
+                    <Badge tone="success">Yours</Badge>
+                  ) : (
+                    <Badge title="Your customers connect through this ISP router">ISP · your customers</Badge>
+                  )
+                ) : n.owner ? (
+                  <span className="text-[13px]">
+                    {n.owner.name}{' '}
+                    <span className="font-mono text-xs text-muted-foreground">{n.owner.code}</span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">ISP</span>
+                ),
+            },
             {
               key: 'ros',
               header: 'RouterOS',
@@ -159,51 +200,55 @@ export default function RoutersPage() {
                 ),
             },
             { key: 'seen', header: 'Last heard', cell: (n) => relTime(n.lastSeenAt) },
-            ...(write
-              ? [
-                  {
-                    key: 'actions',
-                    header: '',
-                    className: 'text-right',
-                    cell: (n: Nas) => (
-                      // Menu items render in a portal; their clicks still bubble to the row through React.
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <Menu>
-                          <MenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label={`Actions for ${n.name}`}>
-                              <MoreHorizontal />
-                            </Button>
-                          </MenuTrigger>
-                          <MenuContent>
-                            <MenuItem onSelect={() => setEditing(n)}>
-                              <Pencil /> Edit
+            {
+              key: 'actions',
+              header: '',
+              className: 'text-right',
+              cell: (n: Nas) => (
+                // Menu items render in a portal; their clicks still bubble to the row through React.
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Menu>
+                    <MenuTrigger asChild>
+                      <Button variant="ghost" size="icon" aria-label={`Actions for ${n.name}`}>
+                        <MoreHorizontal />
+                      </Button>
+                    </MenuTrigger>
+                    <MenuContent>
+                      <MenuItem onSelect={() => logs(n)}>
+                        <ScrollText /> View logs
+                      </MenuItem>
+                      {write && n.canManage ? (
+                        <>
+                          <MenuSeparator />
+                          <MenuItem onSelect={() => setEditing(n)}>
+                            <Pencil /> Edit
+                          </MenuItem>
+                          <MenuItem onSelect={() => reveal.mutate(n)}>
+                            <Eye /> Show RADIUS secret
+                          </MenuItem>
+                          <MenuItem onSelect={() => setConfirm({ kind: 'rotate', nas: n })}>
+                            <KeyRound /> New secret
+                          </MenuItem>
+                          {n.status === 'active' ? (
+                            <MenuItem onSelect={() => setConfirm({ kind: 'disable', nas: n })}>
+                              <Pause /> Disable
                             </MenuItem>
-                            <MenuItem onSelect={() => reveal.mutate(n)}>
-                              <Eye /> Show RADIUS secret
+                          ) : (
+                            <MenuItem onSelect={() => patch.mutate({ n, body: { status: 'active' } })}>
+                              <Play /> Enable
                             </MenuItem>
-                            <MenuItem onSelect={() => setConfirm({ kind: 'rotate', nas: n })}>
-                              <KeyRound /> New secret
-                            </MenuItem>
-                            {n.status === 'active' ? (
-                              <MenuItem onSelect={() => setConfirm({ kind: 'disable', nas: n })}>
-                                <Pause /> Disable
-                              </MenuItem>
-                            ) : (
-                              <MenuItem onSelect={() => patch.mutate({ n, body: { status: 'active' } })}>
-                                <Play /> Enable
-                              </MenuItem>
-                            )}
-                            <MenuSeparator />
-                            <MenuItem destructive onSelect={() => setConfirm({ kind: 'delete', nas: n })}>
-                              <Trash2 /> Delete
-                            </MenuItem>
-                          </MenuContent>
-                        </Menu>
-                      </div>
-                    ),
-                  },
-                ]
-              : []),
+                          )}
+                          <MenuSeparator />
+                          <MenuItem destructive onSelect={() => setConfirm({ kind: 'delete', nas: n })}>
+                            <Trash2 /> Delete
+                          </MenuItem>
+                        </>
+                      ) : null}
+                    </MenuContent>
+                  </Menu>
+                </div>
+              ),
+            },
           ]}
         />
       )}

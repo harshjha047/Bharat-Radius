@@ -3,7 +3,13 @@ import { Controller, Get, Inject, Injectable, Param, Query } from '@nestjs/commo
 import { ObjectId } from 'mongodb';
 import type pg from 'pg';
 import { z } from 'zod';
-import { ScopedDb, type MongoHandle, type PlanDoc, type SubscriberDoc } from '@isp/db-mongo';
+import {
+  ScopedDb,
+  type MongoHandle,
+  type NasDeviceDoc,
+  type PlanDoc,
+  type SubscriberDoc,
+} from '@isp/db-mongo';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
@@ -169,10 +175,27 @@ const nextCursor = <T extends { start_key: string; radacctid: string }>(rows: T[
   rows.length > limit ? `${rows[limit - 1]!.start_key}_${rows[limit - 1]!.radacctid}` : null;
 
 const HISTORY_DAYS_DEFAULT = 90;
+/** A router is "used by your customers" when one of them had a session on it within this many days. */
+const USED_ROUTER_DAYS = 30;
+const BRANCH_TTL_MS = 60_000;
+
+/** What a reseller may see of the network: its customers' usernames and the routers they own or use. */
+export interface BranchNet {
+  tenantId: ObjectId;
+  resellerId: ObjectId;
+  pg: { id: number; interim: number } | null;
+  /** PPPoE usernames in the branch, as stored and lower-cased (routers report either). */
+  usernames: string[];
+  /** Routers added by the branch. */
+  ownIps: string[];
+  /** Own routers plus routers the branch's customers used in the last 30 days. */
+  visibleIps: string[];
+}
 
 @Injectable()
 export class SessionsService {
   private readonly tenantCache = new Map<string, { at: number; id: number; interim: number }>();
+  private readonly branchCache = new Map<string, { at: number; v: BranchNet }>();
 
   constructor(
     @Inject(MONGO) private readonly mongo: MongoHandle,
@@ -185,10 +208,67 @@ export class SessionsService {
   }
 
   mongoTenant(ctx: AuthContext, requested?: string): ObjectId {
-    if (ctx.scope.kind === 'branch') throw forbidden('Session views for resellers arrive with Step 3');
+    if (ctx.scope.kind === 'branch') throw forbidden('Not available in a reseller panel');
     if (ctx.scope.kind === 'tenant') return ctx.scope.tenantId;
     if (!requested) throw new AppError(400, 'VALIDATION_FAILED', 'tenantId is required for super-admins');
     return new ObjectId(requested);
+  }
+
+  /** Tenant scope for ISP-wide reads; a reseller gets its branch (callers must filter by it). */
+  async scopeFor(
+    ctx: AuthContext,
+    requested?: string,
+  ): Promise<{ mongoId: ObjectId; branch: BranchNet | null }> {
+    if (ctx.scope.kind === 'branch') {
+      const branch = await this.branchNet(ctx);
+      return { mongoId: ctx.scope.tenantId, branch };
+    }
+    return { mongoId: this.mongoTenant(ctx, requested), branch: null };
+  }
+
+  /** Cached 60 s per reseller; `forgetBranches` after a reseller adds or removes a router. */
+  async branchNet(ctx: AuthContext): Promise<BranchNet | null> {
+    if (ctx.scope.kind !== 'branch') return null;
+    const { tenantId, resellerId } = ctx.scope;
+    const key = resellerId.toHexString();
+    const hit = this.branchCache.get(key);
+    if (hit && Date.now() - hit.at < BRANCH_TTL_MS) return hit.v;
+    const inBranch = { tenantId, $or: [{ resellerId }, { ancestors: resellerId }] };
+    const [names, own, pgT] = await Promise.all([
+      this.mongo.db
+        .collection<SubscriberDoc>('subscribers')
+        .distinct('username', { ...inBranch, status: { $ne: 'deleted' }, username: { $type: 'string' } }),
+      this.mongo.db
+        .collection<NasDeviceDoc>('nas_devices')
+        .distinct('ip', { ...inBranch, status: { $ne: 'deleted' }, ip: { $type: 'string' } }),
+      this.pool ? this.pgTenant(tenantId) : null,
+    ]);
+    const usernames = [...new Set((names as string[]).flatMap((u) => [u, u.toLowerCase()]))];
+    let used: string[] = [];
+    if (pgT && usernames.length && this.pool) {
+      const r = await this.pool.query<{ ip: string }>(
+        `SELECT DISTINCT host(nasipaddress) AS ip FROM radacct
+          WHERE tenant_id = $1 AND username = ANY($2::text[])
+            AND acctstarttime > now() - make_interval(days => $3::int)`,
+        [pgT.id, usernames, USED_ROUTER_DAYS],
+      );
+      used = r.rows.map((x) => x.ip);
+    }
+    const ownIps = own as string[];
+    const v: BranchNet = {
+      tenantId,
+      resellerId,
+      pg: pgT ? { id: pgT.id, interim: pgT.interim } : null,
+      usernames,
+      ownIps,
+      visibleIps: [...new Set([...ownIps, ...used])],
+    };
+    this.branchCache.set(key, { at: Date.now(), v });
+    return v;
+  }
+
+  forgetBranches() {
+    this.branchCache.clear();
   }
 
   /** PostgreSQL id and interim interval of the ISP; null until its first sync (then there is nothing to read). */
@@ -217,10 +297,12 @@ export class SessionsService {
   }
 
   async live(ctx: AuthContext, q: z.output<typeof liveQuery>) {
-    const t = await this.pgTenant(this.mongoTenant(ctx, q.tenantId));
-    if (!t) return { items: [], nextCursor: null };
+    const { mongoId, branch } = await this.scopeFor(ctx, q.tenantId);
+    const t = await this.pgTenant(mongoId);
+    if (!t || (branch && !branch.usernames.length)) return { items: [], nextCursor: null };
     const params: unknown[] = [t.id, t.interim];
     const where = ['a.tenant_id = $1', 'a.acctstoptime IS NULL'];
+    if (branch) where.push(`a.username = ANY($${params.push(branch.usernames)}::text[])`);
     if (q.nasIp) where.push(`a.nasipaddress = $${params.push(q.nasIp)}::inet`);
     if (q.q) {
       const like = `${q.q.replace(/[\\%_]/g, '\\$&')}%`;
@@ -246,8 +328,11 @@ export class SessionsService {
   }
 
   async summary(ctx: AuthContext, q: z.output<typeof tenantQuery>) {
-    const t = await this.pgTenant(this.mongoTenant(ctx, q.tenantId));
-    if (!t) return { online: 0, stale: 0, byNas: [] };
+    const { mongoId, branch } = await this.scopeFor(ctx, q.tenantId);
+    const t = await this.pgTenant(mongoId);
+    if (!t || (branch && !branch.usernames.length)) return { online: 0, stale: 0, byNas: [] };
+    const params: unknown[] = [t.id, t.interim];
+    const mine = branch ? `AND a.username = ANY($${params.push(branch.usernames)}::text[])` : '';
     const { rows } = await this.db().query<{
       nasip: string;
       shortname: string | null;
@@ -259,9 +344,9 @@ export class SessionsService {
               count(*) FILTER (WHERE a.acctupdatetime <= now() - make_interval(secs => 3 * $2::int)) AS stale
          FROM radacct a
          LEFT JOIN nas n ON n.nasname = a.nasipaddress AND n.tenant_id = a.tenant_id
-        WHERE a.tenant_id = $1 AND a.acctstoptime IS NULL
+        WHERE a.tenant_id = $1 AND a.acctstoptime IS NULL ${mine}
         GROUP BY 1, 2 ORDER BY 3 DESC`,
-      [t.id, t.interim],
+      params,
     );
     return {
       online: rows.reduce((n, r) => n + Number(r.online), 0),

@@ -1,7 +1,7 @@
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { PageSkeleton } from '@/components/shell';
 import { PrivacyNoticeCard } from '@/components/privacy';
 import { TenantForm } from '@/components/tenant-form';

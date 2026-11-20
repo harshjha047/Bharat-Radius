@@ -4,14 +4,15 @@ import { Body, Controller, Delete, Get, Inject, Injectable, Param, Patch, Post, 
 import { ObjectId, type Filter } from 'mongodb';
 import { z } from 'zod';
 import { FieldCrypto } from '@isp/shared';
-import { ScopedDb, type MongoHandle, type NasDeviceDoc } from '@isp/db-mongo';
+import { ScopedDb, type MongoHandle, type NasDeviceDoc, type ResellerDoc } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
-import { AppError, conflict, notFound } from '../errors.js';
+import { AppError, conflict, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
-import { compact, idParams, okResponse, page, pageOf, pageQuery } from '../http/schemas.js';
+import { compact, hexId, idParams, okResponse, page, pageOf, pageQuery } from '../http/schemas.js';
 import { CONFIG, type Config } from '../config.js';
 import { MONGO } from '../infra/infra.module.js';
+import { SessionsService, type BranchNet } from '../sessions/sessions.js';
 import { Outbox } from '../sync/outbox.js';
 
 /** RouterOS major version; spreadsheets and staff write "v6", "6", "6.49.20" or "RouterOS 7" interchangeably. */
@@ -67,6 +68,8 @@ const updateBody = z
 const listQuery = pageQuery.extend({
   q: z.string().trim().max(64).optional(),
   status: z.enum(['active', 'disabled']).optional(),
+  /** Staff: routers added by this reseller (or its sub-resellers). */
+  resellerId: hexId.optional(),
 });
 
 const nasView = z.object({
@@ -83,12 +86,19 @@ const nasView = z.object({
   /** RouterOS API login set up and on (live graphs, ping, live speed). */
   apiEnabled: z.boolean(),
   monitorPorts: z.array(z.object({ interface: z.string(), label: z.string().nullable() })),
+  /** Reseller that added the router; null = the ISP's own. */
+  owner: z.object({ id: z.string(), code: z.string(), name: z.string() }).nullable(),
+  /** The caller may edit, disable, delete, see the secret and use live tools (resellers: own routers only). */
+  canManage: z.boolean(),
   updatedAt: z.string(),
   /** Present only in the response that created or rotated it. */
   radiusSecret: z.string().optional(),
 });
 
-const toView = (n: NasDeviceDoc, revealed?: string): z.output<typeof nasView> => ({
+type Owner = { id: string; code: string; name: string };
+type ViewOpts = { revealed?: string; owner?: Owner | null; canManage?: boolean };
+
+const toView = (n: NasDeviceDoc, o: ViewOpts = {}): z.output<typeof nasView> => ({
   id: n._id.toHexString(),
   name: n.name,
   ip: n.ip ?? n.deletedIp ?? '',
@@ -101,13 +111,17 @@ const toView = (n: NasDeviceDoc, revealed?: string): z.output<typeof nasView> =>
   lastSeenAt: n.lastSeenAt?.toISOString() ?? null,
   apiEnabled: n.api?.enabled === true,
   monitorPorts: (n.monitorPorts ?? []).map((p) => ({ interface: p.interface, label: p.label ?? null })),
+  owner: o.owner ?? null,
+  canManage: o.canManage ?? true,
   updatedAt: n.updatedAt.toISOString(),
-  ...(revealed ? { radiusSecret: revealed } : {}),
+  ...(o.revealed ? { radiusSecret: o.revealed } : {}),
 });
 
 const newSecret = () => randomBytes(18).toString('base64url');
 const aad = (id: ObjectId) => `nas.secret:${id.toHexString()}`;
 const ipTaken = () => conflict('Another router already uses this IP address');
+
+export type NasNeed = 'see' | 'manage';
 
 @Injectable()
 export class NasService {
@@ -115,45 +129,127 @@ export class NasService {
     @Inject(MONGO) private readonly mongo: MongoHandle,
     @Inject(Outbox) private readonly outbox: Outbox,
     @Inject(FieldCrypto) private readonly crypto: FieldCrypto,
+    @Inject(SessionsService) private readonly sessions: SessionsService,
   ) {}
 
+  /** Staff: tenant-scoped. Resellers: raw collection, filtered by `branchFilter` (policy denies ScopedDb). */
   private col(ctx: AuthContext) {
     return new ScopedDb(this.mongo.db, ctx.scope).collection<NasDeviceDoc>('nas_devices');
   }
+  raw() {
+    return this.mongo.db.collection<NasDeviceDoc>('nas_devices');
+  }
 
-  private async find(ctx: AuthContext, id: ObjectId) {
-    const n = await this.col(ctx).findOne({ _id: id, status: { $ne: 'deleted' } });
+  private static owns(b: BranchNet, n: NasDeviceDoc) {
+    return !!(n.resellerId?.equals(b.resellerId) || n.ancestors?.some((a) => a.equals(b.resellerId)));
+  }
+
+  /** Routers a reseller may see: added in its branch, or used by its customers in the last 30 days. */
+  private static branchFilter(b: BranchNet, need: NasNeed): Filter<NasDeviceDoc> {
+    const own: Filter<NasDeviceDoc>[] = [{ resellerId: b.resellerId }, { ancestors: b.resellerId }];
+    return {
+      tenantId: b.tenantId,
+      $or: need === 'manage' ? own : [...own, { ip: { $in: b.visibleIps } }],
+    };
+  }
+
+  /** One router the caller may see (or manage); 404 otherwise, so other resellers' routers stay invisible. */
+  async doc(ctx: AuthContext, id: ObjectId, need: NasNeed = 'see'): Promise<NasDeviceDoc> {
+    const b = await this.sessions.branchNet(ctx);
+    if (!b) {
+      const n = await this.col(ctx).findOne({ _id: id, status: { $ne: 'deleted' } });
+      if (!n) throw notFound('Router');
+      return n;
+    }
+    const n = await this.raw().findOne({
+      $and: [{ _id: id, status: { $ne: 'deleted' } }, NasService.branchFilter(b, 'see')],
+    });
     if (!n) throw notFound('Router');
+    if (need === 'manage' && !NasService.owns(b, n)) {
+      throw forbidden('This router belongs to the ISP; ask them to change it');
+    }
     return n;
+  }
+
+  private find = (ctx: AuthContext, id: ObjectId) => this.doc(ctx, id, 'manage');
+
+  /** Reseller names for a page of routers: one query, no N+1. */
+  private async owners(docs: NasDeviceDoc[]): Promise<Map<string, Owner>> {
+    const ids = [...new Set(docs.flatMap((d) => (d.resellerId ? [d.resellerId.toHexString()] : [])))];
+    if (!ids.length) return new Map();
+    const rs = await this.mongo.db
+      .collection<ResellerDoc>('resellers')
+      .find({ _id: { $in: ids.map((i) => new ObjectId(i)) } }, { projection: { code: 1, name: 1 } })
+      .toArray();
+    return new Map(
+      rs.map((r) => [r._id.toHexString(), { id: r._id.toHexString(), code: r.code, name: r.name }]),
+    );
+  }
+
+  private async views(docs: NasDeviceDoc[], b: BranchNet | null) {
+    const owners = await this.owners(docs);
+    return (d: NasDeviceDoc, revealed?: string) =>
+      toView(d, {
+        ...(revealed ? { revealed } : {}),
+        owner: d.resellerId ? (owners.get(d.resellerId.toHexString()) ?? null) : null,
+        canManage: !b || NasService.owns(b, d),
+      });
+  }
+
+  private async one(ctx: AuthContext, d: NasDeviceDoc, revealed?: string) {
+    const b = await this.sessions.branchNet(ctx);
+    return (await this.views([d], b))(d, revealed);
   }
 
   /** IP is unique across all tenants (FreeRADIUS identifies the ISP by it), so check without tenant scope. */
   private async assertIpFree(ip: string, except?: ObjectId) {
-    const other = await this.mongo.db
-      .collection<NasDeviceDoc>('nas_devices')
-      .findOne({ ip, ...(except ? { _id: { $ne: except } } : {}) }, { projection: { _id: 1 } });
+    const other = await this.raw().findOne(
+      { ip, ...(except ? { _id: { $ne: except } } : {}) },
+      { projection: { _id: 1 } },
+    );
     if (other) throw ipTaken();
   }
 
   async list(ctx: AuthContext, q: z.output<typeof listQuery>) {
+    const b = await this.sessions.branchNet(ctx);
     const f: Filter<NasDeviceDoc> = { status: q.status ?? { $ne: 'deleted' } };
     if (q.cursor) f._id = { $lt: new ObjectId(q.cursor) };
     if (q.q) {
       const re = new RegExp(`^${q.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
       f.$or = [{ name: re }, { ip: re }, { 'location.popName': re }];
     }
-    const docs = await this.col(ctx)
-      .find(f, { sort: { _id: -1 }, limit: q.limit + 1 })
-      .toArray();
-    return pageOf(docs, q.limit, (d) => toView(d));
+    if (q.resellerId && !b) {
+      const r = new ObjectId(q.resellerId);
+      f.$and = [{ $or: [{ resellerId: r }, { ancestors: r }] }];
+    }
+    const opts = { sort: { _id: -1 as const }, limit: q.limit + 1 };
+    const docs = b
+      ? await this.raw()
+          .find({ $and: [f, NasService.branchFilter(b, 'see')] }, opts)
+          .toArray()
+      : await this.col(ctx).find(f, opts).toArray();
+    const view = await this.views(docs.slice(0, q.limit), b);
+    return pageOf(docs, q.limit, (d) => view(d));
   }
 
-  get = async (ctx: AuthContext, id: ObjectId) => toView(await this.find(ctx, id));
+  get = async (ctx: AuthContext, id: ObjectId) => this.one(ctx, await this.doc(ctx, id, 'see'));
 
   async create(ctx: AuthContext, b: z.output<typeof createBody>) {
     if (!ctx.tenantId)
       throw new AppError(400, 'VALIDATION_FAILED', 'Routers belong to an ISP; sign in as its staff');
     await this.assertIpFree(b.ip);
+    // A reseller's router belongs to its branch: it and everyone above it see it, siblings do not.
+    let owner: Pick<NasDeviceDoc, 'resellerId' | 'ancestors'> = {};
+    if (ctx.scope.kind === 'branch') {
+      const r = await this.mongo.db
+        .collection<ResellerDoc>('resellers')
+        .findOne(
+          { _id: ctx.scope.resellerId, tenantId: ctx.scope.tenantId },
+          { projection: { ancestors: 1 } },
+        );
+      if (!r) throw notFound('Reseller');
+      owner = { resellerId: r._id, ancestors: r.ancestors };
+    }
     const now = new Date();
     const actor = ctx.userId.toHexString();
     const _id = new ObjectId();
@@ -161,6 +257,7 @@ export class NasService {
     const doc: NasDeviceDoc = {
       _id,
       tenantId: ctx.tenantId,
+      ...owner,
       name: b.name,
       ip: b.ip,
       radiusSecret: this.crypto.encrypt(plain, aad(_id)),
@@ -177,7 +274,8 @@ export class NasService {
     };
     try {
       await this.outbox.tx(async (session) => {
-        await this.col(ctx).insertOne(doc, { session });
+        // Resellers insert on the raw collection (ScopedDb denies nas_devices); tenant and owner are set above.
+        await (ctx.scope.kind === 'branch' ? this.raw() : this.col(ctx)).insertOne(doc, { session });
         await this.outbox.enqueue(session, ctx.tenantId!, 'nas', _id);
       });
     } catch (e) {
@@ -190,7 +288,8 @@ export class NasService {
       throw e;
     }
     noteChange({ after: doc, entityId: _id });
-    return toView(doc, b.radiusSecret ? undefined : plain);
+    this.sessions.forgetBranches();
+    return this.one(ctx, doc, b.radiusSecret ? undefined : plain);
   }
 
   async update(ctx: AuthContext, id: ObjectId, b: z.output<typeof updateBody>) {
@@ -207,8 +306,8 @@ export class NasService {
     if (plain) set.radiusSecret = this.crypto.encrypt(plain, aad(id));
 
     const updated = await this.outbox.tx(async (session) => {
-      const u = await this.col(ctx).findOneAndUpdate(
-        { _id: id, status: { $ne: 'deleted' } },
+      const u = await this.raw().findOneAndUpdate(
+        { _id: id, tenantId: current.tenantId, status: { $ne: 'deleted' } },
         { $set: set, $inc: { version: 1 }, ...(Object.keys(unset).length ? { $unset: unset } : {}) },
         { returnDocument: 'after', session },
       );
@@ -217,14 +316,15 @@ export class NasService {
       noteChange({ before: current, after: u, entityId: id });
       return u;
     });
-    return toView(updated, b.rotateSecret ? plain : undefined);
+    if (b.ip) this.sessions.forgetBranches();
+    return this.one(ctx, updated, b.rotateSecret ? plain : undefined);
   }
 
   async remove(ctx: AuthContext, id: ObjectId) {
     const current = await this.find(ctx, id);
     await this.outbox.tx(async (session) => {
-      const r = await this.col(ctx).updateOne(
-        { _id: id, status: { $ne: 'deleted' } },
+      const r = await this.raw().updateOne(
+        { _id: id, tenantId: current.tenantId, status: { $ne: 'deleted' } },
         {
           $set: {
             status: 'deleted',
@@ -242,6 +342,7 @@ export class NasService {
       noteChange({ before: current, after: { ...current, status: 'deleted' }, entityId: id });
       await this.outbox.enqueue(session, current.tenantId, 'nas', id);
     });
+    this.sessions.forgetBranches();
   }
 
   async revealSecret(ctx: AuthContext, id: ObjectId) {

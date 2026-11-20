@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Archive, Download, FileUp, Pencil, Plus, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { PlanForm } from '@/components/plan-form';
 import { PlanImport } from '@/components/plan-import';
 import { Badge } from '@/components/ui/badge';

@@ -4,7 +4,7 @@ import { ChevronRight, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { ResellerForm } from '@/components/reseller-form';
 import { ResellerState } from '@/components/status';
 import { Button } from '@/components/ui/button';

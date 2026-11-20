@@ -2,7 +2,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Pause, Pencil, Play, Plus, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { TenantForm, type Tenant } from '@/components/tenant-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
