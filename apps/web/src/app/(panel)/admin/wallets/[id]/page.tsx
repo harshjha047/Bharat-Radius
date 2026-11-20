@@ -3,7 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { ArrowDownLeft, Download, GitBranch, SlidersHorizontal, Undo2, Zap } from 'lucide-react';
 import { TopUpDialog, WalletStateBadge, idem, toPaise, useIdemKey } from '@/components/billing';
 import { PageSkeleton } from '@/components/shell';

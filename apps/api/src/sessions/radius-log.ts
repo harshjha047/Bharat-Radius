@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { USERNAME_COLLATION, type MongoHandle, type PlanDoc, type SubscriberDoc } from '@isp/db-mongo';
 import type { AuthContext } from '../auth/context.js';
 import { CONFIG, type Config } from '../config.js';
-import { AppError, notFound } from '../errors.js';
+import { AppError, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import { hexId } from '../http/schemas.js';
 import { MONGO } from '../infra/infra.module.js';
-import { SessionsService } from './sessions.js';
+import { SessionsService, type BranchNet } from './sessions.js';
 
 const ip = z.string().refine((s) => isIP(s) !== 0, 'must be an IP');
 const tenantQuery = z.object({ tenantId: hexId.optional() });
@@ -303,17 +303,37 @@ export class RadiusLogService {
     @Inject(CONFIG) private readonly config: Config,
   ) {}
 
+  /** Resellers get their branch: their customers' logins plus everything on routers they added. */
   private async tenant(ctx: AuthContext, requested?: string) {
-    const mongoId = this.sessions.mongoTenant(ctx, requested);
-    return { mongoId, pg: await this.sessions.pgTenant(mongoId) };
+    const { mongoId, branch } = await this.sessions.scopeFor(ctx, requested);
+    return { mongoId, branch, pg: await this.sessions.pgTenant(mongoId) };
+  }
+
+  private static mine(b: BranchNet | null, params: unknown[], alias = ''): string {
+    if (!b) return '';
+    const col = alias ? `${alias}.` : '';
+    const u = params.push(b.usernames);
+    const n = params.push(b.ownIps);
+    return `AND (${col}username = ANY($${u}::text[]) OR ${col}nasipaddress = ANY($${n}::inet[]))`;
+  }
+
+  private static sees(b: BranchNet | null, username: string, nasIp: string) {
+    return (
+      !b ||
+      b.ownIps.includes(nasIp) ||
+      b.usernames.includes(username) ||
+      b.usernames.includes(username.toLowerCase())
+    );
   }
 
   async list(ctx: AuthContext, q: z.output<typeof listQuery>) {
-    const { pg: t } = await this.tenant(ctx, q.tenantId);
+    const { pg: t, branch } = await this.tenant(ctx, q.tenantId);
     if (!t) return { items: [], nextCursor: null };
     const [from, to] = range(q.from, q.to);
     const params: unknown[] = [t.id, from, to];
     const where = ['p.tenant_id = $1', 'p.authdate >= $2', 'p.authdate <= $3'];
+    const mine = RadiusLogService.mine(branch, params, 'p');
+    if (mine) where.push(mine.slice(4));
     if (q.result)
       where.push(q.result === 'accept' ? "p.reply = 'Access-Accept'" : "p.reply <> 'Access-Accept'");
     if (q.reason) where.push(`p.reason = $${params.push(q.reason)}`);
@@ -340,15 +360,17 @@ export class RadiusLogService {
   }
 
   async summary(ctx: AuthContext, q: z.output<typeof summaryQuery>) {
-    const { pg: t } = await this.tenant(ctx, q.tenantId);
+    const { pg: t, branch } = await this.tenant(ctx, q.tenantId);
     if (!t) return { accepted: 0, rejected: 0, reasons: [] };
     const [from, to] = range(q.from, q.to);
+    const params: unknown[] = [t.id, from, to];
+    const mine = RadiusLogService.mine(branch, params);
     const { rows } = await this.sessions.db().query<{ reason: string | null; accepted: boolean; n: string }>(
       `SELECT reason, reply = 'Access-Accept' AS accepted, count(*) AS n
          FROM radpostauth
-        WHERE tenant_id = $1 AND authdate >= $2 AND authdate <= $3
+        WHERE tenant_id = $1 AND authdate >= $2 AND authdate <= $3 ${mine}
         GROUP BY 1, 2 ORDER BY 3 DESC`,
-      [t.id, from, to],
+      params,
     );
     return {
       accepted: rows.filter((r) => r.accepted).reduce((s, r) => s + Number(r.n), 0),
@@ -360,7 +382,7 @@ export class RadiusLogService {
   }
 
   async why(ctx: AuthContext, q: z.output<typeof whyQuery>): Promise<Why> {
-    const { mongoId, pg: t } = await this.tenant(ctx, q.tenantId);
+    const { mongoId, pg: t, branch } = await this.tenant(ctx, q.tenantId);
     if (!t) throw notFound('Log entry');
     const db = this.sessions.db();
     const sep = q.id.lastIndexOf('_');
@@ -370,13 +392,18 @@ export class RadiusLogService {
       [t.id, q.id.slice(sep + 1), q.id.slice(0, sep)],
     );
     const row = rows[0];
-    if (!row) throw notFound('Log entry');
+    if (!row || !RadiusLogService.sees(branch, row.username, row.nasip)) throw notFound('Log entry');
     const entry = toEntry(row);
     const base = explain(row.reason, entry.accepted);
 
     const [sub, counts, similar] = await Promise.all([
       this.mongo.db.collection<SubscriberDoc>('subscribers').findOne(
-        { tenantId: mongoId, username: row.username, status: { $ne: 'deleted' } },
+        {
+          tenantId: mongoId,
+          username: row.username,
+          status: { $ne: 'deleted' },
+          ...(branch ? { $or: [{ resellerId: branch.resellerId }, { ancestors: branch.resellerId }] } : {}),
+        },
         {
           collation: USERNAME_COLLATION,
           projection: { name: 1, username: 1, status: 1, expiresAt: 1, planId: 1, network: 1 },
@@ -392,9 +419,9 @@ export class RadiusLogService {
       base.category === 'not_found'
         ? db.query<{ username: string; external_id: string | null }>(
             `SELECT username, external_id FROM subscribers
-              WHERE tenant_id = $1 AND lower(username) % lower($2)
+              WHERE tenant_id = $1 AND lower(username) % lower($2) ${branch ? 'AND username = ANY($3::text[])' : ''}
               ORDER BY similarity(lower(username), lower($2)) DESC, username LIMIT 5`,
-            [t.id, row.username],
+            branch ? [t.id, row.username, branch.usernames] : [t.id, row.username],
           )
         : Promise.resolve({ rows: [] as { username: string; external_id: string | null }[] }),
     ]);
@@ -402,8 +429,10 @@ export class RadiusLogService {
       sub?.planId
         ? this.mongo.db.collection<PlanDoc>('plans').findOne({ _id: sub.planId }, { projection: { name: 1 } })
         : null,
-      !entry.accepted && (base.category === 'wrong_password' || base.category === 'other')
-        ? this.routerHealth(t.id, entry.nasIp)
+      !entry.accepted &&
+      (base.category === 'wrong_password' || base.category === 'other') &&
+      (!branch || branch.ownIps.includes(entry.nasIp))
+        ? this.routerHealth(t.id, [entry.nasIp])
         : null,
     ]);
     const h = health?.[0];
@@ -435,8 +464,8 @@ export class RadiusLogService {
     };
   }
 
-  /** Per router of the ISP: last 24 h traffic, wrong-secret drops, PAP wrong-secret pattern. `only` = one IP. */
-  private async routerHealth(pgTenant: number, only?: string) {
+  /** Per router of the ISP: last 24 h traffic, wrong-secret drops, PAP wrong-secret pattern. `only` = these IPs. */
+  private async routerHealth(pgTenant: number, only?: string[]) {
     const db = this.sessions.db();
     const { rows } = await db.query<{
       nasip: string;
@@ -471,7 +500,7 @@ export class RadiusLogService {
              FROM radpostauth
             WHERE tenant_id = n.tenant_id AND nasipaddress = n.nasname AND authdate > now() - interval '1 hour'
          ) h ON true
-        WHERE n.tenant_id = $1 ${only ? 'AND n.nasname = $2::inet' : ''}
+        WHERE n.tenant_id = $1 ${only ? 'AND n.nasname = ANY($2::inet[])' : ''}
         ORDER BY n.shortname`,
       only ? [pgTenant, only] : [pgTenant],
     );
@@ -501,14 +530,16 @@ export class RadiusLogService {
   }
 
   async problems(ctx: AuthContext, q: z.output<typeof tenantQuery>) {
-    const { pg: t } = await this.tenant(ctx, q.tenantId);
-    if (!t) return { routers: [], problems: 0 };
-    const routers = await this.routerHealth(t.id);
+    const { pg: t, branch } = await this.tenant(ctx, q.tenantId);
+    if (!t || (branch && !branch.ownIps.length)) return { routers: [], problems: 0 };
+    // Resellers: only routers they added (counts on shared routers include other resellers' customers).
+    const routers = await this.routerHealth(t.id, branch?.ownIps);
     return { routers, problems: routers.filter((r) => r.problem && r.problem !== 'silent').length };
   }
 
   /** Is anything arriving from this address, and why is RADIUS not answering it? Exact address only. */
   async address(ctx: AuthContext, q: z.output<typeof addressQuery>) {
+    if (ctx.scope.kind === 'branch') throw forbidden('Ask the ISP to check router addresses');
     const platform = ctx.scope.kind === 'platform' && !q.tenantId;
     const t = platform ? null : (await this.tenant(ctx, q.tenantId)).pg;
     const db = this.sessions.db();
@@ -593,15 +624,16 @@ export class RadiusLogService {
 
   /** New auth and accounting events since `after` (polled every ~2 s by the live log), oldest first, ≤ 500. */
   async tail(ctx: AuthContext, q: z.output<typeof tailQuery>) {
-    const { pg: t } = await this.tenant(ctx, q.tenantId);
+    const { pg: t, branch } = await this.tenant(ctx, q.tenantId);
     const now = new Date();
     if (!t) return { now: now.toISOString(), events: [] };
     const after =
       q.after && q.after > new Date(now.getTime() - 3_600_000) ? q.after : new Date(now.getTime() - 120_000);
     const db = this.sessions.db();
     const user = q.user ? `${q.user.replace(/[\\%_]/g, '\\$&')}%` : null;
-    const userSql = (col: string) => (user ? `AND ${col} ILIKE $3` : '');
-    const params = user ? [t.id, after, user] : [t.id, after];
+    const params: unknown[] = user ? [t.id, after, user] : [t.id, after];
+    const mine = RadiusLogService.mine(branch, params);
+    const userSql = (col: string) => `${user ? `AND ${col} ILIKE $3` : ''} ${mine}`;
     const [auth, acct] = await Promise.all([
       q.type === 'acct'
         ? Promise.resolve({ rows: [] })

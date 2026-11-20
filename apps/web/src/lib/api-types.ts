@@ -1153,6 +1153,498 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/sessions/live': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Users online now (search username, IP or MAC prefix; filter by router) */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+          q?: string;
+          nasIp?: string;
+          cursor?: string;
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                username: string;
+                subscriberId: string | null;
+                nasIp: string;
+                nasName: string | null;
+                framedIp: string | null;
+                mac: string | null;
+                startedAt: string;
+                updatedAt: string;
+                stoppedAt: string | null;
+                sessionSecs: number;
+                uploadBytes: number;
+                downloadBytes: number;
+                terminateCause: string | null;
+                stale: boolean;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/sessions/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Online count, total and per router */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              online: number;
+              stale: number;
+              byNas: {
+                nasIp: string;
+                nasName: string | null;
+                online: number;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/sessions/activity': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Online users over the last 24 h vs last week, and logins vs rejects per hour */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              points: {
+                at: string;
+                online: number;
+                lastWeek: number;
+              }[];
+              hours: {
+                hour: string;
+                accepted: number;
+                rejected: number;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/sessions/lookup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Who used an IP address at a given time */
+    get: {
+      parameters: {
+        query: {
+          tenantId?: string;
+          ip: string;
+          at: unknown;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              id: string;
+              username: string;
+              subscriberId: string | null;
+              nasIp: string;
+              nasName: string | null;
+              framedIp: string | null;
+              mac: string | null;
+              startedAt: string;
+              updatedAt: string;
+              stoppedAt: string | null;
+              sessionSecs: number;
+              uploadBytes: number;
+              downloadBytes: number;
+              terminateCause: string | null;
+              stale: boolean;
+            }[];
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Session history (default last 90 days) */
+    get: {
+      parameters: {
+        query?: {
+          from?: unknown;
+          to?: unknown;
+          cursor?: string;
+          limit?: number;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                id: string;
+                username: string;
+                subscriberId: string | null;
+                nasIp: string;
+                nasName: string | null;
+                framedIp: string | null;
+                mac: string | null;
+                startedAt: string;
+                updatedAt: string;
+                stoppedAt: string | null;
+                sessionSecs: number;
+                uploadBytes: number;
+                downloadBytes: number;
+                terminateCause: string | null;
+                stale: boolean;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/usage': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Daily data usage (IST days, default last 31) and the current data-cap cycle */
+    get: {
+      parameters: {
+        query?: {
+          from?: string;
+          to?: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              days: {
+                day: string;
+                uploadBytes: number;
+                downloadBytes: number;
+                sessionSecs: number;
+              }[];
+              cycle: {
+                start: string | null;
+                usedBytes: number;
+                capBytes: number;
+                fupActive: boolean;
+              } | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/subscribers/{id}/auth-log': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Login attempts with the reject reason (default last 90 days) */
+    get: {
+      parameters: {
+        query?: {
+          from?: unknown;
+          to?: unknown;
+          cursor?: string;
+          limit?: number;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: {
+                at: string;
+                accepted: boolean;
+                reason: string | null;
+                nasIp: string;
+                mac: string | null;
+              }[];
+              nextCursor: string | null;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/nas/radius-target': {
     parameters: {
       query?: never;
@@ -1226,6 +1718,7 @@ export interface paths {
           limit?: number;
           q?: string;
           status?: 'active' | 'disabled';
+          resellerId?: string;
         };
         header?: never;
         path?: never;
@@ -1262,6 +1755,12 @@ export interface paths {
                   interface: string;
                   label: string | null;
                 }[];
+                owner: {
+                  id: string;
+                  code: string;
+                  name: string;
+                } | null;
+                canManage: boolean;
                 updatedAt: string;
                 radiusSecret?: string;
               }[];
@@ -1345,6 +1844,12 @@ export interface paths {
                 interface: string;
                 label: string | null;
               }[];
+              owner: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              canManage: boolean;
               updatedAt: string;
               radiusSecret?: string;
             };
@@ -1421,6 +1926,12 @@ export interface paths {
                 interface: string;
                 label: string | null;
               }[];
+              owner: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              canManage: boolean;
               updatedAt: string;
               radiusSecret?: string;
             };
@@ -1552,6 +2063,12 @@ export interface paths {
                 interface: string;
                 label: string | null;
               }[];
+              owner: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
+              canManage: boolean;
               updatedAt: string;
               radiusSecret?: string;
             };
@@ -9319,498 +9836,6 @@ export interface paths {
               filesScanned: number;
               bytesScanned: number;
               truncated: boolean;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/sessions/live': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Users online now (search username, IP or MAC prefix; filter by router) */
-    get: {
-      parameters: {
-        query?: {
-          tenantId?: string;
-          q?: string;
-          nasIp?: string;
-          cursor?: string;
-          limit?: number;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              items: {
-                id: string;
-                username: string;
-                subscriberId: string | null;
-                nasIp: string;
-                nasName: string | null;
-                framedIp: string | null;
-                mac: string | null;
-                startedAt: string;
-                updatedAt: string;
-                stoppedAt: string | null;
-                sessionSecs: number;
-                uploadBytes: number;
-                downloadBytes: number;
-                terminateCause: string | null;
-                stale: boolean;
-              }[];
-              nextCursor: string | null;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/sessions/summary': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Online count, total and per router */
-    get: {
-      parameters: {
-        query?: {
-          tenantId?: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              online: number;
-              stale: number;
-              byNas: {
-                nasIp: string;
-                nasName: string | null;
-                online: number;
-              }[];
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/sessions/activity': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Online users over the last 24 h vs last week, and logins vs rejects per hour */
-    get: {
-      parameters: {
-        query?: {
-          tenantId?: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              points: {
-                at: string;
-                online: number;
-                lastWeek: number;
-              }[];
-              hours: {
-                hour: string;
-                accepted: number;
-                rejected: number;
-              }[];
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/sessions/lookup': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Who used an IP address at a given time */
-    get: {
-      parameters: {
-        query: {
-          tenantId?: string;
-          ip: string;
-          at: unknown;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              id: string;
-              username: string;
-              subscriberId: string | null;
-              nasIp: string;
-              nasName: string | null;
-              framedIp: string | null;
-              mac: string | null;
-              startedAt: string;
-              updatedAt: string;
-              stoppedAt: string | null;
-              sessionSecs: number;
-              uploadBytes: number;
-              downloadBytes: number;
-              terminateCause: string | null;
-              stale: boolean;
-            }[];
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/{id}/sessions': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Session history (default last 90 days) */
-    get: {
-      parameters: {
-        query?: {
-          from?: unknown;
-          to?: unknown;
-          cursor?: string;
-          limit?: number;
-        };
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              items: {
-                id: string;
-                username: string;
-                subscriberId: string | null;
-                nasIp: string;
-                nasName: string | null;
-                framedIp: string | null;
-                mac: string | null;
-                startedAt: string;
-                updatedAt: string;
-                stoppedAt: string | null;
-                sessionSecs: number;
-                uploadBytes: number;
-                downloadBytes: number;
-                terminateCause: string | null;
-                stale: boolean;
-              }[];
-              nextCursor: string | null;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/{id}/usage': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Daily data usage (IST days, default last 31) and the current data-cap cycle */
-    get: {
-      parameters: {
-        query?: {
-          from?: string;
-          to?: string;
-        };
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              days: {
-                day: string;
-                uploadBytes: number;
-                downloadBytes: number;
-                sessionSecs: number;
-              }[];
-              cycle: {
-                start: string | null;
-                usedBytes: number;
-                capBytes: number;
-                fupActive: boolean;
-              } | null;
-            };
-          };
-        };
-        /** @description Error */
-        default: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              error?: {
-                code: string;
-                message: string;
-                details?: Record<string, never>;
-                requestId: string;
-              };
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/subscribers/{id}/auth-log': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Login attempts with the reject reason (default last 90 days) */
-    get: {
-      parameters: {
-        query?: {
-          from?: unknown;
-          to?: unknown;
-          cursor?: string;
-          limit?: number;
-        };
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              items: {
-                at: string;
-                accepted: boolean;
-                reason: string | null;
-                nasIp: string;
-                mac: string | null;
-              }[];
-              nextCursor: string | null;
             };
           };
         };

@@ -21,6 +21,7 @@ import { Ctx, Endpoint } from '../http/endpoint.js';
 import { idParams } from '../http/schemas.js';
 import { MONGO } from '../infra/infra.module.js';
 import { SessionsService } from '../sessions/sessions.js';
+import { NasService } from './nas.js';
 import { RouterOsError, type RouterOsTarget } from './routeros/client.js';
 import { RouterOsPool } from './routeros/pool.js';
 
@@ -144,20 +145,16 @@ export class RouterLiveService implements OnModuleDestroy {
     @Inject(MONGO) private readonly mongo: MongoHandle,
     @Inject(FieldCrypto) private readonly crypto: FieldCrypto,
     @Inject(SessionsService) private readonly sessions: SessionsService,
+    @Inject(NasService) private readonly nasDevices: NasService,
   ) {}
 
   onModuleDestroy() {
     this.pool.close();
   }
 
-  private col(ctx: AuthContext) {
-    return new ScopedDb(this.mongo.db, ctx.scope).collection<NasDeviceDoc>('nas_devices');
-  }
-
-  private async nas(ctx: AuthContext, id: ObjectId) {
-    const n = await this.col(ctx).findOne({ _id: id, status: { $ne: 'deleted' } });
-    if (!n) throw notFound('Router');
-    return n;
+  /** Live tools and API credentials: staff, or the reseller that added the router. */
+  private nas(ctx: AuthContext, id: ObjectId) {
+    return this.nasDevices.doc(ctx, id, 'manage');
   }
 
   private target(n: NasDeviceDoc): RouterOsTarget {
@@ -218,8 +215,8 @@ export class RouterLiveService implements OnModuleDestroy {
       ...(p.label ? { label: p.label } : {}),
     }));
     // Not a RADIUS change: no outbox row, FreeRADIUS is untouched. version++ opens a fresh API session.
-    const u = await this.col(ctx).findOneAndUpdate(
-      { _id: id, status: { $ne: 'deleted' } },
+    const u = await this.nasDevices.raw().findOneAndUpdate(
+      { _id: id, tenantId: cur.tenantId, status: { $ne: 'deleted' } },
       {
         $set: { api, monitorPorts, updatedAt: new Date(), updatedBy: ctx.userId.toHexString() },
         $inc: { version: 1 },

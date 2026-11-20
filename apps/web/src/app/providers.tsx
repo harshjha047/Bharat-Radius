@@ -1,7 +1,8 @@
 'use client';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { toast, Toaster } from 'sonner';
+import { Toaster } from 'sileo';
+import { toast } from '@/lib/toast';
 import { ApiError } from '@/lib/api';
 
 const retry = (count: number, e: unknown) => !(e instanceof ApiError && e.status < 500) && count < 2;
@@ -26,7 +27,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       {children}
-      <Toaster position="top-center" richColors closeButton />
+      <Toaster position="top-center" offset={{ top: 16 }} />
     </QueryClientProvider>
   );
 }

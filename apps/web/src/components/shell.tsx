@@ -1,30 +1,33 @@
 'use client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Activity,
+  ArrowLeft,
+  BarChart3,
   Building2,
+  ChevronDown,
   FileSpreadsheet,
-  Gauge,
+  Handshake,
+  IndianRupee,
+  LayoutDashboard,
+  LifeBuoy,
+  Lightbulb,
   LogOut,
   Menu as MenuIcon,
-  IndianRupee,
   Network,
-  ReceiptText,
-  RefreshCw,
-  Wallet,
   Package,
   Radio,
+  ReceiptText,
+  RefreshCw,
   Router,
   ScrollText,
-  ArrowLeft,
-  Activity,
   Settings,
   ShieldCheck,
+  Telescope,
   UserCog,
   Users,
+  Wallet,
   type LucideIcon,
-  LifeBuoy,
-  BarChart3,
-  Lightbulb,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -47,16 +50,31 @@ interface NavItem {
 }
 interface NavGroup {
   label: string;
+  icon: LucideIcon;
   items: NavItem[];
 }
 
 const STAFF_NAV: NavGroup[] = [
   {
-    label: 'Overview',
-    items: [{ href: '/admin', label: 'Dashboard', icon: Gauge, any: ['sessions.read', 'subscribers.read'] }],
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    items: [
+      {
+        href: '/admin',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        any: ['sessions.read', 'subscribers.read'],
+      },
+    ],
+  },
+  {
+    label: 'Partners',
+    icon: Handshake,
+    items: [{ href: '/admin/resellers', label: 'Partners', icon: Network, any: ['resellers.read'] }],
   },
   {
     label: 'Customers',
+    icon: Users,
     items: [
       { href: '/admin/subscribers', label: 'Subscribers', icon: Users, any: ['subscribers.read'] },
       { href: '/admin/sessions', label: 'Online now', icon: Radio, any: ['sessions.read'] },
@@ -65,32 +83,38 @@ const STAFF_NAV: NavGroup[] = [
   },
   {
     label: 'Billing',
+    icon: IndianRupee,
     items: [
-      { href: '/admin/wallets', label: 'Wallets', icon: Wallet, any: ['billing.read'] },
-      { href: '/admin/recharges', label: 'Recharges', icon: RefreshCw, any: ['billing.read'] },
-      { href: '/admin/invoices', label: 'Invoices', icon: ReceiptText, any: ['billing.read'] },
-      { href: '/admin/payments', label: 'Payments', icon: IndianRupee, any: ['billing.read'] },
-      { href: '/admin/insights', label: 'Insights', icon: Lightbulb, any: ['reports.view'] },
-      { href: '/admin/reports', label: 'Reports', icon: BarChart3, any: ['reports.view'] },
+      { href: '/admin/wallets', label: 'Wallet', icon: Wallet, any: ['billing.read'] },
+      { href: '/admin/recharges', label: 'Recharge', icon: RefreshCw, any: ['billing.read'] },
+      { href: '/admin/invoices', label: 'Invoice', icon: ReceiptText, any: ['billing.read'] },
+      { href: '/admin/payments', label: 'Payment', icon: IndianRupee, any: ['billing.read'] },
     ],
   },
   {
     label: 'Network',
+    icon: Router,
     items: [
       { href: '/admin/routers', label: 'Routers', icon: Router, any: ['nas.read'] },
       { href: '/admin/radius-log', label: 'RADIUS log', icon: Activity, any: ['sessions.read'] },
     ],
   },
   {
-    label: 'Partners',
-    items: [{ href: '/admin/resellers', label: 'Resellers', icon: Network, any: ['resellers.read'] }],
+    label: 'Drishti',
+    icon: Telescope,
+    items: [
+      { href: '/admin/insights', label: 'Insights', icon: Lightbulb, any: ['reports.view'] },
+      { href: '/admin/reports', label: 'Reports', icon: BarChart3, any: ['reports.view'] },
+    ],
   },
   {
     label: 'Support',
-    items: [{ href: '/admin/tickets', label: 'Tickets', icon: LifeBuoy, any: ['tickets.read'] }],
+    icon: LifeBuoy,
+    items: [{ href: '/admin/tickets', label: 'Support', icon: LifeBuoy, any: ['tickets.read'] }],
   },
   {
     label: 'System',
+    icon: Settings,
     items: [
       {
         href: '/admin/import',
@@ -107,6 +131,7 @@ const STAFF_NAV: NavGroup[] = [
 const SUPER_NAV: NavGroup[] = [
   {
     label: 'Platform',
+    icon: Building2,
     items: [
       { href: '/super/tenants', label: 'ISPs', icon: Building2 },
       { href: '/admin/audit', label: 'Audit log', icon: ScrollText },
@@ -125,34 +150,79 @@ const visible = (me: Me) =>
 const areaLabel = (me: Me) =>
   me.user.type === 'superadmin' ? 'Platform' : me.user.type === 'reseller' ? 'Reseller' : 'Admin';
 
+const isActive = (href: string, path: string) =>
+  href === '/admin' ? path === '/admin' : path === href || path.startsWith(`${href}/`);
+
+const LINK =
+  'flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-sm font-medium text-sidebar-foreground hover:bg-subtle hover:text-foreground';
+const LINK_ACTIVE =
+  'bg-sidebar-active font-bold text-sidebar-active-foreground hover:bg-sidebar-active hover:text-sidebar-active-foreground';
+
+/** One link per section; sections with several pages fold open, the one holding the current page stays open. */
 function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const path = usePathname();
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
   return (
-    <nav aria-label="Main" className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-3.5">
-      {groups.map((g) => (
-        <div key={g.label} className="flex flex-col gap-0.5">
-          <span className="eyebrow px-2.5 pb-1 text-[10px] tracking-[0.12em]">{g.label}</span>
-          {g.items.map((i) => {
-            const active = i.href === '/admin' ? path === '/admin' : path.startsWith(i.href);
-            return (
-              <Link
-                key={i.href}
-                href={i.href}
-                onClick={onNavigate}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-sm font-medium text-sidebar-foreground hover:bg-subtle hover:text-foreground',
-                  active &&
-                    'bg-sidebar-active font-bold text-sidebar-active-foreground hover:bg-sidebar-active hover:text-sidebar-active-foreground',
-                )}
-              >
-                <i.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
-                <span className="flex-1 truncate">{i.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      ))}
+    <nav aria-label="Main" className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3.5">
+      {groups.map((g) => {
+        const only = g.items.length === 1 ? g.items[0]! : null;
+        if (only) {
+          const active = isActive(only.href, path);
+          return (
+            <Link
+              key={g.label}
+              href={only.href}
+              onClick={onNavigate}
+              aria-current={active ? 'page' : undefined}
+              className={cn(LINK, active && LINK_ACTIVE)}
+            >
+              <g.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
+              <span className="flex-1 truncate">{g.label}</span>
+            </Link>
+          );
+        }
+        const holdsActive = g.items.some((i) => isActive(i.href, path));
+        const open = toggled[g.label] ?? holdsActive;
+        const id = `nav-${g.label.toLowerCase()}`;
+        return (
+          <div key={g.label} className="flex flex-col">
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-controls={id}
+              onClick={() => setToggled((t) => ({ ...t, [g.label]: !open }))}
+              className={cn(LINK, 'w-full text-left', holdsActive && !open && 'text-foreground')}
+            >
+              <g.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
+              <span className="flex-1 truncate">{g.label}</span>
+              <ChevronDown
+                className={cn('size-4 shrink-0 transition-transform duration-200', open && 'rotate-180')}
+                aria-hidden
+              />
+            </button>
+            <div
+              id={id}
+              hidden={!open}
+              className="ml-[19px] flex flex-col gap-0.5 border-l border-divider py-0.5 pl-2.5"
+            >
+              {g.items.map((i) => {
+                const active = isActive(i.href, path);
+                return (
+                  <Link
+                    key={i.href}
+                    href={i.href}
+                    onClick={onNavigate}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(LINK, 'h-8 text-[13px]', active && LINK_ACTIVE)}
+                  >
+                    <span className="flex-1 truncate">{i.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </nav>
   );
 }

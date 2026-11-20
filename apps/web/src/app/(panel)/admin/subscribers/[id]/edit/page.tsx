@@ -1,7 +1,7 @@
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { PageSkeleton } from '@/components/shell';
 import { SubscriberForm } from '@/components/subscriber-form';
 import { ErrorState, PageHeader } from '@/components/ui/misc';

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { portalKeys, usePortalMe } from '@/components/portal';
 import { PortalPrivacyCard } from '@/components/privacy';
 import { Button } from '@/components/ui/button';

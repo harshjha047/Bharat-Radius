@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpRight, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { TopUpDialog, WalletStateBadge, toPaise } from '@/components/billing';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

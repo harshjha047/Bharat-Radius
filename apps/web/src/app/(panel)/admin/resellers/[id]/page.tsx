@@ -16,7 +16,7 @@ import Link from 'next/link';
 import { enterViewAs } from '@/lib/view-as';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { AuditChanges, actionLabel } from '@/components/audit-changes';
 import { ResellerBranding } from '@/components/branding';
 import { ResellerLogins, ResellerRates, ResellerWallet } from '@/components/reseller-billing';

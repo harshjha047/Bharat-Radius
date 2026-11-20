@@ -109,6 +109,10 @@ export interface RateLimitDoc {
 export interface NasDeviceDoc extends Standard {
   _id: ObjectId;
   tenantId: ObjectId;
+  /** Reseller that added it (absent = the ISP's own); it and its ancestors manage it. */
+  resellerId?: ObjectId;
+  /** Root → parent of `resellerId`. */
+  ancestors?: ObjectId[];
   name: string;
   /** Source IP of RADIUS packets; unset when deleted (kept in deletedIp) so the IP can be reused. */
   ip?: string;

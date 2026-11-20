@@ -1,9 +1,27 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ChevronRight, LifeBuoy, Plus, Search, Server, UserPlus, Users } from 'lucide-react';
+import {
+  AlertTriangle,
+  BarChart3,
+  ChevronRight,
+  Handshake,
+  IndianRupee,
+  LifeBuoy,
+  ReceiptText,
+  RefreshCw,
+  Router as RouterIcon,
+  Search,
+  Server,
+  UserPlus,
+  Users,
+  UserX,
+  Wifi,
+  type LucideIcon,
+} from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import { DashboardConfig, useDashboardPrefs, type WidgetDef } from '@/components/dashboard-config';
 import {
   ExpiringCard,
@@ -47,21 +65,129 @@ const HEALTH = {
   disabled: { label: 'Disabled', tone: 'neutral', tile: 'bg-muted text-muted-foreground' },
 } as const;
 
-function KpiSkeleton() {
-  return (
-    <div aria-hidden className="flex flex-col gap-2.5 rounded-2xl border bg-card p-[18px]">
-      <Skeleton className="h-3 w-1/2" />
-      <Skeleton className="h-7 w-2/3 rounded-lg" />
-      <Skeleton className="h-3 w-2/5" />
-    </div>
-  );
-}
-
 const KpiLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
   <Link href={href} className="rounded-2xl text-inherit hover:text-inherit [&>div]:hover:border-input">
     {children}
   </Link>
 );
+
+type Tone = 'neutral' | 'success' | 'warning' | 'danger';
+const TONE_TEXT: Record<Tone, string> = {
+  neutral: 'text-muted-foreground',
+  success: 'text-success-text',
+  warning: 'text-warning-text',
+  danger: 'text-danger-text',
+};
+
+/** One cell of the pulse band: big number, one line of context, the whole cell links through. */
+function Metric({
+  href,
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone = 'neutral',
+  live,
+  loading,
+}: {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  value: React.ReactNode;
+  hint?: React.ReactNode;
+  tone?: Tone;
+  live?: boolean;
+  loading?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex min-w-0 flex-col gap-2 p-[18px] text-inherit hover:bg-subtle hover:text-inherit"
+    >
+      <span className="flex items-center gap-2 text-[13px] font-semibold text-body">
+        <span className="grid size-7 place-items-center rounded-lg bg-accent text-primary">
+          <Icon className="size-4" strokeWidth={1.9} aria-hidden />
+        </span>
+        <span className="truncate">{label}</span>
+        {live ? (
+          <span className="relative ml-auto flex size-2" aria-label="Live">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:animate-none" />
+            <span className="relative inline-flex size-2 rounded-full bg-success" />
+          </span>
+        ) : (
+          <ChevronRight
+            className="ml-auto size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+            aria-hidden
+          />
+        )}
+      </span>
+      {loading ? (
+        <>
+          <Skeleton className="h-8 w-2/3 rounded-lg" />
+          <Skeleton className="h-3 w-1/2" />
+        </>
+      ) : (
+        <>
+          <span className="truncate text-[clamp(24px,2.4vw,30px)] leading-tight font-extrabold tracking-[-0.03em] text-foreground tabular-nums">
+            {value}
+          </span>
+          {hint ? (
+            <span className={cn('truncate text-xs font-semibold', TONE_TEXT[tone])}>{hint}</span>
+          ) : null}
+        </>
+      )}
+    </Link>
+  );
+}
+
+/** Small secondary figure: label left, number right. */
+function Pill({
+  href,
+  label,
+  value,
+  tone = 'neutral',
+  loading,
+}: {
+  href: string;
+  label: string;
+  value: React.ReactNode;
+  tone?: Tone;
+  loading?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex min-w-0 items-center gap-3 rounded-xl border bg-card px-3.5 py-2.5 text-inherit hover:border-input hover:text-inherit"
+    >
+      <span
+        className={cn(
+          'size-2 shrink-0 rounded-full',
+          tone === 'danger'
+            ? 'bg-danger-text'
+            : tone === 'warning'
+              ? 'bg-warning'
+              : tone === 'success'
+                ? 'bg-success'
+                : 'bg-muted-foreground/40',
+        )}
+        aria-hidden
+      />
+      <span className="min-w-0 flex-1 truncate text-[13px] text-body">{label}</span>
+      {loading ? (
+        <Skeleton className="h-4 w-10" />
+      ) : (
+        <span className="text-sm font-bold text-foreground tabular-nums">{value}</span>
+      )}
+    </Link>
+  );
+}
+
+interface Attention {
+  key: string;
+  href: string;
+  text: string;
+  tone: 'danger' | 'warning';
+}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -96,6 +222,12 @@ export default function Dashboard() {
     enabled: staff && can('sessions.read') && shown('kpi-rejects'),
     refetchInterval: 60_000,
   });
+  const problems = useQuery({
+    queryKey: ['radius', 'router-problems'],
+    queryFn: () => unwrap(api.GET('/api/v1/radius/router-problems')),
+    enabled: staff && can('nas.read'),
+    refetchInterval: 60_000,
+  });
   const wallet = useQuery({
     queryKey: ['wallet', 'mine'],
     queryFn: () => unwrap(api.GET('/api/v1/wallets/mine')),
@@ -108,12 +240,16 @@ export default function Dashboard() {
     refetchInterval: 60_000,
   });
 
-  const routers = nas.data?.items ?? [];
-  const onlineByIp = new Map((summary.data?.byNas ?? []).map((n) => [n.nasIp, n.online]));
-  const rows = routers.map((r) => {
-    const online = onlineByIp.get(r.ip) ?? 0;
-    return { r, online, h: health(r, online) };
-  });
+  const routers = useMemo(() => nas.data?.items ?? [], [nas.data]);
+  const rows = useMemo(() => {
+    const onlineByIp = new Map((summary.data?.byNas ?? []).map((n) => [n.nasIp, n.online]));
+    return routers
+      .map((r) => {
+        const online = onlineByIp.get(r.ip) ?? 0;
+        return { r, online, h: health(r, online) };
+      })
+      .sort((a, b) => HEALTH_ORDER[a.h] - HEALTH_ORDER[b.h] || b.online - a.online);
+  }, [routers, summary.data]);
   const silent = rows.filter((x) => x.h === 'silent');
   const up = rows.filter((x) => x.h === 'up').length;
   const b = billing.data;
@@ -122,11 +258,60 @@ export default function Dashboard() {
   if (!staff && me.data)
     return <ResellerHome name={me.data.user.name} wallet={wallet.data} loading={wallet.isLoading} />;
 
+  const attention: Attention[] = [
+    silent.length > 0 && {
+      key: 'silent',
+      href: '/admin/routers',
+      tone: 'danger' as const,
+      text:
+        silent.length === 1
+          ? `${silent[0]!.r.name} silent since ${relTime(silent[0]!.r.lastSeenAt)}`
+          : `${silent.length} routers not reporting`,
+    },
+    (problems.data?.problems ?? 0) > 0 && {
+      key: 'secret',
+      href: '/admin/radius-log?tab=routers',
+      tone: 'danger' as const,
+      text: `${plural(problems.data!.problems, 'router')} with a RADIUS secret problem`,
+    },
+    !!b?.unpaid.overdue && {
+      key: 'overdue',
+      href: '/admin/invoices',
+      tone: 'warning' as const,
+      text: `${plural(b.unpaid.overdue, 'invoice')} overdue`,
+    },
+    !!(b && (b.wallets.low || b.wallets.frozen)) && {
+      key: 'wallets',
+      href: '/admin/wallets',
+      tone: 'warning' as const,
+      text: [
+        b!.wallets.low && plural(b!.wallets.low, 'low partner wallet'),
+        b!.wallets.frozen && plural(b!.wallets.frozen, 'frozen partner wallet'),
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    },
+    !!tickets.data?.unassigned && {
+      key: 'tickets',
+      href: '/admin/tickets',
+      tone: 'warning' as const,
+      text: `${plural(tickets.data.unassigned, 'ticket')} unassigned`,
+    },
+    !!b?.sms.failed24h && {
+      key: 'sms',
+      href: '/admin/settings',
+      tone: 'warning' as const,
+      text: `${b.sms.failed24h} SMS failed in 24 h`,
+    },
+  ].filter((a): a is Attention => !!a);
+
   const widgets: WidgetDef[] = [
+    { id: 'attention', label: 'Needs attention' },
+    { id: 'actions', label: 'Quick actions' },
     can('subscribers.read') && { id: 'renewals', label: 'Renewals and status' },
     can('subscribers.read') && { id: 'expiring', label: 'Expiring soon list' },
     (can('sessions.read') || can('nas.read')) && { id: 'routers', label: 'Routers' },
-    can('billing.read') && !can('reports.view') && { id: 'month', label: 'This month' },
+    can('billing.read') && { id: 'month', label: 'This month' },
     can('sessions.read') && { id: 'kpi-online', label: 'Online now' },
     can('subscribers.read') && { id: 'kpi-pending', label: 'Pending recharge' },
     can('sessions.read') && { id: 'kpi-rejects', label: 'Login rejects (24 h)' },
@@ -141,19 +326,126 @@ export default function Dashboard() {
     can('reports.view') && { id: 'trends', label: 'Revenue and plan trends' },
   ].filter((w): w is WidgetDef => !!w);
 
+  const metrics = [
+    can('sessions.read') && shown('kpi-online') && (
+      <Metric
+        key="online"
+        href="/admin/sessions"
+        icon={Wifi}
+        live
+        label="Online now"
+        loading={summary.isLoading}
+        value={fmtNum(summary.data?.online ?? 0)}
+        hint={summary.data?.stale ? `${summary.data.stale} not reporting` : 'All sessions reporting'}
+        tone={summary.data?.stale ? 'warning' : 'neutral'}
+      />
+    ),
+    can('billing.read') && shown('kpi-recharges') && (
+      <Metric
+        key="recharges"
+        href="/admin/recharges"
+        icon={IndianRupee}
+        label="Today’s recharges"
+        loading={billing.isLoading}
+        value={b ? fmtRupees0(b.today.rechargePaise) : '—'}
+        hint={b ? `${fmtNum(b.today.recharges)} today · ${fmtNum(b.month.recharges)} this month` : undefined}
+      />
+    ),
+    can('subscribers.read') && shown('kpi-pending') && (
+      <Metric
+        key="pending"
+        href="/admin/subscribers?status=expired"
+        icon={UserX}
+        label="Pending recharge"
+        loading={subs.isLoading}
+        value={fmtNum(subs.data?.expired ?? 0)}
+        hint={subs.data ? `${fmtNum(subs.data.expiredThisMonth)} expired this month` : undefined}
+        tone={subs.data?.expired ? 'danger' : 'neutral'}
+      />
+    ),
+    can('billing.read') && shown('kpi-unpaid') && (
+      <Metric
+        key="unpaid"
+        href="/admin/invoices"
+        icon={ReceiptText}
+        label="Unpaid"
+        loading={billing.isLoading}
+        value={b ? fmtRupees0(b.unpaid.balancePaise) : '—'}
+        hint={b ? `${fmtNum(b.unpaid.count)} invoices · ${fmtNum(b.unpaid.overdue)} overdue` : undefined}
+        tone={b?.unpaid.overdue ? 'danger' : 'neutral'}
+      />
+    ),
+  ].filter(Boolean);
+
+  const pills = [
+    can('sessions.read') && shown('kpi-rejects') && (
+      <Pill
+        key="rejects"
+        href="/admin/radius-log?result=reject"
+        label="Login rejects · 24 h"
+        loading={rejects.isLoading}
+        value={fmtNum(rejects.data?.rejected ?? 0)}
+        tone={rejects.data?.rejected ? 'warning' : 'success'}
+      />
+    ),
+    can('tickets.read') && shown('kpi-tickets') && (
+      <Pill
+        key="tickets"
+        href="/admin/tickets"
+        label="Open tickets"
+        loading={tickets.isLoading}
+        value={tickets.data ? fmtNum(tickets.data.open + tickets.data.in_progress) : '—'}
+        tone={tickets.data?.unassigned ? 'warning' : 'neutral'}
+      />
+    ),
+    can('nas.read') && shown('kpi-routers') && (
+      <Pill
+        key="routers"
+        href="/admin/routers"
+        label="Routers with users"
+        loading={nas.isLoading}
+        value={`${up} / ${routers.length}`}
+        tone={silent.length ? 'danger' : 'success'}
+      />
+    ),
+    can('plans.read') && shown('kpi-plans') && (
+      <Pill
+        key="plans"
+        href="/admin/plans"
+        label="Active plans"
+        loading={plansLoading}
+        value={plans.filter((p) => p.status === 'active').length}
+      />
+    ),
+  ].filter(Boolean);
+
+  const actions = [
+    can('subscribers.write') && { href: '/admin/subscribers/new', icon: UserPlus, t: 'Add subscriber' },
+    can('recharges.create') && { href: '/admin/subscribers?status=expired', icon: RefreshCw, t: 'Recharge' },
+    can('resellers.write') && { href: '/admin/resellers', icon: Handshake, t: 'Partners' },
+    can('nas.write') && { href: '/admin/routers', icon: Server, t: 'Add router' },
+    can('tickets.write') && { href: '/admin/tickets', icon: LifeBuoy, t: 'Tickets' },
+    can('reports.view') && { href: '/admin/reports', icon: BarChart3, t: 'Reports' },
+  ].filter(Boolean) as { href: string; icon: LucideIcon; t: string }[];
+
+  const side =
+    ((can('sessions.read') || can('nas.read')) && shown('routers')) ||
+    (can('subscribers.read') && shown('expiring')) ||
+    (can('billing.read') && !!b && shown('month'));
+
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-wrap items-center gap-3">
         <div className="mr-auto flex flex-col gap-0.5">
-          <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Dashboard</h1>
-          <span className="font-mono text-xs text-muted-foreground">
-            {istStamp.format(new Date())} · Hello, {me.data?.user.name.split(' ')[0]}
-          </span>
+          <span className="font-mono text-xs text-muted-foreground">{istStamp.format(new Date())}</span>
+          <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">
+            {greeting()}, {me.data?.user.name.split(' ')[0]}
+          </h1>
         </div>
         {can('subscribers.read') ? (
           <form
             role="search"
-            className="flex h-10 w-full items-center sm:w-[300px] gap-2 rounded-xl border bg-card px-3 focus-within:border-primary"
+            className="flex h-10 w-full items-center gap-2 rounded-xl border bg-card px-3 focus-within:border-primary sm:w-[300px]"
             onSubmit={(e) => {
               e.preventDefault();
               const q = String(new FormData(e.currentTarget).get('q') ?? '').trim();
@@ -167,334 +459,278 @@ export default function Dashboard() {
               placeholder="Name, C-number, phone, username"
               className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
             />
+            <kbd className="hidden rounded border px-1.5 font-mono text-[10px] text-muted-foreground sm:inline">
+              ↵
+            </kbd>
           </form>
         ) : null}
         <DashboardConfig widgets={widgets} hidden={prefs.hidden} onSave={prefs.save} saving={prefs.saving} />
-        {can('subscribers.write') ? (
-          <Button asChild>
-            <Link href="/admin/subscribers/new">
-              <Plus /> Add subscriber
-            </Link>
-          </Button>
-        ) : null}
       </header>
 
-      {silent.length ? (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center gap-3 rounded-[14px] bg-danger-bg px-4 py-3 text-danger-text"
-        >
-          <AlertTriangle className="size-[18px] shrink-0" aria-hidden />
-          <span className="flex-1 text-sm font-semibold">
-            {silent.length === 1
-              ? `${silent[0]!.r.name} has not reported since ${relTime(silent[0]!.r.lastSeenAt)}.`
-              : `${silent.length} routers have stopped reporting.`}
+      {shown('attention') && attention.length ? (
+        <section aria-label="Needs attention" className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 pr-1 text-[13px] font-bold text-foreground">
+            <AlertTriangle className="size-4 text-danger-text" aria-hidden />
+            Needs attention
           </span>
-          <Link href="/admin/routers" className="text-sm font-bold text-danger-text hover:text-danger-text">
-            Open routers
-          </Link>
+          {attention.map((a) => (
+            <Link
+              key={a.key}
+              href={a.href}
+              className={cn(
+                'rounded-full px-3 py-1.5 text-[13px] font-semibold',
+                a.tone === 'danger'
+                  ? 'bg-danger-bg text-danger-text hover:text-danger-text'
+                  : 'bg-warning-bg text-warning-text hover:text-warning-text',
+              )}
+            >
+              {a.text}
+            </Link>
+          ))}
+        </section>
+      ) : null}
+
+      {metrics.length ? (
+        <Card className="grid grid-cols-1 divide-y divide-divider overflow-hidden sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x [&>*]:sm:border-divider [&>*:nth-child(odd)]:sm:border-r [&>*:nth-child(n+3)]:sm:border-t lg:[&>*]:border-0">
+          {metrics}
+        </Card>
+      ) : null}
+
+      {pills.length || (shown('actions') && actions.length) ? (
+        <div className="flex flex-col gap-3">
+          {pills.length ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">{pills}</div>
+          ) : null}
+          {shown('actions') && actions.length ? (
+            <nav aria-label="Quick actions" className="flex flex-wrap gap-2">
+              {actions.map((a) => (
+                <Button key={a.href + a.t} variant="outline" asChild>
+                  <Link href={a.href}>
+                    <a.icon /> {a.t}
+                  </Link>
+                </Button>
+              ))}
+            </nav>
+          ) : null}
         </div>
       ) : null}
 
-      {can('subscribers.read') && shown('renewals') ? <RenewalsSection /> : null}
+      <div className={cn('grid grid-cols-1 gap-4', side && 'xl:grid-cols-12')}>
+        <div className={cn('flex min-w-0 flex-col gap-4', side && 'xl:col-span-8')}>
+          {can('subscribers.read') && shown('renewals') ? <RenewalsSection /> : null}
+          {can('reports.view') && shown('trends') ? <TrendsRow /> : null}
+          {can('sessions.read') && shown('network') ? <NetworkRow /> : null}
+        </div>
 
-      <div className="flex flex-wrap gap-3 empty:hidden">
-        {can('subscribers.read') && shown('expiring') ? (
-          <ExpiringCard tabs className="flex-[3_1_480px]" />
-        ) : null}
-
-        {(can('sessions.read') || can('nas.read')) && shown('routers') ? (
-          <Card className="min-w-0 flex-[2_1_380px] overflow-hidden">
-            <CardBar>
-              <h2 className="mr-auto text-base font-bold">Routers</h2>
-              {routers.length ? (
-                <span className="text-[13px] text-muted-foreground">
-                  {up} of {routers.length} with users online
-                </span>
-              ) : null}
-              <Link href="/admin/sessions" className="text-[13px] font-bold">
-                All sessions
-              </Link>
-            </CardBar>
-            {summary.isError ? (
-              <div className="p-4">
-                <ErrorState error={summary.error} onRetry={() => void summary.refetch()} />
-              </div>
-            ) : nas.isLoading || summary.isLoading ? (
-              <div className="divide-y divide-divider">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <div key={i} className="flex items-center gap-3 px-5 py-3">
-                    <Skeleton className="size-9 rounded-[10px]" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-40" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : rows.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-                No routers yet. Add one under Routers so subscribers can connect.
-              </p>
-            ) : (
-              <ul className="divide-y divide-divider">
-                {rows.map(({ r, online, h }) => (
-                  <li key={r.id}>
-                    <Link
-                      href={`/admin/sessions?nas=${encodeURIComponent(r.ip)}`}
-                      className="flex items-center gap-3 px-5 py-3 text-inherit hover:bg-subtle hover:text-inherit"
-                    >
-                      <span
-                        className={cn(
-                          'grid size-9 shrink-0 place-items-center rounded-[10px]',
-                          HEALTH[h].tile,
-                        )}
-                      >
-                        <Server className="size-[18px]" strokeWidth={1.8} aria-hidden />
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-sm font-semibold text-foreground">
-                          {r.name}
-                          {r.location.popName ? `, ${r.location.popName}` : ''}
-                        </span>
-                        <span className="truncate font-mono text-xs text-muted-foreground">
-                          {r.ip} · {r.lastSeenAt ? `seen ${relTime(r.lastSeenAt)}` : 'never seen'}
-                        </span>
-                      </span>
-                      <span className="flex flex-col items-end gap-1">
-                        <Badge tone={HEALTH[h].tone}>{HEALTH[h].label}</Badge>
-                        <span className="text-xs text-body tabular-nums">{fmtNum(online)} online</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        ) : null}
-
-        {can('billing.read') && staff && b && !can('reports.view') && shown('month') ? (
-          <Card className="flex min-w-0 flex-[2_1_340px] flex-col gap-4 p-5">
-            <div>
-              <h2 className="text-base font-bold">This month</h2>
-              <p className="text-[13px] text-muted-foreground">{fmtNum(b.month.recharges)} recharges</p>
-            </div>
-            <dl className="grid grid-cols-2 gap-4">
-              <div>
-                <dt className="flex items-center gap-2 text-xs text-body">
-                  <span className="size-2.5 rounded-[3px] bg-chart-1" aria-hidden />
-                  Billed
-                </dt>
-                <dd className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
-                  {fmtRupees0(b.month.invoicedPaise)}
-                </dd>
-              </div>
-              <div>
-                <dt className="flex items-center gap-2 text-xs text-body">
-                  <span className="size-2.5 rounded-[3px] bg-chart-4" aria-hidden />
-                  Collected
-                </dt>
-                <dd className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
-                  {fmtRupees0(b.month.collectedPaise)}
-                </dd>
-              </div>
-            </dl>
-            {collectedPct !== null ? (
-              <div className="space-y-1.5">
-                <div
-                  className="h-2.5 overflow-hidden rounded-full bg-accent"
-                  role="meter"
-                  aria-label="Collected of billed"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(collectedPct * 100)}
-                >
-                  <div
-                    className="h-full rounded-full bg-chart-4"
-                    style={{ width: `${Math.min(100, collectedPct * 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs font-semibold text-muted-foreground">
-                  {(collectedPct * 100).toFixed(1)}% collected
-                </p>
-              </div>
+        {side ? (
+          <aside className="flex min-w-0 flex-col gap-4 xl:col-span-4 xl:self-start">
+            {(can('sessions.read') || can('nas.read')) && shown('routers') ? (
+              <RoutersCard
+                rows={rows}
+                up={up}
+                loading={nas.isLoading || summary.isLoading}
+                error={summary.isError ? summary.error : null}
+                onRetry={() => void summary.refetch()}
+              />
             ) : null}
-            <div className="mt-auto grid grid-cols-2 gap-3 border-t pt-4 text-[13px]">
-              <Link href="/admin/wallets" className="flex flex-col text-inherit hover:text-inherit">
-                <span className="text-muted-foreground">Reseller wallets</span>
-                <span className="font-bold text-foreground tabular-nums">
-                  {fmtRupees0(b.wallets.resellerBalancePaise)}
-                </span>
-                {b.wallets.low || b.wallets.frozen ? (
-                  <span className="text-xs font-semibold text-warning-text">
-                    {b.wallets.low} low · {b.wallets.frozen} frozen
-                  </span>
-                ) : null}
-              </Link>
-              <div className="flex flex-col">
-                <span className="text-muted-foreground">SMS queue</span>
-                <span className="font-bold text-foreground tabular-nums">{fmtNum(b.sms.queued)} queued</span>
-                {b.sms.failed24h ? (
-                  <span className="text-xs font-semibold text-danger-text">
-                    {b.sms.failed24h} failed in 24 h
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </Card>
-        ) : null}
-      </div>
-
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3 empty:hidden">
-        {can('sessions.read') && shown('kpi-online') ? (
-          summary.isLoading ? (
-            <KpiSkeleton />
-          ) : (
-            <KpiLink href="/admin/sessions">
-              <Stat
-                dot="success"
-                label="Online now"
-                value={fmtNum(summary.data?.online ?? 0)}
-                hint={summary.data?.stale ? `${summary.data.stale} not reporting` : 'All sessions reporting'}
-                {...(summary.data?.stale ? { hintTone: 'warning' as const } : {})}
-              />
-            </KpiLink>
-          )
-        ) : null}
-        {can('billing.read') && !staff ? (
-          wallet.isLoading ? (
-            <KpiSkeleton />
-          ) : wallet.data ? (
-            <KpiLink href="/admin/wallets">
-              <Stat
-                dot={wallet.data.state === 'normal' ? 'teal' : 'warning'}
-                label="Wallet balance"
-                value={fmtRupees0(wallet.data.balancePaise)}
-                hint={
-                  wallet.data.state === 'normal'
-                    ? `${fmtNum(wallet.data.customers)} customers`
-                    : wallet.data.state === 'empty'
-                      ? 'Empty: recharges blocked'
-                      : 'Low balance'
-                }
-                {...(wallet.data.state !== 'normal' ? { hintTone: 'danger' as const } : {})}
-              />
-            </KpiLink>
-          ) : null
-        ) : null}
-        {can('subscribers.read') && shown('kpi-pending') ? (
-          subs.isLoading ? (
-            <KpiSkeleton />
-          ) : subs.data ? (
-            <KpiLink href="/admin/subscribers?status=expired">
-              <Stat
-                dot="danger"
-                label="Pending recharge"
-                value={fmtNum(subs.data.expired)}
-                hint={`${fmtNum(subs.data.expiredThisMonth)} expired this month`}
-                {...(subs.data.expired ? { hintTone: 'danger' as const } : {})}
-              />
-            </KpiLink>
-          ) : null
-        ) : null}
-        {can('sessions.read') && shown('kpi-rejects') ? (
-          rejects.isLoading ? (
-            <KpiSkeleton />
-          ) : rejects.data ? (
-            <KpiLink href="/admin/radius-log?result=reject">
-              <Stat
-                dot={rejects.data.rejected ? 'warning' : 'success'}
-                label="Login rejects"
-                value={fmtNum(rejects.data.rejected)}
-                hint={`last 24 h · ${fmtNum(rejects.data.accepted)} accepted`}
-              />
-            </KpiLink>
-          ) : null
-        ) : null}
-        {can('billing.read') && staff && (shown('kpi-recharges') || shown('kpi-unpaid')) ? (
-          billing.isLoading ? (
-            <KpiSkeleton />
-          ) : b ? (
-            <>
-              {shown('kpi-recharges') ? (
-                <KpiLink href="/admin/recharges">
-                  <Stat
-                    dot="teal"
-                    label="Today’s recharges"
-                    value={fmtRupees0(b.today.rechargePaise)}
-                    hint={`${fmtNum(b.today.recharges)} today · ${fmtNum(b.month.recharges)} this month`}
-                  />
-                </KpiLink>
-              ) : null}
-              {shown('kpi-unpaid') ? (
-                <KpiLink href="/admin/invoices">
-                  <Stat
-                    dot="danger"
-                    label="Unpaid"
-                    value={fmtRupees0(b.unpaid.balancePaise)}
-                    hint={`${fmtNum(b.unpaid.count)} invoices · ${fmtNum(b.unpaid.overdue)} overdue`}
-                    {...(b.unpaid.overdue ? { hintTone: 'danger' as const } : {})}
-                  />
-                </KpiLink>
-              ) : null}
-            </>
-          ) : null
-        ) : null}
-        {can('tickets.read') && shown('kpi-tickets') ? (
-          tickets.isLoading ? (
-            <KpiSkeleton />
-          ) : tickets.data ? (
-            <KpiLink href="/admin/tickets">
-              <Stat
-                dot="info"
-                label="Open tickets"
-                value={fmtNum(tickets.data.open + tickets.data.in_progress)}
-                hint={`${fmtNum(tickets.data.unassigned)} unassigned`}
-                {...(tickets.data.unassigned ? { hintTone: 'danger' as const } : {})}
-              />
-            </KpiLink>
-          ) : null
-        ) : null}
-        {can('nas.read') && shown('kpi-routers') ? (
-          nas.isLoading ? (
-            <KpiSkeleton />
-          ) : (
-            <KpiLink href="/admin/routers">
-              <Stat
-                dot={silent.length ? 'danger' : 'primary'}
-                label="Routers"
-                value={`${up} / ${routers.length}`}
-                hint={silent.length ? `${silent.length} not reporting` : 'with users online'}
-                {...(silent.length ? { hintTone: 'danger' as const } : {})}
-              />
-            </KpiLink>
-          )
-        ) : null}
-        {can('plans.read') && shown('kpi-plans') ? (
-          plansLoading ? (
-            <KpiSkeleton />
-          ) : (
-            <KpiLink href="/admin/plans">
-              <Stat
-                dot="warning"
-                label="Plans"
-                value={plans.filter((p) => p.status === 'active').length}
-                hint="active"
-              />
-            </KpiLink>
-          )
+            {can('billing.read') && b && shown('month') ? (
+              <MonthCard b={b} collectedPct={collectedPct} />
+            ) : null}
+            {can('subscribers.read') && shown('expiring') ? (
+              <ExpiringCard limit={6} compact className="flex-none" />
+            ) : null}
+          </aside>
         ) : null}
       </div>
 
       {can('nas.read') && shown('nas-stats') ? <NasStatistics routers={routers} /> : null}
-      {can('sessions.read') && staff && shown('network') ? <NetworkRow /> : null}
       {can('reports.view') && shown('insights') ? <InsightsCard from={istDay(29)} to={istDay()} /> : null}
-      {can('reports.view') && staff && shown('trends') ? <TrendsRow /> : null}
 
       <footer className="flex flex-wrap justify-between gap-2 pt-2 font-mono text-[11px] text-muted-foreground">
         <span>All times IST · online figures refresh every 30 s, charts every 5 min</span>
       </footer>
     </div>
+  );
+}
+
+const HEALTH_ORDER: Record<RouterHealth, number> = { silent: 0, up: 1, quiet: 2, disabled: 3 };
+const ROUTERS_SHOWN = 6;
+
+const greeting = () => {
+  const h = Number(
+    new Intl.DateTimeFormat('en-IN', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Kolkata' }).format(
+      new Date(),
+    ),
+  );
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+};
+
+type RouterRow = { r: Nas; online: number; h: RouterHealth };
+
+function RoutersCard({
+  rows,
+  up,
+  loading,
+  error,
+  onRetry,
+}: {
+  rows: RouterRow[];
+  up: number;
+  loading: boolean;
+  error: unknown;
+  onRetry: () => void;
+}) {
+  const totalOnline = rows.reduce((n, x) => n + x.online, 0);
+  return (
+    <Card className="overflow-hidden">
+      <CardBar>
+        <h2 className="mr-auto text-base font-bold">Routers</h2>
+        {rows.length ? (
+          <span className="text-[13px] text-muted-foreground">
+            {up} of {rows.length} serving
+          </span>
+        ) : null}
+        <Link href="/admin/routers" className="text-[13px] font-bold">
+          All
+        </Link>
+      </CardBar>
+      {error ? (
+        <div className="p-4">
+          <ErrorState error={error} onRetry={onRetry} />
+        </div>
+      ) : loading ? (
+        <div className="divide-y divide-divider">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="flex items-center gap-3 px-5 py-3">
+              <Skeleton className="size-8 rounded-[10px]" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3.5 w-32" />
+                <Skeleton className="h-2 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="px-5 py-10 text-center text-sm text-muted-foreground">
+          No routers yet. Add one under Routers so subscribers can connect.
+        </p>
+      ) : (
+        <ul className="divide-y divide-divider">
+          {rows.slice(0, ROUTERS_SHOWN).map(({ r, online, h }) => (
+            <li key={r.id}>
+              <Link
+                href={`/admin/sessions?nas=${encodeURIComponent(r.ip)}`}
+                className="flex items-center gap-3 px-5 py-3 text-inherit hover:bg-subtle hover:text-inherit"
+              >
+                <span
+                  className={cn('grid size-8 shrink-0 place-items-center rounded-[10px]', HEALTH[h].tile)}
+                >
+                  <Server className="size-4" strokeWidth={1.8} aria-hidden />
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <span className="flex items-baseline gap-2">
+                    <span className="truncate text-sm font-semibold text-foreground">{r.name}</span>
+                    <span className="ml-auto shrink-0 text-xs text-body tabular-nums">
+                      {h === 'silent' ? HEALTH[h].label : `${fmtNum(online)} online`}
+                    </span>
+                  </span>
+                  <span className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+                    <span
+                      className={cn(
+                        'block h-full rounded-full',
+                        h === 'silent'
+                          ? 'bg-danger-text'
+                          : h === 'up'
+                            ? 'bg-primary'
+                            : 'bg-muted-foreground/30',
+                      )}
+                      style={{
+                        width: `${h === 'silent' ? 100 : totalOnline ? Math.max(2, (online / totalOnline) * 100) : 0}%`,
+                      }}
+                    />
+                  </span>
+                </span>
+              </Link>
+            </li>
+          ))}
+          {rows.length > ROUTERS_SHOWN ? (
+            <li>
+              <Link
+                href="/admin/routers"
+                className="block px-5 py-2.5 text-center text-[13px] font-semibold text-muted-foreground hover:bg-subtle"
+              >
+                {rows.length - ROUTERS_SHOWN} more
+              </Link>
+            </li>
+          ) : null}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+type BillingSummary = ApiData<'/api/v1/billing/summary'>;
+
+function MonthCard({ b, collectedPct }: { b: BillingSummary; collectedPct: number | null }) {
+  return (
+    <Card className="flex flex-col gap-4 p-5">
+      <div className="flex items-baseline gap-2">
+        <h2 className="mr-auto text-base font-bold">This month</h2>
+        <span className="text-[13px] text-muted-foreground">{fmtNum(b.month.recharges)} recharges</span>
+      </div>
+      <dl className="grid grid-cols-2 gap-4">
+        <div>
+          <dt className="flex items-center gap-2 text-xs text-body">
+            <span className="size-2.5 rounded-[3px] bg-chart-1" aria-hidden />
+            Billed
+          </dt>
+          <dd className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
+            {fmtRupees0(b.month.invoicedPaise)}
+          </dd>
+        </div>
+        <div>
+          <dt className="flex items-center gap-2 text-xs text-body">
+            <span className="size-2.5 rounded-[3px] bg-chart-4" aria-hidden />
+            Collected
+          </dt>
+          <dd className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
+            {fmtRupees0(b.month.collectedPaise)}
+          </dd>
+        </div>
+      </dl>
+      {collectedPct !== null ? (
+        <div className="space-y-1.5">
+          <div
+            className="h-2.5 overflow-hidden rounded-full bg-accent"
+            role="meter"
+            aria-label="Collected of billed"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(collectedPct * 100)}
+          >
+            <div
+              className="h-full rounded-full bg-chart-4"
+              style={{ width: `${Math.min(100, collectedPct * 100)}%` }}
+            />
+          </div>
+          <p className="text-xs font-semibold text-muted-foreground">
+            {(collectedPct * 100).toFixed(1)}% collected
+          </p>
+        </div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-3 border-t pt-4 text-[13px]">
+        <Link href="/admin/wallets" className="flex flex-col text-inherit hover:text-inherit">
+          <span className="text-muted-foreground">Partner wallets</span>
+          <span className="font-bold text-foreground tabular-nums">
+            {fmtRupees0(b.wallets.resellerBalancePaise)}
+          </span>
+        </Link>
+        <div className="flex flex-col">
+          <span className="text-muted-foreground">SMS queue</span>
+          <span className="font-bold text-foreground tabular-nums">{fmtNum(b.sms.queued)} queued</span>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -684,6 +920,7 @@ function ResellerHome({
   const widgets: WidgetDef[] = [
     { id: 'r-wallet', label: 'Wallet balance' },
     { id: 'r-actions', label: 'Quick actions' },
+    (can('sessions.read') || can('nas.read')) && { id: 'r-network', label: 'My network (online, routers)' },
     can('subscribers.read') && { id: 'r-renewals', label: 'Renewals and status' },
     { id: 'r-children', label: 'Sub-resellers and customers' },
     { id: 'r-recharges', label: 'Recharges per day' },
@@ -857,6 +1094,8 @@ function ResellerHome({
         ) : null}
       </div>
 
+      {(can('sessions.read') || can('nas.read')) && shown('r-network') ? <ResellerNetwork /> : null}
+
       {can('subscribers.read') && shown('r-renewals') ? <RenewalsSection /> : null}
 
       {wallet && wallet.children > 0 && shown('r-children') ? (
@@ -906,5 +1145,98 @@ function ResellerHome({
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Reseller: its customers online now and the routers it added or its customers use. */
+function ResellerNetwork() {
+  const can = useCan();
+  const summary = useQuery({
+    queryKey: ['sessions', 'summary'],
+    queryFn: () => unwrap(api.GET('/api/v1/sessions/summary')),
+    enabled: can('sessions.read'),
+    refetchInterval: 30_000,
+  });
+  const nas = useQuery({
+    queryKey: ['nas', 'all'],
+    queryFn: () => unwrap(api.GET('/api/v1/nas', { params: { query: { limit: 200 } } })),
+    enabled: can('nas.read'),
+  });
+  const onlineByIp = new Map((summary.data?.byNas ?? []).map((n) => [n.nasIp, n.online]));
+  const routers = (nas.data?.items ?? [])
+    .map((r) => ({ r, online: onlineByIp.get(r.ip) ?? 0 }))
+    .sort((a, b) => b.online - a.online);
+  return (
+    <Card className="overflow-hidden">
+      <CardBar>
+        <h2 className="mr-auto text-base font-bold">My network</h2>
+        {can('sessions.read') ? (
+          <Link href="/admin/radius-log" className="text-[13px] font-bold">
+            Logs
+          </Link>
+        ) : null}
+        {can('nas.read') ? (
+          <Link href="/admin/routers" className="text-[13px] font-bold">
+            Routers
+          </Link>
+        ) : null}
+      </CardBar>
+      <div className="grid gap-0 divide-y divide-divider md:grid-cols-[220px_1fr] md:divide-x md:divide-y-0">
+        <Link
+          href="/admin/sessions"
+          className="flex flex-col gap-1 p-5 text-inherit hover:bg-subtle hover:text-inherit"
+        >
+          <span className="flex items-center gap-2 text-[13px] font-semibold text-body">
+            <Wifi className="size-4 text-primary" aria-hidden /> Customers online
+          </span>
+          {summary.isLoading ? (
+            <Skeleton className="h-9 w-24 rounded-lg" />
+          ) : (
+            <span className="text-[34px] leading-tight font-extrabold tracking-[-0.03em] text-foreground tabular-nums">
+              {fmtNum(summary.data?.online ?? 0)}
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">refreshes every 30 s</span>
+        </Link>
+        {nas.isLoading ? (
+          <div className="space-y-2 p-5">
+            {Array.from({ length: 3 }, (_, i) => (
+              <Skeleton key={i} className="h-9" />
+            ))}
+          </div>
+        ) : routers.length === 0 ? (
+          <div className="flex flex-col items-start justify-center gap-2 p-5 text-sm text-muted-foreground">
+            <p>No routers yet. Add your own MikroTik, or routers appear once your customers connect.</p>
+            {can('nas.write') ? (
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/admin/routers">
+                  <RouterIcon /> Add router
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <ul className="divide-y divide-divider">
+            {routers.slice(0, 5).map(({ r, online }) => (
+              <li key={r.id}>
+                <Link
+                  href={`/admin/routers/${r.id}`}
+                  className="flex items-center gap-3 px-5 py-2.5 text-inherit hover:bg-subtle hover:text-inherit"
+                >
+                  <Server className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                    {r.name}
+                  </span>
+                  <Badge tone={r.canManage ? 'success' : 'neutral'}>{r.canManage ? 'Yours' : 'ISP'}</Badge>
+                  <span className="w-20 text-right text-xs text-body tabular-nums">
+                    {fmtNum(online)} online
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
   );
 }

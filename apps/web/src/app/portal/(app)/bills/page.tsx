@@ -1,7 +1,7 @@
 'use client';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { portalKeys } from '@/components/portal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
