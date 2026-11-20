@@ -72,6 +72,8 @@ const step = (name, fn) =>
 // Dashboard tiles also link to Plans/Routers, so click the sidebar entry. Sidebar sections fold: open them first.
 const mainNav = () => page.getByRole('navigation', { name: 'Main' });
 async function sidebarLink(name) {
+  // The sidebar renders after /auth/me; wait for its first entry before opening sections.
+  await mainNav().getByRole('link').first().waitFor();
   const closed = mainNav().locator('button[aria-expanded="false"]:visible');
   while (await closed.count()) await closed.first().click();
   return mainNav().getByRole('link', { name, exact: true });
