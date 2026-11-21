@@ -373,7 +373,8 @@ function UpdatesSlot() {
         href={u.href}
         target="_blank"
         rel="noopener"
-        className="block aspect-[4/3] w-full overflow-hidden rounded-xl focus-visible:shadow-[0_0_0_2px_#3A3640] focus-visible:outline-none"
+        style={{ aspectRatio: u.aspect ?? 4 / 3 }}
+        className="block w-full overflow-hidden rounded-xl border border-[#ECEAEF] focus-visible:shadow-[0_0_0_2px_#3A3640] focus-visible:outline-none"
       >
         {broken ? (
           <span className="grid size-full place-items-center rounded-xl border border-dashed border-[#D9D6DE] bg-[#F7F7F5] px-3 text-center text-xs text-[#6B6772]">
@@ -383,6 +384,9 @@ function UpdatesSlot() {
           <img
             src={u.imageUrl}
             alt={u.alt}
+            width={236}
+            height={Math.round(236 / (u.aspect ?? 4 / 3))}
+            decoding="async"
             className="size-full object-cover"
             onError={() => setBroken(true)}
           />
