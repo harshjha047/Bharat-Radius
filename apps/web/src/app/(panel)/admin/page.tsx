@@ -18,14 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 import { arrange, DashboardConfig, useDashboardPrefs, type WidgetDef } from '@/components/dashboard-config';
-import {
-  ExpiringCard,
-  NetworkRow,
-  RenewalsCard,
-  RenewalsSection,
-  SubscriberStatusCard,
-  useExpiring,
-} from '@/components/dashboard-widgets';
+import { ExpiringCard, NetworkRow, useExpiring } from '@/components/dashboard-widgets';
 import { NotificationBell, ResellerNetwork, type Notice } from '@/components/reseller-dashboard';
 import { GlanceGrid, glanceWidget, isGlanceId, useGlanceCards } from '@/components/at-a-glance';
 import { InsightsCard } from '@/components/financial-insights';
@@ -238,12 +231,10 @@ export default function Dashboard() {
     { id: 'attention', label: 'Needs attention' },
     ...glance.map(glanceWidget),
     { id: 'actions', label: 'Quick actions' },
-    can('subscribers.read') && { id: 'renewals', label: 'Renewals and status' },
     can('subscribers.read') && { id: 'expiring', label: 'Expiring soon list' },
     (can('sessions.read') || can('nas.read')) && { id: 'routers', label: 'Routers' },
     can('billing.read') && { id: 'month', label: 'This month' },
     can('sessions.read') && { id: 'kpi-rejects', label: 'Login rejects (24 h)' },
-    can('tickets.read') && { id: 'kpi-tickets', label: 'Open tickets' },
     can('nas.read') && { id: 'kpi-routers', label: 'Routers count' },
     can('plans.read') && { id: 'kpi-plans', label: 'Plans' },
     can('nas.read') && { id: 'nas-stats', label: 'NAS statistics (live ports)' },
@@ -263,16 +254,6 @@ export default function Dashboard() {
         loading={rejects.isLoading}
         value={fmtNum(rejects.data?.rejected ?? 0)}
         tone={rejects.data?.rejected ? 'warning' : 'success'}
-      />
-    ),
-    can('tickets.read') && shown('kpi-tickets') && (
-      <Pill
-        key="tickets"
-        href="/admin/tickets"
-        label="Open tickets"
-        loading={tickets.isLoading}
-        value={tickets.data ? fmtNum(tickets.data.open + tickets.data.in_progress) : '—'}
-        tone={tickets.data?.unassigned ? 'warning' : 'neutral'}
       />
     ),
     can('nas.read') && shown('kpi-routers') && (
@@ -399,7 +380,6 @@ export default function Dashboard() {
 
       <div className={cn('grid grid-cols-1 gap-4', side && 'xl:grid-cols-12')}>
         <div className={cn('flex min-w-0 flex-col gap-4', side && 'xl:col-span-8')}>
-          {can('subscribers.read') && shown('renewals') ? <RenewalsSection /> : null}
           {can('reports.view') && shown('trends') ? <TrendsRow /> : null}
           {can('sessions.read') && shown('network') ? <NetworkRow /> : null}
         </div>
@@ -817,8 +797,6 @@ function ResellerHome({
   // sidebar, so they start switched off; each user can switch them back on and reorder everything.
   const widgets: WidgetDef[] = [
     ...glance.map(glanceWidget),
-    can('subscribers.read') && { id: 'r-renewals', label: 'Renewals' },
-    can('subscribers.read') && { id: 'r-status', label: 'Subscriber status' },
     (can('sessions.read') || can('nas.read')) && {
       id: 'r-network',
       label: 'My network (online, routers, logins, live log)',
@@ -895,8 +873,6 @@ function ResellerHome({
 
   const render: Record<string, () => React.ReactNode> = {
     ...Object.fromEntries(glance.map((g) => [g.id, g.render])),
-    'r-renewals': () => <RenewalsCard />,
-    'r-status': () => <SubscriberStatusCard />,
     'r-network': () => <ResellerNetwork />,
     'r-expiring': () => <ExpiringCard limit={5} compact />,
     'r-recharges': () => (

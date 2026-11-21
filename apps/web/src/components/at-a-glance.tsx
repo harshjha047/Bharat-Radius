@@ -165,6 +165,44 @@ export function useGlanceCards(
           href: '/admin/subscribers?expiry=7d',
         }),
     },
+    subsOk && {
+      id: `${p}expired-month`,
+      label: 'Expired this month',
+      render: () =>
+        card(subs, {
+          label: 'Expired this month',
+          value: fmtNum(s?.expiredThisMonth ?? 0),
+          tone: 'danger',
+          ...(s?.renewPaise.expiredThisMonth
+            ? { today: fmtRupees(s.renewPaise.expiredThisMonth), todayLabel: 'to win back' }
+            : {}),
+          href: '/admin/subscribers?expiry=expired-month',
+        }),
+    },
+    subsOk && {
+      id: `${p}suspended`,
+      label: 'Suspended subscribers',
+      defaultHidden: true,
+      render: () =>
+        card(subs, {
+          label: 'Suspended subscribers',
+          value: fmtNum(s?.suspended ?? 0),
+          tone: 'warning',
+          href: '/admin/subscribers?status=suspended',
+        }),
+    },
+    subsOk && {
+      id: `${p}disabled`,
+      label: 'Disabled subscribers',
+      defaultHidden: true,
+      render: () =>
+        card(subs, {
+          label: 'Disabled subscribers',
+          value: fmtNum(s?.disabled ?? 0),
+          tone: 'plain',
+          href: '/admin/subscribers?status=disabled',
+        }),
+    },
     kind === 'reseller' &&
       !!wallet &&
       can('billing.read') && {
