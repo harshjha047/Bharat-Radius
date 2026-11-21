@@ -1314,9 +1314,20 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "showUpdates": {
+                      "type": "boolean"
                     }
                   },
-                  "required": ["user", "permissions", "mfa", "requireMfa", "viewAs", "branding"],
+                  "required": [
+                    "user",
+                    "permissions",
+                    "mfa",
+                    "requireMfa",
+                    "viewAs",
+                    "branding",
+                    "showUpdates"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -19603,6 +19614,9 @@
                     "radiusId": {
                       "type": ["number", "null"]
                     },
+                    "showUpdates": {
+                      "type": "boolean"
+                    },
                     "updatedAt": {
                       "type": "string"
                     }
@@ -19620,6 +19634,7 @@
                     "domain",
                     "radius",
                     "radiusId",
+                    "showUpdates",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -19774,6 +19789,9 @@
                         "maximum": 3600
                       }
                     }
+                  },
+                  "showUpdates": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -19898,6 +19916,9 @@
                     "radiusId": {
                       "type": ["number", "null"]
                     },
+                    "showUpdates": {
+                      "type": "boolean"
+                    },
                     "updatedAt": {
                       "type": "string"
                     }
@@ -19915,6 +19936,7 @@
                     "domain",
                     "radius",
                     "radiusId",
+                    "showUpdates",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -20119,6 +20141,9 @@
                           "radiusId": {
                             "type": ["number", "null"]
                           },
+                          "showUpdates": {
+                            "type": "boolean"
+                          },
                           "updatedAt": {
                             "type": "string"
                           }
@@ -20136,6 +20161,7 @@
                           "domain",
                           "radius",
                           "radiusId",
+                          "showUpdates",
                           "updatedAt"
                         ],
                         "additionalProperties": false
@@ -20431,6 +20457,9 @@
                     "radiusId": {
                       "type": ["number", "null"]
                     },
+                    "showUpdates": {
+                      "type": "boolean"
+                    },
                     "updatedAt": {
                       "type": "string"
                     }
@@ -20448,6 +20477,7 @@
                     "domain",
                     "radius",
                     "radiusId",
+                    "showUpdates",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -20627,6 +20657,9 @@
                     "radiusId": {
                       "type": ["number", "null"]
                     },
+                    "showUpdates": {
+                      "type": "boolean"
+                    },
                     "updatedAt": {
                       "type": "string"
                     }
@@ -20644,6 +20677,7 @@
                     "domain",
                     "radius",
                     "radiusId",
+                    "showUpdates",
                     "updatedAt"
                   ],
                   "additionalProperties": false
@@ -20810,6 +20844,9 @@
                       }
                     }
                   },
+                  "showUpdates": {
+                    "type": "boolean"
+                  },
                   "status": {
                     "type": "string",
                     "enum": ["active", "suspended"]
@@ -20948,6 +20985,9 @@
                     "radiusId": {
                       "type": ["number", "null"]
                     },
+                    "showUpdates": {
+                      "type": "boolean"
+                    },
                     "updatedAt": {
                       "type": "string"
                     }
@@ -20965,6 +21005,7 @@
                     "domain",
                     "radius",
                     "radiusId",
+                    "showUpdates",
                     "updatedAt"
                   ],
                   "additionalProperties": false

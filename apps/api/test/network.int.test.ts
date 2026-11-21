@@ -290,6 +290,17 @@ describe('tenants', () => {
     expect(bad.status).toBe(400);
   });
 
+  it('the ISP admin turns the sidebar Updates banner on and off for all staff', async () => {
+    expect((await support.req('GET', '/api/v1/auth/me')).body.showUpdates).toBe(false);
+    expect((await support.req('PATCH', '/api/v1/tenant', { showUpdates: true })).status).toBe(403);
+    const on = await admin.req('PATCH', '/api/v1/tenant', { showUpdates: true });
+    expect(on.status).toBe(200);
+    expect(on.body.showUpdates).toBe(true);
+    expect((await support.req('GET', '/api/v1/auth/me')).body.showUpdates).toBe(true);
+    await admin.req('PATCH', '/api/v1/tenant', { showUpdates: false });
+    expect((await support.req('GET', '/api/v1/auth/me')).body.showUpdates).toBe(false);
+  });
+
   it('GSTIN must match the state code', async () => {
     expect((await admin.req('PATCH', '/api/v1/tenant', { gstin: '27ABCDE1234F1Z5' })).status).toBe(400);
     expect((await admin.req('PATCH', '/api/v1/tenant', { gstin: '07ABCDE1234F1Z5' })).status).toBe(200);

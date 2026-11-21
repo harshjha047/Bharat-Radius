@@ -362,9 +362,9 @@ const Brand = ({ me }: { me: Me | undefined }) => {
 };
 
 /** Announcement or ad above the user card; renders nothing at all when none is active. */
-function UpdatesSlot() {
+function UpdatesSlot({ me }: { me: Me | undefined }) {
   const [broken, setBroken] = useState(false);
-  const u = activeSidebarUpdate();
+  const u = me?.showUpdates ? activeSidebarUpdate() : null;
   if (!u) return null;
   return (
     <aside aria-label="Updates" className="flex flex-col gap-1.5">
@@ -415,7 +415,7 @@ function Sidebar({ me, onNavigate }: { me: Me | undefined; onNavigate?: () => vo
         </div>
       )}
       <div className="relative flex shrink-0 flex-col gap-2.5 pt-1.5">
-        <UpdatesSlot />
+        <UpdatesSlot me={me} />
         {me ? <UserMenu me={me} /> : null}
         <PoweredByDiv />
       </div>

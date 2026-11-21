@@ -23,6 +23,8 @@ export interface TenantDoc extends Standard {
   address: { line1: string; line2?: string; city: string; district?: string; state: string; pincode: string };
   contact?: { phone?: string; email?: string };
   branding?: { logoKey?: string; primaryColor?: string; domain?: string; subdomain?: string };
+  /** Panel options set by the ISP admin. `showUpdates`: the sidebar Updates banner for all staff and resellers. */
+  ui?: { showUpdates?: boolean };
   radius: {
     /** Absent = `reject`. */
     expiredMode?: 'reject' | 'walled';

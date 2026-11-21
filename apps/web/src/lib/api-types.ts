@@ -783,6 +783,7 @@ export interface paths {
                 logoUrl: string | null;
                 fromResellerId: string | null;
               } | null;
+              showUpdates: boolean;
             };
           };
         };
@@ -9010,6 +9011,7 @@ export interface paths {
                 interimInterval: number;
               };
               radiusId: number | null;
+              showUpdates: boolean;
               updatedAt: string;
             };
           };
@@ -9073,6 +9075,7 @@ export interface paths {
               expiredSessionSecs?: number;
               interimInterval?: number;
             };
+            showUpdates?: boolean;
           };
         };
       };
@@ -9114,6 +9117,7 @@ export interface paths {
                 interimInterval: number;
               };
               radiusId: number | null;
+              showUpdates: boolean;
               updatedAt: string;
             };
           };
@@ -9197,6 +9201,7 @@ export interface paths {
                   interimInterval: number;
                 };
                 radiusId: number | null;
+                showUpdates: boolean;
                 updatedAt: string;
               }[];
               nextCursor: string | null;
@@ -9301,6 +9306,7 @@ export interface paths {
                 interimInterval: number;
               };
               radiusId: number | null;
+              showUpdates: boolean;
               updatedAt: string;
             };
           };
@@ -9385,6 +9391,7 @@ export interface paths {
                 interimInterval: number;
               };
               radiusId: number | null;
+              showUpdates: boolean;
               updatedAt: string;
             };
           };
@@ -9450,6 +9457,7 @@ export interface paths {
               expiredSessionSecs?: number;
               interimInterval?: number;
             };
+            showUpdates?: boolean;
             /** @enum {string} */
             status?: 'active' | 'suspended';
             domain?: string | null;
@@ -9494,6 +9502,7 @@ export interface paths {
                 interimInterval: number;
               };
               radiusId: number | null;
+              showUpdates: boolean;
               updatedAt: string;
             };
           };
