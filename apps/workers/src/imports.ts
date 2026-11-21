@@ -17,7 +17,7 @@ const MAX_ERRORS = 10_000;
 
 /**
  * Creates subscribers queued by an Excel import (WP 2.9), through the same writer as the API, so every row gets a
- * customer number, encrypted password and its RADIUS sync. Resumable: a crash leaves rows pending and the batch
+ * customer number, encrypted password and its Radius sync. Resumable: a crash leaves rows pending and the batch
  * lease expires; a row created just before a crash is recognised by its importBatchId instead of failing as a dup.
  */
 export class ImportJob {

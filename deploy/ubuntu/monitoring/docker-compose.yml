@@ -1,4 +1,4 @@
-# Monitoring for the RADIUS host (WP 1.8). Managed by mon-up.sh. Host exporters: deploy/ubuntu/install-exporters.sh.
+# Monitoring for the Radius host (WP 1.8). Managed by mon-up.sh. Host exporters: deploy/ubuntu/install-exporters.sh.
 name: isp-mon
 
 services:

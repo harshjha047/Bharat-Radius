@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Which routers may reach RADIUS (ufw). The list lives in /etc/isp-radius/<instance>.allow, so it survives
+# Which routers may reach Radius (ufw). The list lives in /etc/isp-radius/<instance>.allow, so it survives
 # reinstalls; ufw is rebuilt from it. One entry per line: "<ip or cidr> <name>"; "any <name>" = open to all.
 #   sudo nas-allow.sh production list
 #   sudo nas-allow.sh production add 160.191.125.238 fab5
@@ -14,7 +14,7 @@ ETC_DIR="${ETC_DIR:-/etc/isp-radius}"
 INST="${1:-}"; CMD="${2:-list}"
 die() { echo "nas-allow: $*" >&2; exit 1; }
 [[ $INST == production || $INST == staging ]] || die "usage: $0 <production|staging> <list|add|remove|apply|sync> [ip] [name]"
-[[ -f $ETC_DIR/$INST.conf ]] || die "$ETC_DIR/$INST.conf not found (RADIUS instance not installed)"
+[[ -f $ETC_DIR/$INST.conf ]] || die "$ETC_DIR/$INST.conf not found (Radius instance not installed)"
 AUTH_PORT="$(sed -n 's/^AUTH_PORT=//p' "$ETC_DIR/$INST.conf")"
 DB="$(sed -n 's/^DB=//p' "$ETC_DIR/$INST.conf")"
 ACCT_PORT="$(sed -n 's/^ACCT_PORT=//p' "$ETC_DIR/$INST.conf")"
@@ -102,7 +102,7 @@ sync_db() {
 case "$CMD" in
   list)
     entries | awk '{ printf "%-20s %s\n", $1, $2 }'
-    [[ -n "$(entries)" ]] || echo "(empty: no router can reach $INST RADIUS)"
+    [[ -n "$(entries)" ]] || echo "(empty: no router can reach $INST Radius)"
     ;;
   add)
     ip="${3:-}"; name="${4:-}"

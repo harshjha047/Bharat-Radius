@@ -1,5 +1,5 @@
-# isp-platform app stack on the RADIUS host (RADIUS instance: see app-up.sh). Managed by app-up.sh; secrets live in /etc/isp-app (root only).
-# RADIUS (FreeRADIUS + PostgreSQL) stays native on the host; this stack only talks to it over TLS.
+# isp-platform app stack on the Radius host (Radius instance: see app-up.sh). Managed by app-up.sh; secrets live in /etc/isp-app (root only).
+# Radius (Radius engine + PostgreSQL) stays native on the host; this stack only talks to it over TLS.
 name: isp
 
 # Container logs go to journald → rsyslog → /var/log/isp-archive/app/<container>/ (kept 3 years, WP 4.6).

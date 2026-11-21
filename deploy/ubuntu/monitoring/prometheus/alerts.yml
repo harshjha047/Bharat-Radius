@@ -6,7 +6,7 @@ groups:
         for: 1m
         labels: { severity: critical }
         annotations:
-          summary: 'FreeRADIUS production is not answering (Status-Server)'
+          summary: 'Radius engine production is not answering (Status-Server)'
           runbook: docs/runbooks/radius-down.md
 
       - alert: RadiusStagingDown
@@ -14,21 +14,21 @@ groups:
         for: 2m
         labels: { severity: warning }
         annotations:
-          summary: 'FreeRADIUS staging is not answering'
+          summary: 'Radius engine staging is not answering'
 
       - alert: RadiusStatusStale
         expr: time() - node_textfile_mtime_seconds{file=~".*isp_radius.prom"} > 120 or absent(node_textfile_mtime_seconds{file=~".*isp_radius.prom"})
         for: 1m
         labels: { severity: warning }
         annotations:
-          summary: 'RADIUS status metrics not updated for 2 minutes (isp-radius-status.timer stopped?)'
+          summary: 'Radius status metrics not updated for 2 minutes (isp-radius-status.timer stopped?)'
 
       - alert: RadiusDatabaseDown
         expr: pg_up == 0 or up{job="postgres"} == 0
         for: 1m
         labels: { severity: critical }
         annotations:
-          summary: 'PostgreSQL on the RADIUS host is down: logins go silent, routers fall back'
+          summary: 'PostgreSQL on the Radius host is down: logins go silent, routers fall back'
 
       - alert: RadiusRejectSpike
         expr: |
@@ -44,7 +44,7 @@ groups:
         for: 2m
         labels: { severity: warning }
         annotations:
-          summary: 'FreeRADIUS {{ $labels.instance_name }} is dropping auth requests (overloaded)'
+          summary: 'Radius engine {{ $labels.instance_name }} is dropping auth requests (overloaded)'
 
       - alert: RadiusLoginSqlSlow
         expr: max(isp_radius_login_sql_mean_ms{fn="check"}) > 20
@@ -84,7 +84,7 @@ groups:
         for: 10m
         labels: { severity: warning }
         annotations:
-          summary: 'Less than 10% memory available on the RADIUS host'
+          summary: 'Less than 10% memory available on the Radius host'
 
       - alert: SystemdUnitFailed
         expr: node_systemd_unit_state{state="failed"} == 1
@@ -114,7 +114,7 @@ groups:
         for: 1m
         labels: { severity: critical }
         annotations:
-          summary: 'Changes have not reached RADIUS for {{ $value | humanizeDuration }} (outbox)'
+          summary: 'Changes have not reached Radius for {{ $value | humanizeDuration }} (outbox)'
           runbook: docs/runbooks/outbox.md
 
       - alert: OutboxNoLeader
@@ -122,7 +122,7 @@ groups:
         for: 2m
         labels: { severity: critical }
         annotations:
-          summary: 'No outbox worker is running: router, plan and ISP changes are not reaching RADIUS'
+          summary: 'No outbox worker is running: router, plan and ISP changes are not reaching Radius'
           runbook: docs/runbooks/outbox.md
 
       - alert: UsageJobStale
@@ -163,7 +163,7 @@ groups:
         for: 15m
         labels: { severity: warning }
         annotations:
-          summary: 'RADIUS sync keeps failing ({{ $value | humanize }} errors in 15 min); changes retry with backoff'
+          summary: 'Radius sync keeps failing ({{ $value | humanize }} errors in 15 min); changes retry with backoff'
           runbook: docs/runbooks/outbox.md
 
       - alert: ReconcileStale
@@ -210,7 +210,7 @@ groups:
         expr: isp_disk_guard_level == 2
         labels: { severity: critical }
         annotations:
-          summary: 'Disk over 85 %: panel and portal show the maintenance page (RADIUS and payments still running)'
+          summary: 'Disk over 85 %: panel and portal show the maintenance page (Radius and payments still running)'
           runbook: docs/runbooks/disk-guard.md
 
       - alert: DiskReserveReleased
@@ -235,7 +235,7 @@ groups:
         for: 2m
         labels: { severity: critical }
         annotations:
-          summary: 'Synthetic PPPoE login to production RADIUS fails: customers may not be able to connect'
+          summary: 'Synthetic PPPoE login to production Radius fails: customers may not be able to connect'
           runbook: docs/runbooks/radius-down.md
 
       - alert: RadiusStagingLoginProbeFailing
@@ -243,7 +243,7 @@ groups:
         for: 5m
         labels: { severity: warning }
         annotations:
-          summary: 'Synthetic login to staging RADIUS fails'
+          summary: 'Synthetic login to staging Radius fails'
 
       - alert: RadiusLoginSlow
         expr: isp_radius_probe_seconds{instance_name="production"} > 1

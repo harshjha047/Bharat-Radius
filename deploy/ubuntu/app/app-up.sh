@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Staging app stack on the RADIUS host: our MongoDB, the API, the walled-garden redirect, and one Caddy site in the
+# Staging app stack on the Radius host: our MongoDB, the API, the walled-garden redirect, and one Caddy site in the
 # ACS stack. Idempotent. Never changes ACS containers or routes; adds only:
 #   /opt/acs/repo/infra/caddy/sites/isp.caddy  +  one "import /etc/caddy/sites/*.caddy" line in its Caddyfile.
 # Usage: sudo [RADIUS_INSTANCE=staging|production] [RADIUS_PUBLIC_HOST=<ip>] bash deploy/ubuntu/app/app-up.sh
-#   RADIUS_INSTANCE: which RADIUS database the panel writes routers and subscribers to (default staging). The panel
+#   RADIUS_INSTANCE: which Radius database the panel writes routers and subscribers to (default staging). The panel
 #     shows it with the host and ports routers must use. Remembered in /etc/isp-app/settings.env, so a plain rerun
 #     never switches instance. production uses MongoDB database "isp", staging "isp_staging".
-#   RADIUS_PUBLIC_HOST: address routers send RADIUS to (default: this host's primary public IPv4).
+#   RADIUS_PUBLIC_HOST: address routers send Radius to (default: this host's primary public IPv4).
 #   PANEL_HOSTS: space-separated host names Caddy serves the panel on (default new.bharatradius.com); the first is
 #     the canonical address (links in SMS, invoices, pay page). Add an ISP's own domain only after its DNS points
 #     here, or Caddy keeps retrying its certificate. Remembered in settings.env like the two above.
@@ -103,7 +103,7 @@ mv "$ETC/app.env.new" "$ETC/app.env"
 rm -f "$ETC/staging.env"
 printf 'RADIUS_INSTANCE=%s\nRADIUS_PUBLIC_HOST=%s\nPANEL_HOSTS=%s\n' "$RADIUS_INSTANCE" "$RADIUS_PUBLIC_HOST" "$PANEL_HOSTS" >"$SETTINGS"
 umask 022
-log "panel → RADIUS $RADIUS_INSTANCE ($R_DB): routers use ${RADIUS_PUBLIC_HOST:-<host>} auth $R_AUTH / acct $R_ACCT, MongoDB $MONGO_DB"
+log "panel → Radius $RADIUS_INSTANCE ($R_DB): routers use ${RADIUS_PUBLIC_HOST:-<host>} auth $R_AUTH / acct $R_ACCT, MongoDB $MONGO_DB"
 
 # ------------------------------------------------------------------ PostgreSQL reachable from containers
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then

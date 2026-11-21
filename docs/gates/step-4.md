@@ -15,23 +15,23 @@ Started 11 Nov 2026. Plan: IMPLEMENTATION_PLAN §6.
 | 4.6 Compliance logs | ✅ #47 · UDP 514 ⏳ O-12 | Archive (3 years, sealed daily), router syslog + NAT logs (opt-in per router, `mikrotik/logging.rsc`), NAT IP lookup in the panel (audited), access log, `radpostauth` 1,100 days. UDP 514 still to open. Runbook `docs/runbooks/compliance-logs.md` |
 | 4.7 Importer | ✅ #54, #55 | O-10 received 18 Nov (dump restored as `bharatradius_legacy` on the VPS: 7 sites, 22 plans, 4 routers, 136 subscribers, cleartext PPPoE passwords). `cli.js import-legacy` (dry run / `--apply` / `--sites`), re-runnable delta, reconciliation. Runbook `docs/runbooks/legacy-import.md` |
 | 4.8 Backups/DR | ✅ #36, #66 · restore drill ⏳ | Nightly age-encrypted backups (#36). O-18 = Backblaze B2 (owner, 18 Nov; no India region; lawyer to confirm under O-11). Follow-up PR: log archive days older than 60 days moved to B2 (gzip, not encrypted by owner's choice; SHA-1 verified; `fetch` brings days back), `LogOffloadStuck` alert. Setup: `docs/runbooks/backups.md` → Backblaze B2. Restore drill ⏳ |
-| 4.9 Alerts | ✅ #35, #65 | #35 (11 Nov): synthetic RADIUS login every minute, `RadiusLoginProbeFailing`/`Slow`/`Stale`, `OutboxErrors`, `ReconcileStale`, `BackupMissing`/`NeverRan` (resolve with 4.8). Follow-up PR: `WalledGardenDown` (blackbox on `:8089` expects 302 → `/pay`), `WorkerJobFailing` (expired-sweep, imports, expiry-reminders, usage), `ExpiredSweepStale` |
-| Disk guard | ✅ #67 | Every 5 min: ≥ 70 % drill (imports/rebuilds paused, cache + old logs/backups to B2 after verify), ≥ 85 % maintenance page (RADIUS, webhooks, pay page keep running), ≥ 95 % 5 GB reserve released. Runbook `docs/runbooks/disk-guard.md` |
+| 4.9 Alerts | ✅ #35, #65 | #35 (11 Nov): synthetic Radius login every minute, `RadiusLoginProbeFailing`/`Slow`/`Stale`, `OutboxErrors`, `ReconcileStale`, `BackupMissing`/`NeverRan` (resolve with 4.8). Follow-up PR: `WalledGardenDown` (blackbox on `:8089` expects 302 → `/pay`), `WorkerJobFailing` (expired-sweep, imports, expiry-reminders, usage), `ExpiredSweepStale` |
+| Disk guard | ✅ #67 | Every 5 min: ≥ 70 % drill (imports/rebuilds paused, cache + old logs/backups to B2 after verify), ≥ 85 % maintenance page (Radius, webhooks, pay page keep running), ≥ 95 % 5 GB reserve released. Runbook `docs/runbooks/disk-guard.md` |
 | F-1…F-14 | ✅ #68 | #57–#63 were merged into their stacked bases and never reached `main`; landed here together |
 | F-7 Billing models, top-up requests, recharge edits | ✅ #69 | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
 | F-8 Reseller name and logo | ✅ #70 | Reseller → Branding or own My account; panel header and its customers' portal; inherited down the tree |
 | F-7 Billing models, top-up requests, recharge edits | 🔀 PR | Per child reseller (set by its parent): *Prepaid top-up* (wallet price per plan) or *Revenue share* (debit % of plan price excl. GST). Resellers request top-ups from the wallet above (Master → Reseller → LCO); parent approves (a normal transfer, once) or rejects. Recharge popup: price (incl. GST, whole rupees) and valid-until editable with `recharges.override` (ISP Admin, Reseller Owner) and a reason; wallet debit unchanged; a reseller cannot extend past the paid period |
-| F-17 Unknown router / wrong secret | ✅ #71 | `log-events.sh` timer (FreeRADIUS log + ufw blocks) → `radius_events` (PG 007); RADIUS log → *Routers* tab (health per router, address check), banner, *Why?* router hint |
+| F-17 Unknown router / wrong secret | ✅ #71 | `log-events.sh` timer (Radius engine log + ufw blocks) → `radius_events` (PG 007); Radius log → *Routers* tab (health per router, address check), banner, *Why?* router hint |
 | 4.10 Production prep | ✅ #72–#74 | Nonce CSP (no inline scripts), `PANEL_HOSTS`, DPDP privacy notice + consent (portal, paper), `preflight.sh`, restore-drill marker; runbook `go-live.md`. Owner: O-23, O-17, notice text |
 | 4.11 Import dry run (production) | ◑ 19 Nov | Imported into `radius` + MongoDB `isp` (panel on production since 19 Nov); re-run: all unchanged. Open: privacy notice, 12 ₹1 plans, 3 `legacy-fix` (O-21) |
 | 4.12–4.15 | ⏳ | 4.12 waits on O-12 (inbound UDP 1812/1813 at NetForChoice) |
 | F-15 Expired handling | ✅ #56 | Per-ISP *When validity runs out*: Disconnect (default) or Slow speed + pay page. Reject reason `Subscriber account expired`; `expired-sweep` job disconnects expired online sessions every 5 min |
 | F-10/16 Username case, Excel dates | ✅ #68 | Usernames unique and matched ignoring case (PG `lower()` index + Mongo collation); accounting/auth log store the subscriber's own spelling. Excel `expires_on` day-first (`12/10/2026`, `12-10-2026`, `12.10.2026`) |
 | F-5/12/13 Recharge quantity + period | ✅ #68 | Recharge dialog: Periods 1–6, 12 (price × N, one invoice line), Starts / Valid until shown before confirming. History: Period start → end, × N, Recharged by |
-| F-2/3 RADIUS log | ✅ #68 | Network → RADIUS log: Auth log (search, Accept/Reject, reason, router, period, auto-refresh, *Why?* with fix + similar usernames) and Live (start/pause/stop, user/text/type filter, full screen, download); subscriber → Login log → *Live RADIUS log* |
+| F-2/3 Radius log | ✅ #68 | Network → Radius log: Auth log (search, Accept/Reject, reason, router, period, auto-refresh, *Why?* with fix + similar usernames) and Live (start/pause/stop, user/text/type filter, full screen, download); subscriber → Login log → *Live Radius log* |
 | F-4/11 Dashboard config + live cards | ✅ #68 | *Customise* on staff and reseller dashboards (per user, saved on the server). New cards: Pending recharge (expired), Login rejects (24 h), month recharge count. Expired rows tinted red in the subscriber list |
 | F-14 Recharges and expiries report | ✅ #68 | Reports → *Recharges and expiries*: recharges, users recharged, expired in period (renewed later / still not), pending now, expiring 7 d, new; by day, by month, by package; recharge list with start/end (Excel/PDF). Presets add *Today* and *This year* |
-| F-1 Live router monitoring | ✅ #68 | Routers → router: API login (encrypted), router health, live traffic per interface (2 s), latency (ping from router), PPPoE online router vs RADIUS, ports for the dashboard. Dashboard *NAS statistics*; subscriber *Live speed*. Own RouterOS API client: one session per router, ≤ 3 commands at once, identical polls shared, 15 s cap, offline reported in < 2 s |
+| F-1 Live router monitoring | ✅ #68 | Routers → router: API login (encrypted), router health, live traffic per interface (2 s), latency (ping from router), PPPoE online router vs Radius, ports for the dashboard. Dashboard *NAS statistics*; subscriber *Live speed*. Own RouterOS API client: one session per router, ≤ 3 commands at once, identical polls shared, 15 s cap, offline reported in < 2 s |
 | F-6 Login as site | ✅ #68 | Reseller page → *Open panel*: staff with *resellers.write*, or a parent reseller, works inside the child's panel (rights = own ∩ reseller rights); dark *Back to Admin* bar goes back one level; per browser tab; changes audited as “Name (as R-0004)” |
 
 ## Staging checks — 4.1
@@ -110,18 +110,18 @@ Deploy: `install.sh staging` (migration 005) then `app-up.sh` (Mongo 015). Eithe
 
 Deploy: `install.sh staging` (migration 006: pg_trgm + indexes) then `app-up.sh`.
 
-1. Network → RADIUS log → Auth log: today's attempts newest first; counts accepted / rejected.
+1. Network → Radius log → Auth log: today's attempts newest first; counts accepted / rejected.
 2. Filter *Rejected* → reason list shows counts; pick *Wrong password* → only those rows.
 3. CHR lab: dial `test.lab` with a wrong password → row appears within 30 s (auto-refresh) → *Why?* → *Wrong password* + fix; Technical details show router, MAC, *In the database: Yes*.
 4. Dial `test.lob` → *Why?* → *No such username*, similar usernames lists `test.lab`.
 5. Live tab → dial / hang up `test.lab` → ACCEPT, START, STOP lines within ~2 s. *This user only* = `test.lab` → only its lines. Pause / Stop / Start; Esc leaves full screen; download saves a .txt.
-6. Subscriber `test.lab` → Login log → *Live RADIUS log* opens Live filtered to it.
-7. Sign in as Test L2 (reseller): no RADIUS log menu.
+6. Subscriber `test.lab` → Login log → *Live Radius log* opens Live filtered to it.
+7. Sign in as Test L2 (reseller): no Radius log menu.
 
 ## Staging checks — F-4/11
 
 1. Dashboard → *Customise* → untick *Network charts* and *Plans* → Save → both gone; sign in on another browser → still gone. *Show all* → back.
-2. Cards: *Pending recharge* = Expired count on Renewals → opens Subscribers filtered to Expired. *Login rejects* opens RADIUS log → Rejected. *Today’s recharges* hint shows today and this month.
+2. Cards: *Pending recharge* = Expired count on Renewals → opens Subscribers filtered to Expired. *Login rejects* opens Radius log → Rejected. *Today’s recharges* hint shows today and this month.
 3. Subscribers list: an expired active customer's row is tinted red with the date in red.
 4. Sign in as Test L2: *Customise* lists only reseller cards; Renewals tiles show its branch only.
 
@@ -138,7 +138,7 @@ Deploy: `install.sh staging` (migration 006: pg_trgm + indexes) then `app-up.sh`
 
 On the router (once): `/user group add name=bharat-api policy=api,read,test` · `/user add name=bharat group=bharat-api password=…` · `/ip service set api address=154.49.142.251/32` (and keep it closed to everyone else: Abhay-RB4011 has API open to the internet today).
 
-1. Routers → Abhay-RB4011 → API login: user `bharat`, password, *Save and connect* → Router card shows identity, RouterOS, uptime, CPU, memory, *PPPoE online* router vs RADIUS.
+1. Routers → Abhay-RB4011 → API login: user `bharat`, password, *Save and connect* → Router card shows identity, RouterOS, uptime, CPU, memory, *PPPoE online* router vs Radius.
 2. Wrong password → card shows *API login refused…*; port blocked → *did not answer … within 2 s*.
 3. Traffic: pick `ether1` → graph moves every 2 s; RX/TX now, avg/peak. Switch to the uplink → new graph.
 4. Latency: 8.8.8.8 → current/avg/min/max/loss; enter another address → restarts.
@@ -186,7 +186,7 @@ later: `docs/runbooks/kyc.md`.
 7. Sign in as Test L2: customer → KYC → can upload, no eye icon, no Verify. Another branch's customer → not found.
 8. Portal (`test.sub`) → *Account* → KYC documents → upload PAN → staff see it with *by portal*.
 9. Test L1 → *My account* → Branding: name *Test Fibre*, upload a logo → sidebar shows it. Test L2 and `test.sub`'s
-   portal header show *Test Fibre* + logo; staff panel still shows BharatRadius. Test L2 sets its own name → it
+   portal header show *Test Fibre* + logo; staff panel still shows Bharat Radius. Test L2 sets its own name → it
    wins for L2 and its customers.
 10. On the VPS: `sudo ls /var/lib/isp-files/kyc/*/*` lists files; `sudo head -c 5 <file>` prints `ISPF1` (encrypted).
 ## Staging checks — F-17 unknown router / wrong secret
@@ -195,13 +195,13 @@ Deploy: `git pull && sudo bash radius/scripts/install.sh staging && sudo bash de
 (PG 007, timer `isp-radius-events@staging`). `systemctl list-timers 'isp-radius-events*'` shows it.
 
 1. CHR lab: `sudo bash deploy/ubuntu/lab/chr-lab.sh up`, then on the CHR set a wrong secret
-   (`/radius set 0 secret=<any other value>`) and dial `test.lab`. Within 2 minutes: Network → RADIUS log →
-   *Routers* tab → CHR *wrong RADIUS secret on the router* (RouterOS that signs requests with
+   (`/radius set 0 secret=<any other value>`) and dial `test.lab`. Within 2 minutes: Network → Radius log →
+   *Routers* tab → CHR *wrong Radius secret on the router* (RouterOS that signs requests with
    Message-Authenticator). Older RouterOS without it: the login is logged as *wrong password*; dial 3 different test
-   users → *RADIUS secret probably wrong* and the yellow banner on the Auth log.
-2. Open the reject in the Auth log (if any) → *Why?* shows *Router problem: …different RADIUS secret*.
+   users → *Radius secret probably wrong* and the yellow banner on the Auth log.
+2. Open the reject in the Auth log (if any) → *Why?* shows *Router problem: …different Radius secret*.
 3. Put the right secret back → after 24 h the router returns to OK (or check the count stops rising).
-4. *Router not reaching RADIUS?* → enter an address that is not a router but sends RADIUS (e.g. a second
+4. *Router not reaching Radius?* → enter an address that is not a router but sends Radius (e.g. a second
    router pointed at staging) → *blocked by the firewall*. Enter `8.8.8.8` → *Nothing has arrived*.
 5. Super-admin sign-in → same tab lists unknown addresses.
 ## Staging checks — 4.10 production prep
@@ -224,7 +224,7 @@ Deploy: `git pull && sudo bash deploy/ubuntu/app/app-up.sh`.
 |---|---|
 | Backups | First backup + B2 off-site (`bharatradius-offsite/isp-backups`); nightly 01:30 IST |
 | Restore drill | PASSED 2026-11-19T13:33Z (backup ≤ live in every table) — after fix #74 |
-| Production RADIUS | `install.sh production`: migrations 004–007, timers incl. `isp-radius-events@production` |
+| Production Radius | `install.sh production`: migrations 004–007, timers incl. `isp-radius-events@production` |
 | Panel | `RADIUS_INSTANCE=production`, `RADIUS_PUBLIC_HOST=154.49.142.251`; tenant `bharat` + ISP Admin created fresh |
 | Import (17 Nov dump) | resellers 7, plans 14 created + 8 reused (22), routers 4, subscribers 136/136, wallets 4 + Fab Five at ₹0 |
 | Re-run | all unchanged (0 created / 0 updated / 0 failed) |

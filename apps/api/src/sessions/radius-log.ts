@@ -194,7 +194,7 @@ const toEntry = (r: Row): Entry => ({
   mac: r.callingstationid,
 });
 
-/** Plain-language cause and fix for a logged reason (TRD §5.2 reasons, FreeRADIUS module messages). */
+/** Plain-language cause and fix for a logged reason (TRD §5.2 reasons, Radius engine module messages). */
 export function explain(
   reason: string | null,
   accepted: boolean,
@@ -277,7 +277,7 @@ export function explain(
     return c(
       'username_format',
       'Username format not allowed',
-      'The username contains characters RADIUS refuses (spaces, a dot right after @, control characters).',
+      'The username contains characters Radius refuses (spaces, a dot right after @, control characters).',
       'Fix the PPPoE username in the customer router.',
     );
   return c(
@@ -474,9 +474,9 @@ export class RadiusLogService {
     ]);
     const h = health?.[0];
     const routerHint = h?.badSecret
-      ? `Router ${h.name} (${h.nasIp}) is sending with a different RADIUS secret than the panel has (${h.badSecret.packets}+ packets in 24 h). Fix the secret on the router, not the customer password.`
+      ? `Router ${h.name} (${h.nasIp}) is sending with a different Radius secret than the panel has (${h.badSecret.packets}+ packets in 24 h). Fix the secret on the router, not the customer password.`
       : h?.suspectSecret
-        ? `Several different customers on ${h.name} (${h.nasIp}) failed with "wrong password" in the last hour and nobody logged in: the router's RADIUS secret is probably wrong.`
+        ? `Several different customers on ${h.name} (${h.nasIp}) failed with "wrong password" in the last hour and nobody logged in: the router's Radius secret is probably wrong.`
         : null;
     return {
       entry,
@@ -574,7 +574,7 @@ export class RadiusLogService {
     return { routers, problems: routers.filter((r) => r.problem && r.problem !== 'silent').length };
   }
 
-  /** Is anything arriving from this address, and why is RADIUS not answering it? Exact address only. */
+  /** Is anything arriving from this address, and why is Radius not answering it? Exact address only. */
   async address(ctx: AuthContext, q: z.output<typeof addressQuery>) {
     if (ctx.scope.kind === 'branch') throw forbidden('Ask the ISP to check router addresses');
     const platform = ctx.scope.kind === 'platform' && !q.tenantId;
@@ -618,12 +618,12 @@ export class RadiusLogService {
       registered === 'other' && !platform
         ? 'This address is a router of another ISP on this platform.'
         : registered === 'mine' && kinds.has('bad_secret')
-          ? 'Packets arrive, but the RADIUS secret on the router does not match the panel. Set the same secret on both.'
+          ? 'Packets arrive, but the Radius secret on the router does not match the panel. Set the same secret on both.'
           : registered === 'mine'
-            ? 'This is one of your routers and its packets are accepted. If customers still fail, open the RADIUS log.'
+            ? 'This is one of your routers and its packets are accepted. If customers still fail, open the Radius log.'
             : kinds.size
               ? 'Packets from this address reach the server, but it is not a router in the panel. Add a router with exactly this address (the one the server sees, after any NAT).'
-              : 'Nothing has arrived from this address in 7 days. Check the RADIUS server address and ports on the router, and that this is the address the router sends from (after NAT).';
+              : 'Nothing has arrived from this address in 7 days. Check the Radius server address and ports on the router, and that this is the address the router sends from (after NAT).';
     return {
       ip: q.ip,
       registered: registered as 'mine' | 'other' | 'none',
@@ -634,7 +634,7 @@ export class RadiusLogService {
     };
   }
 
-  /** Super-admin: addresses sending RADIUS that are not a router of any ISP (last 24 h). */
+  /** Super-admin: addresses sending Radius that are not a router of any ISP (last 24 h). */
   async unknown() {
     const { rows } = await this.sessions.db().query<{
       ip: string;
@@ -779,7 +779,7 @@ export class RadiusLogController {
 
   @Get('radius/router-problems')
   @Endpoint({
-    summary: 'Routers with RADIUS problems: wrong shared secret (seen or likely), no logins in 24 h',
+    summary: 'Routers with Radius problems: wrong shared secret (seen or likely), no logins in 24 h',
     tags: ['sessions'],
     permission: 'nas.read',
     query: tenantQuery,
@@ -804,7 +804,7 @@ export class RadiusLogController {
 
   @Get('radius/unknown-clients')
   @Endpoint({
-    summary: 'Addresses sending RADIUS that are not a router of any ISP (super-admin, 24 h)',
+    summary: 'Addresses sending Radius that are not a router of any ISP (super-admin, 24 h)',
     tags: ['sessions'],
     platformOnly: true,
     permission: 'nas.read',
@@ -816,7 +816,7 @@ export class RadiusLogController {
 
   @Get('radius/tail')
   @Endpoint({
-    summary: 'Live RADIUS log: auth and accounting Start/Stop events since a time (poll every 2 s)',
+    summary: 'Live Radius log: auth and accounting Start/Stop events since a time (poll every 2 s)',
     tags: ['sessions'],
     permission: 'sessions.read',
     query: tailQuery,

@@ -8,14 +8,14 @@
 # production 1812/1813, staging 11812/11813
 :local authPort 1812
 :local acctPort 1813
-# Source IP for RADIUS packets; must equal the router IP registered in the panel ("" = routing decides).
+# Source IP for Radius packets; must equal the router IP registered in the panel ("" = routing decides).
 :local srcAddress ""
-# BharatRadius as fallback during migration ("" = none)
+# Bharat Radius as fallback during migration ("" = none)
 :local fallbackIp ""
 :local fallbackSecret ""
 :local fallbackAuthPort 1812
 :local fallbackAcctPort 1813
-# App server: CoA source and walled-garden page on HTTP port payPort (staging: the RADIUS VPS)
+# App server: CoA source and walled-garden page on HTTP port payPort (staging: the Radius VPS)
 :local appIp "154.49.142.251"
 :local payPort 8089
 # true = expired users reach only DNS, the pay page and payment gateways; false = web traffic redirected, rest at slow speed
@@ -30,12 +30,12 @@
 :if ([:typeof $minor] = "nil") do={ :set minor [:tonum [:pick $rest 0 [:find $rest " "]]] }
 :put "RouterOS $ver"
 
-# ---- RADIUS servers (primary first; fallback answers only when primary times out)
+# ---- Radius servers (primary first; fallback answers only when primary times out)
 /radius remove [find where comment~$tag]
 :local p [/radius add address=$radiusIp secret=$radiusSecret service=ppp authentication-port=$authPort accounting-port=$acctPort timeout=1s comment="$tag primary"]
 :if ($srcAddress != "") do={ /radius set $p src-address=$srcAddress }
 :if ($fallbackIp != "") do={
-  :local f [/radius add address=$fallbackIp secret=$fallbackSecret service=ppp authentication-port=$fallbackAuthPort accounting-port=$fallbackAcctPort timeout=1s comment="$tag fallback (BharatRadius)"]
+  :local f [/radius add address=$fallbackIp secret=$fallbackSecret service=ppp authentication-port=$fallbackAuthPort accounting-port=$fallbackAcctPort timeout=1s comment="$tag fallback (Bharat Radius)"]
   :if ($srcAddress != "") do={ /radius set $f src-address=$srcAddress }
 }
 # Blast-RADIUS (CVE-2024-3596): RouterOS 7.15+ can require Message-Authenticator; our server always sends it.
@@ -58,14 +58,14 @@
   }
 } else={
   /ip firewall filter add chain=input protocol=udp dst-port=3799 src-address=$appIp action=accept comment="$tag: CoA from app server"
-  # During migration the old RADIUS (fallback) still sends its own kicks and speed changes.
+  # During migration the old Radius (fallback) still sends its own kicks and speed changes.
   :if ($fallbackIp != "") do={
     /ip firewall filter add chain=input protocol=udp dst-port=3799 src-address=$fallbackIp action=accept comment="$tag: CoA from fallback (migration)"
   }
   /ip firewall filter add chain=input protocol=udp dst-port=3799 action=drop comment="$tag: CoA from others"
 }
 
-# ---- Walled garden for expired users (RADIUS puts them in address list "expired")
+# ---- Walled garden for expired users (Radius puts them in address list "expired")
 /ip firewall address-list remove [find where comment~$tag]
 /ip firewall address-list add list=isp-pay-allow address=$appIp comment=$tag
 :foreach d in=$payDomains do={ /ip firewall address-list add list=isp-pay-allow address=$d comment=$tag }

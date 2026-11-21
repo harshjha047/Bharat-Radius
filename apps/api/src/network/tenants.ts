@@ -246,7 +246,7 @@ export class TenantsController {
 
   @Patch('tenant')
   @Endpoint({
-    summary: 'Edit own ISP settings (RADIUS settings sync to routers)',
+    summary: 'Edit own ISP settings (Radius settings sync to routers)',
     tags: ['tenants'],
     audit: 'tenant.update',
     permission: 'tenant.settings',

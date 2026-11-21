@@ -771,7 +771,7 @@ export class SubscribersController {
 
   @Patch(':id')
   @Endpoint({
-    summary: 'Edit a subscriber; RADIUS and an online session follow (CoA or reconnect)',
+    summary: 'Edit a subscriber; Radius and an online session follow (CoA or reconnect)',
     tags: ['subscribers'],
     audit: 'subscriber.update',
     permission: 'subscribers.write',

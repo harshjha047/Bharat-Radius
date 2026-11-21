@@ -1,5 +1,5 @@
-# Rollback for setup.rsc: removes everything tagged "isp-radius". PPP AAA and RADIUS incoming are left enabled
-# (BharatRadius needs them too); disable by hand if required:  /ppp aaa set use-radius=no
+# Rollback for setup.rsc: removes everything tagged "isp-radius". PPP AAA and Radius incoming are left enabled
+# (Bharat Radius needs them too); disable by hand if required:  /ppp aaa set use-radius=no
 {
 :local tag "isp-radius"
 /radius remove [find where comment~$tag]

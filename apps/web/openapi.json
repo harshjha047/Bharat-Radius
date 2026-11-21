@@ -2832,7 +2832,7 @@
     },
     "/api/v1/nas/radius-target": {
       "get": {
-        "summary": "RADIUS host and ports routers must send to (this panel feeds that instance)",
+        "summary": "Radius host and ports routers must send to (this panel feeds that instance)",
         "tags": ["nas"],
         "security": [
           {
@@ -3150,7 +3150,7 @@
         }
       },
       "post": {
-        "summary": "Add a router; FreeRADIUS serves it within ~30 s (secret returned once if generated)",
+        "summary": "Add a router; the Radius engine serves it within ~30 s (secret returned once if generated)",
         "tags": ["nas"],
         "security": [
           {
@@ -3939,7 +3939,7 @@
     },
     "/api/v1/nas/{id}/secret": {
       "get": {
-        "summary": "Show the RADIUS secret (for router setup)",
+        "summary": "Show the Radius secret (for router setup)",
         "tags": ["nas"],
         "security": [
           {
@@ -7191,7 +7191,7 @@
         }
       },
       "patch": {
-        "summary": "Edit a subscriber; RADIUS and an online session follow (CoA or reconnect)",
+        "summary": "Edit a subscriber; Radius and an online session follow (CoA or reconnect)",
         "tags": ["subscribers"],
         "security": [
           {
@@ -19289,7 +19289,7 @@
         }
       },
       "patch": {
-        "summary": "Edit own ISP settings (RADIUS settings sync to routers)",
+        "summary": "Edit own ISP settings (Radius settings sync to routers)",
         "tags": ["tenants"],
         "security": [
           {
@@ -21749,7 +21749,7 @@
         }
       },
       "put": {
-        "summary": "Save the router API login and monitored ports (not a RADIUS change)",
+        "summary": "Save the router API login and monitored ports (not a Radius change)",
         "tags": ["nas"],
         "security": [
           {
@@ -22291,7 +22291,7 @@
     },
     "/api/v1/nas/{id}/live/online": {
       "get": {
-        "summary": "PPPoE sessions the router counts (to compare with RADIUS online)",
+        "summary": "PPPoE sessions the router counts (to compare with Radius online)",
         "tags": ["nas"],
         "security": [
           {
@@ -22992,7 +22992,7 @@
     },
     "/api/v1/radius/router-problems": {
       "get": {
-        "summary": "Routers with RADIUS problems: wrong shared secret (seen or likely), no logins in 24 h",
+        "summary": "Routers with Radius problems: wrong shared secret (seen or likely), no logins in 24 h",
         "tags": ["sessions"],
         "security": [
           {
@@ -23266,7 +23266,7 @@
     },
     "/api/v1/radius/unknown-clients": {
       "get": {
-        "summary": "Addresses sending RADIUS that are not a router of any ISP (super-admin, 24 h)",
+        "summary": "Addresses sending Radius that are not a router of any ISP (super-admin, 24 h)",
         "tags": ["sessions"],
         "security": [
           {
@@ -23351,7 +23351,7 @@
     },
     "/api/v1/radius/tail": {
       "get": {
-        "summary": "Live RADIUS log: auth and accounting Start/Stop events since a time (poll every 2 s)",
+        "summary": "Live Radius log: auth and accounting Start/Stop events since a time (poll every 2 s)",
         "tags": ["sessions"],
         "security": [
           {

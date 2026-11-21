@@ -4,7 +4,7 @@ Not legal advice: retention below is the owner's choice (11 Nov 2026) pending th
 
 | Rule | Asks for | We keep |
 |---|---|---|
-| DoT licence (internet access) | Subscriber log-in/log-out details, ≥ 2 years | RADIUS sessions (`radacct`): never deleted; login attempts (`radpostauth`): 1,100 days |
+| DoT licence (internet access) | Subscriber log-in/log-out details, ≥ 2 years | Radius sessions (`radacct`): never deleted; login attempts (`radpostauth`): 1,100 days |
 | DPDP Rules 2025, r. 6 (in force 13 May 2027) | Processing logs + personal data ≥ 1 year; access control, monitoring | Archive 3 years; audit log (changes) indefinitely; access log (who viewed a customer) 1,100 days |
 | CERT-In directions 2022 | Logs of all ICT systems 180 days, in India; NTP-synced clocks | Archive 3 years: last 60 days on the VPS (India), older days compressed in Backblaze B2, not encrypted (outside India; owner's decision 18 Nov 2026; ask O-11); `ClockNotSynced` alert |
 
@@ -16,7 +16,7 @@ Not legal advice: retention below is the owner's choice (11 Nov 2026) pending th
 |---|---|
 | `nat/<router-ip>/` | NAT translations from routers (`ISPNAT` lines): who used which public IP:port, when |
 | `routers/<router-ip>/` | Router syslog: PPPoE logins/logouts, router logins, errors |
-| `radius/<program>/` | FreeRADIUS production and staging |
+| `radius/<program>/` | Radius engine production and staging |
 | `app/<container>/` | API, workers, web, MongoDB, walled garden (Docker journald driver) |
 | `host/auth/`, `host/system/` | SSH/sudo logins; everything else on the server |
 
@@ -49,14 +49,14 @@ ls /var/log/isp-archive/app/                        # isp-api, isp-workers, … 
    It sends PPP, account, system, warning/error logs, and with `natLog true` turns on `log=yes log-prefix=ISPNAT` on the router's existing srcnat masquerade/src-nat rules. Rollback: `/import remove.rsc`.
 4. Check within a minute: `sudo ls -l /var/log/isp-archive/routers/<router-ip>/ /var/log/isp-archive/nat/<router-ip>/`
 
-Customers with their own public IP need no NAT log (set `natLog false`); the RADIUS session already says who had the IP.
+Customers with their own public IP need no NAT log (set `natLog false`); the Radius session already says who had the IP.
 
 NAT logging costs router CPU on busy POPs: enable it on one router first and watch its CPU for a day.
 
 ## Answering "who used IP X at time T"
 
 Panel → **Sessions → Who had an IP**: IP, date/time (IST, seconds allowed), optional port, search window.
-- *Sessions that had this IP*: customers whose own IP it was (RADIUS).
+- *Sessions that had this IP*: customers whose own IP it was (Radius).
 - *NAT logs*: customers behind NAT who went out as that public IP (needs permission **Search NAT logs**, ISP Admin by default). With the port, usually exactly one customer. Every search is recorded in the audit log (who searched what).
 
 Requests usually give the public IP, port and time from the website's log. NAT lines record when a connection *started*: if nothing matches, widen the window.

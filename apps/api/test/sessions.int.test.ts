@@ -38,7 +38,7 @@ beforeAll(async () => {
     `othr${run}`,
   );
 
-  // What FreeRADIUS and the worker would have written for this ISP.
+  // What the Radius engine and the worker would have written for this ISP.
   const tid = (
     await pgAdmin.query<{ id: number }>(
       'INSERT INTO tenants (external_id, slug, name) VALUES ($1, $2, $2) RETURNING id',
@@ -269,7 +269,7 @@ describe('sessions and logs', () => {
     const wp = list.body.items.find((i: { reason: string }) => i.reason === 'Wrong password (PAP)');
     const why = await support.req('GET', `/api/v1/radius/auth-log/why?id=${encodeURIComponent(wp.id)}`);
     expect(why.body.category).toBe('wrong_password');
-    expect(why.body.routerHint).toMatch(/different RADIUS secret/);
+    expect(why.body.routerHint).toMatch(/different Radius secret/);
   });
 
   it('another ISP sees none of it', async () => {

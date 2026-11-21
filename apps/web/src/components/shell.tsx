@@ -96,7 +96,7 @@ const STAFF_NAV: NavGroup[] = [
     icon: Router,
     items: [
       { href: '/admin/routers', label: 'Routers', icon: Router, any: ['nas.read'] },
-      { href: '/admin/radius-log', label: 'RADIUS log', icon: Activity, any: ['sessions.read'] },
+      { href: '/admin/radius-log', label: 'Radius log', icon: Activity, any: ['sessions.read'] },
     ],
   },
   {
@@ -322,7 +322,7 @@ const Brand = ({ me }: { me: Me | undefined }) => {
       )}
       <div className="flex min-w-0 flex-col">
         <span className="truncate text-base font-extrabold tracking-[-0.03em] text-foreground">
-          {b?.name ?? 'BharatRadius'}
+          {b?.name ?? 'Bharat Radius'}
         </span>
         <span className="eyebrow truncate text-[10px]">{me ? areaLabel(me) : '\u00a0'}</span>
       </div>
@@ -481,7 +481,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <BrandMark className="h-6" />
           )}
           <span className="flex-1 truncate text-base font-extrabold text-foreground">
-            {me.data?.branding?.name ?? 'BharatRadius'}
+            {me.data?.branding?.name ?? 'Bharat Radius'}
           </span>
         </header>
         {me.data?.viewAs ? (

@@ -1,8 +1,8 @@
-# Outbox: changes not reaching RADIUS
+# Outbox: changes not reaching Radius
 
 Every change to an ISP, router, plan (and from WP 2.6 subscriber) is saved in MongoDB together with an `outbox` row
 in one transaction. `isp-workers` writes the entity's current state into PostgreSQL, normally within a second.
-FreeRADIUS picks up router changes within 30 s (NAS watcher). For users online at the time, the worker then sends
+The Radius engine picks up router changes within 30 s (NAS watcher). For users online at the time, the worker then sends
 CoA (new rate) or Disconnect-Request (state change, kick) from the VPS public IP to UDP 3799 on the router; each
 result is in `coa_log` and on the subscriber page. Routers must accept 3799 from that IP (`setup.rsc` `appIp`).
 

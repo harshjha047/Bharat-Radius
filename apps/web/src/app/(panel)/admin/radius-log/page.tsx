@@ -230,7 +230,7 @@ function AuthLog() {
           loadingMore={list.isFetchingNextPage}
           onLoadMore={() => void list.fetchNextPage()}
           empty="No login attempts in this period."
-          caption="RADIUS login attempts"
+          caption="Radius login attempts"
         />
       )}
       <WhyDialog entry={why} onClose={() => setWhy(null)} />
@@ -542,7 +542,7 @@ function LiveLog() {
           ))
         ) : (
           <p className="text-zinc-500">
-            {state === 'running' ? 'Waiting for RADIUS events…' : 'Press Start to follow RADIUS events.'}
+            {state === 'running' ? 'Waiting for Radius events…' : 'Press Start to follow Radius events.'}
           </p>
         )}
       </div>
@@ -551,12 +551,12 @@ function LiveLog() {
 }
 
 const PROBLEM_TEXT = {
-  bad_secret: 'wrong RADIUS secret on the router',
-  suspect_secret: 'customers fail with “wrong password”: RADIUS secret probably wrong',
+  bad_secret: 'wrong Radius secret on the router',
+  suspect_secret: 'customers fail with “wrong password”: Radius secret probably wrong',
   silent: 'no login attempts in 24 h',
 } as const;
 
-/** F-17: routers whose packets RADIUS cannot use, at the top of the log. */
+/** F-17: routers whose packets Radius cannot use, at the top of the log. */
 function RouterProblemsBanner({ onOpen }: { onOpen: () => void }) {
   const can = useCan();
   const q = useQuery({
@@ -592,9 +592,9 @@ function RouterProblemsBanner({ onOpen }: { onOpen: () => void }) {
 }
 
 const KIND_TEXT = {
-  unknown_client: 'reached RADIUS, but this address is not a router in the panel',
+  unknown_client: 'reached Radius, but this address is not a router in the panel',
   firewall_block: 'blocked by the firewall (address not on the router allow-list)',
-  bad_secret: 'reached RADIUS with the wrong secret',
+  bad_secret: 'reached Radius with the wrong secret',
 } as const;
 
 function RouterChecks() {
@@ -628,7 +628,7 @@ function RouterChecks() {
         <ErrorState error={problems.error} onRetry={() => void problems.refetch()} />
       ) : null}
       <DataTable
-        caption="RADIUS health per router"
+        caption="Radius health per router"
         loading={problems.isLoading}
         rows={problems.data?.routers}
         rowKey={(r) => r.nasIp}
@@ -668,7 +668,7 @@ function RouterChecks() {
         ]}
       />
       <div className="rounded-xl border p-4" hidden={reseller}>
-        <p className="font-semibold">Router not reaching RADIUS?</p>
+        <p className="font-semibold">Router not reaching Radius?</p>
         <p className="mb-3 text-sm text-muted-foreground">
           Enter the public address the router sends from. You see what arrived from it in the last 7 days.
         </p>
@@ -714,7 +714,7 @@ function RouterChecks() {
       </div>
       {superAdmin ? (
         <DataTable
-          caption="Addresses sending RADIUS that are no ISP's router (24 h)"
+          caption="Addresses sending Radius that are no ISP's router (24 h)"
           loading={unknown.isLoading}
           rows={unknown.data?.items}
           rowKey={(r) => `${r.ip}-${r.kind}-${r.port}`}
@@ -741,11 +741,11 @@ function RadiusLogPage() {
   return (
     <>
       <PageHeader
-        title="RADIUS log"
+        title="Radius log"
         description={
           reseller
             ? 'Logins of your customers and everything on routers you added, with the reason.'
-            : 'Every login attempt with the reason, and a live view of RADIUS.'
+            : 'Every login attempt with the reason, and a live view of Radius.'
         }
       />
       <Tabs

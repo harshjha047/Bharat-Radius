@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Synthetic RADIUS login (WP 4.9). Usage (root):
+# Synthetic Radius login (WP 4.9). Usage (root):
 #   probe.sh setup   once per host: probe tenant/router/user in each instance's database (never synced by the app:
 #                    no external_id), credentials in /etc/isp-radius/probe.env (root-only)
 #   probe.sh run     every minute (isp-radius-probe.timer): one Access-Request per instance from 127.0.0.2

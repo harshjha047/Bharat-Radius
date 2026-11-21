@@ -43,7 +43,7 @@ afterAll(() => h?.close());
 describe('routers (NAS)', () => {
   let id: string;
 
-  it('creates with a generated secret shown once, stored encrypted, queued for RADIUS', async () => {
+  it('creates with a generated secret shown once, stored encrypted, queued for Radius', async () => {
     const r = await admin.req('POST', '/api/v1/nas', {
       name: 'POP-1 CCR',
       ip: '203.0.113.10',
@@ -96,7 +96,7 @@ describe('routers (NAS)', () => {
     expect((await admin.req('DELETE', `/api/v1/nas/${c.body.id}`)).status).toBe(200);
   });
 
-  it('tells staff where routers send RADIUS', async () => {
+  it('tells staff where routers send Radius', async () => {
     const r = await admin.req('GET', '/api/v1/nas/radius-target');
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ instance: expect.stringMatching(/^(production|staging)$/) });
@@ -155,7 +155,7 @@ describe('router live (RouterOS API)', () => {
       expect(JSON.stringify(put.body)).not.toContain('secret');
       const stored = await h.db.collection<NasDeviceDoc>('nas_devices').findOne({ _id: new ObjectId(id) });
       expect(JSON.stringify(stored?.api)).not.toContain('"secret"');
-      expect(await outboxFor(id)).toHaveLength(1); // only the create: API settings are not a RADIUS change
+      expect(await outboxFor(id)).toHaveLength(1); // only the create: API settings are not a Radius change
 
       const info = await admin.req('GET', `/api/v1/nas/${id}/live/info`);
       expect(info.body).toMatchObject({
@@ -271,7 +271,7 @@ describe('plans', () => {
 });
 
 describe('tenants', () => {
-  it('staff edit their own RADIUS settings; the change is queued', async () => {
+  it('staff edit their own Radius settings; the change is queued', async () => {
     const r = await admin.req('PATCH', '/api/v1/tenant', { radius: { expiredRate: '512k/512k' } });
     expect(r.status).toBe(200);
     expect(r.body.radius).toMatchObject({

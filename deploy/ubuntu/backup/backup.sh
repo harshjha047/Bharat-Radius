@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Nightly backup (WP 4.8), run as root by isp-backup.timer. Config: /etc/isp-backup/backup.env.
 #   mongo     all databases of isp-mongo (mongodump archive, gzip)          → verified with mongorestore --dryRun
-#   postgres  each RADIUS database (pg_dump custom format)                  → verified with pg_restore --list
+#   postgres  each Radius database (pg_dump custom format)                  → verified with pg_restore --list
 #   etc       /etc/isp-radius /etc/isp-app (secrets: only ever stored age-encrypted) + log-archive manifests
 #   files     /var/lib/isp-files (KYC, CAF, logos; already encrypted by the API) when files are kept on local disk
 # Every file is age-encrypted to AGE_RECIPIENT (the owner's public key; the private key never touches this server),

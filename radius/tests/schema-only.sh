@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Loads the RADIUS schema, functions and grants into an empty PostgreSQL (no FreeRADIUS) for app/worker tests.
+# Loads the Radius schema, functions and grants into an empty PostgreSQL (no Radius engine) for app/worker tests.
 # Usage: ADMIN_URL=postgres://postgres:pw@host:port bash radius/tests/schema-only.sh <db> <fr_role> <app_role> <app_password>
 set -Eeuo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

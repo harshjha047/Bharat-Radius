@@ -27,7 +27,7 @@ const Swatch = ({ className }: { className: string }) => (
   <span className={cn('inline-block size-2.5 rounded-[3px] align-middle', className)} aria-hidden />
 );
 
-/** Online users over 24 h vs last week, and RADIUS logins vs rejects per hour. */
+/** Online users over 24 h vs last week, and Radius logins vs rejects per hour. */
 export function NetworkRow() {
   const q = useQuery({
     queryKey: ['sessions', 'activity'],

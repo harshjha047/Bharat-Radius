@@ -19,10 +19,10 @@ case "$TASK" in
     new="$(q "SELECT radius_nas_hash()")"
     old="$(cat "$STATE_DIR/$INSTANCE.nas.hash" 2>/dev/null || true)"
     [[ "$new" == "$old" ]] && exit 0
-    # Firewall first, so a router added in the panel is reachable as soon as FreeRADIUS knows it.
+    # Firewall first, so a router added in the panel is reachable as soon as the Radius engine knows it.
     "$(dirname "$0")/nas-allow.sh" "$INSTANCE" sync || echo "firewall sync failed (nas-allow.sh $INSTANCE sync)" >&2
     if ! ( set -a; . "$ETC_DIR/$INSTANCE.env"; set +a; freeradius -XC -d "$RADDB" >"$STATE_DIR/$INSTANCE.configcheck.log" 2>&1 ); then
-      echo "nas table changed but FreeRADIUS config check failed; not restarting" >&2
+      echo "nas table changed but the Radius engine config check failed; not restarting" >&2
       tail -20 "$STATE_DIR/$INSTANCE.configcheck.log" >&2
       exit 1
     fi

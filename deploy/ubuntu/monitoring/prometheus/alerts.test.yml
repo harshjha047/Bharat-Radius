@@ -18,7 +18,7 @@ tests:
         exp_alerts:
           - exp_labels: { severity: critical, instance_name: production }
             exp_annotations:
-              summary: 'FreeRADIUS production is not answering (Status-Server)'
+              summary: 'Radius engine production is not answering (Status-Server)'
               runbook: docs/runbooks/radius-down.md
       - eval_time: 2m
         alertname: RadiusDatabaseDown
@@ -42,7 +42,7 @@ tests:
         exp_alerts:
           - exp_labels: { severity: critical }
             exp_annotations:
-              summary: 'Changes have not reached RADIUS for 6m 50s (outbox)'
+              summary: 'Changes have not reached Radius for 6m 50s (outbox)'
               runbook: docs/runbooks/outbox.md
       - eval_time: 2m
         alertname: OutboxNoLeader
@@ -52,7 +52,7 @@ tests:
         exp_alerts:
           - exp_labels: { severity: critical }
             exp_annotations:
-              summary: 'No outbox worker is running: router, plan and ISP changes are not reaching RADIUS'
+              summary: 'No outbox worker is running: router, plan and ISP changes are not reaching Radius'
               runbook: docs/runbooks/outbox.md
 
   - interval: 1m
@@ -104,7 +104,7 @@ tests:
         exp_alerts:
           - exp_labels: { severity: critical, instance_name: production }
             exp_annotations:
-              summary: 'Synthetic PPPoE login to production RADIUS fails: customers may not be able to connect'
+              summary: 'Synthetic PPPoE login to production Radius fails: customers may not be able to connect'
               runbook: docs/runbooks/radius-down.md
       - eval_time: 3m15s
         alertname: RadiusProbeStale
@@ -161,7 +161,7 @@ tests:
         exp_alerts:
           - exp_labels: { severity: warning }
             exp_annotations:
-              summary: 'RADIUS sync keeps failing (30 errors in 15 min); changes retry with backoff'
+              summary: 'Radius sync keeps failing (30 errors in 15 min); changes retry with backoff'
               runbook: docs/runbooks/outbox.md
 
   - interval: 1m
@@ -292,7 +292,7 @@ tests:
         exp_alerts:
           - exp_labels: { severity: critical }
             exp_annotations:
-              summary: 'Disk over 85 %: panel and portal show the maintenance page (RADIUS and payments still running)'
+              summary: 'Disk over 85 %: panel and portal show the maintenance page (Radius and payments still running)'
               runbook: docs/runbooks/disk-guard.md
       - eval_time: 5m
         alertname: DiskReserveReleased

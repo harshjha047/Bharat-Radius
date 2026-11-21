@@ -29,7 +29,7 @@ import { RouterOsPool } from './routeros/pool.js';
 const ifaceName = z.string().regex(/^[\w.@<>:/ -]{1,64}$/, 'not an interface name');
 const apiBody = z.object({
   enabled: z.boolean(),
-  /** Default: the router's RADIUS IP. */
+  /** Default: the router's Radius IP. */
   host: z
     .string()
     .trim()
@@ -214,7 +214,7 @@ export class RouterLiveService implements OnModuleDestroy {
       interface: p.interface,
       ...(p.label ? { label: p.label } : {}),
     }));
-    // Not a RADIUS change: no outbox row, FreeRADIUS is untouched. version++ opens a fresh API session.
+    // Not a Radius change: no outbox row, the Radius engine is untouched. version++ opens a fresh API session.
     const u = await this.nasDevices.raw().findOneAndUpdate(
       { _id: id, tenantId: cur.tenantId, status: { $ne: 'deleted' } },
       {
@@ -305,7 +305,7 @@ export class RouterLiveService implements OnModuleDestroy {
     };
   }
 
-  /** PPPoE sessions the router itself counts (compare with RADIUS "online"). */
+  /** PPPoE sessions the router itself counts (compare with Radius "online"). */
   async routerOnline(ctx: AuthContext, id: ObjectId) {
     const n = await this.nas(ctx, id);
     const r = await this.run(n, ['/ppp/active/print', '=count-only=']);
@@ -383,7 +383,7 @@ export class RouterLiveController {
 
   @Put('nas/:id/api')
   @Endpoint({
-    summary: 'Save the router API login and monitored ports (not a RADIUS change)',
+    summary: 'Save the router API login and monitored ports (not a Radius change)',
     tags: ['nas'],
     audit: 'nas.api_update',
     permission: 'nas.write',
@@ -447,7 +447,7 @@ export class RouterLiveController {
 
   @Get('nas/:id/live/online')
   @Endpoint({
-    summary: 'PPPoE sessions the router counts (to compare with RADIUS online)',
+    summary: 'PPPoE sessions the router counts (to compare with Radius online)',
     tags: ['nas'],
     permission: 'sessions.read',
     params: idParams,

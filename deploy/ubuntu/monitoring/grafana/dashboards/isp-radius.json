@@ -1,6 +1,6 @@
 {
   "uid": "isp-radius",
-  "title": "ISP RADIUS",
+  "title": "ISP Radius",
   "schemaVersion": 39,
   "version": 1,
   "refresh": "30s",
@@ -32,7 +32,7 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "RADIUS",
+      "title": "Radius",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

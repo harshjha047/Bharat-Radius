@@ -960,7 +960,7 @@ const accessLogs: Migration = {
   },
 };
 
-/** Old BharatRadius importer (WP 4.7): legacy id → new id, and one record per apply run. */
+/** Old Bharat Radius importer (WP 4.7): legacy id → new id, and one record per apply run. */
 const legacyImport: Migration = {
   id: '014_legacy_import',
   async up(db) {

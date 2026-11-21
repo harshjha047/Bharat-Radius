@@ -6,7 +6,7 @@
 #   >= DRILL_AT (70 %)   pause-heavy: imports and app rebuilds wait; drill: build cache, unused images, journal,
 #                        log days older than DRILL_KEEP_DAYS (7) moved off-site, local backups already off-site
 #   >= MAINT_AT (85 %)   maintenance: panel, reseller panel and portal show a maintenance page
-#                        (RADIUS, payment webhooks and the pay page keep running)
+#                        (Radius, payment webhooks and the pay page keep running)
 #   >= RESERVE_AT (95 %) the reserve file is released so the databases can keep writing; critical alert
 #   below MAINT_OFF (80 %) maintenance ends; below DRILL_OFF (65 %) pause ends and the reserve is recreated
 set -Eeuo pipefail

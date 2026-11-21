@@ -12,7 +12,7 @@ import type { Nas } from '@/lib/queries';
 const ipv4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 const schema = z.object({
   name: z.string().trim().min(1, 'Required').max(64),
-  ip: z.string().trim().regex(ipv4, 'IPv4 address the router sends RADIUS from'),
+  ip: z.string().trim().regex(ipv4, 'IPv4 address the router sends Radius from'),
   coaPort: z.string().regex(/^\d{1,5}$/, 'Port'),
   routerOsVersion: z.enum(['', '6', '7']),
   popName: z.string().trim().max(80),
@@ -97,7 +97,7 @@ export function RouterForm({
           label="Router IP"
           htmlFor="n-ip"
           error={err('ip')}
-          hint="The public IP RADIUS packets come from."
+          hint="The public IP Radius packets come from."
         >
           <Input id="n-ip" inputMode="decimal" {...register('ip')} />
         </Field>
@@ -122,7 +122,7 @@ export function RouterForm({
         </Field>
         {!editing ? (
           <Field
-            label="RADIUS secret"
+            label="Radius secret"
             htmlFor="n-secret"
             error={err('radiusSecret')}
             hint="Leave empty to generate a strong one (recommended)."

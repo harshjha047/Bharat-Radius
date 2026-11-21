@@ -3,17 +3,17 @@
 Everything stays on the current VPS (owner decision, 6 Nov). Staging keeps running until the first POP is cut
 over; routers only ever reach production after their own cutover (runbook §8 in IMPLEMENTATION_PLAN).
 
-## 1. Production RADIUS (once)
+## 1. Production Radius (once)
 
 ```
 cd ~/isp-platform && git pull
-sudo bash radius/scripts/install.sh production     # database radius, FreeRADIUS on 1812/1813, timers
+sudo bash radius/scripts/install.sh production     # database radius, the Radius engine on 1812/1813, timers
 sudo /opt/isp-radius/scripts/nas-allow.sh production list   # empty until routers are added
 ```
 
-## 2. Which RADIUS the panel writes to (O-23)
+## 2. Which Radius the panel writes to (O-23)
 
-The panel writes routers and subscribers to one RADIUS instance and the matching MongoDB database
+The panel writes routers and subscribers to one Radius instance and the matching MongoDB database
 (`staging` → `isp_staging`, `production` → `isp`). Remembered in `/etc/isp-app/settings.env`.
 
 - **Recommended:** switch the panel to production for the import dry run (WP 4.11): the production databases
@@ -51,7 +51,7 @@ subscriber (*Privacy consent* → *Signed CAF received*). The CAF form carries t
 - CSP: every page carries a per-request nonce; inline scripts are refused (`apps/web/src/proxy.ts`). Styles keep
   `'unsafe-inline'` (React style attributes, runtime-injected component styles; no code execution).
 - Secrets are root-only files under `/etc/isp-app` and `/etc/isp-radius`, or encrypted in tenant settings.
-- RADIUS ports only from routers on the allow-list (`nas-allow.sh`); unusable packets show in RADIUS log → Routers.
+- Radius ports only from routers on the allow-list (`nas-allow.sh`); unusable packets show in Radius log → Routers.
 
 ## 6. Preflight
 
@@ -59,6 +59,6 @@ subscriber (*Privacy consent* → *Signed CAF received*). The CAF form carries t
 sudo bash deploy/ubuntu/preflight.sh production
 ```
 
-Read-only; checks RADIUS, panel containers, HTTPS + CSP + HSTS, root-only secrets, file bucket, privacy notice,
+Read-only; checks Radius, panel containers, HTTPS + CSP + HSTS, root-only secrets, file bucket, privacy notice,
 ₹1 plans, backups (≤ 26 h, off-site), last restore drill (≤ 35 days), disk, NTP, Alertmanager. Exit 1 on any
 FAIL. Run it before the import dry run (4.11) and before every POP cutover (4.12/4.13).

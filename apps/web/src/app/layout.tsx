@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   metadataBase: new URL(canonicalOrigin()),
-  title: { default: 'BharatRadius', template: '%s · BharatRadius' },
+  title: { default: 'Bharat Radius', template: '%s · Bharat Radius' },
   robots: { index: false, follow: false },
 };
 

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 
 // 1200×630 share card for WhatsApp, LinkedIn, X and Facebook. Built once at build time.
-export const alt = 'BharatRadius: RADIUS & ISP billing software for Indian broadband operators';
+export const alt = 'Bharat Radius: Radius & ISP billing software for Indian broadband operators';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -26,19 +26,19 @@ export default async function OpenGraphImage() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <img src={src} width={62} height={80} alt="" />
-        <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: -1 }}>BharatRadius</div>
+        <img src={src} width={65} height={80} alt="" />
+        <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: -1 }}>Bharat Radius</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         <div style={{ fontSize: 68, fontWeight: 800, lineHeight: 1.05, letterSpacing: -2, maxWidth: 1000 }}>
-          RADIUS &amp; ISP billing software for Indian ISPs
+          Radius &amp; ISP billing software for Indian ISPs
         </div>
         <div style={{ fontSize: 30, color: '#4A5578', maxWidth: 980 }}>
           PPPoE · GST invoices · FUP plans · Resellers &amp; LCOs · DoT logs
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 26 }}>
-        <div style={{ display: 'flex', color: '#4A5578' }}>Built on FreeRADIUS · Hosted in India</div>
+        <div style={{ display: 'flex', color: '#4A5578' }}>Custom Radius engine · Hosted in India</div>
         <div
           style={{
             display: 'flex',

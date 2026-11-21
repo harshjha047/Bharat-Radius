@@ -1655,7 +1655,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** RADIUS host and ports routers must send to (this panel feeds that instance) */
+    /** Radius host and ports routers must send to (this panel feeds that instance) */
     get: {
       parameters: {
         query?: never;
@@ -1790,7 +1790,7 @@ export interface paths {
       };
     };
     put?: never;
-    /** Add a router; FreeRADIUS serves it within ~30 s (secret returned once if generated) */
+    /** Add a router; the Radius engine serves it within ~30 s (secret returned once if generated) */
     post: {
       parameters: {
         query?: never;
@@ -2104,7 +2104,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Show the RADIUS secret (for router setup) */
+    /** Show the Radius secret (for router setup) */
     get: {
       parameters: {
         query?: never;
@@ -3391,7 +3391,7 @@ export interface paths {
     };
     options?: never;
     head?: never;
-    /** Edit a subscriber; RADIUS and an online session follow (CoA or reconnect) */
+    /** Edit a subscriber; Radius and an online session follow (CoA or reconnect) */
     patch: {
       parameters: {
         query?: never;
@@ -8903,7 +8903,7 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    /** Edit own ISP settings (RADIUS settings sync to routers) */
+    /** Edit own ISP settings (Radius settings sync to routers) */
     patch: {
       parameters: {
         query?: never;
@@ -9925,7 +9925,7 @@ export interface paths {
         };
       };
     };
-    /** Save the router API login and monitored ports (not a RADIUS change) */
+    /** Save the router API login and monitored ports (not a Radius change) */
     put: {
       parameters: {
         query?: never;
@@ -10256,7 +10256,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** PPPoE sessions the router counts (to compare with RADIUS online) */
+    /** PPPoE sessions the router counts (to compare with Radius online) */
     get: {
       parameters: {
         query?: never;
@@ -10618,7 +10618,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Routers with RADIUS problems: wrong shared secret (seen or likely), no logins in 24 h */
+    /** Routers with Radius problems: wrong shared secret (seen or likely), no logins in 24 h */
     get: {
       parameters: {
         query?: {
@@ -10761,7 +10761,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Addresses sending RADIUS that are not a router of any ISP (super-admin, 24 h) */
+    /** Addresses sending Radius that are not a router of any ISP (super-admin, 24 h) */
     get: {
       parameters: {
         query?: never;
@@ -10822,7 +10822,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Live RADIUS log: auth and accounting Start/Stop events since a time (poll every 2 s) */
+    /** Live Radius log: auth and accounting Start/Stop events since a time (poll every 2 s) */
     get: {
       parameters: {
         query?: {

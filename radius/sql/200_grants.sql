@@ -4,7 +4,7 @@ REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO :"fr_role", :"app_role";
 
--- FreeRADIUS: read config, write sessions and auth log, nothing else.
+-- The Radius engine: read config, write sessions and auth log, nothing else.
 GRANT SELECT ON tenants, nas, plans, plan_attributes, subscribers TO :"fr_role";
 GRANT SELECT, INSERT, UPDATE ON radacct TO :"fr_role";
 GRANT INSERT ON radpostauth TO :"fr_role";
@@ -31,7 +31,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON usage_daily, usage_seen TO :"app_role";
 GRANT EXECUTE ON FUNCTION
   radius_encrypt_password(text, text),
   radius_online_count(inet, text),
-  -- CoA: the worker sends exactly the rate/lists FreeRADIUS would reply with now.
+  -- CoA: the worker sends exactly the rate/lists the Radius engine would reply with now.
   radius_reply(inet, text),
   radius_close_stale_sessions(),
   radius_usage_rollup(interval),

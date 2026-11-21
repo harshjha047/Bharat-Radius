@@ -1,6 +1,6 @@
--- Migration 007 (F-17): packets RADIUS could not use, per minute: from addresses that are not a router of any ISP
--- (FreeRADIUS "unknown client", or dropped by the firewall allow-list) and from routers with the wrong shared secret.
--- Filled by radius/scripts/log-events.sh (FreeRADIUS log + kernel firewall log); counts are lower bounds because
+-- Migration 007 (F-17): packets Radius could not use, per minute: from addresses that are not a router of any ISP
+-- (Radius engine "unknown client", or dropped by the firewall allow-list) and from routers with the wrong shared secret.
+-- Filled by radius/scripts/log-events.sh (Radius engine log + kernel firewall log); counts are lower bounds because
 -- both sources rate-limit their messages. Kept 30 days.
 CREATE TABLE radius_events (
   kind     text        NOT NULL CHECK (kind IN ('unknown_client', 'firewall_block', 'bad_secret')),

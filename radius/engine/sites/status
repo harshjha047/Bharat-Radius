@@ -1,4 +1,4 @@
-# Managed by isp-platform. Status-Server for the Prometheus freeradius_exporter (localhost only).
+# Managed by isp-platform. Status-Server for the Prometheus Radius exporter (localhost only).
 server status {
 	listen {
 		type = status

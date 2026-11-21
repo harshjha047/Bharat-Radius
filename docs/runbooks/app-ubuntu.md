@@ -1,6 +1,6 @@
 # Staging app stack on the Ubuntu VPS (replaces WP 1.4 Windows base for staging)
 
-Decision 4 Nov 2026: the staging app runs on the RADIUS host, in Docker Compose project `isp`, next to the ACS stack.
+Decision 4 Nov 2026: the staging app runs on the Radius host, in Docker Compose project `isp`, next to the ACS stack.
 The Windows VPS is not used. Production placement is decided at Step 4.
 
 | Container | Purpose | Reachable at |
@@ -10,7 +10,7 @@ The Windows VPS is not used. Production placement is decided at Step 4.
 | `isp-web` | Admin panel (Next.js; CPU ≤ 0.5, RAM ≤ 256 MB) | `isp-web:3000` on `acs_default`; Caddy sends everything except `/api/*` and `/grafana` here |
 | `isp-walled-garden` | Redirects expired users' HTTP to the pay page | public TCP 8089 |
 
-RADIUS stays native. The API reaches PostgreSQL as `acs-prod:5432` (mapped to the Docker host gateway) over TLS with
+Radius stays native. The API reaches PostgreSQL as `acs-prod:5432` (mapped to the Docker host gateway) over TLS with
 full certificate check; PostgreSQL accepts the app roles only from `172.16.0.0/12` and only over TLS.
 
 Secrets: `/etc/isp-app/` (root only): `staging.env`, Mongo root/app passwords, keyfile, JWT/encryption keys.
@@ -34,7 +34,7 @@ the ACS repo, or add `infra/caddy/sites/` to its `.gitignore`.
 ```bash
 cd ~/isp-platform/deploy/ubuntu/app
 sudo docker compose run --rm --no-deps api node dist/cli.js create-tenant \
-  --slug bharat --name "BharatRadius" --legal-name "<legal name>" --state-code 07 \
+  --slug bharat --name "Bharat Radius" --legal-name "<legal name>" --state-code 07 \
   --line1 "<address>" --city Delhi --state Delhi --pincode 110001 --domain new.bharatradius.com
 sudo docker compose run --rm --no-deps -it api node dist/cli.js create-user \
   --tenant bharat --name "<your name>" --email <you@domain> --role "ISP Admin"     # prompts for the password

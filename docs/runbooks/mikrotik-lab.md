@@ -3,7 +3,7 @@
 ## Option A: CHR lab on the VPS (no hardware, no customers)
 
 `deploy/ubuntu/lab/chr-lab.sh` runs a MikroTik CHR (RouterOS 7, KVM, ≤ 0.5 CPU / 512 MB) and a PPPoE test customer on
-private addresses next to the **staging** RADIUS (VPS `10.99.0.1`, CHR `10.99.0.2`). It needs no NetForChoice ports
+private addresses next to the **staging** Radius (VPS `10.99.0.1`, CHR `10.99.0.2`). It needs no NetForChoice ports
 and applies the repo's own `mikrotik/setup.rsc` to the CHR.
 
 1. Panel → Routers → Add router: name `Lab CHR`, IP `10.99.0.2`, RouterOS v7. Copy the secret.
@@ -31,7 +31,7 @@ INSERT INTO subscribers (tenant_id, username, password_enc, plan_id, expires_at)
   SELECT t.id, 'labuser1', radius_encrypt_password('<pppoe password>', :'key'), p.id, now() + interval '30 days'
   FROM tenants t JOIN plans p ON p.tenant_id = t.id WHERE t.slug='lab';
 ```
-Run with `-v key="$RADIUS_PW_KEY"` from `/etc/isp-radius/staging.env`. Within 30 s the NAS watcher restarts FreeRADIUS.
+Run with `-v key="$RADIUS_PW_KEY"` from `/etc/isp-radius/staging.env`. Within 30 s the NAS watcher restarts the Radius engine.
 
 2. On the router: edit the variables at the top of `mikrotik/setup.rsc` (`radiusSecret`, `authPort 11812`, `acctPort 11813`; `radiusIp` and `appIp` are both `154.49.142.251` for staging), upload, `/import file-name=setup.rsc`.
 

@@ -109,7 +109,7 @@ const EVENT_TONE = {
   reject: 'text-danger-text',
 } as const;
 
-/** Newest RADIUS events (auth + accounting) of this reseller's customers and routers. */
+/** Newest Radius events (auth + accounting) of this reseller's customers and routers. */
 function LiveLog({ names }: { names: Map<string, string> }) {
   const q = useQuery({
     queryKey: ['radius', 'tail', 'dashboard'],
@@ -133,7 +133,7 @@ function LiveLog({ names }: { names: Map<string, string> }) {
       <div
         className="h-[196px] overflow-y-auto rounded-xl border border-divider bg-subtle py-1.5 font-mono text-[11.5px]"
         aria-live="polite"
-        aria-label="RADIUS events, newest first"
+        aria-label="Radius events, newest first"
       >
         {q.isError ? (
           <div className="p-3">
@@ -147,7 +147,7 @@ function LiveLog({ names }: { names: Map<string, string> }) {
           </div>
         ) : events.length === 0 ? (
           <p className="p-4 font-sans text-[13px] text-muted-foreground">
-            No RADIUS events in the last 30 minutes.
+            No Radius events in the last 30 minutes.
           </p>
         ) : (
           <ul>
@@ -207,7 +207,7 @@ function LoginsPanel() {
   );
 }
 
-/** Reseller: customers online, its routers, logins per hour and the live RADIUS log. */
+/** Reseller: customers online, its routers, logins per hour and the live Radius log. */
 export function ResellerNetwork() {
   const can = useCan();
   const logs = can('sessions.read');

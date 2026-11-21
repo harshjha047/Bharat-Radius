@@ -68,7 +68,7 @@ export default function SubscriberPage() {
   const sub = useQuery({
     queryKey: ['subscriber', id],
     queryFn: () => unwrap(api.GET('/api/v1/subscribers/{id}', { params: { path: { id } } })),
-    // A just-saved change shows "Syncing" until the worker has written it to RADIUS.
+    // A just-saved change shows "Syncing" until the worker has written it to Radius.
     refetchInterval: (q) => (q.state.data?.syncStatus === 'pending' ? 2000 : false),
   });
   if (sub.isLoading) return <PageSkeleton />;
@@ -109,7 +109,7 @@ export default function SubscriberPage() {
             <div className="mb-3 flex justify-end">
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/admin/radius-log?tab=live&user=${encodeURIComponent(s.username)}`}>
-                  Live RADIUS log
+                  Live Radius log
                 </Link>
               </Button>
             </div>

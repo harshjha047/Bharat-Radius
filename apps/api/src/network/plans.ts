@@ -37,7 +37,7 @@ const burst = speeds.extend({
 const attribute = z.object({
   attribute: z
     .string()
-    .regex(/^[A-Za-z][A-Za-z0-9-]{1,63}$/, 'must be a RADIUS attribute name (letters, digits, -)')
+    .regex(/^[A-Za-z][A-Za-z0-9-]{1,63}$/, 'must be a Radius attribute name (letters, digits, -)')
     .refine((a) => !RESERVED_ATTRIBUTES.has(a.toLowerCase()), 'is set by the plan itself'),
   op: z.enum([':=', '=', '+=']).default(':='),
   value: z.string().min(1).max(253),
@@ -162,7 +162,7 @@ export interface PlanShape {
   fup?: PlanDoc['fup'] | undefined;
 }
 
-/** Cross-field rules, applied to the merged result of create or update. Returns the derived RADIUS strings. */
+/** Cross-field rules, applied to the merged result of create or update. Returns the derived Radius strings. */
 export function derive(p: PlanShape): { rateLimit: string; fupRate?: string } {
   const bad = (m: string) => new AppError(400, 'VALIDATION_FAILED', m);
   if (p.burst) {
@@ -281,7 +281,7 @@ export class PlansService {
       );
       if (!u) throw notFound('Plan');
       noteChange({ before: cur, after: u, entityId: id });
-      // New speeds reach users already online by CoA (worker sends the rate RADIUS would now reply with).
+      // New speeds reach users already online by CoA (worker sends the rate Radius would now reply with).
       const speedChanged = u.rateLimit !== cur.rateLimit || u.fupRate !== cur.fupRate;
       await this.outbox.enqueue(
         session,

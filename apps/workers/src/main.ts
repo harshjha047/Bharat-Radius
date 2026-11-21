@@ -104,7 +104,7 @@ async function metrics(): Promise<string> {
   ]);
   const s = worker.stats;
   const lines = [
-    '# HELP isp_outbox_pending Outbox rows not yet synced to RADIUS.',
+    '# HELP isp_outbox_pending Outbox rows not yet synced to Radius.',
     '# TYPE isp_outbox_pending gauge',
     `isp_outbox_pending ${pendingCount}`,
     '# HELP isp_outbox_oldest_pending_seconds Age of the oldest unsynced outbox row.',
@@ -113,7 +113,7 @@ async function metrics(): Promise<string> {
     '# HELP isp_outbox_leader 1 when this process holds the outbox lease.',
     '# TYPE isp_outbox_leader gauge',
     `isp_outbox_leader ${s.leader ? 1 : 0}`,
-    '# HELP isp_outbox_synced_total Entities written to RADIUS.',
+    '# HELP isp_outbox_synced_total Entities written to Radius.',
     '# TYPE isp_outbox_synced_total counter',
     ...Object.entries(s.synced).map(([e, n]) => `isp_outbox_synced_total{entity="${e}"} ${n}`),
     '# HELP isp_outbox_errors_total Failed sync attempts (retried with backoff).',

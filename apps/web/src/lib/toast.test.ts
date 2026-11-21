@@ -5,9 +5,9 @@ const { toastParts } = await import('./toast');
 
 describe('toastParts', () => {
   it('splits the first sentence into the title', () => {
-    expect(toastParts('Saved. FreeRADIUS picks it up within 30 seconds.', 'Done')).toEqual({
+    expect(toastParts('Saved. The Radius engine picks it up within 30 seconds.', 'Done')).toEqual({
       title: 'Saved',
-      description: 'FreeRADIUS picks it up within 30 seconds.',
+      description: 'The Radius engine picks it up within 30 seconds.',
     });
   });
   it('keeps a short message as the title only', () => {

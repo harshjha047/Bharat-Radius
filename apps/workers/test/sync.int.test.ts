@@ -139,7 +139,7 @@ afterAll(async () => {
   await pool?.end();
 });
 
-describe('outbox → RADIUS', () => {
+describe('outbox → Radius', () => {
   it('syncs tenant, router and plan (tenant pulled in on demand)', async () => {
     const t = await tenant();
     const n = await nas(t, ip(1));
@@ -282,7 +282,7 @@ describe('outbox → RADIUS', () => {
         sid.toHexString(),
       ]);
       expect(row).toBeDefined();
-      // FreeRADIUS gets the key from its role setting (app.pw_key); set it for this session instead.
+      // The Radius engine gets the key from its role setting (app.pw_key); set it for this session instead.
       const c = await admin.connect();
       let pw: pg.QueryResult<{ value: string }>;
       try {
@@ -360,7 +360,7 @@ describe('outbox → RADIUS', () => {
     }
   });
 
-  it('usage roll-up → FUP on at the cap (synced to RADIUS with a disconnect) → off at the next cycle → off when the cap is removed', async () => {
+  it('usage roll-up → FUP on at the cap (synced to Radius with a disconnect) → off at the next cycle → off when the cap is removed', async () => {
     const admin = new pg.Pool({ connectionString: process.env.RADIUS_ADMIN_URL });
     try {
       const t = await tenant();
@@ -435,7 +435,7 @@ describe('outbox → RADIUS', () => {
       });
       expect((await job.run()).fupOn).toBe(0);
 
-      // A new cycle (1st of next month, noon IST) counts from zero: FUP is lifted in RADIUS.
+      // A new cycle (1st of next month, noon IST) counts from zero: FUP is lifted in Radius.
       const nextCycle = new Date();
       nextCycle.setUTCMonth(nextCycle.getUTCMonth() + 1, 1);
       nextCycle.setUTCHours(6, 30, 0, 0);

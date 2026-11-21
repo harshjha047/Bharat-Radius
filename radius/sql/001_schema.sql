@@ -1,4 +1,4 @@
--- Migration 001: RADIUS hot-path schema (BACKEND_SCHEMA.md §3). Applied once, tracked in schema_migrations.
+-- Migration 001: Radius hot-path schema (BACKEND_SCHEMA.md §3). Applied once, tracked in schema_migrations.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE tenants (

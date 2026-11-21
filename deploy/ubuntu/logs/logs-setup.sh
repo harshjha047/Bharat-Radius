@@ -3,7 +3,7 @@
 #  - group isp-archive (gid 2470), /var/log/isp-archive (syslog:isp-archive 2750: rsyslogd runs as syslog)
 #  - /var/log/syslog rotated at 1 GB (logrotate hourly)
 #  - rsyslog: UDP 514 listener for routers + archive rules (/etc/rsyslog.d/30-isp-archive.conf), syntax-checked first
-#  - journald forwards to rsyslog (so FreeRADIUS and Docker container logs reach the archive)
+#  - journald forwards to rsyslog (so Radius engine and Docker container logs reach the archive)
 #  - isp-logs-maint.timer: daily seal + 3-year prune + metrics
 # Routers still need UDP 514 opened at NetForChoice and in ufw (logs-allow.sh) before their logs arrive.
 set -Eeuo pipefail

@@ -1,5 +1,5 @@
 [Unit]
-Description=isp-radius record unusable RADIUS packets (%i)
+Description=isp-radius record unusable Radius packets (%i)
 After=postgresql.service
 
 [Service]

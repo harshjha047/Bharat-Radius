@@ -8,7 +8,7 @@ type Tx = pg.PoolClient;
 /** Tries each statement in order until one touches a row: update by sync key → adopt a pre-existing row → insert. */
 async function upsert(tx: Tx, steps: { sql: string; params: unknown[] }[]): Promise<number> {
   for (const s of steps) {
-    // bigserial ids come back as strings from node-postgres; RADIUS ids stay far below 2^53.
+    // bigserial ids come back as strings from node-postgres; Radius ids stay far below 2^53.
     const r = await tx.query<{ id: number | string }>(s.sql, s.params);
     if (r.rowCount) return Number(r.rows[0]!.id);
   }
@@ -31,7 +31,7 @@ async function inTx<T>(pool: pg.Pool, fn: (tx: Tx) => Promise<T>): Promise<T> {
 }
 
 /**
- * Writes the current MongoDB state of one entity into the RADIUS database (BACKEND_SCHEMA §2.1).
+ * Writes the current MongoDB state of one entity into the Radius database (BACKEND_SCHEMA §2.1).
  * Idempotent: replaying any number of times converges to the same rows. Rows created before sync existed
  * (Step 1 installer, manual seeds) are adopted by their natural key when they have no external_id yet.
  */
@@ -180,7 +180,7 @@ export class RadiusSync {
   }
 
   /**
-   * Subscriber row for radius_check/radius_reply. Returns the RADIUS username the change applies to (for CoA),
+   * Subscriber row for radius_check/radius_reply. Returns the Radius username the change applies to (for CoA),
    * also when the subscriber was deleted and its row removed.
    */
   async subscriber(

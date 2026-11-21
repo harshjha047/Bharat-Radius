@@ -40,7 +40,7 @@ export async function enqueueSubscriberSync(
   );
 }
 
-/** Applies a subscriber change with optimistic locking, queues the RADIUS sync and the CoA it needs. */
+/** Applies a subscriber change with optimistic locking, queues the Radius sync and the CoA it needs. */
 export async function updateSubscriber(
   db: Db,
   session: ClientSession,
@@ -101,7 +101,7 @@ export interface RechargeResult {
 
 /**
  * Prepaid recharge (accounts team §12, TRD §6.5) in the caller's transaction: idempotency check → conditional
- * debit of the recharging level's wallet only → recharge + RECHARGE ledger entry → new expiry and plan → RADIUS
+ * debit of the recharging level's wallet only → recharge + RECHARGE ledger entry → new expiry and plan → Radius
  * sync with the CoA that restores speed → paid GST invoice → receipt SMS. Short balance → nothing changes.
  */
 export async function performRecharge(

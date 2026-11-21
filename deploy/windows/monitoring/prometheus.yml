@@ -22,7 +22,7 @@ scrape_configs:
       - targets: ['UBUNTU_IP:9187']
         labels: { host: radius-ubuntu }
 
-  - job_name: freeradius
+  - job_name: radius
     static_configs:
       - targets: ['UBUNTU_IP:9812']
         labels: { instance_name: production }

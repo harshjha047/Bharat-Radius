@@ -69,7 +69,7 @@ export async function customerPrice(
   return r?.customerPricePaise ?? plan.pricePaise;
 }
 
-/** Overdue-suspended postpaid customer with nothing left overdue → active again (RADIUS + CoA). */
+/** Overdue-suspended postpaid customer with nothing left overdue → active again (Radius + CoA). */
 export async function reactivateIfSettled(
   db: Db,
   session: ClientSession,

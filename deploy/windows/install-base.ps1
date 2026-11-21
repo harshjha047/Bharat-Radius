@@ -4,7 +4,7 @@
   WP 1.4 — Windows app host base: folders + ACLs, our own MongoDB service (isp-mongo, 127.0.0.1:27018, replica set
   rs-isp, auth + keyfile), PostgreSQL standby of the Ubuntu `radius` database (isp-pg-standby, port 5433), WinSW
   service for the API (isp-api, 127.0.0.1:4100), nginx site. Idempotent.
-  Never modifies existing services: the shared MongoDB on 27017, BharatRadius' PostgreSQL on 5432, pm2 apps,
+  Never modifies existing services: the shared MongoDB on 27017, Bharat Radius' PostgreSQL on 5432, pm2 apps,
   or other nginx server blocks.
 
 .PREREQUISITES (install by hand once; versions pinned in docs/runbooks/windows-base.md)

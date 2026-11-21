@@ -66,7 +66,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
               <BrandMark className="h-7 sm:h-8" />
             )}
             <span className="text-lg font-extrabold tracking-[-0.03em] text-foreground max-sm:hidden">
-              {me.data?.branding?.name ?? 'BharatRadius'}
+              {me.data?.branding?.name ?? 'Bharat Radius'}
             </span>
           </span>
           <div className="min-w-0 flex-1 sm:hidden">
