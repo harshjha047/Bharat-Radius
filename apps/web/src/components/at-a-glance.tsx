@@ -6,7 +6,7 @@ import { useSubscriberSummary } from '@/components/dashboard-widgets';
 import { StatCard, StatCardSkeleton, type StatCardProps } from '@/components/stat-card';
 import { api, unwrap, type ApiData } from '@/lib/api';
 import { useCan } from '@/lib/auth';
-import { fmtNum, fmtRupees } from '@/lib/utils';
+import { fmtBytes, fmtNum, fmtRupees } from '@/lib/utils';
 
 export interface GlanceCard {
   id: string;
@@ -65,7 +65,21 @@ export function useGlanceCards(
     enabled: kind === 'staff' && can('billing.read'),
     refetchInterval: 60_000,
   });
+  const traffic = useQuery({
+    queryKey: ['sessions', 'traffic'],
+    queryFn: () => unwrap(api.GET('/api/v1/sessions/traffic')),
+    enabled: can('sessions.read'),
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+  });
   const s = subs.data;
+  const staff = kind === 'staff';
+  // Staff defaults follow the old panel's info-box: these three start switched off.
+  const hiddenFor = (forStaff: boolean) => (staff ? forStaff : true);
+  const usageSpark = traffic.data?.days.some((d) => d.bytes > 0)
+    ? traffic.data.days.map((d) => d.bytes)
+    : undefined;
+  const both = { isLoading: subs.isLoading || sessions.isLoading, isError: subs.isError || sessions.isError };
   const renew = (paise: number | undefined) =>
     paise ? { today: fmtRupees(paise), todayLabel: 'to renew' } : {};
 
@@ -141,6 +155,7 @@ export function useGlanceCards(
     subsOk && {
       id: `${p}7d`,
       label: 'Next 7 days',
+      ...(staff ? { defaultHidden: true } : {}),
       render: () =>
         card(subs, {
           label: 'Next 7 days',
@@ -167,7 +182,6 @@ export function useGlanceCards(
       can('tickets.read') && {
         id: `${p}tickets`,
         label: 'Open tickets',
-        defaultHidden: true,
         render: () =>
           card(tickets, {
             label: 'Open tickets',
@@ -180,7 +194,6 @@ export function useGlanceCards(
       can('billing.read') && {
         id: `${p}unpaid`,
         label: 'Total unpaid amount',
-        defaultHidden: true,
         render: () =>
           card(billing, {
             label: 'Total unpaid amount',
@@ -207,6 +220,83 @@ export function useGlanceCards(
             href: '/admin/recharges',
           }),
       },
+    staff &&
+      can('billing.read') && {
+        id: `${p}site-balance`,
+        label: 'Site balance',
+        render: () =>
+          card(billing, {
+            label: 'Site balance',
+            value: fmtRupees(billing.data?.wallets.masterBalancePaise ?? 0),
+            tone: (billing.data?.wallets.masterBalancePaise ?? 0) < 0 ? 'danger' : 'plain',
+            href: '/admin/wallets',
+          }),
+      },
+    can('sessions.read') && {
+      id: `${p}usage`,
+      label: 'Today total usage',
+      ...(staff ? {} : { defaultHidden: true }),
+      render: () =>
+        card(traffic, {
+          label: 'Today total usage',
+          value: fmtBytes(traffic.data?.todayBytes ?? 0),
+          tone: 'info',
+          ...(usageSpark ? { spark: usageSpark } : {}),
+          href: '/admin/reports',
+        }),
+    },
+    staff &&
+      can('billing.read') && {
+        id: `${p}yesterday-invoices`,
+        label: 'Yesterday invoices',
+        render: () =>
+          card(billing, {
+            label: 'Yesterday invoices',
+            value: fmtNum(billing.data?.yesterday.invoices ?? 0),
+            tone: 'plain',
+            ...(billing.data?.yesterday.invoicedPaise
+              ? { today: fmtRupees(billing.data.yesterday.invoicedPaise), todayLabel: 'billed' }
+              : {}),
+            href: '/admin/invoices',
+          }),
+      },
+    subsOk && {
+      id: `${p}unverified`,
+      label: 'Account unverified',
+      ...(staff ? {} : { defaultHidden: true }),
+      render: () =>
+        card(subs, {
+          label: 'Account unverified',
+          value: fmtNum(s?.unverified ?? 0),
+          tone: 'plain',
+          href: '/admin/subscribers?kyc=unverified',
+        }),
+    },
+    subsOk &&
+      can('sessions.read') && {
+        id: `${p}offline`,
+        label: 'Active offline subscribers',
+        defaultHidden: hiddenFor(true),
+        render: () =>
+          card(both, {
+            label: 'Active offline subscribers',
+            value: fmtNum(Math.max(0, (s?.active ?? 0) - (sessions.data?.onlineUsers ?? 0))),
+            tone: 'plain',
+            href: '/admin/subscribers?status=active',
+          }),
+      },
+    subsOk && {
+      id: `${p}static-ips`,
+      label: 'Static IPs',
+      defaultHidden: hiddenFor(true),
+      render: () =>
+        card(subs, {
+          label: 'Static IPs',
+          value: fmtNum(s?.staticIps ?? 0),
+          tone: 'plain',
+          href: '/admin/subscribers?staticIp=yes',
+        }),
+    },
   ];
   return cards.filter((c): c is GlanceCard => !!c);
 }

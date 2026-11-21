@@ -96,8 +96,17 @@ const authView = z.object({
 const authPage = z.object({ items: z.array(authView), nextCursor: z.string().nullable() });
 const summaryView = z.object({
   online: z.number(),
+  /** Distinct subscribers online (one user may hold several sessions). */
+  onlineUsers: z.number(),
   stale: z.number(),
   byNas: z.array(z.object({ nasIp: z.string(), nasName: z.string().nullable(), online: z.number() })),
+});
+
+const trafficView = z.object({
+  /** Bytes up + down so far today (IST), from the 15-minute usage roll-up. */
+  todayBytes: z.number(),
+  /** The last 14 IST days including today, oldest first; days without traffic are 0. */
+  days: z.array(z.object({ day: z.string(), bytes: z.number() })),
 });
 
 const activityView = z.object({
@@ -196,6 +205,7 @@ export interface BranchNet {
 export class SessionsService {
   private readonly tenantCache = new Map<string, { at: number; id: number; interim: number }>();
   private readonly branchCache = new Map<string, { at: number; v: BranchNet }>();
+  private readonly trafficCache = new Map<string, { at: number; v: z.output<typeof trafficView> }>();
 
   constructor(
     @Inject(MONGO) private readonly mongo: MongoHandle,
@@ -330,9 +340,15 @@ export class SessionsService {
   async summary(ctx: AuthContext, q: z.output<typeof tenantQuery>) {
     const { mongoId, branch } = await this.scopeFor(ctx, q.tenantId);
     const t = await this.pgTenant(mongoId);
-    if (!t || (branch && !branch.usernames.length)) return { online: 0, stale: 0, byNas: [] };
+    if (!t || (branch && !branch.usernames.length)) return { online: 0, onlineUsers: 0, stale: 0, byNas: [] };
     const params: unknown[] = [t.id, t.interim];
     const mine = branch ? `AND a.username = ANY($${params.push(branch.usernames)}::text[])` : '';
+    const users = this.db().query<{ n: string }>(
+      `SELECT count(DISTINCT lower(a.username)) AS n FROM radacct a
+        WHERE a.tenant_id = $1 AND a.acctstoptime IS NULL
+          AND a.acctupdatetime > now() - make_interval(secs => 3 * $2::int) ${mine}`,
+      params,
+    );
     const { rows } = await this.db().query<{
       nasip: string;
       shortname: string | null;
@@ -350,9 +366,44 @@ export class SessionsService {
     );
     return {
       online: rows.reduce((n, r) => n + Number(r.online), 0),
+      onlineUsers: Number((await users).rows[0]?.n ?? 0),
       stale: rows.reduce((n, r) => n + Number(r.stale), 0),
       byNas: rows.map((r) => ({ nasIp: r.nasip, nasName: r.shortname, online: Number(r.online) })),
     };
+  }
+
+  /** Traffic today and per day for 14 days (usage_daily, branch-scoped for resellers); cached 60 s. */
+  async traffic(ctx: AuthContext, q: z.output<typeof tenantQuery>): Promise<z.output<typeof trafficView>> {
+    const { mongoId, branch } = await this.scopeFor(ctx, q.tenantId);
+    const key = branch ? `b:${branch.resellerId.toHexString()}` : `t:${mongoId.toHexString()}`;
+    const hit = this.trafficCache.get(key);
+    if (hit && Date.now() - hit.at < 60_000) return hit.v;
+    const t = await this.pgTenant(mongoId);
+    const days: { day: string; bytes: number }[] = [];
+    let rows: { day: string; bytes: string }[] = [];
+    if (t && (!branch || branch.usernames.length)) {
+      const params: unknown[] = [t.id];
+      const mine = branch ? `AND username = ANY($${params.push(branch.usernames)}::text[])` : '';
+      rows = (
+        await this.db().query<{ day: string; bytes: string }>(
+          `SELECT to_char(day, 'YYYY-MM-DD') AS day, sum(bytes_in + bytes_out) AS bytes
+             FROM usage_daily
+            WHERE tenant_id = $1 AND day > (now() AT TIME ZONE 'Asia/Kolkata')::date - 14 ${mine}
+            GROUP BY day`,
+          params,
+        )
+      ).rows;
+    }
+    const byDay = new Map(rows.map((r) => [r.day, Number(r.bytes)]));
+    const ist = new Date(Date.now() + 330 * 60_000);
+    for (let i = 13; i >= 0; i--) {
+      const day = new Date(ist.getTime() - i * 86_400_000).toISOString().slice(0, 10);
+      days.push({ day, bytes: byDay.get(day) ?? 0 });
+    }
+    const v = { todayBytes: days[days.length - 1]!.bytes, days };
+    if (this.trafficCache.size > 1000) this.trafficCache.clear();
+    this.trafficCache.set(key, { at: Date.now(), v });
+    return v;
   }
 
   /** Online users over the last 24 h (with the same hours last week) and logins vs rejects per hour. */
@@ -578,6 +629,18 @@ export class SessionsController {
   })
   summary(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof tenantQuery>) {
     return this.sessions.summary(ctx, q);
+  }
+
+  @Get('sessions/traffic')
+  @Endpoint({
+    summary: 'Traffic today and per day for the last 14 days',
+    tags: ['sessions'],
+    permission: 'sessions.read',
+    query: tenantQuery,
+    response: trafficView,
+  })
+  traffic(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof tenantQuery>) {
+    return this.sessions.traffic(ctx, q);
   }
 
   @Get('sessions/activity')

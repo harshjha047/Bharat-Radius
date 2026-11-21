@@ -156,7 +156,15 @@ const summaryView = z.object({
   today: z.object({ recharges: z.number(), rechargePaise: z.number() }),
   month: z.object({ recharges: z.number(), invoicedPaise: z.number(), collectedPaise: z.number() }),
   unpaid: z.object({ count: z.number(), balancePaise: z.number(), overdue: z.number() }),
-  wallets: z.object({ resellerBalancePaise: z.number(), low: z.number(), frozen: z.number() }),
+  wallets: z.object({
+    resellerBalancePaise: z.number(),
+    low: z.number(),
+    frozen: z.number(),
+    /** The ISP's own (master) wallet: "site balance". */
+    masterBalancePaise: z.number(),
+  }),
+  /** Invoices issued yesterday (IST), cancelled ones excluded. */
+  yesterday: z.object({ invoices: z.number(), invoicedPaise: z.number() }),
   sms: z.object({ queued: z.number(), failed24h: z.number() }),
 });
 
@@ -379,56 +387,77 @@ export class BillingSettingsService {
     const db = this.mongo.db;
     const sum = async <T extends object>(col: string, pipeline: object[]) =>
       (await db.collection(col).aggregate<T>(pipeline).toArray())[0];
-    const [today, month, invoiced, collected, unpaid, w, smsQueued, smsFailed] = await Promise.all([
-      sum<{ n: number; s: number }>('recharges', [
-        { $match: { tenantId, status: 'SUCCESS', createdAt: { $gte: dayStart } } },
-        { $group: { _id: null, n: { $sum: 1 }, s: { $sum: '$customerPricePaise' } } },
-      ]),
-      recharges(db).countDocuments({ tenantId, status: 'SUCCESS', createdAt: { $gte: monthStart } }),
-      sum<{ s: number }>('invoices', [
-        { $match: { tenantId, issueDate: { $gte: monthStart }, status: { $ne: 'cancelled' } } },
-        { $group: { _id: null, s: { $sum: '$totalPaise' } } },
-      ]),
-      sum<{ s: number }>('payments', [
-        { $match: { tenantId, status: 'captured', capturedAt: { $gte: monthStart } } },
-        { $group: { _id: null, s: { $sum: '$amountPaise' } } },
-      ]),
-      sum<{ n: number; s: number; o: number }>('invoices', [
-        { $match: { tenantId, status: { $in: ['issued', 'partially_paid', 'overdue'] } } },
-        {
-          $group: {
-            _id: null,
-            n: { $sum: 1 },
-            s: { $sum: '$balancePaise' },
-            o: { $sum: { $cond: [{ $eq: ['$status', 'overdue'] }, 1, 0] } },
+    const yesterdayStart = new Date(dayStart.getTime() - 86_400_000);
+    const [today, month, invoiced, collected, unpaid, w, smsQueued, smsFailed, master, yInv] =
+      await Promise.all([
+        sum<{ n: number; s: number }>('recharges', [
+          { $match: { tenantId, status: 'SUCCESS', createdAt: { $gte: dayStart } } },
+          { $group: { _id: null, n: { $sum: 1 }, s: { $sum: '$customerPricePaise' } } },
+        ]),
+        recharges(db).countDocuments({ tenantId, status: 'SUCCESS', createdAt: { $gte: monthStart } }),
+        sum<{ s: number }>('invoices', [
+          { $match: { tenantId, issueDate: { $gte: monthStart }, status: { $ne: 'cancelled' } } },
+          { $group: { _id: null, s: { $sum: '$totalPaise' } } },
+        ]),
+        sum<{ s: number }>('payments', [
+          { $match: { tenantId, status: 'captured', capturedAt: { $gte: monthStart } } },
+          { $group: { _id: null, s: { $sum: '$amountPaise' } } },
+        ]),
+        sum<{ n: number; s: number; o: number }>('invoices', [
+          { $match: { tenantId, status: { $in: ['issued', 'partially_paid', 'overdue'] } } },
+          {
+            $group: {
+              _id: null,
+              n: { $sum: 1 },
+              s: { $sum: '$balancePaise' },
+              o: { $sum: { $cond: [{ $eq: ['$status', 'overdue'] }, 1, 0] } },
+            },
           },
-        },
-      ]),
-      sum<{ s: number; low: number; frozen: number }>('wallets', [
-        { $match: { tenantId, walletType: { $ne: 'MASTER' }, isActive: true } },
-        {
-          $group: {
-            _id: null,
-            s: { $sum: '$balancePaise' },
-            low: { $sum: { $cond: [{ $lte: ['$balancePaise', '$lowBalanceThresholdPaise'] }, 1, 0] } },
-            frozen: { $sum: { $cond: ['$frozen', 1, 0] } },
+        ]),
+        sum<{ s: number; low: number; frozen: number }>('wallets', [
+          { $match: { tenantId, walletType: { $ne: 'MASTER' }, isActive: true } },
+          {
+            $group: {
+              _id: null,
+              s: { $sum: '$balancePaise' },
+              low: { $sum: { $cond: [{ $lte: ['$balancePaise', '$lowBalanceThresholdPaise'] }, 1, 0] } },
+              frozen: { $sum: { $cond: ['$frozen', 1, 0] } },
+            },
           },
-        },
-      ]),
-      notifications(db).countDocuments({ tenantId, status: 'queued' }),
-      notifications(db).countDocuments({
-        tenantId,
-        status: 'failed',
-        createdAt: { $gte: new Date(now.getTime() - 86_400_000) },
-      }),
-    ]);
+        ]),
+        notifications(db).countDocuments({ tenantId, status: 'queued' }),
+        notifications(db).countDocuments({
+          tenantId,
+          status: 'failed',
+          createdAt: { $gte: new Date(now.getTime() - 86_400_000) },
+        }),
+        db
+          .collection<{ balancePaise: number }>('wallets')
+          .findOne({ tenantId, walletType: 'MASTER' }, { projection: { balancePaise: 1 } }),
+        sum<{ n: number; s: number }>('invoices', [
+          {
+            $match: {
+              tenantId,
+              issueDate: { $gte: yesterdayStart, $lt: dayStart },
+              status: { $ne: 'cancelled' },
+            },
+          },
+          { $group: { _id: null, n: { $sum: 1 }, s: { $sum: '$totalPaise' } } },
+        ]),
+      ]);
     void wallets;
     void invoices;
     return {
       today: { recharges: today?.n ?? 0, rechargePaise: today?.s ?? 0 },
       month: { recharges: month, invoicedPaise: invoiced?.s ?? 0, collectedPaise: collected?.s ?? 0 },
       unpaid: { count: unpaid?.n ?? 0, balancePaise: unpaid?.s ?? 0, overdue: unpaid?.o ?? 0 },
-      wallets: { resellerBalancePaise: w?.s ?? 0, low: w?.low ?? 0, frozen: w?.frozen ?? 0 },
+      wallets: {
+        resellerBalancePaise: w?.s ?? 0,
+        low: w?.low ?? 0,
+        frozen: w?.frozen ?? 0,
+        masterBalancePaise: master?.balancePaise ?? 0,
+      },
+      yesterday: { invoices: yInv?.n ?? 0, invoicedPaise: yInv?.s ?? 0 },
       sms: { queued: smsQueued, failed24h: smsFailed },
     };
   }

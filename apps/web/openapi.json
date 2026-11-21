@@ -2070,6 +2070,9 @@
                     "online": {
                       "type": "number"
                     },
+                    "onlineUsers": {
+                      "type": "number"
+                    },
                     "stale": {
                       "type": "number"
                     },
@@ -2093,7 +2096,96 @@
                       }
                     }
                   },
-                  "required": ["online", "stale", "byNas"],
+                  "required": ["online", "onlineUsers", "stale", "byNas"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/traffic": {
+      "get": {
+        "summary": "Traffic today and per day for the last 14 days",
+        "tags": ["sessions"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "sessions.read",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "todayBytes": {
+                      "type": "number"
+                    },
+                    "days": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "day": {
+                            "type": "string"
+                          },
+                          "bytes": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["day", "bytes"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["todayBytes", "days"],
                   "additionalProperties": false
                 }
               }
@@ -6028,6 +6120,24 @@
               "type": "string",
               "enum": ["today", "tomorrow", "7d", "expired-month"]
             }
+          },
+          {
+            "name": "kyc",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["unverified", "verified"]
+            }
+          },
+          {
+            "name": "staticIp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["yes"]
+            }
           }
         ],
         "responses": {
@@ -6651,6 +6761,12 @@
                     "expiring7d": {
                       "type": "number"
                     },
+                    "unverified": {
+                      "type": "number"
+                    },
+                    "staticIps": {
+                      "type": "number"
+                    },
                     "renewPaise": {
                       "type": "object",
                       "properties": {
@@ -6682,6 +6798,8 @@
                     "expiringToday",
                     "expiringTomorrow",
                     "expiring7d",
+                    "unverified",
+                    "staticIps",
                     "renewPaise"
                   ],
                   "additionalProperties": false
@@ -14853,9 +14971,25 @@
                         },
                         "frozen": {
                           "type": "number"
+                        },
+                        "masterBalancePaise": {
+                          "type": "number"
                         }
                       },
-                      "required": ["resellerBalancePaise", "low", "frozen"],
+                      "required": ["resellerBalancePaise", "low", "frozen", "masterBalancePaise"],
+                      "additionalProperties": false
+                    },
+                    "yesterday": {
+                      "type": "object",
+                      "properties": {
+                        "invoices": {
+                          "type": "number"
+                        },
+                        "invoicedPaise": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["invoices", "invoicedPaise"],
                       "additionalProperties": false
                     },
                     "sms": {
@@ -14872,7 +15006,7 @@
                       "additionalProperties": false
                     }
                   },
-                  "required": ["today", "month", "unpaid", "wallets", "sms"],
+                  "required": ["today", "month", "unpaid", "wallets", "yesterday", "sms"],
                   "additionalProperties": false
                 }
               }

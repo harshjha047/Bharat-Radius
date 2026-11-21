@@ -1260,11 +1260,72 @@ export interface paths {
           content: {
             'application/json': {
               online: number;
+              onlineUsers: number;
               stale: number;
               byNas: {
                 nasIp: string;
                 nasName: string | null;
                 online: number;
+              }[];
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/sessions/traffic': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Traffic today and per day for the last 14 days */
+    get: {
+      parameters: {
+        query?: {
+          tenantId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              todayBytes: number;
+              days: {
+                day: string;
+                bytes: number;
               }[];
             };
           };
@@ -2885,6 +2946,8 @@ export interface paths {
           resellerId?: string | 'none';
           under?: string;
           expiry?: 'today' | 'tomorrow' | '7d' | 'expired-month';
+          kyc?: 'unverified' | 'verified';
+          staticIp?: 'yes';
         };
         header?: never;
         path?: never;
@@ -3123,6 +3186,8 @@ export interface paths {
               expiringToday: number;
               expiringTomorrow: number;
               expiring7d: number;
+              unverified: number;
+              staticIps: number;
               renewPaise: {
                 today: number;
                 tomorrow: number;
@@ -6647,6 +6712,11 @@ export interface paths {
                 resellerBalancePaise: number;
                 low: number;
                 frozen: number;
+                masterBalancePaise: number;
+              };
+              yesterday: {
+                invoices: number;
+                invoicedPaise: number;
               };
               sms: {
                 queued: number;

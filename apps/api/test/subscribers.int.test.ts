@@ -287,6 +287,15 @@ describe('renewals summary and the expiry filter', () => {
     expect(b.expiredThisMonth).toBeGreaterThanOrEqual(1);
     expect(b.expired).toBeGreaterThanOrEqual(b.expiredThisMonth);
     expect(b.active + b.expired + b.suspended + b.disabled).toBe(b.total);
+    const raw = s.body as { unverified: number; staticIps: number };
+    expect(raw.unverified).toBeGreaterThanOrEqual(0);
+    expect(raw.unverified).toBeLessThanOrEqual(b.total);
+    expect(raw.staticIps).toBeGreaterThanOrEqual(0);
+    const unverified = await support.req('GET', '/api/v1/subscribers?kyc=unverified&limit=200');
+    expect(unverified.status).toBe(200);
+    expect((unverified.body.items as { kycStatus: string }[]).every((x) => x.kycStatus !== 'verified')).toBe(
+      true,
+    );
     expect(b.renewPaise.today).toBeGreaterThan(0);
     expect(b.renewPaise.next7d).toBeGreaterThanOrEqual(b.renewPaise.today + b.renewPaise.tomorrow);
 
