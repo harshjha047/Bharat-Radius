@@ -18,10 +18,34 @@ BEGIN
   RETURN k;
 END $$;
 
-SET client_min_messages = warning;
+-- Static IP / IPoE subscribers log in by MAC (MikroTik DHCP server sends the client MAC as User-Name; Hotspot
+-- login-by=mac does the same). Returns that subscriber's username, or NULL when p_user is not a MAC of one.
+-- Only called for MAC-shaped names, so ordinary PPPoE logins pay nothing for it.
+CREATE OR REPLACE FUNCTION radius_static_user(p_nas inet, p_user text)
+RETURNS text LANGUAGE plpgsql STABLE AS $$
+DECLARE
+  v_mac text;
+  v_user text;
+BEGIN
+  IF p_user !~* '^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$' THEN
+    RETURN NULL;
+  END IF;
+  v_mac := upper(replace(p_user, '-', ':'));
+  SELECT sub.username INTO v_user
+    FROM nas n
+    JOIN subscribers sub ON sub.tenant_id = n.tenant_id AND sub.conn_type = 'static' AND sub.mac_lock = v_mac
+   WHERE n.nasname = p_nas;
+  RETURN v_user;
+END $$;
+
+-- p_service / p_proto: Service-Type and Framed-Protocol of the request (MikroTik: Hotspot = Login-User; PPPoE =
+-- Framed-User + PPP). Defaults keep the old 3-argument call working while FreeRADIUS reloads its queries.
+BEGIN;
+SET LOCAL client_min_messages = warning;
 DROP FUNCTION IF EXISTS radius_check(inet, text, text, text); -- old form: key as an argument
-RESET client_min_messages;
-CREATE OR REPLACE FUNCTION radius_check(p_nas inet, p_user text, p_mac text)
+DROP FUNCTION IF EXISTS radius_check(inet, text, text);       -- before connection types (migration 009)
+CREATE OR REPLACE FUNCTION radius_check(p_nas inet, p_user text, p_mac text,
+                                        p_service text DEFAULT '', p_proto text DEFAULT '')
 RETURNS TABLE (id bigint, username text, attribute text, value text, op text)
 LANGUAGE plpgsql STABLE AS $$
 #variable_conflict use_column
@@ -29,14 +53,15 @@ DECLARE
   s record;
   v_reason text;
   v_mac text := upper(replace(nullif(btrim(p_mac), ''), '-', ':'));
+  v_static text := radius_static_user(p_nas, p_user);
 BEGIN
-  SELECT sub.id AS sid, sub.username AS uname, sub.status AS sstatus, sub.mac_lock, sub.password_enc,
+  SELECT sub.id AS sid, sub.username AS uname, sub.status AS sstatus, sub.mac_lock, sub.password_enc, sub.conn_type,
          coalesce(sub.sim_use, pl.sim_use, 1) AS sim, t.id AS tid, t.status AS tstatus, t.interim_interval AS interim,
          t.expired_mode = 'reject' AND (sub.plan_id IS NULL OR sub.expires_at <= now()) AS expired
     INTO s
     FROM nas n
     JOIN tenants t ON t.id = n.tenant_id
-    JOIN subscribers sub ON sub.tenant_id = n.tenant_id AND lower(sub.username) = lower(p_user)
+    JOIN subscribers sub ON sub.tenant_id = n.tenant_id AND lower(sub.username) = lower(coalesce(v_static, p_user))
     LEFT JOIN plans pl ON pl.id = sub.plan_id
    WHERE n.nasname = p_nas;
 
@@ -48,12 +73,20 @@ BEGIN
     WHEN s.tstatus <> 'active' THEN 'Service provider suspended'
     WHEN s.sstatus = 'suspended' THEN 'Account suspended'
     WHEN s.sstatus = 'disabled' THEN 'Account disabled'
-    WHEN s.mac_lock IS NOT NULL AND s.mac_lock IS DISTINCT FROM v_mac THEN 'MAC address not allowed'
+    WHEN s.conn_type = 'static' AND v_static IS NULL THEN 'Static IP account: login by MAC only'
+    -- The MAC is the only credential, so it is honoured only from the DHCP server: never typed into PPPoE or Hotspot.
+    WHEN s.conn_type = 'static' AND (p_proto = 'PPP' OR p_service = 'Login-User')
+      THEN 'Static IP account: PPPoE / Hotspot login not allowed'
+    WHEN s.conn_type = 'pppoe' AND p_service = 'Login-User' THEN 'PPPoE account: Hotspot login not allowed'
+    WHEN s.conn_type = 'hotspot' AND p_proto = 'PPP' THEN 'Hotspot account: PPPoE login not allowed'
+    WHEN s.conn_type <> 'static' AND s.mac_lock IS NOT NULL AND s.mac_lock IS DISTINCT FROM v_mac
+      THEN 'MAC address not allowed'
     WHEN s.expired THEN 'Subscriber account expired'
   END;
 
   -- Simultaneous-use: only sessions heard from within 3 interim periods count, so a crashed router cannot lock users out.
-  IF v_reason IS NULL AND (
+  -- Not for static IP: one MAC is one device, and a DHCP lease renewal re-asks while its session is still open.
+  IF v_reason IS NULL AND s.conn_type <> 'static' AND (
        SELECT count(*)
          FROM radacct a
         WHERE a.tenant_id = s.tid AND a.username = s.uname AND a.acctstoptime IS NULL
@@ -69,8 +102,14 @@ BEGIN
     RETURN;
   END IF;
 
+  IF v_static IS NOT NULL THEN
+    -- The MAC is the credential (the DHCP server sends no usable password).
+    attribute := 'Auth-Type'; value := 'Accept'; RETURN NEXT;
+    RETURN;
+  END IF;
   attribute := 'Cleartext-Password'; value := pgp_sym_decrypt(s.password_enc, radius_pw_key()); RETURN NEXT;
 END $$;
+COMMIT;
 
 CREATE OR REPLACE FUNCTION radius_reply(p_nas inet, p_user text)
 RETURNS TABLE (id bigint, username text, attribute text, value text, op text)
@@ -79,14 +118,19 @@ LANGUAGE plpgsql STABLE AS $$
 DECLARE
   r record;
   v_fup boolean;
+  -- Static IP / IPoE: Session-Timeout is the DHCP lease; keep it short so the lease renewal re-asks RADIUS and
+  -- suspend / expiry / plan changes apply within the hour (MikroTik does not take CoA for DHCP leases).
+  v_max_secs integer;
+  v_user text := coalesce(radius_static_user(p_nas, p_user), p_user);
 BEGIN
-  SELECT sub.id AS sid, sub.username AS uname, sub.plan_id, sub.expires_at, sub.static_ip, sub.fup_active,
+  SELECT sub.id AS sid, sub.username AS uname, sub.plan_id, sub.expires_at, sub.static_ip, sub.fup_active, sub.conn_type,
          pl.rate_limit, pl.fup_rate, pl.ip_pool,
          t.expired_rate, t.expired_address_list, t.expired_session_secs, t.interim_interval
     INTO r
     FROM nas n
     JOIN tenants t ON t.id = n.tenant_id AND t.status = 'active'
-    JOIN subscribers sub ON sub.tenant_id = n.tenant_id AND lower(sub.username) = lower(p_user) AND sub.status = 'active'
+    JOIN subscribers sub ON sub.tenant_id = n.tenant_id AND sub.status = 'active'
+                        AND lower(sub.username) = lower(v_user)
     LEFT JOIN plans pl ON pl.id = sub.plan_id
    WHERE n.nasname = p_nas;
 
@@ -95,10 +139,12 @@ BEGIN
   END IF;
 
   id := r.sid; username := r.uname; op := ':=';
+  v_max_secs := CASE WHEN r.conn_type = 'static' THEN 3600 ELSE 2592000 END;
 
   IF r.static_ip IS NOT NULL THEN
     attribute := 'Framed-IP-Address'; value := host(r.static_ip); RETURN NEXT;
-  ELSIF r.ip_pool IS NOT NULL THEN
+  ELSIF r.ip_pool IS NOT NULL AND r.conn_type <> 'hotspot' THEN
+    -- Hotspot clients already hold a DHCP address; the Hotspot server profile owns any address pool.
     attribute := 'Framed-Pool'; value := r.ip_pool; RETURN NEXT;
   END IF;
   attribute := 'Acct-Interim-Interval'; value := r.interim_interval::text; RETURN NEXT;
@@ -106,7 +152,7 @@ BEGIN
   IF r.plan_id IS NULL OR (r.expires_at IS NOT NULL AND r.expires_at <= now()) THEN
     attribute := 'Mikrotik-Rate-Limit';  value := r.expired_rate;                   RETURN NEXT;
     attribute := 'Mikrotik-Address-List'; value := r.expired_address_list;          RETURN NEXT;
-    attribute := 'Session-Timeout';      value := r.expired_session_secs::text;     RETURN NEXT;
+    attribute := 'Session-Timeout';      value := least(r.expired_session_secs, v_max_secs)::text; RETURN NEXT;
     attribute := 'Reply-Message';        value := 'Plan expired';                   RETURN NEXT;
     RETURN;
   END IF;
@@ -118,9 +164,9 @@ BEGIN
   IF v_fup THEN
     attribute := 'Mikrotik-Address-List'; value := 'fup'; RETURN NEXT;
   END IF;
-  IF r.expires_at IS NOT NULL THEN
+  IF r.expires_at IS NOT NULL OR r.conn_type = 'static' THEN
     attribute := 'Session-Timeout';
-    value := greatest(60, least(2592000, ceil(extract(epoch FROM r.expires_at - now()))))::bigint::text;
+    value := greatest(60, least(v_max_secs, coalesce(ceil(extract(epoch FROM r.expires_at - now())), v_max_secs)))::bigint::text;
     RETURN NEXT;
   END IF;
 
@@ -149,7 +195,8 @@ DECLARE
 BEGIN
   INSERT INTO radpostauth (tenant_id, username, reply, reason, nasipaddress, callingstationid, authdate)
   VALUES (v_tenant,
-          coalesce((SELECT sub.username FROM subscribers sub
+          coalesce(radius_static_user(p_nas, p_user),
+                   (SELECT sub.username FROM subscribers sub
                      WHERE sub.tenant_id = v_tenant AND lower(sub.username) = lower(p_user)), p_user),
           p_reply,
           nullif(p_reason, ''), p_nas, nullif(upper(p_calling), ''), now());
@@ -240,7 +287,11 @@ BEGIN
   END IF;
 
   -- No row yet: Start, or Interim/Stop whose Start was lost. Username stored as the subscriber's (case may differ).
-  SELECT sub.username INTO v_user FROM subscribers sub WHERE sub.tenant_id = v_tenant AND lower(sub.username) = lower(p_user);
+  -- Static IP / IPoE (DHCP accounting) reports the MAC: store the subscriber's username so usage and sessions match.
+  v_user := radius_static_user(p_nas, p_user);
+  IF v_user IS NULL THEN
+    SELECT sub.username INTO v_user FROM subscribers sub WHERE sub.tenant_id = v_tenant AND lower(sub.username) = lower(p_user);
+  END IF;
   INSERT INTO radacct (
     tenant_id, acctsessionid, acctuniqueid, username, nasipaddress, nasportid, nasporttype,
     acctstarttime, acctupdatetime, acctstoptime, acctsessiontime, acctauthentic,

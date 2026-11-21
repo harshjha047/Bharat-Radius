@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { LiveSpeed } from '@/components/router-live';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { CONNECTION_LABEL } from '@/lib/connection';
 import { toast } from '@/lib/toast';
 import { actionLabel, AuditChanges } from '@/components/audit-changes';
 import { PaymentLinkDialog, RechargeDialog, SubscriberBilling } from '@/components/billing';
@@ -335,7 +336,7 @@ function Actions({ s }: { s: Subscriber }) {
           <MenuContent>
             {can('subscribers.password.reveal') ? (
               <MenuItem onSelect={() => reveal.mutate()}>
-                <Eye /> Show PPPoE password
+                <Eye /> Show password
               </MenuItem>
             ) : null}
             {write ? (
@@ -425,7 +426,7 @@ function Actions({ s }: { s: Subscriber }) {
           }
         }}
       >
-        <DialogContent title="PPPoE password" description="This view is recorded in the audit log.">
+        <DialogContent title="Login password" description="This view is recorded in the audit log.">
           {password ? <SecretBox label={s.username} value={password} /> : null}
         </DialogContent>
       </Dialog>
@@ -453,13 +454,14 @@ function Overview({ s }: { s: Subscriber }) {
                 ],
                 ['Valid until', fmtDate(s.expiresAt)],
                 ['Billing', s.billingType === 'prepaid' ? 'Prepaid' : 'Postpaid'],
+                ['Connection', CONNECTION_LABEL[s.connectionType]],
                 ['FUP', s.fupActive ? <Badge tone="warning">At FUP speed</Badge> : 'Normal speed'],
                 [
                   'Static IP',
                   s.network.staticIp ? <span className="font-mono">{s.network.staticIp}</span> : 'Pool',
                 ],
                 [
-                  'MAC lock',
+                  s.connectionType === 'static' ? 'Router MAC' : 'MAC lock',
                   s.network.macLock ? <span className="font-mono">{s.network.macLock}</span> : 'Off',
                 ],
                 ['Simultaneous logins', s.network.simUse ?? (plan ? `${plan.simUse} (plan)` : '—')],
@@ -696,6 +698,7 @@ const COA_RESULT: Record<string, readonly ['success' | 'warning' | 'danger' | 'n
   nak: ['warning', 'Refused, disconnected instead'],
   timeout: ['danger', 'No answer'],
   skipped_offline: ['neutral', 'Not online'],
+  skipped_unsupported: ['neutral', 'Applies at next DHCP renewal'],
   error: ['danger', 'Failed'],
 };
 

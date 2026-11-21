@@ -7,7 +7,7 @@ const P1 = new ObjectId();
 const P2 = new ObjectId();
 const future = new Date(Date.now() + 86_400_000);
 const past = new Date(Date.now() - 1000);
-type S = Pick<SubscriberDoc, 'status' | 'planId' | 'expiresAt' | 'fup' | 'network'>;
+type S = Pick<SubscriberDoc, 'status' | 'planId' | 'expiresAt' | 'fup' | 'network' | 'connectionType'>;
 const s = (o: Partial<S> = {}): S => ({ status: 'active', planId: P1, expiresAt: future, network: {}, ...o });
 
 describe('radiusState', () => {
@@ -36,6 +36,13 @@ describe('coaFor', () => {
     });
     expect(coaFor(s(), s({ status: 'deleted' }))).toEqual({ action: 'disconnect', reason: 'delete' });
   });
+  it('connection type change → disconnect; missing type equals pppoe', () => {
+    expect(coaFor(s(), s({ connectionType: 'hotspot' }))).toEqual({
+      action: 'disconnect',
+      reason: 'network',
+    });
+    expect(coaFor(s(), s({ connectionType: 'pppoe' }))).toBeUndefined();
+  });
   it('nothing for offline-only changes', () => {
     expect(coaFor(s({ status: 'suspended' }), s())).toBeUndefined();
     expect(coaFor(s(), s())).toBeUndefined();
@@ -57,5 +64,32 @@ describe('searchTokens', () => {
         customerNo: 'C000042',
       }),
     ).toEqual(['rahul', 'kumar', 'rahul01', '919876543210', '9876543210', 'c000042']);
+  });
+});
+
+describe('connection types', () => {
+  const base = {
+    username: 'cust01',
+    name: 'A',
+    phone: '+919876543210',
+    address: { line1: 'x', city: 'y', state: 'z', pincode: '110001' },
+  };
+  it('static needs MAC and static IP; others do not', async () => {
+    const { createBody, connectionProblem } = await import('./subscribers.js');
+    expect(createBody.parse(base).connectionType).toBe('pppoe');
+    expect(createBody.safeParse({ ...base, connectionType: 'hotspot' }).success).toBe(true);
+    expect(createBody.safeParse({ ...base, connectionType: 'static' }).success).toBe(false);
+    expect(
+      createBody.safeParse({ ...base, connectionType: 'static', network: { staticIp: '100.64.0.5' } })
+        .success,
+    ).toBe(false);
+    const ok = createBody.parse({
+      ...base,
+      connectionType: 'static',
+      network: { staticIp: '100.64.0.5', macLock: 'aa-bb-cc-dd-ee-01' },
+    });
+    expect(ok.network?.macLock).toBe('AA:BB:CC:DD:EE:01');
+    expect(connectionProblem('static', { staticIp: '1.2.3.4', macLock: null })).toMatch(/MAC/);
+    expect(connectionProblem('hotspot', {})).toBeNull();
   });
 });

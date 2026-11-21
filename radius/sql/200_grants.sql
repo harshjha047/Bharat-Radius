@@ -11,7 +11,8 @@ GRANT INSERT ON radpostauth TO :"fr_role";
 GRANT USAGE ON SEQUENCE radacct_radacctid_seq, radpostauth_id_seq TO :"fr_role";
 GRANT EXECUTE ON FUNCTION
   radius_pw_key(),
-  radius_check(inet, text, text),
+  radius_static_user(inet, text),
+  radius_check(inet, text, text, text, text),
   radius_reply(inet, text),
   radius_online_count(inet, text),
   radius_log_auth(inet, text, text, text, text),
@@ -33,6 +34,7 @@ GRANT EXECUTE ON FUNCTION
   radius_online_count(inet, text),
   -- CoA: the worker sends exactly the rate/lists FreeRADIUS would reply with now.
   radius_reply(inet, text),
+  radius_static_user(inet, text),
   radius_close_stale_sessions(),
   radius_usage_rollup(interval),
   pgp_sym_encrypt(text, text, text)

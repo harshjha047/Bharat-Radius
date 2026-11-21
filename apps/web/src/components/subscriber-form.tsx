@@ -1,7 +1,7 @@
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { ResellerPicker, type ResellerRef } from '@/components/reseller-picker';
 import { Button } from '@/components/ui/button';
@@ -9,41 +9,89 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input, Select, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { ApiError } from '@/lib/api';
+import { CONNECTION_LABEL, CONNECTION_TYPES, type ConnectionType } from '@/lib/connection';
 import { useCan } from '@/lib/auth';
 import { applyServerErrors, endOfDayIst, istDateInput } from '@/lib/forms';
 import { usePlans, type Subscriber } from '@/lib/queries';
 
 const opt = z.string().trim();
-const schema = z.object({
-  username: z
-    .string()
-    .trim()
-    .regex(/^[A-Za-z0-9._@-]{3,64}$/, '3–64 letters, digits, . _ @ -'),
-  pppoePassword: z.string().regex(/^([\x21-\x7e]{4,64})?$/, '4–64 characters, no spaces'),
-  name: z.string().trim().min(1, 'Required').max(120),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^(\+?[0-9][0-9\s-]{7,16})$/, 'Enter a phone number'),
-  altPhone: opt,
-  email: z.union([z.literal(''), z.email('Enter a valid email')]),
-  line1: z.string().trim().min(1, 'Required').max(200),
-  line2: opt,
-  city: z.string().trim().min(1, 'Required').max(80),
-  district: opt,
-  state: z.string().trim().min(1, 'Required').max(80),
-  pincode: z.string().regex(/^\d{6}$/, '6 digits'),
-  gstin: z.union([z.literal(''), z.string().regex(/^\d{2}[0-9A-Z]{13}$/, '15-character GSTIN')]),
-  billingType: z.enum(['prepaid', 'postpaid']),
-  planId: opt,
-  expiresAt: opt,
-  staticIp: opt,
-  macLock: opt,
-  simUse: opt,
-  popName: opt,
-  tags: opt,
-  notes: z.string().max(2000),
-});
+const CONNECTION_UI: Record<
+  ConnectionType,
+  {
+    user: string;
+    userHint: string;
+    pw: string;
+    pwHint: string;
+    ipHint: string;
+    macLabel: string;
+    macHint: string;
+  }
+> = {
+  pppoe: {
+    user: 'PPPoE username',
+    userHint: 'What the customer’s router dials with.',
+    pw: 'PPPoE password',
+    pwHint: 'Leave empty to generate one.',
+    ipHint: 'Optional. Unique in your ISP.',
+    macLabel: 'Lock to MAC',
+    macHint: 'Optional. Logins from other devices are refused.',
+  },
+  hotspot: {
+    user: 'Hotspot username',
+    userHint: 'What the customer types on the Hotspot login page.',
+    pw: 'Hotspot password',
+    pwHint: 'Leave empty to generate one.',
+    ipHint: 'Optional. Needs an address pool on the Hotspot server profile.',
+    macLabel: 'Lock to MAC',
+    macHint: 'Optional. Logins from other devices are refused.',
+  },
+  static: {
+    user: 'Account ID',
+    userHint: 'Shown in reports and used for the customer portal; the router logs in by MAC.',
+    pw: 'Portal password',
+    pwHint: 'Only for the customer portal. Leave empty to generate one.',
+    ipHint: 'Required. Given to the customer router by DHCP. Unique in your ISP.',
+    macLabel: 'Customer router MAC',
+    macHint: 'Required. The DHCP server sends it to RADIUS; unique in your ISP.',
+  },
+};
+const schema = z
+  .object({
+    connectionType: z.enum(['pppoe', 'hotspot', 'static']),
+    username: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9._@-]{3,64}$/, '3–64 letters, digits, . _ @ -'),
+    pppoePassword: z.string().regex(/^([\x21-\x7e]{4,64})?$/, '4–64 characters, no spaces'),
+    name: z.string().trim().min(1, 'Required').max(120),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^(\+?[0-9][0-9\s-]{7,16})$/, 'Enter a phone number'),
+    altPhone: opt,
+    email: z.union([z.literal(''), z.email('Enter a valid email')]),
+    line1: z.string().trim().min(1, 'Required').max(200),
+    line2: opt,
+    city: z.string().trim().min(1, 'Required').max(80),
+    district: opt,
+    state: z.string().trim().min(1, 'Required').max(80),
+    pincode: z.string().regex(/^\d{6}$/, '6 digits'),
+    gstin: z.union([z.literal(''), z.string().regex(/^\d{2}[0-9A-Z]{13}$/, '15-character GSTIN')]),
+    billingType: z.enum(['prepaid', 'postpaid']),
+    planId: opt,
+    expiresAt: opt,
+    staticIp: opt,
+    macLock: opt,
+    simUse: opt,
+    popName: opt,
+    tags: opt,
+    notes: z.string().max(2000),
+  })
+  .superRefine((v, c) => {
+    if (v.connectionType !== 'static') return;
+    if (!v.macLock) c.addIssue({ code: 'custom', path: ['macLock'], message: 'Required for Static IP' });
+    if (!v.staticIp) c.addIssue({ code: 'custom', path: ['staticIp'], message: 'Required for Static IP' });
+  });
 export type SubscriberFormValues = z.infer<typeof schema>;
 
 const addr = (s?: Subscriber) => (s?.address ?? {}) as Record<string, string | undefined>;
@@ -51,6 +99,7 @@ const addr = (s?: Subscriber) => (s?.address ?? {}) as Record<string, string | u
 function defaults(s?: Subscriber): SubscriberFormValues {
   const a = addr(s);
   return {
+    connectionType: s?.connectionType ?? 'pppoe',
     username: s?.username ?? '',
     pppoePassword: '',
     name: s?.name ?? '',
@@ -79,6 +128,7 @@ function defaults(s?: Subscriber): SubscriberFormValues {
 const ADDRESS = ['line1', 'line2', 'city', 'district', 'state', 'pincode'] as const;
 const NETWORK = ['staticIp', 'macLock', 'simUse', 'popName'] as const;
 const KNOWN = [
+  'connectionType',
   'username',
   'pppoePassword',
   'name',
@@ -120,6 +170,7 @@ export function toBody(
   const nul = (s: string) => (s === '' ? (dirty === null ? undefined : null) : s);
   const b: Record<string, unknown> = {};
   if (dirty === null) b.username = v.username;
+  if (changed('connectionType')) b.connectionType = v.connectionType;
   if (v.pppoePassword && changed('pppoePassword')) b.pppoePassword = v.pppoePassword;
   if (changed('name')) b.name = v.name;
   if (changed('phone')) b.phone = v.phone;
@@ -183,8 +234,10 @@ export function SubscriberForm({
     register,
     handleSubmit,
     setError,
+    control,
     formState: { errors, dirtyFields, isDirty },
   } = form;
+  const ui = CONNECTION_UI[useWatch({ control, name: 'connectionType' })];
   const err = (k: keyof SubscriberFormValues) => errors[k]?.message;
   const serverPath = (p: string) => {
     const [head, tail] = p.split('.');
@@ -202,7 +255,9 @@ export function SubscriberForm({
           ? 'username'
           : /static IP/i.test(e.message)
             ? 'staticIp'
-            : null;
+            : /MAC/.test(e.message)
+              ? 'macLock'
+              : null;
         if (field) return setError(field, { type: 'server', message: e.message });
       }
       if (e instanceof ApiError && /reseller|suspended/i.test(e.message) && e.status !== 400) {
@@ -227,14 +282,29 @@ export function SubscriberForm({
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field
-            label="PPPoE username"
-            htmlFor="username"
-            error={err('username')}
+            label="Connection type"
+            htmlFor="connectionType"
+            error={err('connectionType')}
             hint={
               editing
-                ? 'Cannot be changed. Delete and recreate to rename.'
-                : 'What the customer’s router dials with.'
+                ? 'Changing it disconnects the customer; set up the router side first.'
+                : 'PPPoE dialer, Hotspot login page, or Static IP by MAC (DHCP).'
             }
+            className="sm:col-span-2"
+          >
+            <Select id="connectionType" {...register('connectionType')}>
+              {CONNECTION_TYPES.map((k) => (
+                <option key={k} value={k}>
+                  {CONNECTION_LABEL[k]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field
+            label={ui.user}
+            htmlFor="username"
+            error={err('username')}
+            hint={editing ? 'Cannot be changed. Delete and recreate to rename.' : ui.userHint}
           >
             <Input
               id="username"
@@ -245,10 +315,10 @@ export function SubscriberForm({
             />
           </Field>
           <Field
-            label={editing ? 'New PPPoE password' : 'PPPoE password'}
+            label={editing ? `New ${ui.pw.toLowerCase()}` : ui.pw}
             htmlFor="pppoePassword"
             error={err('pppoePassword')}
-            hint={editing ? 'Leave empty to keep the current one.' : 'Leave empty to generate one.'}
+            hint={editing ? 'Leave empty to keep the current one.' : ui.pwHint}
           >
             <Input
               id="pppoePassword"
@@ -323,12 +393,7 @@ export function SubscriberForm({
           <Field label="POP" htmlFor="popName" error={err('popName')}>
             <Input id="popName" {...register('popName')} />
           </Field>
-          <Field
-            label="Static IP"
-            htmlFor="staticIp"
-            error={err('staticIp')}
-            hint="Optional. Unique in your ISP."
-          >
+          <Field label="Static IP" htmlFor="staticIp" error={err('staticIp')} hint={ui.ipHint}>
             <Input
               id="staticIp"
               inputMode="decimal"
@@ -336,12 +401,7 @@ export function SubscriberForm({
               {...register('staticIp')}
             />
           </Field>
-          <Field
-            label="Lock to MAC"
-            htmlFor="macLock"
-            error={err('macLock')}
-            hint="Optional. Logins from other devices are refused."
-          >
+          <Field label={ui.macLabel} htmlFor="macLock" error={err('macLock')} hint={ui.macHint}>
             <Input
               id="macLock"
               placeholder="e.g. AA:BB:CC:DD:EE:FF"

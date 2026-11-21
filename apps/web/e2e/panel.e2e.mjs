@@ -163,7 +163,7 @@ step('server validation shows on the field', async () => {
   await page.fill('#state', 'UP');
   await page.fill('#pincode', '201301');
   await page.getByRole('button', { name: 'Create subscriber' }).click();
-  await page.getByRole('alert').filter({ hasText: 'This PPPoE username is already used' }).waitFor();
+  await page.getByRole('alert').filter({ hasText: 'This username is already used' }).waitFor();
 });
 
 step('edit sends only the change and shows in history', async () => {
