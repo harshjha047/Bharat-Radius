@@ -102,7 +102,12 @@ describe('sessions and logs', () => {
 
   it('summary counts online and stale sessions per router', async () => {
     const r = await support.req('GET', '/api/v1/sessions/summary');
-    expect(r.body).toEqual({ online: 1, stale: 1, byNas: [{ nasIp, nasName: 'POP-A', online: 1 }] });
+    expect(r.body).toEqual({
+      online: 1,
+      onlineUsers: 1,
+      stale: 1,
+      byNas: [{ nasIp, nasName: 'POP-A', online: 1 }],
+    });
   });
 
   it('activity: online users per hour vs last week, logins vs rejects per hour', async () => {
@@ -156,6 +161,13 @@ describe('sessions and logs', () => {
       days: [{ day: today, uploadBytes: 10, downloadBytes: 90, sessionSecs: 60 }],
       cycle: null,
     });
+    const t = await support.req('GET', '/api/v1/sessions/traffic');
+    expect(t.status).toBe(200);
+    expect(t.body.todayBytes).toBe(100);
+    expect(t.body.days).toHaveLength(14);
+    expect(t.body.days[13]).toEqual({ day: today, bytes: 100 });
+    expect(t.body.days[0].bytes).toBe(0);
+    expect((await other.req('GET', '/api/v1/sessions/traffic')).body.todayBytes).toBe(0);
   });
 
   it('who had an IP at a given time', async () => {

@@ -1,6 +1,6 @@
 'use client';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -80,6 +80,9 @@ function SubscribersList() {
     setStatus(v);
     if (v) setExpiryRaw('');
   };
+  // Set by dashboard cards (KYC not verified, static IP); shown as a removable chip.
+  const [kyc, setKyc] = useState(params.get('kyc') === 'unverified' ? 'unverified' : '');
+  const [staticIp, setStaticIp] = useState(params.get('staticIp') === 'yes' ? 'yes' : '');
   const dq = useDebounced(q.trim(), 300);
 
   // Keep filters in the URL so Back and shared links return to the same list.
@@ -89,13 +92,15 @@ function SubscribersList() {
     if (status) s.set('status', status);
     if (planId) s.set('plan', planId);
     if (expiry) s.set('expiry', expiry);
+    if (kyc) s.set('kyc', kyc);
+    if (staticIp) s.set('staticIp', staticIp);
     const next = s.toString();
     if (next !== params.toString())
       router.replace(`/admin/subscribers${next ? `?${next}` : ''}`, { scroll: false });
-  }, [dq, status, planId, expiry, params, router]);
+  }, [dq, status, planId, expiry, kyc, staticIp, params, router]);
 
   const list = useInfiniteQuery({
-    queryKey: ['subscribers', { q: dq, status, planId, expiry }],
+    queryKey: ['subscribers', { q: dq, status, planId, expiry, kyc, staticIp }],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       unwrap(
@@ -107,6 +112,8 @@ function SubscribersList() {
               ...(status ? { status } : {}),
               ...(planId ? { planId } : {}),
               ...(expiry ? { expiry } : {}),
+              ...(kyc ? { kyc: 'unverified' as const } : {}),
+              ...(staticIp ? { staticIp: 'yes' as const } : {}),
               ...(pageParam ? { cursor: pageParam } : {}),
             },
           },
@@ -191,7 +198,22 @@ function SubscribersList() {
               </option>
             ))}
           </Select>
-          {q || status || planId || expiry ? (
+          {[
+            kyc && { label: 'KYC not verified', clear: () => setKyc('') },
+            staticIp && { label: 'Has a static IP', clear: () => setStaticIp('') },
+          ]
+            .filter((c): c is { label: string; clear: () => void } => !!c)
+            .map((c) => (
+              <Button
+                key={c.label}
+                variant="outline"
+                onClick={c.clear}
+                aria-label={`Remove filter: ${c.label}`}
+              >
+                {c.label} <X />
+              </Button>
+            ))}
+          {q || status || planId || expiry || kyc || staticIp ? (
             <Button
               variant="ghost"
               onClick={() => {
@@ -199,6 +221,8 @@ function SubscribersList() {
                 setStatus('');
                 setPlanId('');
                 setExpiryRaw('');
+                setKyc('');
+                setStaticIp('');
               }}
             >
               Clear

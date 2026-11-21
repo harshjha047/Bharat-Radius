@@ -133,6 +133,10 @@ const listQuery = pageQuery.extend({
   under: hexId.optional(),
   /** Validity window (IST days): ends later today, tomorrow, within 7 days, or ended this month and not renewed. */
   expiry: z.enum(['today', 'tomorrow', '7d', 'expired-month']).optional(),
+  /** `unverified`: KYC pending or rejected. */
+  kyc: z.enum(['unverified', 'verified']).optional(),
+  /** `yes`: has a static IP. */
+  staticIp: z.enum(['yes']).optional(),
 });
 
 const summaryView = z.object({
@@ -149,6 +153,10 @@ const summaryView = z.object({
   expiringToday: z.number(),
   expiringTomorrow: z.number(),
   expiring7d: z.number(),
+  /** KYC not verified yet (pending or rejected). */
+  unverified: z.number(),
+  /** Subscribers with a static IP. */
+  staticIps: z.number(),
   /** What renewing each group on its current plan would bring in (plan prices, GST as priced). */
   renewPaise: z.object({
     today: z.number(),
@@ -387,6 +395,9 @@ export class SubscribersService {
               ? { $gt: now, $lte: new Date(now.getTime() + 7 * DAY_MS) }
               : { $gte: b.monthStart, $lte: now };
     }
+    if (q.kyc === 'unverified') f['kyc.status'] = { $ne: 'verified' };
+    else if (q.kyc === 'verified') f['kyc.status'] = 'verified';
+    if (q.staticIp === 'yes') f['network.staticIp'] = { $type: 'string', $ne: '' };
     if (q.planId) f.planId = new ObjectId(q.planId);
     if (q.resellerId === 'none') f.resellerId = null;
     else if (q.resellerId) f.resellerId = new ObjectId(q.resellerId);
@@ -438,6 +449,8 @@ export class SubscribersService {
         today: number;
         tomorrow: number;
         d7: number;
+        unverified: number;
+        staticIps: number;
       }>([
         { $match: { status: { $ne: 'deleted' } } },
         {
@@ -467,6 +480,11 @@ export class SubscribersService {
               { $lt: ['$expiresAt', b.dayAfter] },
             ),
             d7: when(isActive, hasExpiry, { $gt: ['$expiresAt', now] }, { $lte: ['$expiresAt', in7] }),
+            unverified: when({ $ne: ['$kyc.status', 'verified'] }),
+            staticIps: when(
+              { $eq: [{ $type: '$network.staticIp' }, 'string'] },
+              { $ne: ['$network.staticIp', ''] },
+            ),
           },
         },
       ])
@@ -495,6 +513,8 @@ export class SubscribersService {
       expiringToday: sum('today'),
       expiringTomorrow: sum('tomorrow'),
       expiring7d: sum('d7'),
+      unverified: sum('unverified'),
+      staticIps: sum('staticIps'),
       renewPaise: {
         today: value('today'),
         tomorrow: value('tomorrow'),
