@@ -5,16 +5,12 @@ import {
   BarChart3,
   ChevronRight,
   Handshake,
-  IndianRupee,
   LifeBuoy,
-  ReceiptText,
   RefreshCw,
   Search,
   Server,
   UserPlus,
   Users,
-  UserX,
-  Wifi,
   type LucideIcon,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -29,9 +25,9 @@ import {
   RenewalsSection,
   SubscriberStatusCard,
   useExpiring,
-  useSubscriberSummary,
 } from '@/components/dashboard-widgets';
 import { NotificationBell, ResellerNetwork, type Notice } from '@/components/reseller-dashboard';
+import { GlanceGrid, glanceWidget, isGlanceId, useGlanceCards } from '@/components/at-a-glance';
 import { InsightsCard } from '@/components/financial-insights';
 import { NasStatistics } from '@/components/router-live';
 import { Button } from '@/components/ui/button';
@@ -73,74 +69,6 @@ const KpiLink = ({ href, children }: { href: string; children: React.ReactNode }
 );
 
 type Tone = 'neutral' | 'success' | 'warning' | 'danger';
-const TONE_TEXT: Record<Tone, string> = {
-  neutral: 'text-muted-foreground',
-  success: 'text-success-text',
-  warning: 'text-warning-text',
-  danger: 'text-danger-text',
-};
-
-/** One cell of the pulse band: big number, one line of context, the whole cell links through. */
-function Metric({
-  href,
-  icon: Icon,
-  label,
-  value,
-  hint,
-  tone = 'neutral',
-  live,
-  loading,
-}: {
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  value: React.ReactNode;
-  hint?: React.ReactNode;
-  tone?: Tone;
-  live?: boolean;
-  loading?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex min-w-0 flex-col gap-2 p-[18px] text-inherit hover:bg-subtle hover:text-inherit"
-    >
-      <span className="flex items-center gap-2 text-[13px] font-semibold text-body">
-        <span className="grid size-7 place-items-center rounded-lg bg-accent text-primary">
-          <Icon className="size-4" strokeWidth={1.9} aria-hidden />
-        </span>
-        <span className="truncate">{label}</span>
-        {live ? (
-          <span className="relative ml-auto flex size-2" aria-label="Live">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:animate-none" />
-            <span className="relative inline-flex size-2 rounded-full bg-success" />
-          </span>
-        ) : (
-          <ChevronRight
-            className="ml-auto size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-            aria-hidden
-          />
-        )}
-      </span>
-      {loading ? (
-        <>
-          <Skeleton className="h-8 w-2/3 rounded-lg" />
-          <Skeleton className="h-3 w-1/2" />
-        </>
-      ) : (
-        <>
-          <span className="truncate text-[clamp(24px,2.4vw,30px)] leading-tight font-extrabold tracking-[-0.03em] text-foreground tabular-nums">
-            {value}
-          </span>
-          {hint ? (
-            <span className={cn('truncate text-xs font-semibold', TONE_TEXT[tone])}>{hint}</span>
-          ) : null}
-        </>
-      )}
-    </Link>
-  );
-}
-
 /** Small secondary figure: label left, number right. */
 function Pill({
   href,
@@ -216,7 +144,7 @@ export default function Dashboard() {
   const staff = me.data?.user.type !== 'reseller';
   const prefs = useDashboardPrefs();
   const { shown } = prefs;
-  const subs = useSubscriberSummary();
+  const glance = useGlanceCards('staff');
   const rejects = useQuery({
     queryKey: ['auth-log', 'summary', 'dashboard'],
     queryFn: () => unwrap(api.GET('/api/v1/radius/auth-log/summary')),
@@ -308,16 +236,13 @@ export default function Dashboard() {
 
   const widgets: WidgetDef[] = [
     { id: 'attention', label: 'Needs attention' },
+    ...glance.map(glanceWidget),
     { id: 'actions', label: 'Quick actions' },
     can('subscribers.read') && { id: 'renewals', label: 'Renewals and status' },
     can('subscribers.read') && { id: 'expiring', label: 'Expiring soon list' },
     (can('sessions.read') || can('nas.read')) && { id: 'routers', label: 'Routers' },
     can('billing.read') && { id: 'month', label: 'This month' },
-    can('sessions.read') && { id: 'kpi-online', label: 'Online now' },
-    can('subscribers.read') && { id: 'kpi-pending', label: 'Pending recharge' },
     can('sessions.read') && { id: 'kpi-rejects', label: 'Login rejects (24 h)' },
-    can('billing.read') && { id: 'kpi-recharges', label: 'Recharges (today / month)' },
-    can('billing.read') && { id: 'kpi-unpaid', label: 'Unpaid invoices' },
     can('tickets.read') && { id: 'kpi-tickets', label: 'Open tickets' },
     can('nas.read') && { id: 'kpi-routers', label: 'Routers count' },
     can('plans.read') && { id: 'kpi-plans', label: 'Plans' },
@@ -327,56 +252,7 @@ export default function Dashboard() {
     can('reports.view') && { id: 'trends', label: 'Revenue and plan trends' },
   ].filter((w): w is WidgetDef => !!w);
 
-  const metrics = [
-    can('sessions.read') && shown('kpi-online') && (
-      <Metric
-        key="online"
-        href="/admin/sessions"
-        icon={Wifi}
-        live
-        label="Online now"
-        loading={summary.isLoading}
-        value={fmtNum(summary.data?.online ?? 0)}
-        hint={summary.data?.stale ? `${summary.data.stale} not reporting` : 'All sessions reporting'}
-        tone={summary.data?.stale ? 'warning' : 'neutral'}
-      />
-    ),
-    can('billing.read') && shown('kpi-recharges') && (
-      <Metric
-        key="recharges"
-        href="/admin/recharges"
-        icon={IndianRupee}
-        label="Today’s recharges"
-        loading={billing.isLoading}
-        value={b ? fmtRupees0(b.today.rechargePaise) : '—'}
-        hint={b ? `${fmtNum(b.today.recharges)} today · ${fmtNum(b.month.recharges)} this month` : undefined}
-      />
-    ),
-    can('subscribers.read') && shown('kpi-pending') && (
-      <Metric
-        key="pending"
-        href="/admin/subscribers?status=expired"
-        icon={UserX}
-        label="Pending recharge"
-        loading={subs.isLoading}
-        value={fmtNum(subs.data?.expired ?? 0)}
-        hint={subs.data ? `${fmtNum(subs.data.expiredThisMonth)} expired this month` : undefined}
-        tone={subs.data?.expired ? 'danger' : 'neutral'}
-      />
-    ),
-    can('billing.read') && shown('kpi-unpaid') && (
-      <Metric
-        key="unpaid"
-        href="/admin/invoices"
-        icon={ReceiptText}
-        label="Unpaid"
-        loading={billing.isLoading}
-        value={b ? fmtRupees0(b.unpaid.balancePaise) : '—'}
-        hint={b ? `${fmtNum(b.unpaid.count)} invoices · ${fmtNum(b.unpaid.overdue)} overdue` : undefined}
-        tone={b?.unpaid.overdue ? 'danger' : 'neutral'}
-      />
-    ),
-  ].filter(Boolean);
+  const glanceShown = glance.filter((g) => prefs.isShown(g));
 
   const pills = [
     can('sessions.read') && shown('kpi-rejects') && (
@@ -436,6 +312,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-5">
+      <DashboardBackdrop />
       <header className="flex flex-wrap items-center gap-3">
         <div className="mr-auto flex flex-col gap-0.5">
           <span className="font-mono text-xs text-muted-foreground">{istStamp.format(new Date())}</span>
@@ -491,10 +368,14 @@ export default function Dashboard() {
         </section>
       ) : null}
 
-      {metrics.length ? (
-        <Card className="grid grid-cols-1 divide-y divide-divider overflow-hidden sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x [&>*]:sm:border-divider [&>*:nth-child(odd)]:sm:border-r [&>*:nth-child(n+3)]:sm:border-t lg:[&>*]:border-0">
-          {metrics}
-        </Card>
+      {glanceShown.length ? (
+        <GlanceGrid>
+          {glanceShown.map((g) => (
+            <div key={g.id} className="min-w-0">
+              {g.render()}
+            </div>
+          ))}
+        </GlanceGrid>
       ) : null}
 
       {pills.length || (shown('actions') && actions.length) ? (
@@ -892,6 +773,14 @@ function TrendsRow() {
 
 type MyWallet = ApiData<'/api/v1/wallets/mine'>;
 
+/** White at the top fading to #F7F7F5 by a third of the page, behind the dashboard. */
+const DashboardBackdrop = () => (
+  <div
+    aria-hidden
+    className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(180deg,#FFFFFF_0%,#F7F7F5_33%,#F7F7F5_100%)]"
+  />
+);
+
 function ResellerHome({
   name,
   wallet,
@@ -916,11 +805,18 @@ function ResellerHome({
   });
   const expiring = useExpiring(7, 5);
   const prefs = useDashboardPrefs();
+  const glance = useGlanceCards('reseller', { data: wallet, isLoading: loading, isError: false });
+  // Users who arranged their dashboard before the cards existed get them on top, not at the end.
+  const order =
+    prefs.order.length && !prefs.order.some(isGlanceId)
+      ? [...glance.map((g) => g.id), ...prefs.order]
+      : prefs.order;
   const ledgerHref = wallet ? `/admin/wallets/${wallet.id}` : '/admin/wallets';
 
   // Default order and visibility. Wallet, quick actions and sub-resellers already live in the
   // sidebar, so they start switched off; each user can switch them back on and reorder everything.
   const widgets: WidgetDef[] = [
+    ...glance.map(glanceWidget),
     can('subscribers.read') && { id: 'r-renewals', label: 'Renewals' },
     can('subscribers.read') && { id: 'r-status', label: 'Subscriber status' },
     (can('sessions.read') || can('nas.read')) && {
@@ -998,6 +894,7 @@ function ResellerHome({
   }
 
   const render: Record<string, () => React.ReactNode> = {
+    ...Object.fromEntries(glance.map((g) => [g.id, g.render])),
     'r-renewals': () => <RenewalsCard />,
     'r-status': () => <SubscriberStatusCard />,
     'r-network': () => <ResellerNetwork />,
@@ -1122,10 +1019,19 @@ function ResellerHome({
         </div>
       ) : null,
   };
-  const shownWidgets = prefs.loaded ? arrange(widgets, prefs.order).filter(prefs.isShown) : [];
+  const shownWidgets = prefs.loaded ? arrange(widgets, order).filter(prefs.isShown) : [];
+  // Consecutive stat cards share one grid; every other widget is its own block.
+  const blocks: { key: string; ids: string[]; grid: boolean }[] = [];
+  for (const w of shownWidgets) {
+    const grid = isGlanceId(w.id);
+    const last = blocks[blocks.length - 1];
+    if (grid && last?.grid) last.ids.push(w.id);
+    else blocks.push({ key: w.id, ids: [w.id], grid });
+  }
 
   return (
     <div className="flex flex-col gap-4">
+      <DashboardBackdrop />
       <header className="flex flex-wrap items-end gap-3">
         <div className="mr-auto flex flex-col gap-0.5">
           <span className="font-mono text-xs text-muted-foreground">
@@ -1138,7 +1044,7 @@ function ResellerHome({
         <DashboardConfig
           widgets={widgets}
           hidden={prefs.hidden}
-          order={prefs.order}
+          order={order}
           arranged={prefs.arranged}
           sortable
           onSave={prefs.save}
@@ -1163,7 +1069,19 @@ function ResellerHome({
           Everything is switched off. Use Customise to choose what the dashboard shows.
         </Card>
       ) : (
-        shownWidgets.map((w) => <div key={w.id}>{render[w.id]?.()}</div>)
+        blocks.map((b) =>
+          b.grid ? (
+            <GlanceGrid key={b.key}>
+              {b.ids.map((id) => (
+                <div key={id} className="min-w-0">
+                  {render[id]?.()}
+                </div>
+              ))}
+            </GlanceGrid>
+          ) : (
+            <div key={b.key}>{render[b.key]?.()}</div>
+          ),
+        )
       )}
     </div>
   );
