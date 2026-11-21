@@ -110,6 +110,13 @@ describe('sessions and logs', () => {
     });
   });
 
+  it('subscriber list shows the router of the latest session', async () => {
+    const r = await support.req('GET', `/api/v1/subscribers?q=${user}`);
+    expect(r.status).toBe(200);
+    const row = (r.body.items as { id: string }[]).find((i) => i.id === sub.toHexString());
+    expect(row).toMatchObject({ nas: { ip: nasIp, name: 'POP-A', online: true } });
+  });
+
   it('activity: online users per hour vs last week, logins vs rejects per hour', async () => {
     const r = await support.req('GET', '/api/v1/sessions/activity');
     expect(r.status).toBe(200);

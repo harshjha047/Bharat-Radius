@@ -6280,6 +6280,29 @@
                               }
                             ]
                           },
+                          "nas": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "ip": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "online": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": ["ip", "name", "online"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "createdAt": {
                             "type": "string"
                           },
@@ -6654,6 +6677,29 @@
                             }
                           },
                           "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "nas": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "ip": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": ["string", "null"]
+                            },
+                            "online": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["ip", "name", "online"],
                           "additionalProperties": false
                         },
                         {
@@ -7058,6 +7104,29 @@
                               }
                             ]
                           },
+                          "nas": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "ip": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "online": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": ["ip", "name", "online"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "createdAt": {
                             "type": "string"
                           },
@@ -7278,6 +7347,29 @@
                             }
                           },
                           "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "nas": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "ip": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": ["string", "null"]
+                            },
+                            "online": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["ip", "name", "online"],
                           "additionalProperties": false
                         },
                         {
@@ -7696,6 +7788,29 @@
                         }
                       ]
                     },
+                    "nas": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "ip": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": ["string", "null"]
+                            },
+                            "online": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["ip", "name", "online"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -8008,6 +8123,29 @@
                         }
                       ]
                     },
+                    "nas": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "ip": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": ["string", "null"]
+                            },
+                            "online": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["ip", "name", "online"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -8223,6 +8361,29 @@
                             }
                           },
                           "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "nas": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "ip": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": ["string", "null"]
+                            },
+                            "online": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["ip", "name", "online"],
                           "additionalProperties": false
                         },
                         {
