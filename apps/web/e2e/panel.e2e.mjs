@@ -265,7 +265,7 @@ step('phone layout: cards, no sideways scrolling, menu works', async () => {
 });
 
 step('sign out', async () => {
-  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('button', { name: /^Account: / }).click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await page.waitForURL(/\/login/);
   await page.goto(`${BASE}/admin`);

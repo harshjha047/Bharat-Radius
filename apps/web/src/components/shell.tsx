@@ -3,10 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   ArrowLeft,
+  ArrowUpDown,
   BarChart3,
   Building2,
+  ChevronsUpDown,
   Eye,
-  FileSpreadsheet,
+  FileText,
   Handshake,
   IndianRupee,
   LayoutDashboard,
@@ -17,7 +19,6 @@ import {
   Network,
   Package,
   Radio,
-  ReceiptText,
   RefreshCw,
   Router,
   ScrollText,
@@ -33,13 +34,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { clearViewAs, currentViewAs, leaveViewAs } from '@/lib/view-as';
 import { useEffect, useState, type ReactNode } from 'react';
-import { BrandMark, PoweredBy } from '@/components/brand';
+import { BrandMark, PoweredByDiv } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Dialog as D } from 'radix-ui';
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/dropdown';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, ApiError, onSignedOut, unwrap } from '@/lib/api';
 import { useMe, type Me, type Permission } from '@/lib/auth';
+import { activeSidebarUpdate } from '@/lib/sidebar-update';
 import { cn, fmtNum, fmtRupees } from '@/lib/utils';
 
 interface NavItem {
@@ -87,7 +89,7 @@ const STAFF_NAV: NavGroup[] = [
     items: [
       { href: '/admin/wallets', label: 'Wallets', icon: Wallet, any: ['billing.read'] },
       { href: '/admin/recharges', label: 'Recharges', icon: RefreshCw, any: ['billing.read'] },
-      { href: '/admin/invoices', label: 'Invoices', icon: ReceiptText, any: ['billing.read'] },
+      { href: '/admin/invoices', label: 'Invoices', icon: FileText, any: ['billing.read'] },
       { href: '/admin/payments', label: 'Payments', icon: IndianRupee, any: ['billing.read'] },
     ],
   },
@@ -96,7 +98,7 @@ const STAFF_NAV: NavGroup[] = [
     icon: Router,
     items: [
       { href: '/admin/routers', label: 'Routers', icon: Router, any: ['nas.read'] },
-      { href: '/admin/radius-log', label: 'Radius log', icon: Activity, any: ['sessions.read'] },
+      { href: '/admin/radius-log', label: 'RADIUS log', icon: Activity, any: ['sessions.read'] },
     ],
   },
   {
@@ -119,7 +121,7 @@ const STAFF_NAV: NavGroup[] = [
       {
         href: '/admin/import',
         label: 'Import & export',
-        icon: FileSpreadsheet,
+        icon: ArrowUpDown,
         any: ['imports.run', 'subscribers.export'],
       },
       { href: '/admin/users', label: 'Staff & roles', icon: UserCog, any: ['users.read'] },
@@ -155,7 +157,7 @@ const visible = (me: Me) =>
 const areaLabel = (me: Me) =>
   me.user.type === 'superadmin' ? 'Platform' : me.user.type === 'reseller' ? 'Reseller' : 'Admin';
 
-type BadgeTone = 'plain' | 'success' | 'warning' | 'danger' | 'info';
+type BadgeTone = 'plain' | 'success' | 'warning' | 'danger';
 interface NavBadge {
   text: string;
   tone: BadgeTone;
@@ -163,11 +165,10 @@ interface NavBadge {
   label?: string;
 }
 const BADGE_TONE: Record<BadgeTone, string> = {
-  plain: 'text-muted-foreground',
-  success: 'text-success-text',
-  warning: 'text-warning-text',
-  danger: 'text-danger-text',
-  info: 'text-info-text',
+  plain: 'text-[#6B6772]',
+  success: 'text-[#1E7A4A]',
+  warning: 'text-[#B45309]',
+  danger: 'text-[#B42335]',
 };
 
 /**
@@ -208,12 +209,18 @@ function useNavBadges(me: Me | undefined): Record<string, NavBadge> {
     staleTime: 30_000,
   });
   const b: Record<string, NavBadge> = {};
-  if (subs.data) b['/admin/subscribers'] = { text: fmtNum(subs.data.total), tone: 'plain' };
+  if (subs.data) {
+    const n = subs.data.total;
+    b['/admin/subscribers'] = { text: fmtNum(n), tone: 'plain', label: `${fmtNum(n)} subscribers` };
+  }
   if (sessions.data) {
     const n = sessions.data.online;
     b['/admin/sessions'] = { text: fmtNum(n), tone: n ? 'success' : 'plain', label: `${n} online` };
   }
-  if (plans.data) b['/admin/plans'] = { text: fmtNum(plans.data.items.length), tone: 'plain' };
+  if (plans.data) {
+    const n = plans.data.items.length;
+    b['/admin/plans'] = { text: fmtNum(n), tone: 'plain', label: `${fmtNum(n)} plans` };
+  }
   if (tickets.data) {
     const open = tickets.data.open + tickets.data.in_progress;
     b['/admin/tickets'] = {
@@ -224,11 +231,12 @@ function useNavBadges(me: Me | undefined): Record<string, NavBadge> {
   }
   const w = wallet.data;
   if (w) {
-    const bad = w.state === 'empty' || w.state === 'frozen';
+    const bad = w.state === 'empty' || w.state === 'frozen' || w.balancePaise < 0;
+    const amount = fmtRupees(Math.abs(w.balancePaise));
     b['/admin/wallets'] = {
       text: fmtRupees(w.balancePaise),
       tone: bad ? 'danger' : w.state === 'low' ? 'warning' : 'plain',
-      label: `Balance ${fmtRupees(w.balancePaise)}${w.state === 'normal' ? '' : `, ${w.state}`}`,
+      label: `Balance ${w.balancePaise < 0 ? 'minus ' : ''}${amount}${w.state === 'normal' ? '' : `, ${w.state}`}`,
     };
     if (w.children > 0) {
       b['/admin/resellers'] = w.lowChildren
@@ -237,7 +245,7 @@ function useNavBadges(me: Me | undefined): Record<string, NavBadge> {
             tone: 'warning',
             label: `${w.lowChildren} of ${w.children} have low wallets`,
           }
-        : { text: fmtNum(w.children), tone: 'plain' };
+        : { text: fmtNum(w.children), tone: 'plain', label: `${fmtNum(w.children)} sub-resellers` };
     }
   }
   return b;
@@ -247,7 +255,7 @@ function Count({ badge }: { badge: NavBadge | undefined }) {
   if (!badge) return null;
   return (
     <span
-      className={cn('shrink-0 font-mono text-xs font-medium tabular-nums', BADGE_TONE[badge.tone])}
+      className={cn('shrink-0 font-mono text-[11.5px] font-medium tabular-nums', BADGE_TONE[badge.tone])}
       {...(badge.label ? { 'aria-label': badge.label } : {})}
     >
       {badge.text}
@@ -258,12 +266,11 @@ function Count({ badge }: { badge: NavBadge | undefined }) {
 const isActive = (href: string, path: string) =>
   href === '/admin' ? path === '/admin' : path === href || path.startsWith(`${href}/`);
 
-const LINK =
-  'flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-sm font-medium text-sidebar-foreground hover:bg-subtle hover:text-foreground';
-const LINK_ACTIVE =
-  'bg-sidebar-active font-bold text-sidebar-active-foreground hover:bg-sidebar-active hover:text-sidebar-active-foreground';
+const ITEM =
+  'flex h-9 items-center gap-3 rounded-[9px] px-3 text-sm font-medium text-[#3A3640] transition-colors duration-200 hover:bg-[#F4F2EF] hover:text-[#16131A] focus-visible:shadow-[0_0_0_2px_#3A3640] focus-visible:outline-none motion-reduce:transition-none';
+const ITEM_ACTIVE = 'bg-[#F1EFEC] font-semibold text-[#16131A] hover:bg-[#F1EFEC]';
 
-/** Flat menu: an uppercase heading per section, every page visible with its icon and live count. */
+/** Every section always expanded: heading, then its pages with icon and live count. */
 function NavLinks({
   groups,
   badges,
@@ -275,15 +282,18 @@ function NavLinks({
 }) {
   const path = usePathname();
   return (
-    <nav aria-label="Main" className="flex flex-1 flex-col overflow-y-auto px-3.5">
+    <nav
+      aria-label="Main"
+      className="relative -mx-1 flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-1 pb-6 [mask-image:linear-gradient(180deg,#000_calc(100%-24px),transparent)]"
+    >
       {groups.map((g) => {
         const id = g.label ? `nav-${g.label.toLowerCase()}` : undefined;
         return (
-          <section key={g.label || 'home'} aria-labelledby={id} className="flex flex-col gap-0.5 pb-2">
+          <section key={g.label || 'home'} aria-labelledby={id} className="flex flex-col gap-0.5">
             {g.label ? (
               <h2
                 id={id}
-                className="px-2.5 pt-3 pb-1.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
+                className="px-3 pb-1.5 text-[11px] leading-[15px] font-semibold tracking-[0.08em] text-[#6B6772] uppercase"
               >
                 {g.label}
               </h2>
@@ -296,9 +306,9 @@ function NavLinks({
                   href={i.href}
                   onClick={onNavigate}
                   aria-current={active ? 'page' : undefined}
-                  className={cn(LINK, 'h-10', active && LINK_ACTIVE)}
+                  className={cn(ITEM, i.href === '/admin' && 'h-[38px]', active && ITEM_ACTIVE)}
                 >
-                  <i.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
+                  <i.icon className="size-4 shrink-0" strokeWidth={1.8} aria-hidden />
                   <span className="flex-1 truncate">{i.label}</span>
                   <Count badge={badges[i.href]} />
                 </Link>
@@ -314,54 +324,86 @@ function NavLinks({
 const Brand = ({ me }: { me: Me | undefined }) => {
   const b = me?.branding;
   return (
-    <div className="flex items-center gap-2.5 px-5 pt-5">
+    <div className="relative flex h-9 shrink-0 items-center gap-2.5 px-3">
       {b?.logoUrl ? (
-        <img src={b.logoUrl} alt="" className="h-9 w-auto max-w-24 object-contain" />
+        <img src={b.logoUrl} alt="" className="h-7 w-auto max-w-24 object-contain" />
       ) : (
-        <BrandMark />
+        <BrandMark className="h-7" />
       )}
       <div className="flex min-w-0 flex-col">
-        <span className="truncate text-base font-extrabold tracking-[-0.03em] text-foreground">
-          {b?.name ?? 'Bharat Radius'}
+        <span className="truncate text-[15px] leading-[17px] font-bold tracking-[-0.01em] text-[#16131A]">
+          {b?.name ?? 'BharatRadius'}
         </span>
-        <span className="eyebrow truncate text-[10px]">{me ? areaLabel(me) : '\u00a0'}</span>
+        <span className="truncate font-mono text-[10px] leading-3 tracking-[0.1em] text-[#6B6772] uppercase">
+          {me ? areaLabel(me) : '\u00a0'}
+        </span>
       </div>
     </div>
   );
 };
 
+/** Announcement or ad above the user card; renders nothing at all when none is active. */
+function UpdatesSlot() {
+  const [broken, setBroken] = useState(false);
+  const u = activeSidebarUpdate();
+  if (!u) return null;
+  return (
+    <aside aria-label="Updates" className="flex flex-col gap-1.5">
+      <p className="px-1 text-[10.5px] font-semibold tracking-[0.08em] text-[#8B8792] uppercase">Updates</p>
+      <a
+        href={u.href}
+        target="_blank"
+        rel="noopener"
+        className="block aspect-[4/3] w-full overflow-hidden rounded-xl focus-visible:shadow-[0_0_0_2px_#3A3640] focus-visible:outline-none"
+      >
+        {broken ? (
+          <span className="grid size-full place-items-center rounded-xl border border-dashed border-[#D9D6DE] bg-[#F7F7F5] px-3 text-center text-xs text-[#6B6772]">
+            {u.alt}
+          </span>
+        ) : (
+          <img
+            src={u.imageUrl}
+            alt={u.alt}
+            className="size-full object-cover"
+            onError={() => setBroken(true)}
+          />
+        )}
+      </a>
+    </aside>
+  );
+}
+
 function Sidebar({ me, onNavigate }: { me: Me | undefined; onNavigate?: () => void }) {
-  // A reseller's wallet balance sits on its Wallet menu item, coloured by state: always in view.
   const badges = useNavBadges(me);
   return (
-    <div className="flex h-full flex-col gap-[18px] bg-sidebar pb-4">
+    <div className="relative flex h-full flex-col gap-[22px] bg-white px-3.5 pt-5 pb-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,#FFFFFF_92%)]"
+      />
       <Brand me={me} />
       {me ? (
         <NavLinks groups={visible(me)} badges={badges} onNavigate={onNavigate} />
       ) : (
-        <div className="flex-1 space-y-2 px-3.5">
+        <div className="relative flex-1 space-y-2">
           {Array.from({ length: 8 }, (_, i) => (
             <Skeleton key={i} className="h-9" />
           ))}
         </div>
       )}
-      {me ? <UserMenu me={me} /> : null}
-      <PoweredBy className="px-6" />
+      <div className="relative flex shrink-0 flex-col gap-2.5 pt-1.5">
+        <UpdatesSlot />
+        {me ? <UserMenu me={me} /> : null}
+        <PoweredByDiv />
+      </div>
     </div>
   );
 }
 
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join('');
-
 function UserMenu({ me }: { me: Me }) {
   const router = useRouter();
   const qc = useQueryClient();
+  const contact = me.user.email ?? me.user.phone ?? '';
   const signOut = () =>
     void api.POST('/api/v1/auth/logout').finally(() => {
       qc.clear();
@@ -372,20 +414,23 @@ function UserMenu({ me }: { me: Me }) {
       <MenuTrigger asChild>
         <button
           type="button"
-          aria-label="Account menu"
-          className="mx-3.5 flex items-center gap-2.5 rounded-xl border-t px-2.5 pt-3 pb-1 text-left hover:bg-subtle"
+          aria-label={`Account: ${me.user.name}${contact ? `, ${contact}` : ''}`}
+          className="flex w-full items-center gap-2.5 rounded-xl bg-white px-2.5 py-2 text-left shadow-[0_1px_2px_rgba(17,24,39,.10),0_4px_12px_-4px_rgba(17,24,39,.18)] transition-colors duration-200 hover:bg-[#F4F2EF] focus-visible:shadow-[0_0_0_2px_#3A3640] focus-visible:outline-none motion-reduce:transition-none"
         >
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
-            {initials(me.user.name)}
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#F1EFEC] text-[13px] font-semibold text-[#3A3640]">
+            {(me.user.name.trim()[0] ?? '?').toUpperCase()}
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[13px] font-bold text-foreground">{me.user.name}</span>
-            <span className="truncate text-xs text-muted-foreground">{me.user.email ?? me.user.phone}</span>
+            <span className="truncate text-[13px] leading-4 font-semibold text-[#16131A]">
+              {me.user.name}
+            </span>
+            <span className="truncate text-[11.5px] text-[#6B6772]">{contact}</span>
           </span>
+          <ChevronsUpDown className="size-[15px] shrink-0 text-[#8B8792]" aria-hidden />
         </button>
       </MenuTrigger>
       <MenuContent align="start" side="top">
-        <MenuLabel>{me.user.email ?? me.user.phone}</MenuLabel>
+        <MenuLabel>{contact}</MenuLabel>
         <MenuSeparator />
         <MenuItem onSelect={() => router.push('/account')}>
           <ShieldCheck /> My account
@@ -446,14 +491,14 @@ export function Shell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[15.5rem_1fr]">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[264px_1fr]">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-xl focus:bg-card focus:px-3 focus:py-2"
       >
         Skip to content
       </a>
-      <aside className="sticky top-0 hidden h-dvh border-r lg:block">
+      <aside className="sticky top-0 hidden h-dvh border-r border-[#ECEAEF] lg:block">
         <Sidebar me={me.data} />
       </aside>
       <div className="flex min-w-0 flex-col">
@@ -467,7 +512,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <D.Portal>
               <D.Overlay className="fixed inset-0 z-40 bg-[#24172a]/45 lg:hidden" />
               <D.Content
-                className="fixed inset-y-0 left-0 z-50 w-64 border-r lg:hidden"
+                className="fixed inset-y-0 left-0 z-50 w-[264px] border-r border-[#ECEAEF] lg:hidden"
                 aria-describedby={undefined}
               >
                 <D.Title className="sr-only">Menu</D.Title>
