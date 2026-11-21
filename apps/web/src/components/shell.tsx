@@ -351,7 +351,7 @@ const Brand = ({ me }: { me: Me | undefined }) => {
       )}
       <div className="flex min-w-0 flex-col">
         <span className="truncate text-[15px] leading-[17px] font-bold tracking-[-0.01em] text-[#16131A]">
-          {b?.name ?? 'BharatRadius'}
+          {b?.name ?? 'Bharat Radius'}
         </span>
         <span className="truncate font-mono text-[10px] leading-3 tracking-[0.1em] text-[#6B6772] uppercase">
           {me ? areaLabel(me) : '\u00a0'}

@@ -34,6 +34,7 @@ import {
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import { ResellersService } from '../resellers/resellers.js';
+import { SessionsService, type LastNas } from '../sessions/sessions.js';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, conflict, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
@@ -245,6 +246,8 @@ const subscriberView = z.object({
   notes: z.string().nullable(),
   syncStatus: z.enum(['synced', 'pending', 'error']),
   reseller: z.object({ id: z.string(), code: z.string(), name: z.string() }).nullable(),
+  /** Router of the latest session (last 45 days); list responses only, null when none. */
+  nas: z.object({ ip: z.string(), name: z.string().nullable(), online: z.boolean() }).nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   /** Present only in the response that created the subscriber with a generated password. */
@@ -357,6 +360,7 @@ export class SubscribersService {
     @Inject(Outbox) private readonly outbox: Outbox,
     @Inject(FieldCrypto) private readonly crypto: FieldCrypto,
     @Inject(ResellersService) private readonly resellers: ResellersService,
+    @Inject(SessionsService) private readonly sessions: SessionsService,
   ) {}
 
   /** Owning resellers of these subscribers in one query. */
@@ -443,8 +447,33 @@ export class SubscribersService {
     const docs = await this.col(ctx)
       .find(f, { sort: { _id: -1 }, limit: q.limit + 1 })
       .toArray();
-    const refs = await this.refs(ctx, docs.slice(0, q.limit));
-    return pageOf(docs, q.limit, (d) => toView(d, refs));
+    const page = docs.slice(0, q.limit);
+    const [refs, nas] = await Promise.all([this.refs(ctx, page), this.lastNas(page)]);
+    return pageOf(docs, q.limit, (d) => ({
+      ...toView(d, refs),
+      nas: (d.username && nas.get(`${d.tenantId.toHexString()}:${d.username.toLowerCase()}`)) || null,
+    }));
+  }
+
+  /** Latest router per subscriber, one batched query per ISP on the page. */
+  private async lastNas(docs: SubscriberDoc[]): Promise<Map<string, LastNas>> {
+    const byTenant = new Map<string, { id: ObjectId; names: string[] }>();
+    for (const d of docs) {
+      if (!d.username) continue;
+      const k = d.tenantId.toHexString();
+      const e = byTenant.get(k) ?? { id: d.tenantId, names: [] };
+      e.names.push(d.username);
+      byTenant.set(k, e);
+    }
+    const out = new Map<string, LastNas>();
+    const maps = await Promise.all(
+      [...byTenant.values()].map(
+        async (t) => [t.id.toHexString(), await this.sessions.lastNas(t.id, t.names)] as const,
+      ),
+    );
+    for (const [tid, m] of maps)
+      for (const [u, v] of m) out.set(`${tid}:${u}`, { ip: v.ip, name: v.name, online: v.online });
+    return out;
   }
 
   private readonly summaryCache = new Map<string, { at: number; v: SubscriberSummary }>();

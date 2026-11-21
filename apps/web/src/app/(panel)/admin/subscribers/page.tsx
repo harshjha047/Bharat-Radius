@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { SubscriberState, SyncState } from '@/components/status';
-import { Tag } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/data-table';
@@ -302,15 +301,47 @@ function SubscribersList() {
                     {
                       key: 'reseller',
                       header: 'Reseller',
-                      cell: (s: Subscriber) => (
-                        <Tag mono title={s.reseller?.name}>
-                          {s.reseller ? (s.reseller.code ?? s.reseller.name) : 'Direct'}
-                        </Tag>
-                      ),
+                      cell: (s: Subscriber) =>
+                        s.reseller ? (
+                          <span className="flex min-w-0 flex-col" title={s.reseller.code}>
+                            <span className="truncate">{s.reseller.name}</span>
+                            <span className="font-mono text-xs text-muted-foreground">{s.reseller.code}</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Direct</span>
+                        ),
                       hideOnMobile: true,
                     },
                   ]
                 : []),
+              {
+                key: 'nas',
+                header: 'Router (NAS)',
+                cell: (s: Subscriber) =>
+                  s.nas ? (
+                    <span
+                      className="flex min-w-0 flex-col"
+                      title={s.nas.online ? 'Online now' : 'Last session'}
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span
+                          aria-hidden
+                          className={cn(
+                            'size-1.5 shrink-0 rounded-full',
+                            s.nas.online ? 'bg-success' : 'bg-border',
+                          )}
+                        />
+                        {s.nas.name ?? s.nas.ip}
+                      </span>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {s.nas.name ? s.nas.ip : s.nas.online ? 'online' : 'last session'}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  ),
+                hideOnMobile: true,
+              },
               {
                 key: 'state',
                 header: 'Status',

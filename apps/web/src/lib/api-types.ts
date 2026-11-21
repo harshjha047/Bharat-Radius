@@ -3005,6 +3005,11 @@ export interface paths {
                   code: string;
                   name: string;
                 } | null;
+                nas?: {
+                  ip: string;
+                  name: string | null;
+                  online: boolean;
+                } | null;
                 createdAt: string;
                 updatedAt: string;
                 pppoePassword?: string;
@@ -3133,6 +3138,11 @@ export interface paths {
                 id: string;
                 code: string;
                 name: string;
+              } | null;
+              nas?: {
+                ip: string;
+                name: string | null;
+                online: boolean;
               } | null;
               createdAt: string;
               updatedAt: string;
@@ -3309,6 +3319,11 @@ export interface paths {
                   code: string;
                   name: string;
                 } | null;
+                nas?: {
+                  ip: string;
+                  name: string | null;
+                  online: boolean;
+                } | null;
                 createdAt: string;
                 updatedAt: string;
                 pppoePassword?: string;
@@ -3406,6 +3421,11 @@ export interface paths {
                 id: string;
                 code: string;
                 name: string;
+              } | null;
+              nas?: {
+                ip: string;
+                name: string | null;
+                online: boolean;
               } | null;
               createdAt: string;
               updatedAt: string;
@@ -3572,6 +3592,11 @@ export interface paths {
                 code: string;
                 name: string;
               } | null;
+              nas?: {
+                ip: string;
+                name: string | null;
+                online: boolean;
+              } | null;
               createdAt: string;
               updatedAt: string;
               pppoePassword?: string;
@@ -3671,6 +3696,11 @@ export interface paths {
                 code: string;
                 name: string;
               } | null;
+              nas?: {
+                ip: string;
+                name: string | null;
+                online: boolean;
+              } | null;
               createdAt: string;
               updatedAt: string;
               pppoePassword?: string;
@@ -3767,6 +3797,11 @@ export interface paths {
                 id: string;
                 code: string;
                 name: string;
+              } | null;
+              nas?: {
+                ip: string;
+                name: string | null;
+                online: boolean;
               } | null;
               createdAt: string;
               updatedAt: string;

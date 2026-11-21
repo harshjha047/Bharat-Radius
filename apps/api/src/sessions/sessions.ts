@@ -123,6 +123,12 @@ const SESSION_END = 'coalesce(acctstoptime, acctupdatetime + make_interval(secs 
 /** Longest session we look back for when counting who was online (bounds the partition scan). */
 const LONGEST_SESSION_DAYS = 45;
 
+export interface LastNas {
+  ip: string;
+  name: string | null;
+  online: boolean;
+}
+
 interface SessionRow {
   radacctid: string;
   start_key: string;
@@ -295,6 +301,48 @@ export class SessionsService {
     const v = { at: Date.now(), id: row.id, interim: row.interim_interval };
     this.tenantCache.set(key, v);
     return v;
+  }
+
+  /**
+   * Router of each subscriber's latest session in the last LONGEST_SESSION_DAYS days, keyed by lower-cased
+   * username: one indexed lookup per name (radacct_user_start_idx). Empty when the Radius DB is unreachable,
+   * so the subscriber list never fails because of it.
+   */
+  async lastNas(tenantId: ObjectId, usernames: string[]): Promise<Map<string, LastNas>> {
+    const out = new Map<string, LastNas & { at: number }>();
+    if (!this.pool || !usernames.length) return out;
+    try {
+      const t = await this.pgTenant(tenantId);
+      if (!t) return out;
+      const names = [...new Set(usernames.flatMap((u) => [u, u.toLowerCase()]))];
+      const { rows } = await this.pool.query<{
+        username: string;
+        nasip: string;
+        shortname: string | null;
+        online: boolean;
+        acctstarttime: Date;
+      }>(
+        `SELECT u.username, host(a.nasipaddress) AS nasip, n.shortname, a.acctstarttime,
+                (a.acctstoptime IS NULL AND a.acctupdatetime > now() - make_interval(secs => 3 * $2::int)) AS online
+           FROM unnest($3::text[]) AS u(username)
+           CROSS JOIN LATERAL (
+             SELECT nasipaddress, acctstarttime, acctstoptime, acctupdatetime FROM radacct
+              WHERE tenant_id = $1 AND username = u.username
+                AND acctstarttime > now() - make_interval(days => $4::int)
+              ORDER BY acctstarttime DESC LIMIT 1) a
+           LEFT JOIN nas n ON n.nasname = a.nasipaddress AND n.tenant_id = $1`,
+        [t.id, t.interim, names, LONGEST_SESSION_DAYS],
+      );
+      for (const r of rows) {
+        const key = r.username.toLowerCase();
+        const at = r.acctstarttime.getTime();
+        if ((out.get(key)?.at ?? -1) < at)
+          out.set(key, { at, ip: r.nasip, name: r.shortname, online: r.online });
+      }
+    } catch {
+      out.clear();
+    }
+    return out;
   }
 
   private async subscriber(ctx: AuthContext, id: ObjectId) {
