@@ -204,7 +204,7 @@ export function TenantForm({
       <Card>
         <CardHeader>
           <CardTitle>Expired customers</CardTitle>
-          <CardDescription>What RADIUS gives a customer whose validity has run out.</CardDescription>
+          <CardDescription>What Radius gives a customer whose validity has run out.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field

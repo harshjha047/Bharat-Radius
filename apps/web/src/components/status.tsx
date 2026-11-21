@@ -28,11 +28,11 @@ export function SubscriberState({
 export function SyncState({ s }: { s: Pick<Subscriber, 'syncStatus'> }) {
   if (s.syncStatus === 'synced') return null;
   return s.syncStatus === 'error' ? (
-    <Badge tone="danger" title="Not yet on the RADIUS server; retrying">
+    <Badge tone="danger" title="Not yet on the Radius server; retrying">
       Sync error
     </Badge>
   ) : (
-    <Badge tone="neutral" title="Being sent to the RADIUS server">
+    <Badge tone="neutral" title="Being sent to the Radius server">
       Syncing
     </Badge>
   );

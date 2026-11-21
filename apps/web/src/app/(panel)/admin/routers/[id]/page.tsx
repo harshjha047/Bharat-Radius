@@ -97,7 +97,7 @@ function ApiForm({ id }: { id: string }) {
             >
               <Input id="api-pw" name="password" type="password" autoComplete="new-password" />
             </Field>
-            <Field label="Address" htmlFor="api-host" hint="Empty = the router’s RADIUS IP.">
+            <Field label="Address" htmlFor="api-host" hint="Empty = the router’s Radius IP.">
               <Input id="api-host" name="host" defaultValue={a.host ?? ''} />
             </Field>
             <Field label="Port" htmlFor="api-port" hint="8728 (api) or 8729 (api-ssl).">
@@ -172,7 +172,7 @@ function Info({ id, ip }: { id: string; ip: string }) {
                 ? ([
                     [
                       'PPPoE online',
-                      `${online.data.pppActive} on the router · ${radiusOnline} in RADIUS${
+                      `${online.data.pppActive} on the router · ${radiusOnline} in Radius${
                         online.data.pppActive === radiusOnline ? '' : ' (mismatch)'
                       }`,
                     ],

@@ -103,7 +103,7 @@ export function LoginsChart({ hours }: { hours: AuthHour[] }) {
     <div
       className="h-[220px] w-full"
       role="img"
-      aria-label="RADIUS logins and rejects per hour, last 24 hours"
+      aria-label="Radius logins and rejects per hour, last 24 hours"
     >
       <ResponsiveContainer>
         <BarChart data={hours} margin={{ top: 8, right: 0, left: 0, bottom: 0 }} barCategoryGap={2}>

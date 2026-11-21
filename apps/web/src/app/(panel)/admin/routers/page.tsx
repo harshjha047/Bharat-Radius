@@ -36,7 +36,7 @@ function RadiusTarget({ t }: { t: Target | undefined }) {
   if (!t) return <Skeleton className="h-5 w-80" />;
   return (
     <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-      <span>RADIUS for these routers:</span>
+      <span>Radius for these routers:</span>
       <span className="font-mono text-xs text-foreground">
         {t.host ?? 'this server'} · auth {t.authPort}/udp · acct {t.acctPort}/udp
       </span>
@@ -83,7 +83,7 @@ export default function RoutersPage() {
       void refresh();
       setEditing(null);
       if (n.radiusSecret) setSecret({ nas: n, value: n.radiusSecret, fresh: true });
-      else toast.success('Saved. FreeRADIUS picks it up within 30 seconds.');
+      else toast.success('Saved. Our Radius server picks it up within 30 seconds.');
     },
   });
   const patch = useMutation({
@@ -95,7 +95,7 @@ export default function RoutersPage() {
       if (n.radiusSecret) setSecret({ nas: n, value: n.radiusSecret, fresh: true });
       else
         toast.success(
-          n.status === 'disabled' ? 'Disabled. RADIUS stops answering it within 30 s.' : 'Enabled.',
+          n.status === 'disabled' ? 'Disabled. Radius stops answering it within 30 s.' : 'Enabled.',
         );
     },
   });
@@ -119,7 +119,7 @@ export default function RoutersPage() {
         description={
           reseller
             ? 'Routers you added, and the ISP routers your customers connect through. Add your own MikroTik here.'
-            : 'MikroTik routers that send logins to RADIUS. A router must be here before its customers can connect.'
+            : 'MikroTik routers that send logins to Radius. A router must be here before its customers can connect.'
         }
         actions={
           write ? (
@@ -224,7 +224,7 @@ export default function RoutersPage() {
                             <Pencil /> Edit
                           </MenuItem>
                           <MenuItem onSelect={() => reveal.mutate(n)}>
-                            <Eye /> Show RADIUS secret
+                            <Eye /> Show Radius secret
                           </MenuItem>
                           <MenuItem onSelect={() => setConfirm({ kind: 'rotate', nas: n })}>
                             <KeyRound /> New secret
@@ -277,7 +277,7 @@ export default function RoutersPage() {
 
       <Dialog open={!!secret} onOpenChange={(o) => !o && setSecret(null)}>
         <DialogContent
-          title={secret?.fresh ? 'Router ready' : 'RADIUS secret'}
+          title={secret?.fresh ? 'Router ready' : 'Radius secret'}
           description={
             secret?.fresh
               ? 'Copy the secret now; it is not shown again.'
@@ -305,7 +305,7 @@ export default function RoutersPage() {
                   <li>
                     Upload it to the router and run <code>/import file-name=setup.rsc</code>.
                   </li>
-                  <li>RADIUS accepts the router within 30 seconds.</li>
+                  <li>Radius accepts the router within 30 seconds.</li>
                 </ol>
               ) : null}
               <Button className="w-full" onClick={() => setSecret(null)}>
@@ -330,7 +330,7 @@ export default function RoutersPage() {
         open={confirm?.kind === 'disable'}
         onOpenChange={(o) => !o && setConfirm(null)}
         title={`Disable ${confirm?.nas.name ?? ''}?`}
-        description="RADIUS stops answering this router within 30 seconds. New logins through it fail."
+        description="Radius stops answering this router within 30 seconds. New logins through it fail."
         confirmLabel="Disable"
         destructive
         loading={patch.isPending}
@@ -340,7 +340,7 @@ export default function RoutersPage() {
         open={confirm?.kind === 'delete'}
         onOpenChange={(o) => !o && setConfirm(null)}
         title={`Delete ${confirm?.nas.name ?? ''}?`}
-        description="RADIUS stops answering this router within 30 seconds. Session history stays."
+        description="Radius stops answering this router within 30 seconds. Session history stays."
         confirmLabel="Delete"
         destructive
         loading={remove.isPending}

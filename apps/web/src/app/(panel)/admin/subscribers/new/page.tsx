@@ -35,7 +35,7 @@ function NewSubscriber() {
     <>
       <PageHeader
         title="New subscriber"
-        description="The account reaches the RADIUS server within seconds."
+        description="The account reaches the Radius server within seconds."
       />
       {resellerId && reseller.isLoading ? (
         <PageSkeleton />

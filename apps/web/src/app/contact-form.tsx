@@ -123,7 +123,7 @@ export function ContactForm() {
             id="lead-message"
             name="message"
             rows={3}
-            placeholder="e.g. daloRADIUS + Excel billing, 3 MikroTik routers, 12 LCOs"
+            placeholder="e.g. other Radius + Excel billing, 3 MikroTik routers, 12 LCOs"
             className={cn(input, 'resize-y')}
             {...aria('message')}
           />
@@ -143,7 +143,7 @@ export function ContactForm() {
           {pending ? 'Sending…' : 'Book my free demo'}
         </button>
         <p className="text-left text-[13px] text-[#6C7799]">
-          30-minute call. We only use your details to contact you about BharatRadius.
+          30-minute call. We only use your details to contact you about Bharat Radius.
         </p>
       </div>
       {state.status === 'error' && (

@@ -269,7 +269,7 @@ describe('sessions and logs', () => {
     const wp = list.body.items.find((i: { reason: string }) => i.reason === 'Wrong password (PAP)');
     const why = await support.req('GET', `/api/v1/radius/auth-log/why?id=${encodeURIComponent(wp.id)}`);
     expect(why.body.category).toBe('wrong_password');
-    expect(why.body.routerHint).toMatch(/different RADIUS secret/);
+    expect(why.body.routerHint).toMatch(/different Radius secret/);
   });
 
   it('another ISP sees none of it', async () => {

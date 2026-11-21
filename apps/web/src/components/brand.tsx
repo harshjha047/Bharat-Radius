@@ -1,28 +1,28 @@
 import { cn } from '@/lib/utils';
 
-/** The "b" mark. Size it by height (`h-*`); width follows the 224×290 artwork. */
+/** The "b" mark. Size it by height (`h-*`); width follows the 242×298 artwork. */
 export function BrandMark({ className }: { className?: string }) {
   return (
     <img
       src="/brand/mark.png"
       alt=""
       aria-hidden
-      width={224}
-      height={290}
+      width={242}
+      height={298}
       className={cn('h-[30px] w-auto shrink-0 select-none', className)}
       draggable={false}
     />
   );
 }
 
-/** Full lockup: mark, "bharat radius" and "A product of DIV Pvt. Ltd." (900×453). */
+/** Full lockup: mark, "bharat radius" and "A product of DIV Pvt. Ltd." (924×494). */
 export function BrandLockup({ className }: { className?: string }) {
   return (
     <img
       src="/brand/lockup.png"
-      alt="BharatRadius, a product of DIV Pvt. Ltd."
-      width={900}
-      height={453}
+      alt="Bharat Radius, a product of DIV Pvt. Ltd."
+      width={924}
+      height={494}
       className={cn('h-[72px] w-auto shrink-0 select-none', className)}
       draggable={false}
     />

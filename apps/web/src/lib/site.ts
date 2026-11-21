@@ -28,10 +28,10 @@ export function isCanonicalHost(host: string | null | undefined): boolean {
   return new URL(canonicalOrigin()).host === host.toLowerCase();
 }
 
-export const SITE_NAME = 'BharatRadius';
-export const SITE_TITLE = 'RADIUS & ISP Billing Software for Indian ISPs | BharatRadius';
+export const SITE_NAME = 'Bharat Radius';
+export const SITE_TITLE = 'Radius & ISP Billing Software for Indian ISPs | Bharat Radius';
 export const SITE_DESCRIPTION =
-  'PPPoE RADIUS, prepaid & postpaid billing, GST invoices, FUP plans, reseller/LCO management and DoT log archive for Indian broadband ISPs. Built on FreeRADIUS, hosted in India. Book a free demo.';
+  'PPPoE Radius, prepaid & postpaid billing, GST invoices, FUP plans, reseller/LCO management and DoT log archive for Indian broadband ISPs. Custom Radius engine, hosted in India. Book a free demo.';
 
 /** DIV, the company that builds and supports Bharat Radius. */
 export const DIV = {
@@ -49,7 +49,7 @@ export function salesContact() {
   return {
     phone,
     tel: `tel:+${digits}`,
-    whatsapp: `https://wa.me/${digits}?text=${encodeURIComponent('Hello, I would like a demo of BharatRadius for my ISP.')}`,
+    whatsapp: `https://wa.me/${digits}?text=${encodeURIComponent('Hello, I would like a demo of Bharat Radius for my ISP.')}`,
   };
 }
 

@@ -277,7 +277,7 @@ export function explain(
     return c(
       'username_format',
       'Username format not allowed',
-      'The username contains characters RADIUS refuses (spaces, a dot right after @, control characters).',
+      'The username contains characters Radius refuses (spaces, a dot right after @, control characters).',
       'Fix the PPPoE username in the customer router.',
     );
   return c(
@@ -474,9 +474,9 @@ export class RadiusLogService {
     ]);
     const h = health?.[0];
     const routerHint = h?.badSecret
-      ? `Router ${h.name} (${h.nasIp}) is sending with a different RADIUS secret than the panel has (${h.badSecret.packets}+ packets in 24 h). Fix the secret on the router, not the customer password.`
+      ? `Router ${h.name} (${h.nasIp}) is sending with a different Radius secret than the panel has (${h.badSecret.packets}+ packets in 24 h). Fix the secret on the router, not the customer password.`
       : h?.suspectSecret
-        ? `Several different customers on ${h.name} (${h.nasIp}) failed with "wrong password" in the last hour and nobody logged in: the router's RADIUS secret is probably wrong.`
+        ? `Several different customers on ${h.name} (${h.nasIp}) failed with "wrong password" in the last hour and nobody logged in: the router's Radius secret is probably wrong.`
         : null;
     return {
       entry,
@@ -618,12 +618,12 @@ export class RadiusLogService {
       registered === 'other' && !platform
         ? 'This address is a router of another ISP on this platform.'
         : registered === 'mine' && kinds.has('bad_secret')
-          ? 'Packets arrive, but the RADIUS secret on the router does not match the panel. Set the same secret on both.'
+          ? 'Packets arrive, but the Radius secret on the router does not match the panel. Set the same secret on both.'
           : registered === 'mine'
-            ? 'This is one of your routers and its packets are accepted. If customers still fail, open the RADIUS log.'
+            ? 'This is one of your routers and its packets are accepted. If customers still fail, open the Radius log.'
             : kinds.size
               ? 'Packets from this address reach the server, but it is not a router in the panel. Add a router with exactly this address (the one the server sees, after any NAT).'
-              : 'Nothing has arrived from this address in 7 days. Check the RADIUS server address and ports on the router, and that this is the address the router sends from (after NAT).';
+              : 'Nothing has arrived from this address in 7 days. Check the Radius server address and ports on the router, and that this is the address the router sends from (after NAT).';
     return {
       ip: q.ip,
       registered: registered as 'mine' | 'other' | 'none',

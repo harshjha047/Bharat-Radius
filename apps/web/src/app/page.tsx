@@ -116,7 +116,7 @@ const ROWS = [
 const BARS = [38, 52, 44, 61, 55, 72, 64, 80, 71, 88, 76, 94, 84, 100];
 
 const TRUST: Array<[string, string, LucideIcon]> = [
-  ['FreeRADIUS core', 'PostgreSQL-backed, industry standard', Server],
+  ['Custom Radius engine', 'Built in-house, PostgreSQL-backed', Server],
   ['Tested at 100,000 subscribers', 'Search in under 1 s on a 4-vCPU server', Gauge],
   ['Hosted in India', 'Data stays on Indian servers', MapPin],
   ['Built and supported by DIV', 'One team for hosting, setup and help', Headset],
@@ -152,7 +152,7 @@ const MORE = [
   ],
   [
     'Excel bulk import',
-    'Move subscribers and plans from daloRADIUS or spreadsheets in one upload, checked row by row.',
+    'Move subscribers and plans from other Radius software or spreadsheets in one upload, checked row by row.',
   ],
   [
     'Staff roles and 2FA',
@@ -167,16 +167,16 @@ const MORE = [
 
 const INTEGRATIONS = [
   ['MikroTik RouterOS', 'PPPoE, CoA, NAT logging; setup script included'],
-  ['FreeRADIUS', 'Standard RADIUS for other NAS vendors (ask us)'],
+  ['Other NAS vendors', 'Standard Radius protocol support (ask us)'],
   ['Razorpay', 'Payment links, auto-settlement by webhook'],
   ['Cashfree', 'Payment links and sandbox for testing'],
   ['SMS (DLT templates)', 'Expiry and payment reminders'],
-  ['Grafana & Prometheus', 'Server, RADIUS and log-archive alerts'],
+  ['Grafana & Prometheus', 'Server, Radius and log-archive alerts'],
 ] as const;
 
 type Cell = string | true | false;
 const COMPARE: Array<[string, Cell, Cell, Cell]> = [
-  ['RADIUS authentication (PPPoE)', 'FreeRADIUS', 'FreeRADIUS', false],
+  ['Radius authentication (PPPoE)', 'Custom engine', true, false],
   ['Modern web panel, mobile-friendly', true, 'Dated PHP UI', false],
   ['Prepaid + postpaid billing', true, 'Basic', 'Manual'],
   ['GST invoices (CGST/SGST/IGST) + GSTR-1 export', true, false, 'Manual'],
@@ -190,19 +190,19 @@ const COMPARE: Array<[string, Cell, Cell, Cell]> = [
 
 const FAQ = [
   [
-    'What is BharatRadius?',
-    'BharatRadius is RADIUS and billing software for Indian broadband ISPs. It authenticates PPPoE subscribers through FreeRADIUS, runs prepaid and postpaid billing with GST invoices, manages resellers and LCOs with wallets, and keeps the session and NAT logs DoT asks for. DIV builds, hosts and supports it.',
+    'What is Bharat Radius?',
+    'Bharat Radius is Radius and billing software for Indian broadband ISPs. It authenticates PPPoE subscribers through our own custom Radius engine, runs prepaid and postpaid billing with GST invoices, manages resellers and LCOs with wallets, and keeps the session and NAT logs DoT asks for. DIV builds, hosts and supports it.',
   ],
   [
-    'Does BharatRadius work with MikroTik?',
-    'Yes. MikroTik RouterOS is the main supported NAS. A setup script configures PPPoE authentication, accounting, change of authorization (CoA) for live plan changes and NAT logging. Other NAS that speak standard RADIUS can work too; tell us your hardware in the demo.',
+    'Does Bharat Radius work with MikroTik?',
+    'Yes. MikroTik RouterOS is the main supported NAS. A setup script configures PPPoE authentication, accounting, change of authorization (CoA) for live plan changes and NAT logging. Other NAS that speak standard Radius can work too; tell us your hardware in the demo.',
   ],
   [
-    'Is it a daloRADIUS alternative?',
-    'Yes. Like daloRADIUS it runs on FreeRADIUS, so you keep a proven RADIUS core. On top it adds what ISPs need day to day: GST billing, online payments, reseller wallets, a customer portal, support tickets and a compliance log archive, in a modern panel.',
+    'Is it an alternative to other Radius software?',
+    'Yes. It runs on our own custom Radius engine, built and tuned for Indian ISPs. On top it adds what ISPs need day to day: GST billing, online payments, reseller wallets, a customer portal, support tickets and a compliance log archive, in a modern panel.',
   ],
   [
-    'Can I migrate from daloRADIUS or Excel?',
+    'Can I migrate from other Radius software or Excel?',
     'Yes. Subscribers and plans can be imported from Excel in bulk. A dry run checks every row before anything is saved, so you see and fix errors first. We plan the migration with you in the demo.',
   ],
   [
@@ -211,14 +211,14 @@ const FAQ = [
   ],
   [
     'Does it keep the logs DoT and CERT-In require?',
-    'RADIUS sessions are never deleted, login attempts are kept for about three years, and NAT translations from your routers are archived on Indian servers. Each day’s files are sealed with SHA-256 so tampering is detectable. Retention settings are your choice; take legal advice for your licence.',
+    'Radius sessions are never deleted, login attempts are kept for about three years, and NAT translations from your routers are archived on Indian servers. Each day’s files are sealed with SHA-256 so tampering is detectable. Retention settings are your choice; take legal advice for your licence.',
   ],
   [
     'Can resellers and LCOs have their own logins?',
     'Yes. Each reseller or LCO gets a login, a prepaid wallet and their own plan rates. They can add and recharge only their own subscribers, and every action is in the audit log.',
   ],
   [
-    'How many subscribers can BharatRadius handle?',
+    'How many subscribers can Bharat Radius handle?',
     'It has been tested with over 100,000 subscribers on a single 4-vCPU server: searching by username, customer number or phone answers in milliseconds.',
   ],
   [
@@ -226,7 +226,7 @@ const FAQ = [
     'On servers in India. Data is encrypted in transit, sensitive fields are encrypted at rest, and backups are encrypted. Each ISP runs on its own domain.',
   ],
   [
-    'How is BharatRadius priced?',
+    'How is Bharat Radius priced?',
     'Pricing depends on the number of subscribers you manage. Hosting, updates and support from DIV are included. Book a demo with your subscriber count and we will send a quote.',
   ],
 ] as const;
@@ -341,7 +341,7 @@ function ProductMock() {
     <div
       className="rounded-[20px] border border-white/90 bg-white/60 p-2.5 shadow-[0_40px_90px_-40px_rgba(16,33,79,0.45)] backdrop-blur-[6px]"
       role="img"
-      aria-label="BharatRadius ISP admin panel: dashboard with online PPPoE sessions, subscribers, collections and reseller sites"
+      aria-label="Bharat Radius ISP admin panel: dashboard with online PPPoE sessions, subscribers, collections and reseller sites"
     >
       <div className="overflow-hidden rounded-[14px] border border-[#ECEEF5] bg-white" aria-hidden>
         <div className="flex items-center gap-[7px] border-b border-[#F1F3F8] px-3.5 py-[11px]">
@@ -377,7 +377,7 @@ function ProductMock() {
             </div>
             <div className="mt-auto flex items-center gap-[7px] border-t border-[#F1F3F8] px-2.5 pt-2.5 pb-0.5 text-[10.5px] text-[#8A93B0]">
               <span className="size-1.5 rounded-full bg-[#2E9B3F]" />
-              RADIUS online
+              Radius online
             </div>
           </aside>
 
@@ -500,17 +500,17 @@ function jsonLd() {
       {
         '@type': 'SoftwareApplication',
         '@id': `${origin}/#software`,
-        name: 'BharatRadius',
+        name: 'Bharat Radius',
         alternateName: 'Bharat Radius',
         url: `${origin}/`,
         description: SITE_DESCRIPTION,
         applicationCategory: 'BusinessApplication',
-        applicationSubCategory: 'ISP billing and RADIUS management',
+        applicationSubCategory: 'ISP billing and Radius management',
         operatingSystem: 'Web',
         inLanguage: 'en-IN',
         areaServed: { '@type': 'Country', name: 'India' },
         featureList: [
-          'PPPoE RADIUS authentication on FreeRADIUS',
+          'PPPoE Radius authentication on a custom Radius engine',
           'Prepaid and postpaid billing with GST invoices',
           'FUP and bandwidth plans',
           'Reseller and LCO wallets',
@@ -560,7 +560,7 @@ export default function Landing() {
 
         <header className="relative z-20">
           <div className="mx-auto flex max-w-[1180px] items-center gap-6 px-6 py-5">
-            <Link href="/" aria-label="BharatRadius home" className="shrink-0">
+            <Link href="/" aria-label="Bharat Radius home" className="shrink-0">
               <BrandLockup className="h-[42px]" />
             </Link>
             <nav
@@ -613,11 +613,11 @@ export default function Landing() {
             <span className="pr-2">Infinite Possibilities</span>
           </div>
           <h1 className="mx-auto mt-[26px] max-w-[17em] font-outfit text-[clamp(34px,5.2vw,62px)] leading-[1.05] font-bold tracking-[-0.03em] text-balance text-[#10214F]">
-            RADIUS &amp; ISP billing software for Indian broadband operators
+            Radius &amp; ISP billing software for Indian broadband operators
           </h1>
           <p className="mx-auto mt-5 max-w-[36em] text-[clamp(16px,1.7vw,19px)] leading-[1.55] text-pretty text-[#4A5578]">
             Authenticate PPPoE subscribers, bill prepaid and postpaid customers with GST invoices, enforce FUP
-            plans and run your resellers and LCOs from one panel. Built on FreeRADIUS, hosted in India.
+            plans and run your resellers and LCOs from one panel. Custom Radius engine, hosted in India.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Cta href="#contact" className="px-7 py-3.5 text-[15.5px]">
@@ -684,13 +684,13 @@ export default function Landing() {
 
       <section id="features" className="mx-auto max-w-[1180px] scroll-mt-6 px-6 pt-[92px] pb-10 text-center">
         <span className={cn(eyebrow, 'bg-[#FFF3E6] text-[#C4610C]')}>Features</span>
-        <h2 className={h2}>RADIUS, billing and reseller management in one ISP panel</h2>
+        <h2 className={h2}>Radius, billing and reseller management in one ISP panel</h2>
         <div className="mt-12 grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-5 text-left">
           <Feature
             icon={KeyRound}
             color="bg-[#E8760F]"
-            title="PPPoE RADIUS authentication"
-            body="FreeRADIUS checks every login against your subscriber list and plan, and records every session."
+            title="PPPoE Radius authentication"
+            body="Our Radius engine checks every login against your subscriber list and plan, and records every session."
             points={[
               'MikroTik setup script for PPPoE, accounting and CoA',
               'Live speed and plan changes without reconnecting (CoA)',
@@ -840,7 +840,7 @@ export default function Landing() {
             points={[
               '31-day download and upload per subscriber',
               'Revenue, collections and expiring-customer reports',
-              'Server and RADIUS health alerts (Grafana)',
+              'Server and Radius health alerts (Grafana)',
             ]}
           >
             <div className="flex items-baseline gap-2">
@@ -871,7 +871,7 @@ export default function Landing() {
             title="DoT and CERT-In log archive"
             body="The logs licensing rules ask for, kept on Indian servers and ready when a request arrives."
             points={[
-              'RADIUS session logs kept, never deleted',
+              'Radius session logs kept, never deleted',
               'NAT logs: who used which public IP and port, when',
               'Day files sealed with SHA-256; edits are detectable',
             ]}
@@ -918,21 +918,21 @@ export default function Landing() {
         </ul>
         <p className="mt-5 text-[14px] text-[#6C7799]">
           Need TR-069 to configure customer routers remotely? DIV also offers a TR-069 ACS that runs alongside
-          BharatRadius.
+          Bharat Radius.
         </p>
       </section>
 
       <section id="compare" className="mx-auto max-w-[1180px] scroll-mt-6 px-6 pt-[92px] text-center">
         <span className={cn(eyebrow, 'bg-[#EDEAF9] text-[#6B4FC8]')}>Compare</span>
-        <h2 className={h2}>A daloRADIUS alternative: FreeRADIUS core, modern panel</h2>
+        <h2 className={h2}>An alternative to other Radius software: custom Radius core, modern panel</h2>
         <p className={lead}>
-          BharatRadius keeps FreeRADIUS, the RADIUS server most ISPs already trust, and adds the billing,
-          partner and compliance tools that raw FreeRADIUS, daloRADIUS and spreadsheets leave to you.
+          Bharat Radius runs on its own custom Radius engine and adds the billing, partner and compliance
+          tools that other Radius software and spreadsheets leave to you.
         </p>
         <div className="relative mt-10 overflow-x-auto rounded-[18px] border border-[#ECEEF5]">
           <table className="w-full min-w-[680px] border-collapse text-left text-[14.5px]">
             <caption className="sr-only">
-              BharatRadius compared with FreeRADIUS + daloRADIUS and Excel billing
+              Bharat Radius compared with other Radius software and Excel billing
             </caption>
             <thead>
               <tr className="bg-[#FAFBFD] font-outfit text-[14px] text-[#10214F]">
@@ -940,10 +940,10 @@ export default function Landing() {
                   &nbsp;
                 </th>
                 <th scope="col" className="bg-[#FFF3E6] px-5 py-4 text-center font-semibold text-[#C4610C]">
-                  BharatRadius
+                  Bharat Radius
                 </th>
                 <th scope="col" className="px-5 py-4 text-center font-semibold">
-                  FreeRADIUS + daloRADIUS
+                  Other Radius
                 </th>
                 <th scope="col" className="px-5 py-4 text-center font-semibold">
                   Excel / legacy billing
@@ -1018,7 +1018,7 @@ export default function Landing() {
       <section id="faq" className="mx-auto max-w-[880px] scroll-mt-6 px-6 pt-[92px]">
         <div className="text-center">
           <span className={cn(eyebrow, 'bg-[#FFF3E6] text-[#C4610C]')}>FAQ</span>
-          <h2 className={h2}>Questions ISPs ask about BharatRadius</h2>
+          <h2 className={h2}>Questions ISPs ask about Bharat Radius</h2>
         </div>
         <div className="mt-10 divide-y divide-[#ECEEF5] rounded-[18px] border border-[#ECEEF5]">
           {FAQ.map(([q, a]) => (
@@ -1043,7 +1043,7 @@ export default function Landing() {
           <div>
             <span className={cn(eyebrow, 'bg-[#EAF6EC] text-[#1F7A2E]')}>Free demo</span>
             <h2 className="mt-5 font-outfit text-[clamp(28px,3.6vw,42px)] leading-[1.08] font-bold tracking-[-0.025em] text-balance text-[#10214F]">
-              Book a free BharatRadius demo
+              Book a free Bharat Radius demo
             </h2>
             <p className="mt-4 text-[16.5px] leading-[1.6] text-[#4A5578]">
               In 30 minutes we show the panel with your kind of setup, answer migration questions and send a
@@ -1053,7 +1053,7 @@ export default function Landing() {
               {[
                 'Live walkthrough: subscribers, plans, billing, resellers',
                 'Your routers and NAS checked for compatibility',
-                'Migration plan from daloRADIUS or Excel',
+                'Migration plan from other Radius software or Excel',
               ].map((t) => (
                 <li key={t} className="flex gap-2.5">
                   <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-[#EAF6EC] text-[11px] text-[#1F7A2E]">
@@ -1090,7 +1090,7 @@ export default function Landing() {
         <div className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-x-10 gap-y-5 px-6 py-10">
           <BrandLockup className="h-[50px]" />
           <p className="max-w-[28em] text-[14.5px] leading-[1.6] text-[#5B658A]">
-            RADIUS &amp; ISP billing software for Indian broadband operators, resellers and LCOs.
+            Radius &amp; ISP billing software for Indian broadband operators, resellers and LCOs.
           </p>
           <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[#8A93B0]">
             <Link href="/login" className={link}>

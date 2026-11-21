@@ -35,7 +35,7 @@ const schema = z
     TRUST_PROXY: z.string().default('127.0.0.1/8,::1/128'),
     COOKIE_SECURE: bool,
     OPENAPI_PUBLIC: bool,
-    MFA_ISSUER: z.string().default('BharatRadius'),
+    MFA_ISSUER: z.string().default('Bharat Radius'),
 
     LOGIN_WINDOW_SECS: z.coerce.number().int().min(60).default(900),
     LOGIN_MAX_FAILURES_ACCOUNT: z.coerce.number().int().min(3).default(5),

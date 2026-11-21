@@ -249,7 +249,7 @@ export function PlanForm({
 
       <details className="rounded-2xl border p-4">
         <summary className="cursor-pointer text-sm font-medium">
-          More: billing, GST, IP pool, RADIUS attributes
+          More: billing, GST, IP pool, Radius attributes
         </summary>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
@@ -291,7 +291,7 @@ export function PlanForm({
             <Input id="p-desc" {...register('description')} />
           </Field>
           <Field
-            label="Extra RADIUS attributes"
+            label="Extra Radius attributes"
             htmlFor="p-extra"
             error={err('extra')}
             hint="One per line, e.g. Mikrotik-Address-List := vip. Speed and session attributes are set for you."

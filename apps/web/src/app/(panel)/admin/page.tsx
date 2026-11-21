@@ -273,7 +273,7 @@ export default function Dashboard() {
       key: 'secret',
       href: '/admin/radius-log?tab=routers',
       tone: 'danger' as const,
-      text: `${plural(problems.data!.problems, 'router')} with a RADIUS secret problem`,
+      text: `${plural(problems.data!.problems, 'router')} with a Radius secret problem`,
     },
     !!b?.unpaid.overdue && {
       key: 'overdue',
