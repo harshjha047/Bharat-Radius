@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Inject, Post, Req, Res } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import type { MongoHandle, ResellerDoc } from '@isp/db-mongo';
+import type { MongoHandle, ResellerDoc, TenantDoc } from '@isp/db-mongo';
 import { AppError } from '../errors.js';
 import { MONGO } from '../infra/infra.module.js';
 import { brandingView, effectiveBranding } from '../resellers/branding.js';
@@ -41,6 +41,8 @@ const meView = z.object({
     .nullable(),
   /** F-8: the reseller's (or nearest parent's) name and logo for the panel header; null = ISP default. */
   branding: brandingView.nullable(),
+  /** The ISP admin turned on the sidebar Updates banner (ISP settings). */
+  showUpdates: z.boolean(),
 });
 
 export const clientMeta = (req: FastifyRequest): ClientMeta => ({
@@ -65,6 +67,14 @@ export class AuthController {
       .collection<ResellerDoc>('resellers')
       .findOne({ _id: ctx.scope.resellerId, tenantId: ctx.tenantId }, { projection: { ancestors: 1 } });
     return r ? effectiveBranding(this.mongo.db, ctx.tenantId, [...r.ancestors, r._id]) : null;
+  }
+
+  private async showUpdates(ctx: AuthContext) {
+    if (!ctx.tenantId) return false;
+    const t = await this.mongo.db
+      .collection<TenantDoc>('tenants')
+      .findOne({ _id: ctx.tenantId }, { projection: { ui: 1 } });
+    return t?.ui?.showUpdates === true;
   }
 
   @Post('login')
@@ -168,7 +178,11 @@ export class AuthController {
   @Get('me')
   @Endpoint({ summary: 'Current user and permissions', tags: ['auth'], auth: 'enroll', response: meView })
   async me(@Ctx() ctx: AuthContext) {
-    const [su, branding] = await Promise.all([this.sessions.load(ctx.userId), this.branding(ctx)]);
+    const [su, branding, showUpdates] = await Promise.all([
+      this.sessions.load(ctx.userId),
+      this.branding(ctx),
+      this.showUpdates(ctx),
+    ]);
     const v = ctx.viewAs;
     const user = toUserView(su!.user);
     return {
@@ -182,6 +196,7 @@ export class AuthController {
         ? { resellerId: v.resellerId.toHexString(), code: v.code, name: v.name, byName: v.byName }
         : null,
       branding,
+      showUpdates,
     };
   }
 

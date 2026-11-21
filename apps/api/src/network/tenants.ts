@@ -56,6 +56,8 @@ const ownFields = {
   address: address.optional(),
   contact: editable.contact.optional(),
   radius: radius.partial().optional(),
+  /** Sidebar Updates banner for everyone in this ISP's panels. */
+  showUpdates: z.boolean().optional(),
 };
 const nonEmpty = (b: object) => Object.keys(b).length > 0;
 const ownUpdate = z.object(ownFields).refine(nonEmpty, 'nothing to change');
@@ -98,6 +100,7 @@ const tenantView = z.object({
   domain: z.string().nullable(),
   radius,
   radiusId: z.number().nullable(),
+  showUpdates: z.boolean(),
   updatedAt: z.string(),
 });
 
@@ -114,6 +117,7 @@ const toView = (t: TenantDoc & { radiusId?: number }): z.output<typeof tenantVie
   domain: t.branding?.domain ?? null,
   radius: { ...t.radius, expiredMode: t.radius.expiredMode ?? 'reject' },
   radiusId: t.radiusId ?? null,
+  showUpdates: t.ui?.showUpdates === true,
   updatedAt: t.updatedAt.toISOString(),
 });
 
@@ -205,6 +209,7 @@ export class TenantsService {
     if (b.domain === null) unset['branding.domain'] = '';
     else if (b.domain) set['branding.domain'] = b.domain;
     if (b.radius) for (const [k, v] of Object.entries(compact(b.radius))) set[`radius.${k}`] = v;
+    if (b.showUpdates !== undefined) set['ui.showUpdates'] = b.showUpdates;
 
     const updated = await this.outbox.tx(async (session) => {
       const u = await this.col(ctx).findOneAndUpdate(
