@@ -239,13 +239,11 @@ function useNavBadges(me: Me | undefined): Record<string, NavBadge> {
       label: `Balance ${w.balancePaise < 0 ? 'minus ' : ''}${amount}${w.state === 'normal' ? '' : `, ${w.state}`}`,
     };
     if (w.children > 0) {
-      b['/admin/resellers'] = w.lowChildren
-        ? {
-            text: `${w.lowChildren} low`,
-            tone: 'warning',
-            label: `${w.lowChildren} of ${w.children} have low wallets`,
-          }
-        : { text: fmtNum(w.children), tone: 'plain', label: `${fmtNum(w.children)} sub-resellers` };
+      b['/admin/resellers'] = {
+        text: fmtNum(w.children),
+        tone: 'plain',
+        label: `${fmtNum(w.children)} resellers`,
+      };
     }
   }
   return b;
