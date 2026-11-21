@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { fmtNum } from '@/lib/utils';
+import { fmtBytes, fmtNum } from '@/lib/utils';
 
 const istTime = new Intl.DateTimeFormat('en-IN', {
   hour: 'numeric',
@@ -312,6 +312,69 @@ export function LoginsLineChart({ hours, className }: { hours: AuthHour[]; class
             fill="url(#logins-rej)"
             activeDot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: LOGIN_COLORS.rejected }}
             dot={false}
+            isAnimationActive={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export interface UsageDay {
+  day: string;
+  downBytes: number;
+  upBytes: number;
+}
+
+const bytes = (n: number) => fmtBytes(n);
+const dayLabel = (d: string) =>
+  new Date(`${d}T00:00:00+05:30`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+/** Data used per day: download (to subscribers) and upload, last 30 days. */
+export const USAGE_COLORS = { down: '#4C86F0', up: '#3AA570' } as const;
+
+export function UsageChart({ days }: { days: UsageDay[] }) {
+  return (
+    <div
+      className="h-[220px] w-full"
+      role="img"
+      aria-label="Data used per day, download and upload, last 30 days"
+    >
+      <ResponsiveContainer>
+        <ComposedChart data={days} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="usage-down" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={USAGE_COLORS.down} stopOpacity={0.22} />
+              <stop offset="100%" stopColor={USAGE_COLORS.down} stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="usage-up" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={USAGE_COLORS.up} stopOpacity={0.18} />
+              <stop offset="100%" stopColor={USAGE_COLORS.up} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} stroke="var(--divider)" />
+          <XAxis dataKey="day" tickFormatter={dayLabel} minTickGap={36} {...axis} />
+          <YAxis width={56} tickFormatter={(v: number) => (v ? bytes(v) : '0')} {...axis} />
+          <Tooltip
+            {...tooltip}
+            cursor={{ stroke: 'var(--divider)' }}
+            labelFormatter={(d) => dayLabel(String(d))}
+            formatter={(v, k) => [bytes(Number(v)), k === 'downBytes' ? 'Download' : 'Upload']}
+          />
+          <Area
+            type="monotone"
+            dataKey="downBytes"
+            stroke={USAGE_COLORS.down}
+            strokeWidth={1.8}
+            fill="url(#usage-down)"
+            isAnimationActive={false}
+          />
+          <Area
+            type="monotone"
+            dataKey="upBytes"
+            stroke={USAGE_COLORS.up}
+            strokeWidth={1.8}
+            fill="url(#usage-up)"
             isAnimationActive={false}
           />
         </ComposedChart>

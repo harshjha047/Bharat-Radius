@@ -2137,7 +2137,7 @@
     },
     "/api/v1/sessions/traffic": {
       "get": {
-        "summary": "Traffic today and per day for the last 14 days",
+        "summary": "Traffic today and per day (download / upload) for the last 30 days",
         "tags": ["sessions"],
         "security": [
           {
@@ -2178,9 +2178,15 @@
                           },
                           "bytes": {
                             "type": "number"
+                          },
+                          "downBytes": {
+                            "type": "number"
+                          },
+                          "upBytes": {
+                            "type": "number"
                           }
                         },
-                        "required": ["day", "bytes"],
+                        "required": ["day", "bytes", "downBytes", "upBytes"],
                         "additionalProperties": false
                       }
                     }

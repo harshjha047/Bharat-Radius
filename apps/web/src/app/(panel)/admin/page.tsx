@@ -18,7 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 import { arrange, DashboardConfig, useDashboardPrefs, type WidgetDef } from '@/components/dashboard-config';
-import { ExpiringCard, NetworkRow, useExpiring } from '@/components/dashboard-widgets';
+import { ExpiringCard, NetworkRow, UsageChartCard, useExpiring } from '@/components/dashboard-widgets';
 import { NotificationBell, ResellerNetwork, type Notice } from '@/components/reseller-dashboard';
 import { GlanceGrid, glanceWidget, isGlanceId, useGlanceCards } from '@/components/at-a-glance';
 import { InsightsCard } from '@/components/financial-insights';
@@ -238,6 +238,7 @@ export default function Dashboard() {
     can('nas.read') && { id: 'kpi-routers', label: 'Routers count' },
     can('plans.read') && { id: 'kpi-plans', label: 'Plans' },
     can('nas.read') && { id: 'nas-stats', label: 'NAS statistics (live ports)' },
+    can('sessions.read') && { id: 'usage-chart', label: 'Data usage chart' },
     can('sessions.read') && { id: 'network', label: 'Network charts' },
     can('reports.view') && { id: 'insights', label: 'Financial insights' },
     can('reports.view') && { id: 'trends', label: 'Revenue and plan trends' },
@@ -381,6 +382,7 @@ export default function Dashboard() {
       <div className={cn('grid grid-cols-1 gap-4', side && 'xl:grid-cols-12')}>
         <div className={cn('flex min-w-0 flex-col gap-4', side && 'xl:col-span-8')}>
           {can('reports.view') && shown('trends') ? <TrendsRow /> : null}
+          {can('sessions.read') && shown('usage-chart') ? <UsageChartCard /> : null}
           {can('sessions.read') && shown('network') ? <NetworkRow /> : null}
         </div>
 
@@ -801,6 +803,7 @@ function ResellerHome({
       id: 'r-network',
       label: 'My network (online, routers, logins, live log)',
     },
+    can('sessions.read') && { id: 'r-usage-chart', label: 'Data usage chart' },
     wallet?.canViewLedger && { id: 'r-recharges', label: 'Recharges per day' },
     can('subscribers.read') && { id: 'r-expiring', label: 'Expiring soon list' },
     { id: 'r-wallet', label: 'Wallet balance', defaultHidden: true },
@@ -874,6 +877,7 @@ function ResellerHome({
   const render: Record<string, () => React.ReactNode> = {
     ...Object.fromEntries(glance.map((g) => [g.id, g.render])),
     'r-network': () => <ResellerNetwork />,
+    'r-usage-chart': () => <UsageChartCard />,
     'r-expiring': () => <ExpiringCard limit={5} compact />,
     'r-recharges': () => (
       <Card className="flex min-w-0 flex-col gap-3.5 p-5">

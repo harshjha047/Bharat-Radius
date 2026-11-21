@@ -11,7 +11,7 @@ import { ErrorState } from '@/components/ui/misc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, unwrap, type ApiData } from '@/lib/api';
 import { usePlans } from '@/lib/queries';
-import { cn, fmtNum, fmtRupees0 } from '@/lib/utils';
+import { cn, fmtBytes, fmtNum, fmtRupees0 } from '@/lib/utils';
 
 const ChartSkeleton = () => <Skeleton className="h-[220px] w-full rounded-xl" />;
 const OnlineChart = dynamic(() => import('@/components/network-charts').then((m) => m.OnlineChart), {
@@ -370,5 +370,51 @@ export function ExpiringRows({
         })}
       </ul>
     </>
+  );
+}
+
+const UsageChart = dynamic(() => import('@/components/network-charts').then((m) => m.UsageChart), {
+  ssr: false,
+  loading: ChartSkeleton,
+});
+
+/** Data used per day for 30 days (download vs upload), with totals; resellers see their customers only. */
+export function UsageChartCard() {
+  const traffic = useQuery({
+    queryKey: ['sessions', 'traffic'],
+    queryFn: () => unwrap(api.GET('/api/v1/sessions/traffic')),
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+  });
+  const days = traffic.data?.days ?? [];
+  const down = days.reduce((n, d) => n + d.downBytes, 0);
+  const up = days.reduce((n, d) => n + d.upBytes, 0);
+  return (
+    <Card className="flex min-w-0 flex-col gap-3.5 p-5">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <h2 className="mr-auto text-base font-bold">Data usage, last 30 days</h2>
+        {traffic.data ? (
+          <span className="flex gap-4 text-[13px] text-body">
+            <span className="flex items-center gap-1.5">
+              <Swatch className="bg-[#4C86F0]" /> Download {fmtBytes(down)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Swatch className="bg-[#3AA570]" /> Upload {fmtBytes(up)}
+            </span>
+          </span>
+        ) : null}
+      </div>
+      {traffic.isError ? (
+        <ErrorState error={traffic.error} onRetry={() => void traffic.refetch()} />
+      ) : traffic.isLoading ? (
+        <ChartSkeleton />
+      ) : down + up === 0 ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">
+          No data used in the last 30 days yet. Usage is added every 15 minutes.
+        </p>
+      ) : (
+        <UsageChart days={days} />
+      )}
+    </Card>
   );
 }

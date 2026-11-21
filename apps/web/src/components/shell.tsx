@@ -15,6 +15,7 @@ import {
   LifeBuoy,
   Lightbulb,
   LogOut,
+  MonitorCog,
   Menu as MenuIcon,
   Network,
   Package,
@@ -49,6 +50,8 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   any?: Permission[];
+  /** Shown greyed out with a "Coming soon" tag; not a link yet. */
+  soon?: true;
 }
 interface NavGroup {
   label: string;
@@ -99,6 +102,7 @@ const STAFF_NAV: NavGroup[] = [
     items: [
       { href: '/admin/routers', label: 'Routers', icon: Router, any: ['nas.read'] },
       { href: '/admin/radius-log', label: 'RADIUS log', icon: Activity, any: ['sessions.read'] },
+      { href: '/admin/tr069', label: 'TR-069', icon: MonitorCog, any: ['nas.read'], soon: true },
     ],
   },
   {
@@ -297,6 +301,23 @@ function NavLinks({
               </h2>
             ) : null}
             {g.items.map((i) => {
+              if (i.soon)
+                return (
+                  <span
+                    key={i.href}
+                    aria-disabled="true"
+                    className={cn(
+                      ITEM,
+                      'cursor-not-allowed text-[#6B6772] hover:bg-transparent hover:text-[#6B6772]',
+                    )}
+                  >
+                    <i.icon className="size-4 shrink-0" strokeWidth={1.8} aria-hidden />
+                    <span className="flex-1 truncate">{i.label}</span>
+                    <span className="shrink-0 rounded-full bg-[#F1EFEC] px-2 py-0.5 text-[10.5px] leading-4 font-semibold text-[#6B6772]">
+                      Coming soon
+                    </span>
+                  </span>
+                );
               const active = isActive(i.href, path);
               return (
                 <Link

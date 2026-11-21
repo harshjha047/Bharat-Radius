@@ -1303,7 +1303,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Traffic today and per day for the last 14 days */
+    /** Traffic today and per day (download / upload) for the last 30 days */
     get: {
       parameters: {
         query?: {
@@ -1326,6 +1326,8 @@ export interface paths {
               days: {
                 day: string;
                 bytes: number;
+                downBytes: number;
+                upBytes: number;
               }[];
             };
           };
