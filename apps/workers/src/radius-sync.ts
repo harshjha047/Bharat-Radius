@@ -226,10 +226,11 @@ export class RadiusSync {
         s.network.macLock ?? null,
         s.network.simUse ?? null,
         s.fup?.active === true,
+        s.connectionType ?? 'pppoe',
       ];
       const cols = `tenant_id = $2, username = $3, password_enc = radius_encrypt_password($4, $5), plan_id = $6,
                     status = $7, expires_at = $8, static_ip = $9::inet, mac_lock = $10, sim_use = $11,
-                    fup_active = $12, updated_at = now()`;
+                    fup_active = $12, conn_type = $13, updated_at = now()`;
       return upsert(tx, [
         { sql: `UPDATE subscribers SET ${cols} WHERE external_id = $1 RETURNING id`, params: p },
         {
@@ -239,8 +240,9 @@ export class RadiusSync {
         },
         {
           sql: `INSERT INTO subscribers (external_id, tenant_id, username, password_enc, plan_id, status, expires_at,
-                                         static_ip, mac_lock, sim_use, fup_active)
-                VALUES ($1, $2, $3, radius_encrypt_password($4, $5), $6, $7, $8, $9::inet, $10, $11, $12) RETURNING id`,
+                                         static_ip, mac_lock, sim_use, fup_active, conn_type)
+                VALUES ($1, $2, $3, radius_encrypt_password($4, $5), $6, $7, $8, $9::inet, $10, $11, $12, $13)
+                RETURNING id`,
           params: p,
         },
       ]);

@@ -13,11 +13,12 @@ interface Session {
   nasip: string;
   secret: string;
   coa_port: number;
+  conn_type: string | null;
 }
 
 const SESSION_SQL = `
   SELECT t.external_id AS tenant_ext, s.external_id AS subscriber_ext, a.username, a.acctsessionid, host(a.framedipaddress) AS framedip,
-         host(a.nasipaddress) AS nasip, n.secret, n.coa_port
+         host(a.nasipaddress) AS nasip, n.secret, n.coa_port, s.conn_type
     FROM radacct a
     JOIN tenants t ON t.id = a.tenant_id
     JOIN nas n ON n.nasname = a.nasipaddress AND n.tenant_id = a.tenant_id
@@ -64,6 +65,19 @@ export class CoaSender {
   }
 
   private async one(s: Session, tenantId: ObjectId, subscriberId: ObjectId, coa: CoaAction): Promise<void> {
+    if (s.conn_type === 'static') {
+      // MikroTik takes no CoA for DHCP leases; the lease (Session-Timeout ≤ 1 h) re-asks RADIUS and gets the change.
+      await this.record({
+        tenantId,
+        subscriberId,
+        username: s.username,
+        nasIp: s.nasip,
+        type: coa.action === 'update' ? 'coa' : 'disconnect',
+        result: 'skipped_unsupported',
+        trigger: { type: coa.reason },
+      });
+      return;
+    }
     const target = { host: s.nasip, port: s.coa_port, secret: s.secret };
     const session = {
       userName: s.username,
@@ -139,6 +153,7 @@ export class CoaSender {
     const { rows } = await this.pool.query<Session>(
       `${SESSION_SQL}
          AND t.expired_mode = 'reject' AND s.external_id IS NOT NULL AND t.external_id IS NOT NULL
+         AND s.conn_type <> 'static'
          AND (s.plan_id IS NULL OR s.expires_at <= now())
        LIMIT $1`,
       [limit],

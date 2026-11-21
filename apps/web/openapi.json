@@ -6138,6 +6138,15 @@
               "type": "string",
               "enum": ["yes"]
             }
+          },
+          {
+            "name": "connectionType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["pppoe", "hotspot", "static"]
+            }
           }
         ],
         "responses": {
@@ -6188,6 +6197,10 @@
                           "billingType": {
                             "type": "string",
                             "enum": ["prepaid", "postpaid"]
+                          },
+                          "connectionType": {
+                            "type": "string",
+                            "enum": ["pppoe", "hotspot", "static"]
                           },
                           "planId": {
                             "type": ["string", "null"]
@@ -6288,6 +6301,7 @@
                           "address",
                           "gstin",
                           "billingType",
+                          "connectionType",
                           "planId",
                           "expiresAt",
                           "status",
@@ -6368,6 +6382,11 @@
                   "username": {
                     "type": "string",
                     "pattern": "^[A-Za-z0-9._@-]{3,64}$"
+                  },
+                  "connectionType": {
+                    "default": "pppoe",
+                    "type": "string",
+                    "enum": ["pppoe", "hotspot", "static"]
                   },
                   "pppoePassword": {
                     "type": "string",
@@ -6560,6 +6579,10 @@
                       "type": "string",
                       "enum": ["prepaid", "postpaid"]
                     },
+                    "connectionType": {
+                      "type": "string",
+                      "enum": ["pppoe", "hotspot", "static"]
+                    },
                     "planId": {
                       "type": ["string", "null"]
                     },
@@ -6659,6 +6682,7 @@
                     "address",
                     "gstin",
                     "billingType",
+                    "connectionType",
                     "planId",
                     "expiresAt",
                     "status",
@@ -6767,6 +6791,22 @@
                     "staticIps": {
                       "type": "number"
                     },
+                    "connections": {
+                      "type": "object",
+                      "properties": {
+                        "pppoe": {
+                          "type": "number"
+                        },
+                        "hotspot": {
+                          "type": "number"
+                        },
+                        "static": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["pppoe", "hotspot", "static"],
+                      "additionalProperties": false
+                    },
                     "renewPaise": {
                       "type": "object",
                       "properties": {
@@ -6800,6 +6840,7 @@
                     "expiring7d",
                     "unverified",
                     "staticIps",
+                    "connections",
                     "renewPaise"
                   ],
                   "additionalProperties": false
@@ -6935,6 +6976,10 @@
                             "type": "string",
                             "enum": ["prepaid", "postpaid"]
                           },
+                          "connectionType": {
+                            "type": "string",
+                            "enum": ["pppoe", "hotspot", "static"]
+                          },
                           "planId": {
                             "type": ["string", "null"]
                           },
@@ -7034,6 +7079,7 @@
                           "address",
                           "gstin",
                           "billingType",
+                          "connectionType",
                           "planId",
                           "expiresAt",
                           "status",
@@ -7157,6 +7203,10 @@
                       "type": "string",
                       "enum": ["prepaid", "postpaid"]
                     },
+                    "connectionType": {
+                      "type": "string",
+                      "enum": ["pppoe", "hotspot", "static"]
+                    },
                     "planId": {
                       "type": ["string", "null"]
                     },
@@ -7256,6 +7306,7 @@
                     "address",
                     "gstin",
                     "billingType",
+                    "connectionType",
                     "planId",
                     "expiresAt",
                     "status",
@@ -7336,6 +7387,10 @@
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
                 "properties": {
+                  "connectionType": {
+                    "type": "string",
+                    "enum": ["pppoe", "hotspot", "static"]
+                  },
                   "pppoePassword": {
                     "type": "string",
                     "pattern": "^[\\x21-\\x7e]{4,64}$"
@@ -7559,6 +7614,10 @@
                       "type": "string",
                       "enum": ["prepaid", "postpaid"]
                     },
+                    "connectionType": {
+                      "type": "string",
+                      "enum": ["pppoe", "hotspot", "static"]
+                    },
                     "planId": {
                       "type": ["string", "null"]
                     },
@@ -7658,6 +7717,7 @@
                     "address",
                     "gstin",
                     "billingType",
+                    "connectionType",
                     "planId",
                     "expiresAt",
                     "status",
@@ -7866,6 +7926,10 @@
                       "type": "string",
                       "enum": ["prepaid", "postpaid"]
                     },
+                    "connectionType": {
+                      "type": "string",
+                      "enum": ["pppoe", "hotspot", "static"]
+                    },
                     "planId": {
                       "type": ["string", "null"]
                     },
@@ -7965,6 +8029,7 @@
                     "address",
                     "gstin",
                     "billingType",
+                    "connectionType",
                     "planId",
                     "expiresAt",
                     "status",
@@ -8083,6 +8148,10 @@
                       "type": "string",
                       "enum": ["prepaid", "postpaid"]
                     },
+                    "connectionType": {
+                      "type": "string",
+                      "enum": ["pppoe", "hotspot", "static"]
+                    },
                     "planId": {
                       "type": ["string", "null"]
                     },
@@ -8182,6 +8251,7 @@
                     "address",
                     "gstin",
                     "billingType",
+                    "connectionType",
                     "planId",
                     "expiresAt",
                     "status",
@@ -22993,6 +23063,7 @@
                         "disabled",
                         "isp_suspended",
                         "mac",
+                        "connection_type",
                         "already_online",
                         "username_format",
                         "other"

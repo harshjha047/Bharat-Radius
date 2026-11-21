@@ -6,6 +6,7 @@ import writeXlsxFile, { type SheetData } from 'write-excel-file/node';
 import { z } from 'zod';
 import { FieldCrypto } from '@isp/shared';
 import {
+  connectionTypeOf,
   ScopedDb,
   type ImportBatchDoc,
   type ImportRowDoc,
@@ -84,6 +85,12 @@ export const COLUMNS: readonly Column[] = [
   { key: 'pincode', required: true, example: '201301', help: '6 digits', path: 'address.pincode' },
   { key: 'gstin', example: '', help: 'Business customers only', path: 'gstin' },
   { key: 'billing_type', example: 'prepaid', help: 'prepaid (default) or postpaid', path: 'billingType' },
+  {
+    key: 'connection_type',
+    example: 'pppoe',
+    help: 'pppoe (default), hotspot or static (static needs static_ip and mac_lock)',
+    path: 'connectionType',
+  },
   {
     key: 'plan',
     example: '',
@@ -349,6 +356,7 @@ export class SubscriberExcel {
         },
         gstin: opt('gstin')?.toUpperCase(),
         billingType,
+        connectionType: get('connection_type').toLowerCase() || 'pppoe',
         expiresAt: expires ? `${expires}T23:59:59+05:30` : undefined,
         network: {
           staticIp: opt('static_ip'),
@@ -554,6 +562,7 @@ export class SubscriberExcel {
         pincode: s.address.pincode,
         gstin: s.gstin ?? null,
         billing_type: s.billingType,
+        connection_type: connectionTypeOf(s),
         plan: s.planId ? (plans.get(s.planId.toHexString()) ?? null) : null,
         expires_on: s.expiresAt ? istDay(s.expiresAt) : null,
         static_ip: s.network.staticIp ?? null,

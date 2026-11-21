@@ -76,6 +76,7 @@ const whyView = z.object({
     'disabled',
     'isp_suspended',
     'mac',
+    'connection_type',
     'already_online',
     'username_format',
     'other',
@@ -228,6 +229,13 @@ export function explain(
       'Validity has run out',
       'The account is past its expiry date (or has no plan), and this ISP refuses expired logins.',
       'Recharge the customer. The router redials on its own within a minute.',
+    );
+  if (r.includes('login not allowed') || r.includes('login by mac only'))
+    return c(
+      'connection_type',
+      'Wrong connection type',
+      'The subscriber is set to a different connection type (PPPoE, Hotspot or Static IP) than the one this login came in on. Static IP accounts log in only by MAC, from the router DHCP server.',
+      'Change the connection type on the subscriber, or move the customer to the matching PPPoE / Hotspot / DHCP service on the router.',
     );
   if (r.includes('user not found'))
     return c(

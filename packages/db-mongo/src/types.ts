@@ -235,13 +235,23 @@ export interface ResellerDoc extends Standard {
 
 export type SubscriberStatus = 'active' | 'suspended' | 'disabled' | 'deleted';
 
+/**
+ * How the customer connects (WP 5.9): `pppoe` username/password over PPP; `hotspot` MikroTik Hotspot login page;
+ * `static` static IP over IPoE, authorised by MAC (`network.macLock` and `network.staticIp` required).
+ */
+export type ConnectionType = 'pppoe' | 'hotspot' | 'static';
+export const CONNECTION_TYPES: readonly ConnectionType[] = ['pppoe', 'hotspot', 'static'];
+/** Documents written before connection types have none: they are PPPoE. */
+export const connectionTypeOf = (s: { connectionType?: ConnectionType | undefined }): ConnectionType =>
+  s.connectionType ?? 'pppoe';
+
 export interface SubscriberDoc extends Standard {
   _id: ObjectId;
   tenantId: ObjectId;
   resellerId: ObjectId | null;
   ancestors: ObjectId[];
   customerNo: string;
-  /** PPPoE username; moved to deletedUsername on delete so it can be reused. */
+  /** Login username (PPPoE / Hotspot; account id for static IP); moved to deletedUsername on delete. */
   username?: string;
   deletedUsername?: string;
   pppoePassword: EncryptedField;
@@ -266,6 +276,8 @@ export interface SubscriberDoc extends Standard {
   expiresAt?: Date;
   status: SubscriberStatus;
   suspendReason?: string;
+  /** Absent = `pppoe` (see connectionTypeOf). */
+  connectionType?: ConnectionType;
   network: { staticIp?: string; macLock?: string; simUse?: number; popName?: string };
   fup?: { active: boolean; cycleStart?: Date; usedBytes?: number };
   kyc: {
@@ -383,7 +395,8 @@ export interface CoaLogDoc {
   nasIp: string;
   type: 'coa' | 'disconnect';
   attributes?: Record<string, string>;
-  result: 'ack' | 'nak' | 'timeout' | 'skipped_offline' | 'error';
+  /** `skipped_unsupported`: static IP (DHCP) sessions take no CoA; the next lease renewal (≤ 1 h) applies it. */
+  result: 'ack' | 'nak' | 'timeout' | 'skipped_offline' | 'skipped_unsupported' | 'error';
   errorCause?: number;
   latencyMs?: number;
   trigger: { type: CoaReason; refId?: ObjectId };

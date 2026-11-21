@@ -35,6 +35,7 @@ export interface NewSubscriber {
   address: SubscriberDoc['address'];
   gstin?: string | undefined;
   billingType: SubscriberDoc['billingType'];
+  connectionType?: SubscriberDoc['connectionType'];
   planId?: ObjectId | undefined;
   expiresAt?: Date | undefined;
   network: SubscriberDoc['network'];
@@ -77,6 +78,7 @@ export function buildSubscriberDoc(
     ...(input.planId ? { planId: input.planId } : {}),
     ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
     status: 'active',
+    connectionType: input.connectionType ?? 'pppoe',
     network: input.network,
     kyc: { status: 'pending' },
     tags: [...new Set(input.tags)],

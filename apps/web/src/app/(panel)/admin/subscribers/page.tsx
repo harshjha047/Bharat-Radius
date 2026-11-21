@@ -14,6 +14,7 @@ import { ErrorState, PageHeader } from '@/components/ui/misc';
 import { useDebounced } from '@/hooks/use-debounced';
 import { api, unwrap } from '@/lib/api';
 import { useCan } from '@/lib/auth';
+import { CONNECTION_LABEL, CONNECTION_TYPES, isConnectionType, type ConnectionType } from '@/lib/connection';
 import { usePlans, type Subscriber } from '@/lib/queries';
 import { cn, daysUntil, fmtDate } from '@/lib/utils';
 
@@ -83,6 +84,9 @@ function SubscribersList() {
   // Set by dashboard cards (KYC not verified, static IP); shown as a removable chip.
   const [kyc, setKyc] = useState(params.get('kyc') === 'unverified' ? 'unverified' : '');
   const [staticIp, setStaticIp] = useState(params.get('staticIp') === 'yes' ? 'yes' : '');
+  const [conn, setConn] = useState<ConnectionType | ''>(
+    isConnectionType(params.get('conn')) ? (params.get('conn') as ConnectionType) : '',
+  );
   const dq = useDebounced(q.trim(), 300);
 
   // Keep filters in the URL so Back and shared links return to the same list.
@@ -94,13 +98,14 @@ function SubscribersList() {
     if (expiry) s.set('expiry', expiry);
     if (kyc) s.set('kyc', kyc);
     if (staticIp) s.set('staticIp', staticIp);
+    if (conn) s.set('conn', conn);
     const next = s.toString();
     if (next !== params.toString())
       router.replace(`/admin/subscribers${next ? `?${next}` : ''}`, { scroll: false });
-  }, [dq, status, planId, expiry, kyc, staticIp, params, router]);
+  }, [dq, status, planId, expiry, kyc, staticIp, conn, params, router]);
 
   const list = useInfiniteQuery({
-    queryKey: ['subscribers', { q: dq, status, planId, expiry, kyc, staticIp }],
+    queryKey: ['subscribers', { q: dq, status, planId, expiry, kyc, staticIp, conn }],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       unwrap(
@@ -114,6 +119,7 @@ function SubscribersList() {
               ...(expiry ? { expiry } : {}),
               ...(kyc ? { kyc: 'unverified' as const } : {}),
               ...(staticIp ? { staticIp: 'yes' as const } : {}),
+              ...(conn ? { connectionType: conn } : {}),
               ...(pageParam ? { cursor: pageParam } : {}),
             },
           },
@@ -198,6 +204,19 @@ function SubscribersList() {
               </option>
             ))}
           </Select>
+          <Select
+            value={conn}
+            onChange={(e) => setConn(e.target.value as ConnectionType | '')}
+            aria-label="Connection type"
+            className={cn('min-w-44 sm:w-auto', conn && 'border-accent-border bg-accent font-semibold')}
+          >
+            <option value="">Connection: Any</option>
+            {CONNECTION_TYPES.map((k) => (
+              <option key={k} value={k}>
+                {CONNECTION_LABEL[k]}
+              </option>
+            ))}
+          </Select>
           {[
             kyc && { label: 'KYC not verified', clear: () => setKyc('') },
             staticIp && { label: 'Has a static IP', clear: () => setStaticIp('') },
@@ -213,7 +232,7 @@ function SubscribersList() {
                 {c.label} <X />
               </Button>
             ))}
-          {q || status || planId || expiry || kyc || staticIp ? (
+          {q || status || planId || expiry || kyc || staticIp || conn ? (
             <Button
               variant="ghost"
               onClick={() => {
@@ -223,6 +242,7 @@ function SubscribersList() {
                 setExpiryRaw('');
                 setKyc('');
                 setStaticIp('');
+                setConn('');
               }}
             >
               Clear
@@ -244,7 +264,7 @@ function SubscribersList() {
             loadingMore={list.isFetchingNextPage}
             onLoadMore={() => void list.fetchNextPage()}
             empty={
-              dq || status || planId || expiry
+              dq || status || planId || expiry || conn
                 ? 'No subscriber matches these filters.'
                 : 'No subscribers yet.'
             }
@@ -263,6 +283,7 @@ function SubscribersList() {
                     </Link>
                     <span className="font-mono text-xs text-muted-foreground">
                       {s.customerNo} · {s.username}
+                      {s.connectionType !== 'pppoe' ? ` · ${CONNECTION_LABEL[s.connectionType]}` : ''}
                     </span>
                   </div>
                 ),

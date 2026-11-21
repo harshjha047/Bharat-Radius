@@ -55,6 +55,7 @@ describe('PATCH bodies', () => {
   });
 
   const base: SubscriberFormValues = {
+    connectionType: 'pppoe',
     username: 'ramesh100',
     pppoePassword: '',
     name: 'Ramesh',
@@ -82,6 +83,7 @@ describe('PATCH bodies', () => {
   it('create sends filled fields and omits empty optional ones', () => {
     expect(toBody(base, null)).toEqual({
       username: 'ramesh100',
+      connectionType: 'pppoe',
       name: 'Ramesh',
       phone: '9876543210',
       address: { line1: '12 Gandhi Nagar', city: 'Noida', state: 'UP', pincode: '201301' },
@@ -97,6 +99,17 @@ describe('PATCH bodies', () => {
       { name: true, staticIp: true, email: true },
     );
     expect(body).toEqual({ name: 'Ramesh Kumar', email: null, network: { staticIp: null } });
+  });
+
+  it('edit sends a changed connection type with its network fields', () => {
+    const body = toBody(
+      { ...base, connectionType: 'static', staticIp: '100.64.0.5', macLock: 'AA:BB:CC:DD:EE:01' },
+      { connectionType: true, staticIp: true, macLock: true },
+    );
+    expect(body).toEqual({
+      connectionType: 'static',
+      network: { staticIp: '100.64.0.5', macLock: 'AA:BB:CC:DD:EE:01' },
+    });
   });
 });
 

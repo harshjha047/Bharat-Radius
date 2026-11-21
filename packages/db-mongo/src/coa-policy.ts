@@ -3,7 +3,7 @@ import type { CoaReason, OutboxDoc, SubscriberDoc } from './types.js';
 /** What RADIUS answers for this subscriber right now (radius_reply / radius_check). */
 export type RadiusState = 'blocked' | 'expired' | 'fup' | 'active';
 
-type Shape = Pick<SubscriberDoc, 'status' | 'planId' | 'expiresAt' | 'fup' | 'network'>;
+type Shape = Pick<SubscriberDoc, 'status' | 'planId' | 'expiresAt' | 'fup' | 'network' | 'connectionType'>;
 
 export function radiusState(s: Shape, now = new Date()): RadiusState {
   if (s.status !== 'active') return 'blocked';
@@ -14,7 +14,7 @@ export function radiusState(s: Shape, now = new Date()): RadiusState {
 /**
  * Which CoA a change needs for a user who may be online (TRD §6.4):
  * - leaving service (suspend/disable/delete), moving between expired/fup/active (address lists), or a new static
- *   IP / MAC lock → Disconnect: the router re-dials and gets a fresh, correct reply;
+ *   IP / MAC lock / connection type → Disconnect: the router re-dials and gets a fresh, correct reply;
  * - a different plan in the same state → CoA with the new rate, no reconnect.
  */
 export function coaFor(
@@ -30,6 +30,7 @@ export function coaFor(
   if (b === 'blocked') return undefined;
   if (a !== b) return d(a === 'fup' || b === 'fup' ? 'fup' : 'renewal');
   if (
+    (before.connectionType ?? 'pppoe') !== (after.connectionType ?? 'pppoe') ||
     before.network.staticIp !== after.network.staticIp ||
     before.network.macLock !== after.network.macLock
   ) {

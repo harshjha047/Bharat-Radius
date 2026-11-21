@@ -2,6 +2,7 @@
 # Idempotent: everything it creates is tagged "isp-radius" and replaced on re-run. Rollback: /import remove.rsc
 # Edit the values below, upload the file, then:  /import file-name=setup.rsc
 # Existing PPPoE server, profiles and IP pools are not touched (Framed-Pool names must match /ip pool names).
+# Hotspot and Static IP (IPoE / DHCP by MAC) customers: set hotspotProfiles / dhcpServers below.
 {
 :local radiusIp "154.49.142.251"
 :local radiusSecret "CHANGE_ME_router_secret"
@@ -15,6 +16,11 @@
 :local fallbackSecret ""
 :local fallbackAuthPort 1812
 :local fallbackAcctPort 1813
+# Hotspot customers: /ip hotspot profile names to switch to RADIUS, e.g. {"hsprof1"} ({} = none)
+:local hotspotProfiles {}
+# Static IP customers: /ip dhcp-server names that ask RADIUS by client MAC, e.g. {"dhcp-static"} ({} = none).
+# Only MACs registered as Static IP subscribers get a lease (their static IP); add a /ip dhcp-server network for it.
+:local dhcpServers {}
 # App server: CoA source and walled-garden page on HTTP port payPort (staging: the RADIUS VPS)
 :local appIp "154.49.142.251"
 :local payPort 8089
@@ -31,11 +37,14 @@
 :put "RouterOS $ver"
 
 # ---- RADIUS servers (primary first; fallback answers only when primary times out)
+:local services "ppp"
+:if ([:len $hotspotProfiles] > 0) do={ :set services "$services,hotspot" }
+:if ([:len $dhcpServers] > 0) do={ :set services "$services,dhcp" }
 /radius remove [find where comment~$tag]
-:local p [/radius add address=$radiusIp secret=$radiusSecret service=ppp authentication-port=$authPort accounting-port=$acctPort timeout=1s comment="$tag primary"]
+:local p [/radius add address=$radiusIp secret=$radiusSecret service=$services authentication-port=$authPort accounting-port=$acctPort timeout=1s comment="$tag primary"]
 :if ($srcAddress != "") do={ /radius set $p src-address=$srcAddress }
 :if ($fallbackIp != "") do={
-  :local f [/radius add address=$fallbackIp secret=$fallbackSecret service=ppp authentication-port=$fallbackAuthPort accounting-port=$fallbackAcctPort timeout=1s comment="$tag fallback (BharatRadius)"]
+  :local f [/radius add address=$fallbackIp secret=$fallbackSecret service=$services authentication-port=$fallbackAuthPort accounting-port=$fallbackAcctPort timeout=1s comment="$tag fallback (BharatRadius)"]
   :if ($srcAddress != "") do={ /radius set $f src-address=$srcAddress }
 }
 # Blast-RADIUS (CVE-2024-3596): RouterOS 7.15+ can require Message-Authenticator; our server always sends it.
@@ -45,6 +54,29 @@
 
 # ---- PPP AAA and accounting every 5 minutes
 /ppp aaa set use-radius=yes accounting=yes interim-update=5m
+
+# ---- Hotspot: login page checks RADIUS; accounting every 5 minutes. Login method (http-chap/pap) is left as is.
+:foreach h in=$hotspotProfiles do={
+  :local hp [/ip hotspot profile find where name=$h]
+  :if ([:len $hp] = 0) do={ :put "hotspot profile $h not found - skipped" } else={
+    /ip hotspot profile set $hp use-radius=yes radius-accounting=yes radius-interim-update=5m
+    :put "hotspot profile $h -> RADIUS"
+  }
+}
+
+# ---- Static IP / IPoE: DHCP server authorises each client MAC; RADIUS gives the static IP, speed and lease time
+# (Session-Timeout, at most 1 h, so suspend / expiry apply at the next renewal). v7 also sends accounting.
+:foreach d in=$dhcpServers do={
+  :local ds [/ip dhcp-server find where name=$d]
+  :if ([:len $ds] = 0) do={ :put "dhcp-server $d not found - skipped" } else={
+    :if ($major >= 7) do={
+      :do { /ip dhcp-server set $ds use-radius=accounting } on-error={ /ip dhcp-server set $ds use-radius=yes }
+    } else={
+      /ip dhcp-server set $ds use-radius=yes
+    }
+    :put "dhcp-server $d -> RADIUS (by MAC)"
+  }
+}
 
 # ---- CoA / Disconnect from the app server only
 /radius incoming set accept=yes port=3799
@@ -87,5 +119,5 @@
   /ip firewall filter add chain=forward src-address-list=expired protocol=udp dst-port=53 action=accept comment="$tag: expired DNS udp" place-before=0
 }
 
-:put "isp-radius: done. Check: /radius print detail ; /ppp aaa print ; /radius incoming print"
+:put "isp-radius: done. Check: /radius print detail ; /ppp aaa print ; /radius incoming print ; /ip hotspot profile print ; /ip dhcp-server print"
 }

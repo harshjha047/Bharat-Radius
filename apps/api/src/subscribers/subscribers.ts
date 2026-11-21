@@ -17,8 +17,11 @@ import { ObjectId, type Filter } from 'mongodb';
 import { z } from 'zod';
 import { FieldCrypto } from '@isp/shared';
 import {
+  CONNECTION_TYPES,
+  connectionTypeOf,
   insertSubscriber,
   pppoeAad,
+  type ConnectionType,
   ScopedDb,
   type NewSubscriber,
   type CoaLogDoc,
@@ -87,26 +90,46 @@ const network = z.object({
   popName: z.string().trim().max(80).nullable().optional(),
 });
 
-export const createBody = z.object({
-  username,
-  pppoePassword: pppoePassword.optional(),
-  name: z.string().trim().min(1).max(120),
-  phone,
-  altPhone: phone.optional(),
-  email: email.optional(),
-  address,
-  gstin: gstin.optional(),
-  billingType: z.enum(['prepaid', 'postpaid']).default('prepaid'),
-  planId: objectId.optional(),
-  expiresAt: z.coerce.date().optional(),
-  network: network.optional(),
-  tags: z.array(z.string().trim().min(1).max(30)).max(20).default([]),
-  notes: z.string().max(2000).optional(),
-  /** Owning reseller; null = direct ISP customer. A reseller's own customers default to that reseller. */
-  resellerId: objectId.nullable().optional(),
-});
+export const connectionType = z.enum(CONNECTION_TYPES as [ConnectionType, ...ConnectionType[]]);
+
+/** Static IP subscribers are found by MAC and given their IP by RADIUS: both are required. */
+export function connectionProblem(
+  type: ConnectionType,
+  net: { staticIp?: string | null | undefined; macLock?: string | null | undefined },
+): string | null {
+  if (type !== 'static') return null;
+  if (!net.macLock) return 'Static IP connection needs the MAC address of the customer router';
+  if (!net.staticIp) return 'Static IP connection needs a static IP';
+  return null;
+}
+
+export const createBody = z
+  .object({
+    username,
+    connectionType: connectionType.default('pppoe'),
+    pppoePassword: pppoePassword.optional(),
+    name: z.string().trim().min(1).max(120),
+    phone,
+    altPhone: phone.optional(),
+    email: email.optional(),
+    address,
+    gstin: gstin.optional(),
+    billingType: z.enum(['prepaid', 'postpaid']).default('prepaid'),
+    planId: objectId.optional(),
+    expiresAt: z.coerce.date().optional(),
+    network: network.optional(),
+    tags: z.array(z.string().trim().min(1).max(30)).max(20).default([]),
+    notes: z.string().max(2000).optional(),
+    /** Owning reseller; null = direct ISP customer. A reseller's own customers default to that reseller. */
+    resellerId: objectId.nullable().optional(),
+  })
+  .superRefine((b, c) => {
+    const problem = connectionProblem(b.connectionType, b.network ?? {});
+    if (problem) c.addIssue({ code: 'custom', path: ['network'], message: problem });
+  });
 const updateBody = z
   .object({
+    connectionType: connectionType.optional(),
     pppoePassword: pppoePassword.optional(),
     name: z.string().trim().min(1).max(120).optional(),
     phone: phone.optional(),
@@ -137,6 +160,7 @@ const listQuery = pageQuery.extend({
   kyc: z.enum(['unverified', 'verified']).optional(),
   /** `yes`: has a static IP. */
   staticIp: z.enum(['yes']).optional(),
+  connectionType: connectionType.optional(),
 });
 
 const summaryView = z.object({
@@ -157,6 +181,8 @@ const summaryView = z.object({
   unverified: z.number(),
   /** Subscribers with a static IP. */
   staticIps: z.number(),
+  /** By connection type. */
+  connections: z.object({ pppoe: z.number(), hotspot: z.number(), static: z.number() }),
   /** What renewing each group on its current plan would bring in (plan prices, GST as priced). */
   renewPaise: z.object({
     today: z.number(),
@@ -201,6 +227,7 @@ const subscriberView = z.object({
   address: z.record(z.string(), z.unknown()),
   gstin: z.string().nullable(),
   billingType: z.enum(['prepaid', 'postpaid']),
+  connectionType,
   planId: z.string().nullable(),
   expiresAt: z.string().nullable(),
   status: z.enum(['active', 'suspended', 'disabled']),
@@ -241,6 +268,7 @@ const toView = (
   address: s.address,
   gstin: s.gstin ?? null,
   billingType: s.billingType,
+  connectionType: connectionTypeOf(s),
   planId: s.planId?.toHexString() ?? null,
   expiresAt: s.expiresAt?.toISOString() ?? null,
   status: s.status === 'deleted' ? 'disabled' : s.status,
@@ -295,6 +323,7 @@ export function toNewSubscriber(
     address: { ...compact(b.address), stateCode: b.address.stateCode ?? tenantStateCode ?? '00' },
     gstin: b.gstin,
     billingType: b.billingType,
+    connectionType: b.connectionType,
     planId: b.planId,
     expiresAt: b.expiresAt,
     network: Object.fromEntries(
@@ -313,9 +342,11 @@ const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export function duplicate(e: unknown): never {
   const key = Object.keys((e as { keyPattern?: object }).keyPattern ?? {});
-  if (key.includes('username')) throw conflict('This PPPoE username is already used');
+  if (key.includes('username')) throw conflict('This username is already used');
   if (key.includes('network.staticIp'))
     throw conflict('This static IP is already given to another subscriber');
+  if (key.includes('network.macLock'))
+    throw conflict('This MAC address is already used by another static IP subscriber');
   throw e;
 }
 
@@ -398,6 +429,8 @@ export class SubscribersService {
     if (q.kyc === 'unverified') f['kyc.status'] = { $ne: 'verified' };
     else if (q.kyc === 'verified') f['kyc.status'] = 'verified';
     if (q.staticIp === 'yes') f['network.staticIp'] = { $type: 'string', $ne: '' };
+    if (q.connectionType === 'pppoe') f.connectionType = { $nin: ['hotspot', 'static'] };
+    else if (q.connectionType) f.connectionType = q.connectionType;
     if (q.planId) f.planId = new ObjectId(q.planId);
     if (q.resellerId === 'none') f.resellerId = null;
     else if (q.resellerId) f.resellerId = new ObjectId(q.resellerId);
@@ -451,6 +484,8 @@ export class SubscribersService {
         d7: number;
         unverified: number;
         staticIps: number;
+        hotspot: number;
+        staticConn: number;
       }>([
         { $match: { status: { $ne: 'deleted' } } },
         {
@@ -485,6 +520,8 @@ export class SubscribersService {
               { $eq: [{ $type: '$network.staticIp' }, 'string'] },
               { $ne: ['$network.staticIp', ''] },
             ),
+            hotspot: when({ $eq: ['$connectionType', 'hotspot'] }),
+            staticConn: when({ $eq: ['$connectionType', 'static'] }),
           },
         },
       ])
@@ -515,6 +552,11 @@ export class SubscribersService {
       expiring7d: sum('d7'),
       unverified: sum('unverified'),
       staticIps: sum('staticIps'),
+      connections: {
+        pppoe: sum('total') - sum('hotspot') - sum('staticConn'),
+        hotspot: sum('hotspot'),
+        static: sum('staticConn'),
+      },
       renewPaise: {
         today: value('today'),
         tomorrow: value('tomorrow'),
@@ -645,6 +687,14 @@ export class SubscribersService {
         else if (v !== undefined) set[`network.${k}`] = v;
       }
     }
+    if (b.connectionType) set.connectionType = b.connectionType;
+    const pick = (k: 'staticIp' | 'macLock') =>
+      b.network?.[k] === null ? undefined : (b.network?.[k] ?? cur.network[k]);
+    const problem = connectionProblem(b.connectionType ?? connectionTypeOf(cur), {
+      staticIp: pick('staticIp'),
+      macLock: pick('macLock'),
+    });
+    if (problem) throw new AppError(400, 'VALIDATION_FAILED', problem);
     if (b.pppoePassword) set.pppoePassword = this.crypto.encrypt(b.pppoePassword, pwAad(id));
     if (b.resellerId !== undefined && String(b.resellerId) !== String(cur.resellerId)) {
       if (b.resellerId === null && ctx.scope.kind === 'branch') {
@@ -684,7 +734,12 @@ export class SubscribersService {
         deletedAt: new Date(),
         ...(cur.username ? { deletedUsername: cur.username } : {}),
       },
-      { username: '', 'network.staticIp': '' },
+      {
+        username: '',
+        'network.staticIp': '',
+        // Frees the MAC for another static IP subscriber (unique per ISP while in use).
+        ...(connectionTypeOf(cur) === 'static' ? { 'network.macLock': '' } : {}),
+      },
     );
   }
 

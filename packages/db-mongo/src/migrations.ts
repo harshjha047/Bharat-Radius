@@ -1111,6 +1111,21 @@ const resellerRouters: Migration = {
   },
 };
 
+/** WP 5.9: static IP subscribers log in by MAC, so a MAC belongs to one static subscriber per ISP. */
+const connectionTypes: Migration = {
+  id: '019_connection_types',
+  async up(db) {
+    await ensureIndexes(db, 'subscribers', [
+      {
+        key: { tenantId: 1, 'network.macLock': 1 },
+        name: 'tenantId_1_static_mac',
+        unique: true,
+        partialFilterExpression: { connectionType: 'static', 'network.macLock': { $type: 'string' } },
+      },
+    ]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -1130,4 +1145,5 @@ export const MIGRATIONS: readonly Migration[] = [
   topupRequests,
   kycDocuments,
   resellerRouters,
+  connectionTypes,
 ];

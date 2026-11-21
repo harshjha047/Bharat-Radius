@@ -2948,6 +2948,7 @@ export interface paths {
           expiry?: 'today' | 'tomorrow' | '7d' | 'expired-month';
           kyc?: 'unverified' | 'verified';
           staticIp?: 'yes';
+          connectionType?: 'pppoe' | 'hotspot' | 'static';
         };
         header?: never;
         path?: never;
@@ -2976,6 +2977,8 @@ export interface paths {
                 gstin: string | null;
                 /** @enum {string} */
                 billingType: 'prepaid' | 'postpaid';
+                /** @enum {string} */
+                connectionType: 'pppoe' | 'hotspot' | 'static';
                 planId: string | null;
                 expiresAt: string | null;
                 /** @enum {string} */
@@ -3039,6 +3042,11 @@ export interface paths {
         content: {
           'application/json': {
             username: string;
+            /**
+             * @default pppoe
+             * @enum {string}
+             */
+            connectionType?: 'pppoe' | 'hotspot' | 'static';
             pppoePassword?: string;
             name: string;
             phone: string;
@@ -3098,6 +3106,8 @@ export interface paths {
               gstin: string | null;
               /** @enum {string} */
               billingType: 'prepaid' | 'postpaid';
+              /** @enum {string} */
+              connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
               /** @enum {string} */
@@ -3188,6 +3198,11 @@ export interface paths {
               expiring7d: number;
               unverified: number;
               staticIps: number;
+              connections: {
+                pppoe: number;
+                hotspot: number;
+                static: number;
+              };
               renewPaise: {
                 today: number;
                 tomorrow: number;
@@ -3266,6 +3281,8 @@ export interface paths {
                 gstin: string | null;
                 /** @enum {string} */
                 billingType: 'prepaid' | 'postpaid';
+                /** @enum {string} */
+                connectionType: 'pppoe' | 'hotspot' | 'static';
                 planId: string | null;
                 expiresAt: string | null;
                 /** @enum {string} */
@@ -3362,6 +3379,8 @@ export interface paths {
               gstin: string | null;
               /** @enum {string} */
               billingType: 'prepaid' | 'postpaid';
+              /** @enum {string} */
+              connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
               /** @enum {string} */
@@ -3469,6 +3488,8 @@ export interface paths {
       requestBody: {
         content: {
           'application/json': {
+            /** @enum {string} */
+            connectionType?: 'pppoe' | 'hotspot' | 'static';
             pppoePassword?: string;
             name?: string;
             phone?: string;
@@ -3523,6 +3544,8 @@ export interface paths {
               gstin: string | null;
               /** @enum {string} */
               billingType: 'prepaid' | 'postpaid';
+              /** @enum {string} */
+              connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
               /** @enum {string} */
@@ -3620,6 +3643,8 @@ export interface paths {
               gstin: string | null;
               /** @enum {string} */
               billingType: 'prepaid' | 'postpaid';
+              /** @enum {string} */
+              connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
               /** @enum {string} */
@@ -3715,6 +3740,8 @@ export interface paths {
               gstin: string | null;
               /** @enum {string} */
               billingType: 'prepaid' | 'postpaid';
+              /** @enum {string} */
+              connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
               /** @enum {string} */
@@ -10628,6 +10655,7 @@ export interface paths {
                 | 'disabled'
                 | 'isp_suspended'
                 | 'mac'
+                | 'connection_type'
                 | 'already_online'
                 | 'username_format'
                 | 'other';
