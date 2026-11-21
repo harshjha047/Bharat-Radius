@@ -556,7 +556,7 @@ const PROBLEM_TEXT = {
   silent: 'no login attempts in 24 h',
 } as const;
 
-/** F-17: routers whose packets Radius cannot use, at the top of the log. */
+/** F-17: routers whose packets RADIUS cannot use, at the top of the log. */
 function RouterProblemsBanner({ onOpen }: { onOpen: () => void }) {
   const can = useCan();
   const q = useQuery({

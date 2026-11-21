@@ -47,7 +47,7 @@ upload and removal stay in the record and audit log.
 Subscriber → KYC → *Create CAF form*: a pre-filled PDF (ISP, customer, address, plan, username, declaration incl.
 DPDP consent). The CAF number `CAF/<customer no.>` is assigned the first time. Print, sign, upload as *Signed CAF*.
 
-## Old CAF files (22 on the Bharat Radius server)
+## Old CAF files (22 on the BharatRadius server)
 
 1. Copy the folder from the old server to the VPS (via your PC, as with the dump), e.g. `/var/lib/isp-migration/caf`.
    Name folders or files with the customer's username, customer number, phone or old subscriber id; words in the

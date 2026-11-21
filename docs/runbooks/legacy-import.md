@@ -1,4 +1,4 @@
-# Importing from the old Bharat Radius (WP 4.7)
+# Importing from the old BharatRadius (WP 4.7)
 
 The old system (ASP.NET + PostgreSQL 16 `RadiusSoftwareDb`, Windows server) stays live until each POP's cutover.
 Its dump is restored on the VPS into a scratch database and read from there; the old server is never touched.
@@ -8,12 +8,12 @@ Its dump is restored on the VPS into a scratch database and read from there; the
 | Old | New | Notes |
 |---|---|---|
 | `Sites` | resellers | Tree from `ParentSiteId`/`ParentSiteMsrNumber`; inactive → suspended; level 1 may add sub-resellers |
-| `SiteWallets.Balance` | opening balance | Master → … → reseller transfers ("Opening balance from old Bharat Radius"); negative balances start at ₹0 (owner, 18 Nov 2026) |
+| `SiteWallets.Balance` | opening balance | Master → … → reseller transfers ("Opening balance from old BharatRadius"); negative balances start at ₹0 (owner, 18 Nov 2026) |
 | `PackageProfiles` | plans | One plan per name + speed + validity + price; "1 Months" = 30 days; prepaid, SAC 998422, 18 %; an existing plan with the same name and speeds is reused |
 | `NasDevices` | routers | Matched by IP (an existing router is kept); new ones get a fresh secret — reveal it in the panel when running `setup.rsc` |
 | `Subscribers` | subscribers | Same PPPoE username and password (cleartext in the old DB, encrypted here); `ExpireDate` kept exactly (23:59:59 IST); `ConnectionEnabled = false` → disabled; no expiry → expired yesterday; owner = its site's reseller; `popName` = old router name |
 
-Not imported: staff users (new logins), Radius/accounting logs (the dump is the archive), wallet history (opening
+Not imported: staff users (new logins), RADIUS/accounting logs (the dump is the archive), wallet history (opening
 balance only), CAF files (on the old server's disk, WP 4.5), `Subscribers_DuplicatesBackup`, gateway/SMS keys.
 
 Missing required fields are filled from the reseller, then the ISP, and the subscriber is tagged `legacy-fix` with a
@@ -67,4 +67,4 @@ reconciliation "all match" → continue with step 4.
 - A username already used by a subscriber that was not imported (for example a test user such as `john@123`) is
   refused; delete or rename one of them and run again.
 - Each run is recorded in `legacy_runs`; every created or changed record is in the audit log as `*.legacy_import`
-  / `subscriber.legacy_update` (actor "old Bharat Radius importer").
+  / `subscriber.legacy_update` (actor "old BharatRadius importer").

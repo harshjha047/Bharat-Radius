@@ -45,7 +45,7 @@ export interface KycImportReport {
 
 /**
  * Old CAF / ID files (WP 4.5): each file is matched to a customer by a folder or file-name token equal to the
- * username, customer number, 10-digit phone or old Bharat Radius subscriber id. Dry run unless `apply`.
+ * username, customer number, 10-digit phone or old BharatRadius subscriber id. Dry run unless `apply`.
  * Re-runnable: the same file (sha256) for the same customer is skipped.
  */
 export async function importKycFiles(

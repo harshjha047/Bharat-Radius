@@ -15,7 +15,7 @@ only after its off-site copy checks out (log days: SHA-1 in the bucket; backups:
 |---|---|---|
 | < 70 % | Normal. Log days move to Backblaze after 60 days (`logs-maint.sh`). | — |
 | ≥ 70 % | **Drill.** Excel imports and `app-up.sh` rebuilds wait (`/run/isp-guard/pause-heavy`). Removed: Docker build cache, unused images, journal above 500 MB. Moved: log days older than 7 days, and local backups already in Backblaze (newest kept). | DiskGuardDrill |
-| ≥ 85 % | **Maintenance page** for panel, reseller panel and portal (`/run/isp-guard/maintenance`). Still running: Radius (logins, sessions, speed changes), payment webhooks, the pay redirect and pay page, monitoring, the landing page. | DiskGuardMaintenance (critical) |
+| ≥ 85 % | **Maintenance page** for panel, reseller panel and portal (`/run/isp-guard/maintenance`). Still running: RADIUS (logins, sessions, speed changes), payment webhooks, the pay redirect and pay page, monitoring, the landing page. | DiskGuardMaintenance (critical) |
 | ≥ 95 % | The 5 GB reserve file (`/var/lib/isp-guard/reserve.img`) is deleted so the databases keep writing. | DiskReserveReleased (critical) |
 
 Maintenance ends below 80 %; the pause ends below 65 %, when the reserve is recreated. Customers see only

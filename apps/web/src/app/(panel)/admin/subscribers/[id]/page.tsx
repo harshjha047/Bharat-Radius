@@ -68,7 +68,7 @@ export default function SubscriberPage() {
   const sub = useQuery({
     queryKey: ['subscriber', id],
     queryFn: () => unwrap(api.GET('/api/v1/subscribers/{id}', { params: { path: { id } } })),
-    // A just-saved change shows "Syncing" until the worker has written it to Radius.
+    // A just-saved change shows "Syncing" until the worker has written it to RADIUS.
     refetchInterval: (q) => (q.state.data?.syncStatus === 'pending' ? 2000 : false),
   });
   if (sub.isLoading) return <PageSkeleton />;

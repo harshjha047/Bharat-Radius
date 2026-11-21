@@ -92,7 +92,7 @@ export function buildSubscriberDoc(
   };
 }
 
-/** Outbox row asking the worker to sync one subscriber to Radius (latest state; no CoA). */
+/** Outbox row asking the worker to sync one subscriber to RADIUS (latest state; no CoA). */
 export const subscriberOutboxRow = (
   tenantId: ObjectId,
   entityId: ObjectId,
@@ -127,7 +127,7 @@ export const formatCustomerNo = (seq: number) => `C${String(seq).padStart(6, '0'
 
 /**
  * The single way a subscriber is created: customer number, encrypted PPPoE password, search tokens and the outbox
- * row (Radius sync) in one transaction. Throws MongoServerError 11000 on a duplicate username or static IP.
+ * row (RADIUS sync) in one transaction. Throws MongoServerError 11000 on a duplicate username or static IP.
  */
 export async function insertSubscriber(
   client: MongoClient,

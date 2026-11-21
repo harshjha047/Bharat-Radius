@@ -61,7 +61,7 @@ export const PLAN_COLUMNS: readonly Column[] = [
   {
     key: 'extra_attributes',
     example: '',
-    help: 'Extra Radius reply, e.g. "Idle-Timeout := 900; Port-Limit = 1"',
+    help: 'Extra RADIUS reply, e.g. "Idle-Timeout := 900; Port-Limit = 1"',
   },
   { key: 'description', example: '', help: 'Optional' },
   { key: 'status', example: 'active', help: 'active or archived; empty = active' },
@@ -489,7 +489,7 @@ export class PlanExcel {
       return res;
     }
     // Plans are few: applied here, one transaction each, through the same service as the panel
-    // (outbox to Radius, CoA for online users when a speed changes, one audit note per plan).
+    // (outbox to RADIUS, CoA for online users when a speed changes, one audit note per plan).
     for (const w of work) {
       const entry = res.rows[w.idx]!;
       try {

@@ -1,5 +1,5 @@
 [Unit]
-Description=Create/drop Radius partitions daily (%i)
+Description=Create/drop RADIUS partitions daily (%i)
 
 [Timer]
 OnCalendar=*-*-* 00:10:00

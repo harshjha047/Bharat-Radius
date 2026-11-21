@@ -267,7 +267,7 @@ function LoginsTooltip({
   );
 }
 
-/** Radius logins per hour as two lines (accepted, rejected) with soft fills and a crosshair tooltip. */
+/** RADIUS logins per hour as two lines (accepted, rejected) with soft fills and a crosshair tooltip. */
 export function LoginsLineChart({ hours, className }: { hours: AuthHour[]; className?: string }) {
   return (
     <div

@@ -201,7 +201,7 @@ export async function createApp(
   f.addContentTypeParser(FILE_MIME, { parseAs: 'buffer', bodyLimit: MAX_KYC_BYTES }, (_req, body, done) =>
     done(null, body),
   );
-  // Disk guard maintenance (disk >= 85 %): staff, reseller and customer screens pause; Radius is not affected.
+  // Disk guard maintenance (disk >= 85 %): staff, reseller and customer screens pause; RADIUS is not affected.
   f.addHook('onRequest', async (req, reply) => {
     if (!guardFlag('maintenance') || openDuringMaintenance(req.url.split('?')[0]!)) return;
     return reply

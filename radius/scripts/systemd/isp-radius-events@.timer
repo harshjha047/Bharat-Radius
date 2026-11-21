@@ -1,5 +1,5 @@
 [Unit]
-Description=Record unknown-address and wrong-secret Radius packets every minute (%i)
+Description=Record unknown-address and wrong-secret RADIUS packets every minute (%i)
 
 [Timer]
 OnBootSec=1min

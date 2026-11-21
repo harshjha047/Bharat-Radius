@@ -27,7 +27,7 @@ server isp {
 			fail = 1
 		}
 		if (fail) {
-			# DB unreachable: stay silent so the MikroTik fails over to the fallback Radius.
+			# DB unreachable: stay silent so the MikroTik fails over to the fallback RADIUS.
 			do_not_respond
 		}
 		if (notfound) {

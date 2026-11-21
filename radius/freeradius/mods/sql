@@ -1,6 +1,6 @@
 # Managed by isp-platform radius/scripts/install.sh — do not edit on the server.
 # PGPASSWORD comes from the systemd EnvironmentFile (read by libpq, never logged). The PPPoE password key is a
-# PostgreSQL role setting (app.pw_key), so it never appears in queries or debug output.
+# PostgreSQL role setting (app.pw_key), so it never appears in queries or `freeradius -X` output.
 sql {
 	dialect = "postgresql"
 	driver = "rlm_sql_postgresql"

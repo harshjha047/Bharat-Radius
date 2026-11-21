@@ -1,5 +1,5 @@
 [Unit]
-Description=Synthetic Radius login every minute
+Description=Synthetic RADIUS login every minute
 
 [Timer]
 OnCalendar=*:*:30

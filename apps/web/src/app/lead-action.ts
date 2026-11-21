@@ -51,7 +51,7 @@ async function deliver(lead: LeadInput & { page: string; at: string }): Promise<
   const url = process.env.LEAD_WEBHOOK_URL?.trim();
   if (!url) return false;
   const text =
-    `New Bharat Radius demo request: ${lead.name} (${lead.company}), ${lead.phone}` +
+    `New BharatRadius demo request: ${lead.name} (${lead.company}), ${lead.phone}` +
     `${lead.email ? `, ${lead.email}` : ''}, ${lead.subscribers} subscribers` +
     `${lead.city ? `, ${lead.city}` : ''}${lead.message ? ` — "${lead.message}"` : ''}`;
   try {

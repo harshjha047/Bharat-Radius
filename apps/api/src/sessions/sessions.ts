@@ -82,7 +82,7 @@ const sessionView = z.object({
   uploadBytes: z.number(),
   downloadBytes: z.number(),
   terminateCause: z.string().nullable(),
-  /** Open but not heard from in 3 interim periods: Radius no longer counts it (router crash, lost Stop). */
+  /** Open but not heard from in 3 interim periods: RADIUS no longer counts it (router crash, lost Stop). */
   stale: z.boolean(),
 });
 const sessionsPage = z.object({ items: z.array(sessionView), nextCursor: z.string().nullable() });
@@ -103,7 +103,7 @@ const summaryView = z.object({
 const activityView = z.object({
   /** Hourly (IST hour starts) for the last 24 h, then one point for now; lastWeek is the same moment 7 days earlier. */
   points: z.array(z.object({ at: z.string(), online: z.number(), lastWeek: z.number() })),
-  /** Radius logins per IST hour, the last 24 hours including the current one, oldest first. */
+  /** RADIUS logins per IST hour, the last 24 hours including the current one, oldest first. */
   hours: z.array(z.object({ hour: z.string(), accepted: z.number(), rejected: z.number() })),
 });
 
@@ -158,7 +158,7 @@ const toSession = (r: SessionRow): z.output<typeof sessionView> => ({
   updatedAt: r.acctupdatetime.toISOString(),
   stoppedAt: r.acctstoptime?.toISOString() ?? null,
   sessionSecs: Number(r.acctsessiontime),
-  // Radius input = what the router received from the customer = their upload.
+  // RADIUS input = what the router received from the customer = their upload.
   uploadBytes: Number(r.acctinputoctets),
   downloadBytes: Number(r.acctoutputoctets),
   terminateCause: r.acctterminatecause,
@@ -203,7 +203,7 @@ export class SessionsService {
   ) {}
 
   db(): pg.Pool {
-    if (!this.pool) throw new AppError(503, 'INTERNAL', 'Radius database not configured');
+    if (!this.pool) throw new AppError(503, 'INTERNAL', 'RADIUS database not configured');
     return this.pool;
   }
 

@@ -9,7 +9,7 @@ any host) to `154.49.142.251:8089`.
 1. `isp-walled-garden` (Caddy, `:8089`) rewrites every request to `GET /api/v1/pay/entry`. Captive-portal probes
    (Android, iOS, Windows) get the same redirect, so phones show the sign-in sheet.
 2. The API sees the router's public address (customer traffic is masqueraded, so not the customer's). It finds the
-   router by that address and asks Radius which customers are online behind it with their validity over.
+   router by that address and asks RADIUS which customers are online behind it with their validity over.
    Exactly one → the pay page opens already showing that customer. None or several → the customer types a
    username, customer number or mobile; it is accepted only if that connection is online behind the same router.
 3. The pay page shows the masked name, customer number, expiry, current plan and its price incl. GST, and one

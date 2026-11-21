@@ -759,7 +759,7 @@ export class ReportsService {
 
   private async usage(ctx: AuthContext, p: Period): Promise<Table[]> {
     assertStaff(ctx, 'see the usage report');
-    if (!this.pool) throw new AppError(503, 'INTERNAL', 'Radius database not configured');
+    if (!this.pool) throw new AppError(503, 'INTERNAL', 'RADIUS database not configured');
     const tenantId = requireTenant(ctx);
     const t = await this.pool.query<{ id: number }>('SELECT id FROM tenants WHERE external_id = $1', [
       tenantId.toHexString(),

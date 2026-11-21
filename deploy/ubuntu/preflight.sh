@@ -10,7 +10,7 @@ warn() { W=$((W + 1)); printf '  \033[33mWARN\033[0m %s\n' "$*"; }
 fail() { F=$((F + 1)); printf '  \033[31mFAIL\033[0m %s\n' "$*"; }
 age_h() { echo $(( ($(date +%s) - $1) / 3600 )); }
 
-echo "[Radius $INST]"
+echo "[RADIUS $INST]"
 CONF=/etc/isp-radius/$INST.conf
 if [[ -s $CONF ]]; then
   pass "installed ($CONF)"
@@ -19,9 +19,9 @@ if [[ -s $CONF ]]; then
   systemctl is-active -q "$SERVICE" && pass "$SERVICE running" || fail "$SERVICE not running"
   ss -lun | grep -q ":$AUTH " && pass "listening on UDP $AUTH" || fail "nothing listens on UDP $AUTH"
   if grep -Eq '^any( |$)' "/etc/isp-radius/$INST.allow" 2>/dev/null; then
-    warn "Radius ports open to any address (allow-list entry 'any'); routers only is safer"
+    warn "RADIUS ports open to any address (allow-list entry 'any'); routers only is safer"
   else
-    pass "Radius ports limited to the router allow-list"
+    pass "RADIUS ports limited to the router allow-list"
   fi
   for t in stale partitions nas-watch events; do
     systemctl is-active -q "isp-radius-$t@$INST.timer" || fail "timer isp-radius-$t@$INST not active"
@@ -29,17 +29,17 @@ if [[ -s $CONF ]]; then
   n="$(runuser -u postgres -- psql -XtAc "SELECT count(*) FROM nas" -d "$DB" 2>/dev/null || echo '?')"
   [[ $n == 0 ]] && warn "no routers in $DB yet" || pass "$n router(s) in $DB"
   e="$(runuser -u postgres -- psql -XtAc "SELECT coalesce(sum(packets),0) FROM radius_events WHERE kind='bad_secret' AND minute > now() - interval '1 hour'" -d "$DB" 2>/dev/null || echo 0)"
-  [[ $e == 0 ]] && pass "no wrong-secret packets in the last hour" || warn "$e wrong-secret packets in the last hour (Radius log → Routers)"
+  [[ $e == 0 ]] && pass "no wrong-secret packets in the last hour" || warn "$e wrong-secret packets in the last hour (RADIUS log → Routers)"
 else
-  fail "Radius $INST not installed: sudo bash radius/scripts/install.sh $INST"
+  fail "RADIUS $INST not installed: sudo bash radius/scripts/install.sh $INST"
 fi
 
 echo "[panel]"
 S=/etc/isp-app/settings.env
 PANEL_INST="$(sed -n 's/^RADIUS_INSTANCE=//p' "$S" 2>/dev/null)"
 HOSTS="$(sed -n 's/^PANEL_HOSTS=//p' "$S" 2>/dev/null)"; HOSTS="${HOSTS:-new.bharatradius.com}"
-[[ $PANEL_INST == "$INST" ]] && pass "panel writes to Radius $INST" \
-  || warn "panel writes to Radius ${PANEL_INST:-staging}, not $INST (O-23; switch: sudo RADIUS_INSTANCE=$INST bash deploy/ubuntu/app/app-up.sh)"
+[[ $PANEL_INST == "$INST" ]] && pass "panel writes to RADIUS $INST" \
+  || warn "panel writes to RADIUS ${PANEL_INST:-staging}, not $INST (O-23; switch: sudo RADIUS_INSTANCE=$INST bash deploy/ubuntu/app/app-up.sh)"
 for c in isp-api isp-workers isp-web isp-mongo isp-walled-garden; do
   [[ "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$c" 2>/dev/null)" =~ ^(healthy|running)$ ]] \
     && pass "$c up" || fail "$c not up"
@@ -60,7 +60,7 @@ for f in /etc/isp-app/app.env /etc/isp-app/app_keys.env /etc/isp-app/files.env "
   m="$(stat -c '%a %U' "$f")"
   [[ $m == '600 root' || $m == '400 root' ]] && pass "$f root-only" || fail "$f is $m (want 600 root)"
 done
-# Radius engine env: install.sh sets root:freerad 0640 (the service group); nobody else may read it.
+# FreeRADIUS env: install.sh sets root:freerad 0640 (the service group); nobody else may read it.
 f="/etc/isp-radius/$INST.env"
 if [[ -e $f ]]; then
   m="$(stat -c '%a %U %G' "$f")"

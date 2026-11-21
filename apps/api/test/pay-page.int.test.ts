@@ -103,7 +103,7 @@ beforeAll(async () => {
   });
   expect(s.status, JSON.stringify(s.body)).toBe(200);
 
-  // What the Radius engine and the sync worker would have written: a is expired and online; b is valid and online;
+  // What FreeRADIUS and the sync worker would have written: a is expired and online; b is valid and online;
   // c is expired but offline.
   const tid = (
     await pgAdmin.query<{ id: number }>(

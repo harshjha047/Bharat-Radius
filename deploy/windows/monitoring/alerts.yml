@@ -2,11 +2,11 @@ groups:
   - name: radius
     rules:
       - alert: RadiusDown
-        expr: (freeradius_up{instance_name="production"} == 0) or (up{job="radius", instance_name="production"} == 0)
+        expr: (freeradius_up{instance_name="production"} == 0) or (up{job="freeradius", instance_name="production"} == 0)
         for: 1m
         labels: { severity: critical }
         annotations:
-          summary: Radius engine production not answering Status-Server
+          summary: FreeRADIUS production not answering Status-Server
           runbook: docs/runbooks/radius-down.md
 
       - alert: RadiusDatabaseDown
@@ -14,7 +14,7 @@ groups:
         for: 1m
         labels: { severity: critical }
         annotations:
-          summary: PostgreSQL on the Radius VPS is down (logins go silent; routers fall back)
+          summary: PostgreSQL on the RADIUS VPS is down (logins go silent; routers fall back)
 
       - alert: RadiusRejectSpike
         expr: |
@@ -60,7 +60,7 @@ groups:
         for: 1m
         labels: { severity: warning }
         annotations:
-          summary: '{{ $labels.name }} failed on the Radius VPS'
+          summary: '{{ $labels.name }} failed on the RADIUS VPS'
 
       - alert: AppHealthFailing
         expr: probe_success{job="blackbox-http"} == 0

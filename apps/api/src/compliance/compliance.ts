@@ -32,7 +32,7 @@ const hitView = z.object({
   destIp: z.string(),
   destPort: z.number().nullable(),
   inInterface: z.string(),
-  /** PPPoE username: from the interface name, else from the Radius session that had the private IP then. */
+  /** PPPoE username: from the interface name, else from the RADIUS session that had the private IP then. */
   username: z.string().nullable(),
   subscriber: z.object({ id: z.string(), name: z.string(), customerNo: z.string() }).nullable(),
 });
@@ -128,7 +128,7 @@ export class ComplianceService {
     };
   }
 
-  /** PPPoE user from the log line; otherwise the Radius session on that router that had the private IP then. */
+  /** PPPoE user from the log line; otherwise the RADIUS session on that router that had the private IP then. */
   private async usernames(tenantKey: string, hits: NatEvent[]): Promise<(string | null)[]> {
     const need = hits
       .map((h, i) => ({ h, i }))

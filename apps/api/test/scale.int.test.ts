@@ -18,7 +18,7 @@ beforeAll(async () => {
 afterAll(() => h?.close());
 
 describe('scale-test seeder', () => {
-  it('creates subscribers exactly like real ones, each queued for Radius', async () => {
+  it('creates subscribers exactly like real ones, each queued for RADIUS', async () => {
     await seedScale(h.db, 'scale', 3000, 'Home 50', log);
     const subs = h.db.collection('subscribers');
     expect(await subs.countDocuments({ tenantId, tags: SCALE_TAG })).toBe(3000);
@@ -49,7 +49,7 @@ describe('scale-test seeder', () => {
     expect(lines.find((l) => l.startsWith('exact username'))).toMatch(/ 1 rows/);
   });
 
-  it('removes them and queues Radius deletion', async () => {
+  it('removes them and queues RADIUS deletion', async () => {
     await removeScale(h.db, 'scale', log);
     expect(await h.db.collection('subscribers').countDocuments({ tenantId, tags: SCALE_TAG })).toBe(0);
     expect(await h.db.collection('outbox').countDocuments({ tenantId, entity: 'subscriber' })).toBe(6000);

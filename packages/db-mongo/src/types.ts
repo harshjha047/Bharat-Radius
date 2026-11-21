@@ -114,7 +114,7 @@ export interface NasDeviceDoc extends Standard {
   /** Root → parent of `resellerId`. */
   ancestors?: ObjectId[];
   name: string;
-  /** Source IP of Radius packets; unset when deleted (kept in deletedIp) so the IP can be reused. */
+  /** Source IP of RADIUS packets; unset when deleted (kept in deletedIp) so the IP can be reused. */
   ip?: string;
   deletedIp?: string;
   radiusSecret: EncryptedField;

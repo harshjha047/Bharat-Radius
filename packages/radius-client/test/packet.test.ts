@@ -45,7 +45,7 @@ describe('encodeRequest', () => {
   });
 
   const hasRadclient = spawnSync('which', ['radclient']).status === 0;
-  it.skipIf(!hasRadclient)('is byte-identical to radclient for the same CoA-Request', async () => {
+  it.skipIf(!hasRadclient)('is byte-identical to FreeRADIUS radclient for the same CoA-Request', async () => {
     const sock = dgram.createSocket('udp4');
     const got = new Promise<Buffer>((r) => sock.once('message', (m) => r(m)));
     await new Promise<void>((r) => sock.bind(0, '127.0.0.1', () => r()));

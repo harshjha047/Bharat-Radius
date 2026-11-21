@@ -1,4 +1,4 @@
--- Snapshot of the old Bharat Radius database (RadiusSoftwareDb, restored as bharatradius_legacy) as one JSON
+-- Snapshot of the old BharatRadius database (RadiusSoftwareDb, restored as bharatradius_legacy) as one JSON
 -- document for `cli.js import-legacy`. Pipe it straight into the importer; never save it (it holds PPPoE passwords).
 -- Router secrets, gateway keys, staff password hashes and logs are not exported.
 --   sudo -u postgres psql -d bharatradius_legacy -XAtq -f legacy-export.sql | docker compose ... exec -T api node dist/cli.js import-legacy --tenant <slug>

@@ -1,7 +1,7 @@
 # Windows app host base (WP 1.4)
 
-Bharat Radius keeps running. Nothing here edits existing services: the shared MongoDB on 27017 (used by other apps, no auth),
-Bharat Radius' PostgreSQL on 5432, the pm2 apps (one of them on 4000), or other nginx server blocks.
+BharatRadius keeps running. Nothing here edits existing services: the shared MongoDB on 27017 (used by other apps, no auth),
+BharatRadius' PostgreSQL on 5432, the pm2 apps (one of them on 4000), or other nginx server blocks.
 
 | Ours | Where |
 |---|---|

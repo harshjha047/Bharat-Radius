@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end Radius checks for the PRD Step 1 checklist. Run as root on the Radius host (or CI runner).
+# End-to-end RADIUS checks for the PRD Step 1 checklist. Run as root on the RADIUS host (or CI runner).
 # Usage: sudo INSTANCE=staging ./e2e.sh      (default staging; never point at production with live routers)
 # Uses two router source IPs: 127.0.0.1 (ISP A) and the host's primary IP (ISP B).
 set -Euo pipefail
@@ -244,9 +244,9 @@ if [[ "${DB_OUTAGE_TEST:-0}" == 1 ]]; then
   pgstop
   r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-user,User-Password=Pa55-user')"
   pgstart; sleep 3
-  check "DB down: no reply (router fails over to fallback Radius), never a false reject" lacks "$r" "Received Access"
+  check "DB down: no reply (router fails over to fallback RADIUS), never a false reject" lacks "$r" "Received Access"
   r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-user,User-Password=Pa55-user')"
-  check "DB back: logins recover without restarting the Radius engine" has "$r" "Received Access-Accept"
+  check "DB back: logins recover without restarting FreeRADIUS" has "$r" "Received Access-Accept"
 fi
 
 echo

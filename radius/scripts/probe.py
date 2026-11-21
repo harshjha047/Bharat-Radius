@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthetic Radius login: one PAP Access-Request with Message-Authenticator, reply authenticator verified.
+"""Synthetic RADIUS login: one PAP Access-Request with Message-Authenticator, reply authenticator verified.
 
 Usage: probe.py <server> <port> <bind-ip> <secret> <user> <password> [timeout]
 Prints one line: "accept <seconds>", "reject <seconds>", "timeout" or "bad-reply". Exit 0 only on accept.

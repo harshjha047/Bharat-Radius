@@ -951,7 +951,7 @@ export default function Landing() {
               </tr>
             </thead>
             <tbody>
-              {COMPARE.map(([row, br, other, excel]) => (
+              {COMPARE.map(([row, br, dalo, excel]) => (
                 <tr key={row} className="border-t border-[#F1F3F8]">
                   <th scope="row" className="px-5 py-3.5 font-normal text-[#3F4A70]">
                     {row}
@@ -960,7 +960,7 @@ export default function Landing() {
                     <Mark value={br} />
                   </td>
                   <td className="px-5 py-3.5 text-center">
-                    <Mark value={other} />
+                    <Mark value={dalo} />
                   </td>
                   <td className="px-5 py-3.5 text-center">
                     <Mark value={excel} />

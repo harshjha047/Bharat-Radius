@@ -4,7 +4,7 @@ import type { MongoHandle, OutboxDoc, OutboxEntity } from '@isp/db-mongo';
 import { MONGO } from '../infra/infra.module.js';
 
 /**
- * Writes that must reach Radius run inside one MongoDB transaction together with their outbox row (TRD §6.3):
+ * Writes that must reach RADIUS run inside one MongoDB transaction together with their outbox row (TRD §6.3):
  * either both commit or neither does, so PostgreSQL can never silently miss a change.
  */
 @Injectable()

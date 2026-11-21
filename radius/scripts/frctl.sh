@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start/stop the Radius engine without systemd (CI containers, sandboxes). Production uses systemd units.
+# Start/stop FreeRADIUS without systemd (CI containers, sandboxes). Production uses systemd units.
 set -Eeuo pipefail
 INSTANCE="${1:?instance}"; ACTION="${2:?start|stop|restart}"
 . "/etc/isp-radius/$INSTANCE.conf"
@@ -23,7 +23,7 @@ start() {
     kill -0 "$(cat "$PIDFILE")" 2>/dev/null || { tail -30 "$LOG" >&2; exit 1; }
     sleep 0.2
   done
-  echo "Radius engine $INSTANCE did not open UDP $AUTH_PORT" >&2; tail -30 "$LOG" >&2; exit 1
+  echo "FreeRADIUS $INSTANCE did not open UDP $AUTH_PORT" >&2; tail -30 "$LOG" >&2; exit 1
 }
 case "$ACTION" in
   start) start ;;

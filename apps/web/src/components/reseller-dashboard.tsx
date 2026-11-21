@@ -109,7 +109,7 @@ const EVENT_TONE = {
   reject: 'text-danger-text',
 } as const;
 
-/** Newest Radius events (auth + accounting) of this reseller's customers and routers. */
+/** Newest RADIUS events (auth + accounting) of this reseller's customers and routers. */
 function LiveLog({ names }: { names: Map<string, string> }) {
   const q = useQuery({
     queryKey: ['radius', 'tail', 'dashboard'],
@@ -207,7 +207,7 @@ function LoginsPanel() {
   );
 }
 
-/** Reseller: customers online, its routers, logins per hour and the live Radius log. */
+/** Reseller: customers online, its routers, logins per hour and the live RADIUS log. */
 export function ResellerNetwork() {
   const can = useCan();
   const logs = can('sessions.read');

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# F-17: record Radius packets that could not be used, so the panel can say why a router gets no answer.
+# F-17: record RADIUS packets that could not be used, so the panel can say why a router gets no answer.
 #   log-events.sh <instance>            ingest new lines since the last run (systemd timer, every minute)
 #   log-events.sh <instance> parse      read log lines on stdin, print "kind<TAB>who<TAB>port<TAB>time" (tests)
 # Sources:
-#   Radius engine log (logdir/radius.log): "unknown client <ip>" and "invalid Message-/Request Authenticator"
+#   FreeRADIUS log (logdir/radius.log): "unknown client <ip>" and "invalid Message-/Request Authenticator"
 #     (= wrong shared secret; accounting lines name the router by its short name).
-#   Kernel log (journald): "[UFW BLOCK]" for this instance's Radius ports = an address not on the allow-list.
+#   Kernel log (journald): "[UFW BLOCK]" for this instance's RADIUS ports = an address not on the allow-list.
 # Rows go to radius_events (one per kind, address, port and minute). Both sources rate-limit their messages,
 # so counts are "at least". Offsets: /var/lib/isp-radius/<instance>.radlog.pos, <instance>.kernel.cursor.
 set -Eeuo pipefail
@@ -20,7 +20,7 @@ case "$INSTANCE" in
   *) echo "instance must be production or staging" >&2; exit 2 ;;
 esac
 
-# Radius engine log lines start "Thu Nov 19 13:00:01 2026 : Error: ..."; kernel lines are prefixed by us with the time.
+# FreeRADIUS lines start "Thu Nov 19 13:00:01 2026 : Error: ..."; kernel lines are prefixed by us with the time.
 parse() {
   awk -v auth="$AUTH_PORT" -v acct="$ACCT_PORT" '
     function ts(line) { return substr(line, 1, 24) }
@@ -58,7 +58,7 @@ if [[ $MODE == parse ]]; then parse; exit 0; fi
 install -d -m 0700 "$STATE_DIR"
 TMP="$(mktemp)"; trap 'rm -f "$TMP"' EXIT
 
-# ---- Radius engine log since the last offset (restart from 0 after rotation)
+# ---- FreeRADIUS log since the last offset (restart from 0 after rotation)
 if [[ -r $RADLOG ]]; then
   POS_FILE="$STATE_DIR/$INSTANCE.radlog.pos"
   read -r ino pos <"$POS_FILE" 2>/dev/null || { ino=0; pos=0; }

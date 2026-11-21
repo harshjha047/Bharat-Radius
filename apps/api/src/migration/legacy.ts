@@ -209,7 +209,7 @@ export function mapSubscriber(
   if (!x.expireDate) filled.push('expiry');
 
   const notes = [
-    'Imported from old Bharat Radius.',
+    'Imported from old BharatRadius.',
     filled.length ? `Filled in: ${filled.join(', ')}.` : '',
     x.comment ? `Old note: ${x.comment}` : '',
   ]
@@ -285,8 +285,8 @@ export interface ImportReport {
 }
 
 const ACTOR = 'cli:import-legacy';
-const AUDIT_ACTOR = { id: 'cli', type: 'system', name: 'old Bharat Radius importer' };
-const NOTE = 'Opening balance from old Bharat Radius';
+const AUDIT_ACTOR = { id: 'cli', type: 'system', name: 'old BharatRadius importer' };
+const NOTE = 'Opening balance from old BharatRadius';
 
 export async function importLegacy(
   client: MongoClient,
@@ -443,7 +443,7 @@ export async function importLegacy(
         creditLimitPaise: 0,
         canCreateSubResellers: ancestors.length === 0,
         status: x.active ? 'active' : 'suspended',
-        ...(x.active ? {} : { suspendReason: 'Inactive in old Bharat Radius' }),
+        ...(x.active ? {} : { suspendReason: 'Inactive in old BharatRadius' }),
         version: 0,
         createdAt: now,
         updatedAt: now,
@@ -574,7 +574,7 @@ export async function importLegacy(
             _id: new ObjectId(),
             tenantId,
             name: finalName,
-            description: 'Imported from old Bharat Radius',
+            description: 'Imported from old BharatRadius',
             downloadKbps,
             uploadKbps,
             ...derive({ downloadKbps, uploadKbps }),
@@ -651,7 +651,7 @@ export async function importLegacy(
         ),
         coaPort: n.coaPort || 3799,
         location: { popName: n.name.slice(0, 80) },
-        description: 'Imported from old Bharat Radius; reveal the secret before running setup.rsc',
+        description: 'Imported from old BharatRadius; reveal the secret before running setup.rsc',
         status: n.enabled ? 'active' : 'disabled',
         version: 0,
         createdAt: now,

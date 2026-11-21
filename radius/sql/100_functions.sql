@@ -6,7 +6,7 @@ RETURNS bytea LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$
 $$;
 
 -- PPPoE password key: a per-role setting (ALTER ROLE <fr_role> SET app.pw_key, install.sh), never query text,
--- so it cannot appear in debug output, pg_stat_statements or a database dump.
+-- so it cannot appear in `freeradius -X`, pg_stat_statements or a database dump.
 CREATE OR REPLACE FUNCTION radius_pw_key()
 RETURNS text LANGUAGE plpgsql STABLE AS $$
 DECLARE
@@ -156,7 +156,7 @@ BEGIN
   RETURN 1;
 END $$;
 
--- p_type: start | interim-update | stop | accounting-on | accounting-off. All numeric args arrive as text from the Radius engine.
+-- p_type: start | interim-update | stop | accounting-on | accounting-off. All numeric args arrive as text from FreeRADIUS.
 CREATE OR REPLACE FUNCTION radius_acct(
   p_type text, p_nas inet, p_uid text, p_sid text, p_user text,
   p_event_ts text, p_req_ts text, p_delay text, p_sesstime text,
@@ -340,7 +340,7 @@ BEGIN
   RETURN v_dropped;
 END $$;
 
--- Stable hash of everything the Radius engine loads as clients; the NAS watcher restarts the Radius engine when it changes.
+-- Stable hash of everything FreeRADIUS loads as clients; the NAS watcher restarts FreeRADIUS when it changes.
 CREATE OR REPLACE FUNCTION radius_nas_hash()
 RETURNS text LANGUAGE sql STABLE AS $$
   SELECT md5(coalesce(string_agg(concat_ws('|', id, host(nasname), shortname, type, secret), ',' ORDER BY id), ''))

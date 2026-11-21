@@ -1,7 +1,7 @@
 # Step 2 progress — Admin panel and subscriber management
 
 Started 4 Nov 2026 while Step 1 waits on NetForChoice ports (UDP 1812/1813/11812/11813, TCP 8089) and lab routers.
-Nothing here touches the Radius login path; Step 1 items 1, 4, 8, 9 are still to be closed on real routers.
+Nothing here touches the RADIUS login path; Step 1 items 1, 4, 8, 9 are still to be closed on real routers.
 
 ## Work packages
 
@@ -10,12 +10,12 @@ Nothing here touches the Radius login path; Step 1 items 1, 4, 8, 9 are still to
 | 2.1 API skeleton | ✅ code + tests | NestJS 12 (ESM) on Fastify 5; zod at every boundary; OpenAPI 3.1 at `/api/v1/openapi.json` (off in production); pino JSON logs with request id, tenant id, user id; error format TRD §7; `/healthz` `/livez` unchanged; MongoDB migrations with lock, API refuses to start with pending ones; `cli.js migrate / create-tenant / create-user` |
 | 2.2 Data-access scoping | ✅ code + tests | `ScopedDb`/`ScopedCollection` in `packages/db-mongo`: tenant (and reseller branch) ANDed into every read and write; tenant stamped on insert; tenant field immutable; `$lookup`-style stages refused; unknown collections refused. Cross-tenant harness: every `:id` route is called by another tenant's admin and must answer 404 with no change; a new `:id` route without a fixture fails CI |
 | 2.3 Auth | ✅ code + tests | argon2id (19 MiB, t=2), TOTP (RFC 6238, ±1 step, replay-proof), 15-min HS512 access JWT + 30-day rotating refresh token (peppered HMAC, family revocation on reuse, 10 s multi-tab grace), HttpOnly cookies, session-bound CSRF + Origin check, JSON-only bodies, lockout 5 failures/15 min per account and 20/15 min per IP; built-in roles; users and roles API with no privilege escalation |
-| 2.4 Tenants, routers, plans | ✅ code + tests | Own-ISP settings (staff) and ISP CRUD/suspend (super-admin, others get 404); routers with IP unique across ISPs, encrypted secret (generated, shown once, reveal/rotate), soft delete that frees the IP; plans with Mikrotik-Rate-Limit derived from speeds/burst, cap ⇒ FUP speed, reserved Radius attributes refused, GST defaults (18 %, SAC 998422). Every change commits with its outbox row in one MongoDB transaction |
+| 2.4 Tenants, routers, plans | ✅ code + tests | Own-ISP settings (staff) and ISP CRUD/suspend (super-admin, others get 404); routers with IP unique across ISPs, encrypted secret (generated, shown once, reveal/rotate), soft delete that frees the IP; plans with Mikrotik-Rate-Limit derived from speeds/burst, cap ⇒ FUP speed, reserved RADIUS attributes refused, GST defaults (18 %, SAC 998422). Every change commits with its outbox row in one MongoDB transaction |
 | 2.5 Outbox worker | ✅ code + tests | `apps/workers` (`isp-workers` container): one leader via lease, change-stream wake + 1 s poll, latest-state sync (idempotent, adopts Step 1 rows by natural key), backoff 5 s → 5 min, `/metrics` + alerts `OutboxStuck`, `OutboxNoLeader`; runbook `docs/runbooks/outbox.md`. Test proves < 2 s save → PostgreSQL |
 | 2.6 Subscribers | ✅ code + tests | CRUD, suspend/activate, kick, delete (frees username/static IP), PPPoE password encrypted (generated, shown once, reveal needs `subscribers.password.reveal`), customer numbers per ISP, MAC lock/static IP/sim-use, prefix search on name/username/phone/customer no., `syncStatus` per version. Worker syncs to PostgreSQL (`radius_encrypt_password`) and sends CoA: rate change via `radius_reply`, disconnect for state changes, NAK → disconnect, every attempt in `coa_log` (`GET /subscribers/:id/coa-log`). Plan speed edits CoA everyone online on the plan |
 | 2.7 Sessions and logs | ✅ code + tests | `GET /sessions/live` (search username/IP/MAC prefix, filter by router, stale flag), `/sessions/summary` (online per router), `/sessions/lookup?ip=&at=` (who had an IP), `/subscribers/:id/sessions` and `/auth-log` (reject reasons), keyset paging with microsecond-exact cursors, partition-pruned 90-day default window. Kick is `POST /subscribers/:id/kick` (2.6) |
 | 2.8 Usage and FUP | ✅ code + tests | `radius_usage_rollup()` (one statement, advisory lock, `usage_seen` so runs never double count) every 15 min via a lease-based scheduler in `isp-workers`; FUP on/off when cycle usage crosses the plan cap (calendar month or billing cycle), synced with a Disconnect; cap removed → FUP lifted; `GET /subscribers/:id/usage`; job metrics + `UsageJobStale` alert; runbook `docs/runbooks/usage.md` |
-| 2.9 Excel import/export | ✅ code + tests | Template (`/subscribers/import/template`, with the ISP's plans and column help); upload the `.xlsx` as the request body (≤ 10 MB, ≤ 50,000 rows), every row validated with the same rules as the API (plan by name, duplicates in file and in the ISP), `dryRun`, all-or-nothing unless `skipInvalid`; valid rows queued (passwords encrypted) and created by the `imports` worker job through the shared writer (customer no., Radius sync), resumable; progress + error sheet; `/subscribers/export` without passwords (`subscribers.export`) |
+| 2.9 Excel import/export | ✅ code + tests | Template (`/subscribers/import/template`, with the ISP's plans and column help); upload the `.xlsx` as the request body (≤ 10 MB, ≤ 50,000 rows), every row validated with the same rules as the API (plan by name, duplicates in file and in the ISP), `dryRun`, all-or-nothing unless `skipInvalid`; valid rows queued (passwords encrypted) and created by the `imports` worker job through the shared writer (customer no., RADIUS sync), resumable; progress + error sheet; `/subscribers/export` without passwords (`subscribers.export`) |
 | 2.10 Audit log | ✅ code + tests | `audit_logs` (migration 005, append-only, no API to change it): every signed-in change and every secret/bulk reveal (router secret, PPPoE password, export) declares an action, enforced by a unit test over the route table; services note before/after and only changed fields are kept, secrets shown as `[redacted]`; sign-in, failed sign-in (known account) and lock recorded with IP; `GET /audit` (`audit.view`) filters by entity, person, action prefix, time, newest first |
 | 2.11 Admin web app | ✅ code + tests | `apps/web` (Next.js 16 App Router, Tailwind 4, shadcn-style Radix components, TanStack Query, react-hook-form + zod, Recharts on demand). Screens: sign-in (password → TOTP, forced 2FA enrolment), dashboard, subscribers (search, filters, create/edit/suspend/activate/kick/delete, password reveal, sessions, login log, usage + cycle, router actions, history), online sessions + "who had this IP", plans, routers (secret once, reveal/rotate), Excel import (check first, progress, error sheet) and export, staff & roles, audit log, ISP settings, my account, super-admin ISPs. Typed client generated from the API's OpenAPI (CI fails on drift); one silent refresh on 401; navigation and actions follow permissions; tables become cards under 640 px; WCAG 2.1 AA checked with axe. Container `isp-web` (≤ 0.5 CPU / 256 MB), Caddy sends `/api/*` to the API and the rest to the panel. CI drives Chromium through the real API and MongoDB |
 | 2.12 Scale test data | ✅ on staging | `cli.js seed-scale` (same document builder as API/import, synced through the outbox): 100,000 subscribers in 66 s (≈1,500/s); `--bench` times the panel's own search; `--remove` cleans up both databases |
@@ -44,9 +44,9 @@ Nothing here touches the Radius login path; Step 1 items 1, 4, 8, 9 are still to
 12. Plan `burst` is `{ downloadKbps, uploadKbps, thresholdDownloadKbps, thresholdUploadKbps, timeSecs }`; FUP speed
     is `fup: { downloadKbps, uploadKbps }`, both turned into RouterOS strings (`upload/download`, 1M = 1000k).
 13. Router delete moves `ip` to `deletedIp` so the IP can be reused; disabling or deleting removes the row from
-    PostgreSQL (the Radius engine stops answering that router within 30 s).
+    PostgreSQL (FreeRADIUS stops answering that router within 30 s).
 14. ~~A plan speed change reaches online users only after WP 2.6~~ done in 2.6.
-15. **CoA policy**: same Radius state (active/fup/expired) and a new plan → CoA with the rate `radius_reply()` now
+15. **CoA policy**: same RADIUS state (active/fup/expired) and a new plan → CoA with the rate `radius_reply()` now
     returns; any state change, suspend, delete, new static IP or MAC lock → Disconnect (the router re-dials and gets
     a fresh reply, including address lists). A NAK falls back to Disconnect. Needs `radius_reply` granted to the
     app role (`200_grants.sql`): **rerun `install.sh all` on the VPS**; without it the worker disconnects instead.
@@ -66,7 +66,7 @@ Nothing here touches the Radius login path; Step 1 items 1, 4, 8, 9 are still to
     and typed-in subscribers are identical. Uploads are the raw `.xlsx` body (custom media type → CORS preflight,
     so no CSRF exposure) instead of multipart. Libraries: `read-excel-file` / `write-excel-file` (one small
     dependency each) rather than `exceljs` (21 MB, unmaintained transitive deps).
-24. Import is create-only. Updating existing subscribers from a sheet is the Bharat Radius importer (Step 4).
+24. Import is create-only. Updating existing subscribers from a sheet is the BharatRadius importer (Step 4).
 25. Audit entries are written after the change commits, in the same request; a failed audit write is logged as an error and does not undo the change. Login, failed login and lock are recorded only for a known account (unknown logins stay in the IP rate limit, not the log).
 26. Audit keeps changed top-level fields only; `updatedAt`, `version`, `search`, `syncStatus` are ignored. Retention: kept indefinitely until Step 6 sets archiving.
 
@@ -80,21 +80,21 @@ Nothing here touches the Radius login path; Step 1 items 1, 4, 8, 9 are still to
 32. **All development and testing happen on the current VPS** (4 vCPU, 8 GB) until all five steps are done (owner,
     6 Nov). The "upgrade before the 100,000 test" note in TRD §3.1 no longer applies; scale tests run here.
 33. **Lab router = CHR on the VPS** (`deploy/ubuntu/lab/chr-lab.sh`): RouterOS 7 CHR + a PPPoE test customer on
-    private addresses next to the staging Radius, provisioned by a first-boot `autorun.scr` carrying the repo's own
-    `setup.rsc`. Needs no NetForChoice ports. Customer routers (FAB5, on another Radius today) are not touched until
+    private addresses next to the staging RADIUS, provisioned by a first-boot `autorun.scr` carrying the repo's own
+    `setup.rsc`. Needs no NetForChoice ports. Customer routers (FAB5, on another RADIUS today) are not touched until
     a planned switch-over with the old server as fallback (`setup.rsc` now keeps the fallback's CoA allowed).
 34. `cli.js reset-password` for locked-out staff (prompted password, optional `--reset-2fa`, audit-logged).
 
 ## Gate (Step 2 checklist, PRD §13)
 
-Run 5–6 Nov 2026 on staging (`new.bharatradius.com`, staging Radius ports 11812/11813) with the CHR lab router.
+Run 5–6 Nov 2026 on staging (`new.bharatradius.com`, staging RADIUS ports 11812/11813) with the CHR lab router.
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
 | 1 | A subscriber created in the panel can log in within seconds | ✅ | Created `test.lab`, synced, PPPoE dial accepted (`100.64.50.200`); Login log "Accepted" |
 | 2 | Plan change, suspend and kick take effect on the router with no customer action | ✅ | Router actions: Speed change → Done 10 ms (no reconnect); Disconnect (kick) → Done 17 ms, customer redialled; suspend → refused "Account suspended", activate → accepted |
-| 3 | A router added in the panel is accepted by the Radius engine within 30 s | ✅ | `Lab CHR` 10.99.0.2 added in the panel, shown Active after sync; its first requests were answered (tcpdump) and the first correct login accepted. The add-to-accept time was not timed separately; the NAS watcher's ≤ 30 s reload was measured in Step 1 |
-| 4 | Data cap applies the FUP speed; it resets at the next cycle | ✅ | Lab: 17.1 MB of a 10 MB cap → FUP at the next roll-up, Disconnect (FUP) → Done 14 ms, reconnect at 1M/1M. Reset: worker integration test runs the cap check as of the 1st of next month → FUP lifted in Radius (PR #20) |
+| 3 | A router added in the panel is accepted by FreeRADIUS within 30 s | ✅ | `Lab CHR` 10.99.0.2 added in the panel, shown Active after sync; its first requests were answered (tcpdump) and the first correct login accepted. The add-to-accept time was not timed separately; the NAS watcher's ≤ 30 s reload was measured in Step 1 |
+| 4 | Data cap applies the FUP speed; it resets at the next cycle | ✅ | Lab: 17.1 MB of a 10 MB cap → FUP at the next roll-up, Disconnect (FUP) → Done 14 ms, reconnect at 1M/1M. Reset: worker integration test runs the cap check as of the 1st of next month → FUP lifted in RADIUS (PR #20) |
 | 5 | Excel import of 2,000 subscribers loads every valid row and lists each bad row with the reason | ✅ | 2,000 rows → 1,975 valid created, 0 failed; 25 deliberate errors (phone, PIN, plan, duplicate username, MAC) listed with row, column and reason; error sheet downloadable |
 | 6 | Each role tested: staff without a permission cannot open or change restricted pages | ✅ | CI browser test: Support sees no Staff/Audit/Settings/Import, `/admin/users` → "Your role does not allow this", no Add router. Staging (6 Nov, Support user "test"): menu shows only Dashboard, Subscribers, Online now, Plans, Routers; `/admin/users` → "Your role does not allow this"; Routers has no Add router; subscriber ⋯ menu has no "Show PPPoE password" |
 | 7 | Every change shows in the audit log with who made it and when | ✅ | History tab: create, update (plan names before → after), kick, suspend/activate, password reveal (no password), with name and time |
@@ -104,8 +104,8 @@ Run 5–6 Nov 2026 on staging (`new.bharatradius.com`, staging Radius ports 1181
 ### Follow-ups found during the gate
 
 - Name-word search is the slow path (≈ 500 ms at 100,000: walks newest-first until a page of matches). Re-measure
-  with the real Bharat Radius data in Step 4; if names are less varied, add a dedicated name index.
-- Excel import creates ≈ 15–20 subscribers/s (one transaction each). Fine for daily use; the Step 4 Bharat Radius
+  with the real BharatRadius data in Step 4; if names are less varied, add a dedicated name index.
+- Excel import creates ≈ 15–20 subscribers/s (one transaction each). Fine for daily use; the Step 4 BharatRadius
   migration needs a batched path (the seeder's 1,500/s shows the headroom).
 - Earlier "Not online" Router actions on 5 Nov 18:20–18:26 coincided with a stray second test dialer (fixed in
   `chr-lab.sh`); all later actions were "Done". Watch for it in Step 3 testing.
@@ -122,7 +122,7 @@ unit:        shared 9, db-mongo 10 (scope rules), radius-client 13, workers 5, a
              PATCH bodies)
 integration: apps/api/test/*.int.test.ts and apps/workers against MongoDB (CI: 7.0) and PostgreSQL 16: auth, TOTP,
              lockout, refresh, CSRF/Origin, permissions, privilege escalation, cross-tenant 404 for every :id route,
-             routers/plans/subscribers, outbox → Radius + CoA, sessions, usage/FUP, Excel import/export, audit log
+             routers/plans/subscribers, outbox → RADIUS + CoA, sessions, usage/FUP, Excel import/export, audit log
 browser:     apps/web/e2e/panel.e2e.mjs (Chromium → web → API → MongoDB): 2FA enrolment, plan, router, subscriber
              create/duplicate/edit/history, audit, phone layout, sign-out, Support role limits
 ```

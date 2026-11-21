@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Idempotent installer for the Radius hot path (Radius engine 3.2 + PostgreSQL 16) on Ubuntu 24.04.
+# Idempotent installer for the RADIUS hot path (FreeRADIUS 3.2 + PostgreSQL 16) on Ubuntu 24.04.
 # Usage: sudo PG_TLS_HOSTNAME=radius.example.net [APP_SUBNET=172.16.0.0/12] [WINDOWS_IP=203.0.113.10] ./install.sh [production|staging|all]
 #   APP_SUBNET: Docker networks of the app stack on this host (deploy/ubuntu/app); app roles may connect from there over TLS.
 #   WINDOWS_IP: remote app host (Windows plan); app roles + replication may connect from there over TLS.
@@ -68,7 +68,7 @@ PKGS=("postgresql-$PG_VER" postgresql-contrib freeradius freeradius-postgresql f
 missing=(); for p in "${PKGS[@]}"; do dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p"); done
 if ((${#missing[@]})); then apt-get update -qq; apt-get install -y -qq "${missing[@]}"; fi
 FR_VER="$(freeradius -v | sed -n 's/.*Version \([0-9.]*\).*/\1/p' | head -1)"
-dpkg --compare-versions "$FR_VER" ge 3.2.5 || die "Radius engine >= 3.2.5 required (Blast-RADIUS fixes); found $FR_VER"
+dpkg --compare-versions "$FR_VER" ge 3.2.5 || die "FreeRADIUS >= 3.2.5 required (Blast-RADIUS fixes); found $FR_VER"
 
 # ---------------------------------------------------------------- port checks
 port_owner() { ss -H -lnp "$@" 2>/dev/null | sed -n 's/.*users:((("\([^"]*\)".*/\1/p' | head -1; }
@@ -85,7 +85,7 @@ o="$(port_owner -t "sport = :5432")"
 # ---------------------------------------------------------------- backups
 install -d -m 0700 "$BACKUP_DIR" "$STATE_DIR"
 install -d -m 0755 "$ETC_DIR"
-log "backing up the Radius engine and PostgreSQL config to $BACKUP_DIR"
+log "backing up FreeRADIUS and PostgreSQL config to $BACKUP_DIR"
 BACKUP_PATHS=(/etc/freeradius "/etc/postgresql/$PG_VER/main")
 [[ -d /etc/freeradius-staging ]] && BACKUP_PATHS+=(/etc/freeradius-staging)
 tar -czf "$BACKUP_DIR/config-$TS.tgz" "${BACKUP_PATHS[@]}" 2>/dev/null
@@ -247,7 +247,7 @@ SQL
   psql_su -d "$DB" -c "SELECT radius_ensure_partitions(1)" >/dev/null
 done
 
-# ---------------------------------------------------------------- The Radius engine
+# ---------------------------------------------------------------- FreeRADIUS
 install -d -m 0755 "$OPT_DIR"
 # Only these two are owned here; other tools keep their files elsewhere under $OPT_DIR (e.g. monitoring/).
 rm -rf "$OPT_DIR/scripts" "$OPT_DIR/sql"
@@ -264,7 +264,7 @@ set_conf() { # file key value  (first occurrence, keeps indentation)
 for inst in "${INSTANCES[@]}"; do
   instance_vars "$inst"
   if [[ "$inst" == staging ]]; then
-    log "[$inst] cloning the Radius engine tree to $RADDB"
+    log "[$inst] cloning FreeRADIUS tree to $RADDB"
     install -d -m 0755 "$(dirname "$RADDB")"
     rm -rf "$RADDB.new"; cp -a /etc/freeradius/3.0 "$RADDB.new"
     rm -rf "$RADDB"; mv "$RADDB.new" "$RADDB"
@@ -272,7 +272,7 @@ for inst in "${INSTANCES[@]}"; do
     set_conf "$RADDB/radiusd.conf" logdir '/var/log/freeradius-staging'
     install -d -o freerad -g freerad -m 0750 /var/log/freeradius-staging /var/run/freeradius-staging
   fi
-  log "[$inst] writing the Radius engine config in $RADDB"
+  log "[$inst] writing FreeRADIUS config in $RADDB"
   set_conf "$RADDB/radiusd.conf" max_requests 65536
   set_conf "$RADDB/radiusd.conf" start_servers 16
   set_conf "$RADDB/radiusd.conf" max_servers 32
@@ -280,12 +280,12 @@ for inst in "${INSTANCES[@]}"; do
   set_conf "$RADDB/radiusd.conf" max_spare_servers 16
   set_conf "$RADDB/radiusd.conf" max_queue_size 65536
   set_conf "$RADDB/radiusd.conf" proxy_requests no
-  render "$SRC_DIR/engine/mods/sql" "$RADDB/mods-available/sql"
-  install -m 0640 "$SRC_DIR/engine/mods/isp_queries.conf" "$RADDB/mods-config/sql/main/postgresql/isp_queries.conf"
-  install -m 0640 "$SRC_DIR/engine/policy.d/isp_filter" "$RADDB/policy.d/isp_filter"
-  render "$SRC_DIR/engine/sites/isp" "$RADDB/sites-available/isp"
-  render "$SRC_DIR/engine/sites/status" "$RADDB/sites-available/status"
-  install -m 0640 "$SRC_DIR/engine/clients.conf" "$RADDB/clients.conf"
+  render "$SRC_DIR/freeradius/mods/sql" "$RADDB/mods-available/sql"
+  install -m 0640 "$SRC_DIR/freeradius/mods/isp_queries.conf" "$RADDB/mods-config/sql/main/postgresql/isp_queries.conf"
+  install -m 0640 "$SRC_DIR/freeradius/policy.d/isp_filter" "$RADDB/policy.d/isp_filter"
+  render "$SRC_DIR/freeradius/sites/isp" "$RADDB/sites-available/isp"
+  render "$SRC_DIR/freeradius/sites/status" "$RADDB/sites-available/status"
+  install -m 0640 "$SRC_DIR/freeradius/clients.conf" "$RADDB/clients.conf"
   rm -f "$RADDB"/sites-enabled/* "$RADDB/mods-enabled/eap"
   ln -sf ../sites-available/isp "$RADDB/sites-enabled/isp"
   ln -sf ../sites-available/status "$RADDB/sites-enabled/status"
@@ -305,9 +305,9 @@ ACCT_PORT=$ACCT_PORT
 STATUS_PORT=$STATUS_PORT
 EOF
 
-  log "[$inst] checking the Radius engine config"
+  log "[$inst] checking FreeRADIUS config"
   ( set -a; . "$ETC_DIR/$inst.env"; set +a; freeradius -XC -d "$RADDB" >"$STATE_DIR/$inst.configcheck.log" 2>&1 ) \
-    || { tail -30 "$STATE_DIR/$inst.configcheck.log" >&2; die "[$inst] the Radius engine config check failed"; }
+    || { tail -30 "$STATE_DIR/$inst.configcheck.log" >&2; die "[$inst] FreeRADIUS config check failed"; }
 done
 
 # ---------------------------------------------------------------- services and timers
@@ -320,7 +320,7 @@ Wants=postgresql.service
 [Service]
 EnvironmentFile=$ETC_DIR/production.env
 EOF
-  sed -e 's|^Description=.*|Description=Radius engine staging (isp-platform)|' \
+  sed -e 's|^Description=.*|Description=FreeRADIUS staging (isp-platform)|' \
       -e 's|^EnvironmentFile=.*|EnvironmentFile=/etc/isp-radius/staging.env|' \
       -e 's|\$FREERADIUS_OPTIONS|-d /etc/freeradius-staging/3.0|g' \
       -e 's|^RuntimeDirectory=.*|RuntimeDirectory=freeradius-staging|' \
@@ -340,7 +340,7 @@ EOF
   # Synthetic login (WP 4.9): needs the node exporter's textfile directory.
   if [[ -d /var/lib/prometheus/node-exporter ]]; then
     "$OPT_DIR/scripts/probe.sh" setup && systemctl enable -q --now isp-radius-probe.timer \
-      || log "synthetic probe setup failed; Radius itself is fine (run $OPT_DIR/scripts/probe.sh setup)"
+      || log "synthetic probe setup failed; RADIUS itself is fine (run $OPT_DIR/scripts/probe.sh setup)"
   fi
 else
   log "no systemd: starting services directly (CI/sandbox mode)"
@@ -354,7 +354,7 @@ done
 # ---------------------------------------------------------------- firewall (only if already active)
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   log "ufw active: adding rules"
-  # Radius ports: only routers in the nas table (synced by the NAS watcher) plus hand-added entries in
+  # RADIUS ports: only routers in the nas table (synced by the NAS watcher) plus hand-added entries in
   # $ETC_DIR/<instance>.allow (scripts/nas-allow.sh). Both instances start closed; nothing is open to all.
   for inst in "${INSTANCES[@]}"; do
     [[ -f "$ETC_DIR/$inst.allow" ]] || install -m 0644 /dev/null "$ETC_DIR/$inst.allow"

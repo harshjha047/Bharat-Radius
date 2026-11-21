@@ -201,7 +201,7 @@ export class NasService {
     return (await this.views([d], b))(d, revealed);
   }
 
-  /** IP is unique across all tenants (the Radius engine identifies the ISP by it), so check without tenant scope. */
+  /** IP is unique across all tenants (FreeRADIUS identifies the ISP by it), so check without tenant scope. */
   private async assertIpFree(ip: string, except?: ObjectId) {
     const other = await this.raw().findOne(
       { ip, ...(except ? { _id: { $ne: except } } : {}) },
@@ -370,7 +370,7 @@ export class NasController {
 
   @Get('radius-target')
   @Endpoint({
-    summary: 'Radius host and ports routers must send to (this panel feeds that instance)',
+    summary: 'RADIUS host and ports routers must send to (this panel feeds that instance)',
     tags: ['nas'],
     permission: 'nas.read',
     response: radiusTarget,
@@ -393,7 +393,7 @@ export class NasController {
 
   @Post()
   @Endpoint({
-    summary: 'Add a router; the Radius engine serves it within ~30 s (secret returned once if generated)',
+    summary: 'Add a router; FreeRADIUS serves it within ~30 s (secret returned once if generated)',
     tags: ['nas'],
     audit: 'nas.create',
     permission: 'nas.write',
@@ -446,7 +446,7 @@ export class NasController {
 
   @Get(':id/secret')
   @Endpoint({
-    summary: 'Show the Radius secret (for router setup)',
+    summary: 'Show the RADIUS secret (for router setup)',
     tags: ['nas'],
     audit: 'nas.secret_reveal',
     permission: 'nas.write',

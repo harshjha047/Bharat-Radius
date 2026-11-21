@@ -194,7 +194,7 @@ const toEntry = (r: Row): Entry => ({
   mac: r.callingstationid,
 });
 
-/** Plain-language cause and fix for a logged reason (TRD §5.2 reasons, Radius engine module messages). */
+/** Plain-language cause and fix for a logged reason (TRD §5.2 reasons, FreeRADIUS module messages). */
 export function explain(
   reason: string | null,
   accepted: boolean,
@@ -574,7 +574,7 @@ export class RadiusLogService {
     return { routers, problems: routers.filter((r) => r.problem && r.problem !== 'silent').length };
   }
 
-  /** Is anything arriving from this address, and why is Radius not answering it? Exact address only. */
+  /** Is anything arriving from this address, and why is RADIUS not answering it? Exact address only. */
   async address(ctx: AuthContext, q: z.output<typeof addressQuery>) {
     if (ctx.scope.kind === 'branch') throw forbidden('Ask the ISP to check router addresses');
     const platform = ctx.scope.kind === 'platform' && !q.tenantId;
@@ -634,7 +634,7 @@ export class RadiusLogService {
     };
   }
 
-  /** Super-admin: addresses sending Radius that are not a router of any ISP (last 24 h). */
+  /** Super-admin: addresses sending RADIUS that are not a router of any ISP (last 24 h). */
   async unknown() {
     const { rows } = await this.sessions.db().query<{
       ip: string;
@@ -779,7 +779,7 @@ export class RadiusLogController {
 
   @Get('radius/router-problems')
   @Endpoint({
-    summary: 'Routers with Radius problems: wrong shared secret (seen or likely), no logins in 24 h',
+    summary: 'Routers with RADIUS problems: wrong shared secret (seen or likely), no logins in 24 h',
     tags: ['sessions'],
     permission: 'nas.read',
     query: tenantQuery,
@@ -804,7 +804,7 @@ export class RadiusLogController {
 
   @Get('radius/unknown-clients')
   @Endpoint({
-    summary: 'Addresses sending Radius that are not a router of any ISP (super-admin, 24 h)',
+    summary: 'Addresses sending RADIUS that are not a router of any ISP (super-admin, 24 h)',
     tags: ['sessions'],
     platformOnly: true,
     permission: 'nas.read',
@@ -816,7 +816,7 @@ export class RadiusLogController {
 
   @Get('radius/tail')
   @Endpoint({
-    summary: 'Live Radius log: auth and accounting Start/Stop events since a time (poll every 2 s)',
+    summary: 'Live RADIUS log: auth and accounting Start/Stop events since a time (poll every 2 s)',
     tags: ['sessions'],
     permission: 'sessions.read',
     query: tailQuery,

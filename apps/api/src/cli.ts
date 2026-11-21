@@ -32,15 +32,15 @@ const USAGE = `usage: node dist/cli.js <command> [options]   (MONGO_URL from the
                  --pincode <p> --line1 <addr> [--domain <host>]
   create-user    --tenant <slug|platform> --name <n> (--email <e> | --phone <p>) [--role "ISP Admin"]
                  password: prompted, or piped on stdin
-  seed-scale     --tenant <slug> [--count 100000] [--plan "Home 50"]   add scale-test subscribers (synced to Radius)
+  seed-scale     --tenant <slug> [--count 100000] [--plan "Home 50"]   add scale-test subscribers (synced to RADIUS)
   seed-scale     --tenant <slug> --bench        time the panel's subscriber search
-  seed-scale     --tenant <slug> --remove       delete scale-test subscribers (and their Radius rows)
+  seed-scale     --tenant <slug> --remove       delete scale-test subscribers (and their RADIUS rows)
   reset-password --tenant <slug|platform> (--email <e> | --phone <p>) [--reset-2fa]
                  new password prompted (or stdin); unlocks the account and signs it out everywhere
   run-job        <postpaid-invoice|postpaid-overdue|reconcile-wallets> [--at <ISO date>]
                  run a billing job now (all ISPs); --at pretends it is that time (staging tests)
   import-legacy  --tenant <slug> [--sites 2,5] [--apply]
-                 old Bharat Radius snapshot (legacy-export.sql) on stdin; dry run unless --apply;
+                 old BharatRadius snapshot (legacy-export.sql) on stdin; dry run unless --apply;
                  re-runnable (second run = delta: password, plan, validity, status, owner)
   import-kyc     --tenant <slug> --dir <path> [--apply]
                  old CAF / ID files (JPEG, PNG, WebP, PDF) matched by username, customer no., phone or old id

@@ -1,7 +1,7 @@
 /**
  * Scale test (Step 2 gate: 100,000 subscribers, search under 1 s). Test subscribers are tagged "scale-test", built
- * exactly like real ones (shared buildSubscriberDoc) and synced to Radius through the normal outbox; --remove deletes
- * them from MongoDB and lets the worker delete their Radius rows.
+ * exactly like real ones (shared buildSubscriberDoc) and synced to RADIUS through the normal outbox; --remove deletes
+ * them from MongoDB and lets the worker delete their RADIUS rows.
  */
 import { randomBytes } from 'node:crypto';
 import { ObjectId, type Db, type Filter } from 'mongodb';
@@ -156,7 +156,7 @@ export async function seedScale(
       log(`${done.toLocaleString('en-IN')} created (${Math.round((done / (Date.now() - t0)) * 1000)}/s)`);
   }
   log(
-    `done in ${Math.round((Date.now() - t0) / 1000)} s; the worker now syncs them to Radius (watch isp_outbox_pending)`,
+    `done in ${Math.round((Date.now() - t0) / 1000)} s; the worker now syncs them to RADIUS (watch isp_outbox_pending)`,
   );
 }
 
@@ -172,7 +172,7 @@ export async function removeScale(db: Db, slug: string, log: (s: string) => void
     ).map((d) => d._id);
     if (!ids.length) break;
     await subs.deleteMany({ _id: { $in: ids } });
-    // A missing subscriber makes the worker delete its Radius row.
+    // A missing subscriber makes the worker delete its RADIUS row.
     const now = new Date();
     await db.collection<OutboxDoc>('outbox').insertMany(
       ids.map((id) => subscriberOutboxRow(tenant._id, id, now)),
@@ -181,7 +181,7 @@ export async function removeScale(db: Db, slug: string, log: (s: string) => void
     total += ids.length;
     log(`${total.toLocaleString('en-IN')} removed`);
   }
-  log(total ? 'done; the worker removes their Radius rows' : 'no scale-test subscribers found');
+  log(total ? 'done; the worker removes their RADIUS rows' : 'no scale-test subscribers found');
 }
 
 /** Times the panel's own subscriber search (same filter, sort and page size) for typical and worst-case input. */

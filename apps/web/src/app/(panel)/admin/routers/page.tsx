@@ -31,7 +31,7 @@ import { relTime } from '@/lib/utils';
 type Confirm = { kind: 'rotate' | 'delete' | 'disable'; nas: Nas } | null;
 type Target = { instance: 'production' | 'staging'; host: string | null; authPort: number; acctPort: number };
 
-/** Where routers must send Radius: the panel writes to one instance, and its ports differ (1812 vs 11812). */
+/** Where routers must send RADIUS: the panel writes to one instance, and its ports differ (1812 vs 11812). */
 function RadiusTarget({ t }: { t: Target | undefined }) {
   if (!t) return <Skeleton className="h-5 w-80" />;
   return (
@@ -61,7 +61,7 @@ export default function RoutersPage() {
   const list = useQuery({
     queryKey: ['nas', 'all'],
     queryFn: () => unwrap(api.GET('/api/v1/nas', { params: { query: { limit: 200 } } })),
-    // A new or edited router shows "Syncing" until the worker has written it to Radius (normally ~1 s).
+    // A new or edited router shows "Syncing" until the worker has written it to RADIUS (normally ~1 s).
     refetchInterval: (q) =>
       q.state.data?.items.some((n) => n.status === 'active' && n.radiusId == null) ? 2000 : false,
   });
@@ -83,7 +83,7 @@ export default function RoutersPage() {
       void refresh();
       setEditing(null);
       if (n.radiusSecret) setSecret({ nas: n, value: n.radiusSecret, fresh: true });
-      else toast.success('Saved. The Radius engine picks it up within 30 seconds.');
+      else toast.success('Saved. Our Radius server picks it up within 30 seconds.');
     },
   });
   const patch = useMutation({

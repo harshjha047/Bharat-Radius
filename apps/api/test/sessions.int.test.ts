@@ -38,7 +38,7 @@ beforeAll(async () => {
     `othr${run}`,
   );
 
-  // What the Radius engine and the worker would have written for this ISP.
+  // What FreeRADIUS and the worker would have written for this ISP.
   const tid = (
     await pgAdmin.query<{ id: number }>(
       'INSERT INTO tenants (external_id, slug, name) VALUES ($1, $2, $2) RETURNING id',

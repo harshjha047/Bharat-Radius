@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Rotate the PPPoE password key (RADIUS_PW_KEY) of one instance: re-encrypt every subscriber password and switch
-# The Radius engine (role setting app.pw_key) in one transaction, then update the env files.
+# FreeRADIUS (role setting app.pw_key) in one transaction, then update the env files.
 #   sudo rotate-pw-key.sh staging
 # The app stack must not write passwords with the old key meanwhile: isp-api and isp-workers are stopped here and
 # come back with the new key only when you rerun deploy/ubuntu/app/app-up.sh (it reads <instance>.app.env).
@@ -39,5 +39,5 @@ done
 
 # Pooled connections keep the old setting until they reconnect.
 if [[ -d /run/systemd/system ]]; then systemctl restart "$SERVICE"; else "$(dirname "$0")/frctl.sh" "$INST" restart; fi
-echo "key rotated for $INST; the Radius engine restarted. Now: sudo bash deploy/ubuntu/app/app-up.sh (restarts API + workers)."
+echo "key rotated for $INST; FreeRADIUS restarted. Now: sudo bash deploy/ubuntu/app/app-up.sh (restarts API + workers)."
 echo "Windows app host: update RADIUS_PW_KEY in C:\\isp\\secrets\\$INST.env from $APP_ENV and restart the services."

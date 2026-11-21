@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Lab MikroTik (CHR, RouterOS 7) + a PPPoE test customer on the Radius host, against the STAGING Radius instance.
+# Lab MikroTik (CHR, RouterOS 7) + a PPPoE test customer on the RADIUS host, against the STAGING RADIUS instance.
 # Private addresses only (VPS 10.99.0.1, CHR 10.99.0.2); no customer traffic, no public ports. Applies the repo's own
 # mikrotik/setup.rsc to the CHR, so this also tests the script routers will run.
 #
-#   sudo bash deploy/ubuntu/lab/chr-lab.sh up              # first time: asks for the Radius secret of router 10.99.0.2
+#   sudo bash deploy/ubuntu/lab/chr-lab.sh up              # first time: asks for the RADIUS secret of router 10.99.0.2
 #   sudo bash deploy/ubuntu/lab/chr-lab.sh dial <username> # test customer dials PPPoE (asks for the PPPoE password)
 #   sudo bash deploy/ubuntu/lab/chr-lab.sh hangup | status | console | winbox
 #   sudo bash deploy/ubuntu/lab/chr-lab.sh logs-on                # applies the repo's mikrotik/logging.rsc (syslog + NAT log)
@@ -96,7 +96,7 @@ write_unit() {
   [[ -c /dev/kvm ]] && accel="-enable-kvm -cpu host"
   cat >"/etc/systemd/system/$UNIT.service" <<UNIT
 [Unit]
-Description=isp-platform lab MikroTik CHR (staging Radius tests)
+Description=isp-platform lab MikroTik CHR (staging RADIUS tests)
 After=network-online.target
 
 [Service]
@@ -122,8 +122,8 @@ UNIT
 provision_disk() {
   [[ -f $LIB/configured ]] && return 0
   local secret
-  read -rsp "Radius secret of router $CHR_IP (from the panel, Routers → Show Radius secret): " secret; echo
-  [[ $secret =~ ^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$ ]] || die "that does not look like a panel Radius secret"
+  read -rsp "RADIUS secret of router $CHR_IP (from the panel, Routers → Show RADIUS secret): " secret; echo
+  [[ $secret =~ ^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$ ]] || die "that does not look like a panel RADIUS secret"
   [[ -f $REPO/mikrotik/setup.rsc ]] || die "mikrotik/setup.rsc not found (run from the repository)"
   (umask 077; openssl rand -hex 12 >"$LIB/admin_pw")
 
@@ -141,7 +141,7 @@ provision_disk() {
 /interface pppoe-server server add service-name=lab interface=ether2 default-profile=default one-session-per-host=yes authentication=pap,chap,mschap2 disabled=no
 /ip service set www disabled=no address=$HOST_IP/32
 RSC
-    # The repo's setup.rsc with lab values: staging ports, local Radius/app server, CHR as source address.
+    # The repo's setup.rsc with lab values: staging ports, local RADIUS/app server, CHR as source address.
     sed -e "s|^:local radiusIp \".*\"|:local radiusIp \"$HOST_IP\"|" \
       -e "s|^:local radiusSecret \".*\"|:local radiusSecret \"$secret\"|" \
       -e "s|^:local authPort .*|:local authPort 11812|" \
@@ -186,14 +186,14 @@ verify_chr() {
   api() { curl -fsS --max-time 5 -u "admin:$pw" "http://$CHR_IP/rest/$1"; }
   for _ in $(seq 1 30); do name="$(api system/identity 2>/dev/null || true)"; [[ -n $name ]] && break; sleep 2; done
   if [[ -z $name ]]; then
-    # The address answering already proves the first-boot script ran; the dial test checks Radius end to end.
+    # The address answering already proves the first-boot script ran; the dial test checks RADIUS end to end.
     log "warning: could not read the CHR's settings back over its web API; continuing (dial test will tell)"
   else
     [[ $name == *isp-lab-chr* ]] || die "CHR is up but not configured as expected (identity: $name)"
     radius="$(api radius 2>/dev/null || true)"
     [[ $radius == *"$HOST_IP"* && $radius == *11812* ]] ||
-      die "setup.rsc did not configure Radius on the CHR (got: ${radius:-nothing}). Look: sudo bash $0 console"
-    log "CHR configured: identity isp-lab-chr, Radius $HOST_IP:11812/11813 (staging)"
+      die "setup.rsc did not configure RADIUS on the CHR (got: ${radius:-nothing}). Look: sudo bash $0 console"
+    log "CHR configured: identity isp-lab-chr, RADIUS $HOST_IP:11812/11813 (staging)"
   fi
   touch "$LIB/configured"
 }

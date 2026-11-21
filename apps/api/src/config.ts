@@ -17,9 +17,9 @@ const schema = z
     MONGO_POOL_MAX: z.coerce.number().int().min(2).max(500).default(20),
     RADIUS_DB_URL: z.string().startsWith('postgres').optional(),
     RADIUS_DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
-    /** Which Radius instance RADIUS_DB_URL feeds (default: from its database name); shown to staff. */
+    /** Which RADIUS instance RADIUS_DB_URL feeds (default: from its database name); shown to staff. */
     RADIUS_INSTANCE: z.enum(['production', 'staging']).optional(),
-    /** Public IP or name routers send Radius to (Routers page, setup instructions). */
+    /** Public IP or name routers send RADIUS to (Routers page, setup instructions). */
     RADIUS_PUBLIC_HOST: z.string().trim().min(1).optional(),
     RADIUS_AUTH_PORT: z.coerce.number().int().min(1).max(65535).optional(),
     RADIUS_ACCT_PORT: z.coerce.number().int().min(1).max(65535).optional(),

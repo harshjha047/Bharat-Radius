@@ -34,7 +34,7 @@ export function strongest(list: (OutboxDoc['coa'] | undefined)[]): CoaAction | u
 }
 
 /**
- * Sends CoA / Disconnect-Request for live sessions after their Radius rows changed (TRD §6.4) and records every
+ * Sends CoA / Disconnect-Request for live sessions after their RADIUS rows changed (TRD §6.4) and records every
  * attempt in coa_log. Best effort: a router that does not answer never blocks the sync itself.
  */
 export class CoaSender {
@@ -49,7 +49,7 @@ export class CoaSender {
     await this.db.collection('coa_log').insertOne({ ...entry, createdAt: new Date() });
   }
 
-  /** The reply the Radius engine would give now; null when it cannot be read (then we disconnect instead). */
+  /** The reply FreeRADIUS would give now; null when it cannot be read (then we disconnect instead). */
   private async reply(nasip: string, username: string): Promise<Map<string, string> | null> {
     try {
       const r = await this.pool.query<{ attribute: string; value: string }>(

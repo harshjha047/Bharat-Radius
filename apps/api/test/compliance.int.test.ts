@@ -103,7 +103,7 @@ beforeAll(async () => {
     "INSERT INTO nas (tenant_id, nasname, shortname, secret) VALUES ($1, $2, 'POP-B', 'secret-1234567')",
     [tid2, otherRouter],
   );
-  // The VLAN customer is identified through its Radius session (private IP on that router at that time).
+  // The VLAN customer is identified through its RADIUS session (private IP on that router at that time).
   await pgAdmin.query(
     `INSERT INTO radacct (tenant_id, acctsessionid, acctuniqueid, username, nasipaddress, acctstarttime, acctupdatetime, framedipaddress)
      VALUES ($1, 'x', $2, $3, $4, $5::timestamptz - interval '1 hour', now(), '192.168.20.7')`,
@@ -137,7 +137,7 @@ describe('NAT lookup', () => {
     );
   });
 
-  it('without a port: every translation in the window; a VLAN customer is found through Radius', async () => {
+  it('without a port: every translation in the window; a VLAN customer is found through RADIUS', async () => {
     const r = await admin.req('GET', q({ ip: pub, at: at.toISOString(), windowMins: 2 }));
     expect(r.body.hits.map((x: { username: string }) => x.username)).toEqual([user, vlanUser]);
     expect(r.body.hits[1].subscriber).toMatchObject({ id: vlanSub.toHexString() });

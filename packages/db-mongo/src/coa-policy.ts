@@ -1,6 +1,6 @@
 import type { CoaReason, OutboxDoc, SubscriberDoc } from './types.js';
 
-/** What Radius answers for this subscriber right now (radius_reply / radius_check). */
+/** What RADIUS answers for this subscriber right now (radius_reply / radius_check). */
 export type RadiusState = 'blocked' | 'expired' | 'fup' | 'active';
 
 type Shape = Pick<SubscriberDoc, 'status' | 'planId' | 'expiresAt' | 'fup' | 'network'>;

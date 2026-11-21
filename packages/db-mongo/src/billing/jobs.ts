@@ -93,7 +93,7 @@ export async function postpaidInvoices(client: MongoClient, db: Db, now = new Da
 
 /**
  * Overdue (TRD §6.5): unpaid after the due date → `overdue`; still unpaid after the grace days → the postpaid
- * customer is suspended (Radius + Disconnect). Payment reactivates (settle.reactivateIfSettled).
+ * customer is suspended (RADIUS + Disconnect). Payment reactivates (settle.reactivateIfSettled).
  */
 export async function postpaidOverdue(client: MongoClient, db: Db, now = new Date()) {
   const marked = await invoices(db).updateMany(
