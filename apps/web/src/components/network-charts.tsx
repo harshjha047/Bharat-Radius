@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { fmtBytes, fmtNum } from '@/lib/utils';
+import { fmtBps, fmtBytes, fmtNum } from '@/lib/utils';
 
 const istTime = new Intl.DateTimeFormat('en-IN', {
   hour: 'numeric',
@@ -375,6 +375,81 @@ export function UsageChart({ days }: { days: UsageDay[] }) {
             stroke={USAGE_COLORS.up}
             strokeWidth={1.8}
             fill="url(#usage-up)"
+            isAnimationActive={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export interface SpeedPoint {
+  at: string;
+  rx: number;
+  tx: number;
+}
+export const SPEED_COLORS = { rx: '#4C86F0', tx: '#3AA570' } as const;
+const istSeconds = new Intl.DateTimeFormat('en-IN', {
+  hour: 'numeric',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true,
+  timeZone: 'Asia/Kolkata',
+});
+/** Axis label without decimals: "600 Mbps", "1.2 Gbps". */
+const bpsTick = (v: number) =>
+  v >= 1e9
+    ? `${+(v / 1e9).toFixed(1)} Gbps`
+    : v >= 1e6
+      ? `${Math.round(v / 1e6)} Mbps`
+      : v
+        ? `${Math.round(v / 1e3)} kbps`
+        : '0';
+
+/** Live network speed, newest on the right: download (RX) and upload (TX) in bits per second. */
+export function LiveSpeedChart({ points }: { points: SpeedPoint[] }) {
+  return (
+    <div
+      className="h-[200px] w-full"
+      role="img"
+      aria-label="Live network speed, download and upload, last few minutes"
+    >
+      <ResponsiveContainer>
+        <ComposedChart data={points} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="speed-rx" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={SPEED_COLORS.rx} stopOpacity={0.2} />
+              <stop offset="100%" stopColor={SPEED_COLORS.rx} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} stroke="var(--divider)" />
+          <XAxis
+            dataKey="at"
+            tickFormatter={(iso: string) => istSeconds.format(new Date(iso)).toLowerCase()}
+            minTickGap={48}
+            {...axis}
+          />
+          <YAxis width={72} tickFormatter={bpsTick} {...axis} />
+          <Tooltip
+            {...tooltip}
+            cursor={{ stroke: 'var(--divider)' }}
+            labelFormatter={(iso) => istSeconds.format(new Date(String(iso))).toLowerCase()}
+            formatter={(v, k) => [fmtBps(Number(v)), k === 'rx' ? 'Download' : 'Upload']}
+          />
+          <Area
+            type="monotone"
+            dataKey="rx"
+            stroke={SPEED_COLORS.rx}
+            strokeWidth={1.8}
+            fill="url(#speed-rx)"
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="tx"
+            stroke={SPEED_COLORS.tx}
+            strokeWidth={1.8}
+            dot={false}
             isAnimationActive={false}
           />
         </ComposedChart>

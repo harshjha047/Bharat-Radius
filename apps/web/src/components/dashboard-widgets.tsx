@@ -1,5 +1,5 @@
 'use client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Phone, Zap } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -11,7 +11,7 @@ import { ErrorState } from '@/components/ui/misc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api, unwrap, type ApiData } from '@/lib/api';
 import { usePlans } from '@/lib/queries';
-import { cn, fmtBytes, fmtNum, fmtRupees0 } from '@/lib/utils';
+import { cn, fmtBps, fmtBytes, fmtNum, fmtRupees0, plural } from '@/lib/utils';
 
 const ChartSkeleton = () => <Skeleton className="h-[220px] w-full rounded-xl" />;
 const OnlineChart = dynamic(() => import('@/components/network-charts').then((m) => m.OnlineChart), {
@@ -414,6 +414,107 @@ export function UsageChartCard() {
         </p>
       ) : (
         <UsageChart days={days} />
+      )}
+    </Card>
+  );
+}
+
+type SpeedPoint = { at: string; rx: number; tx: number };
+
+const LiveSpeedChart = dynamic(() => import('@/components/network-charts').then((m) => m.LiveSpeedChart), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[200px] w-full rounded-xl" />,
+});
+
+/** Points kept in the browser: 5 minutes at one every 3 s. */
+const SPEED_POINTS = 100;
+
+/** Live download / upload across monitored router ports, as a rolling line (polls every 3 s while visible). */
+export function LiveSpeedCard() {
+  const qc = useQueryClient();
+  // Each poll appends one point to the series kept in the query cache (no state updates in effects).
+  const speed = useQuery({
+    queryKey: ['network', 'live-speed'],
+    queryFn: async () => {
+      const d = await unwrap(api.GET('/api/v1/network/live-speed'));
+      const prev = qc.getQueryData<{ points: SpeedPoint[] }>(['network', 'live-speed'])?.points ?? [];
+      const points =
+        !d.routers.length || prev.at(-1)?.at === d.at
+          ? prev
+          : [...prev, { at: d.at, rx: d.rxBps, tx: d.txBps }].slice(-SPEED_POINTS);
+      return { ...d, points };
+    },
+    refetchInterval: 3_000,
+    refetchIntervalInBackground: false,
+  });
+  const d = speed.data;
+  const points = d?.points ?? [];
+  const down = d?.routers.filter((r) => !r.ok) ?? [];
+  return (
+    <Card className="flex min-w-0 flex-col gap-3.5 p-5">
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+        <div className="mr-auto flex flex-col gap-0.5">
+          <h2 className="flex items-center gap-2 text-base font-bold">
+            Live network speed
+            {d?.routers.length ? (
+              <span className="relative flex size-2" aria-hidden>
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:animate-none" />
+                <span className="relative inline-flex size-2 rounded-full bg-success" />
+              </span>
+            ) : null}
+          </h2>
+          <span className="text-[13px] text-muted-foreground">
+            {d?.routers.length
+              ? `Monitored ports on ${plural(d.routers.length, 'router')} · updates every 3 s`
+              : 'Monitored router ports'}
+          </span>
+        </div>
+        {d?.routers.length ? (
+          <dl className="flex gap-6">
+            <div className="flex flex-col">
+              <dt className="flex items-center gap-1.5 text-xs text-body">
+                <Swatch className="bg-[#4C86F0]" /> Download
+              </dt>
+              <dd className="text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
+                {fmtBps(d.rxBps)}
+              </dd>
+            </div>
+            <div className="flex flex-col">
+              <dt className="flex items-center gap-1.5 text-xs text-body">
+                <Swatch className="bg-[#3AA570]" /> Upload
+              </dt>
+              <dd className="text-xl font-extrabold tracking-[-0.02em] text-foreground tabular-nums">
+                {fmtBps(d.txBps)}
+              </dd>
+            </div>
+          </dl>
+        ) : null}
+      </div>
+      {speed.isError ? (
+        <ErrorState error={speed.error} onRetry={() => void speed.refetch()} />
+      ) : speed.isLoading ? (
+        <Skeleton className="h-[200px] w-full rounded-xl" />
+      ) : !d?.routers.length ? (
+        <p className="py-12 text-center text-sm text-muted-foreground">
+          No router has live graphs yet. Open a router under{' '}
+          <Link href="/admin/routers" className="font-semibold">
+            Routers
+          </Link>
+          , add its API login and choose the ports to watch (usually the uplink).
+        </p>
+      ) : (
+        <>
+          {points.length < 2 ? (
+            <Skeleton className="h-[200px] w-full rounded-xl" />
+          ) : (
+            <LiveSpeedChart points={points} />
+          )}
+          {down.length ? (
+            <p className="text-xs text-warning-text">
+              Not answering: {down.map((r) => r.name).join(', ')}. Their speed is left out.
+            </p>
+          ) : null}
+        </>
       )}
     </Card>
   );
