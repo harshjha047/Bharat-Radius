@@ -11,8 +11,11 @@ const u = {
 
 describe('activeSidebarUpdate', () => {
   it('is empty when nothing is set', () => {
-    expect(SIDEBAR_UPDATE).toBeNull();
-    expect(activeSidebarUpdate()).toBeNull();
+    expect(activeSidebarUpdate(new Date(), null)).toBeNull();
+  });
+  it('the configured update is served from /public and links out over https', () => {
+    expect(SIDEBAR_UPDATE?.imageUrl).toMatch(/^\/brand\//);
+    expect(SIDEBAR_UPDATE?.href).toMatch(/^https:\/\//);
   });
   it('shows only inside its window', () => {
     expect(activeSidebarUpdate(new Date('2026-10-31T12:00:00+05:30'), u)).toBeNull();
