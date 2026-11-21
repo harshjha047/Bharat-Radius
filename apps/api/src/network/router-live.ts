@@ -87,6 +87,19 @@ const trafficView = z.object({
   at: z.string(),
   interfaces: z.array(z.object({ name: z.string(), rxBps: z.number(), txBps: z.number() })),
 });
+const speedView = z.object({
+  at: z.string(),
+  /** Sum over every monitored port of every router polled: RX ≈ download on uplink ports, TX ≈ upload. */
+  rxBps: z.number(),
+  txBps: z.number(),
+  routers: z.array(
+    z.object({ id: z.string(), name: z.string(), rxBps: z.number(), txBps: z.number(), ok: z.boolean() }),
+  ),
+});
+/** Routers polled per live-speed request (each is one RouterOS call, in parallel). */
+const SPEED_MAX_ROUTERS = 40;
+const SPEED_TTL_MS = 2_000;
+
 const pingQuery = z.object({
   address: z
     .string()
@@ -266,8 +279,12 @@ export class RouterLiveService implements OnModuleDestroy {
       }));
   }
 
-  private async monitor(n: NasDeviceDoc, names: string[]) {
-    const r = await this.run(n, ['/interface/monitor-traffic', `=interface=${names.join(',')}`, '=once=']);
+  private async monitor(n: NasDeviceDoc, names: string[], timeoutMs?: number) {
+    const r = await this.run(
+      n,
+      ['/interface/monitor-traffic', `=interface=${names.join(',')}`, '=once='],
+      timeoutMs,
+    );
     return r.re.map((x) => ({
       name: x.name ?? names[0]!,
       rxBps: num(x['rx-bits-per-second']) ?? 0,
@@ -281,6 +298,66 @@ export class RouterLiveService implements OnModuleDestroy {
     if (!list.length)
       throw new AppError(400, 'VALIDATION_FAILED', 'Choose interfaces (or set dashboard ports)');
     return { at: new Date().toISOString(), interfaces: await this.monitor(n, list) };
+  }
+
+  private readonly speedCache = new Map<string, { at: number; v: Promise<z.output<typeof speedView>> }>();
+
+  /**
+   * Live network speed: monitored ports of every active router with API login (resellers: routers they added),
+   * summed. One shared poll per ISP/reseller every 2 s, however many dashboards are open.
+   */
+  async speed(ctx: AuthContext): Promise<z.output<typeof speedView>> {
+    const branch = await this.sessions.branchNet(ctx);
+    const tenantId = branch?.tenantId ?? ctx.tenantId;
+    if (!tenantId) throw new AppError(400, 'VALIDATION_FAILED', 'Live speed belongs to an ISP');
+    const key = branch ? `b:${branch.resellerId.toHexString()}` : `t:${tenantId.toHexString()}`;
+    const hit = this.speedCache.get(key);
+    if (hit && Date.now() - hit.at < SPEED_TTL_MS) return hit.v;
+    const v = (async () => {
+      const routers = await this.mongo.db
+        .collection<NasDeviceDoc>('nas_devices')
+        .find(
+          {
+            tenantId,
+            status: 'active',
+            'api.enabled': true,
+            'monitorPorts.0': { $exists: true },
+            ...(branch ? { ip: { $in: branch.ownIps } } : {}),
+          },
+          { limit: SPEED_MAX_ROUTERS, sort: { _id: 1 } },
+        )
+        .toArray();
+      const polled = await Promise.allSettled(
+        routers.map((n) =>
+          this.monitor(
+            n,
+            (n.monitorPorts ?? []).map((p) => p.interface),
+            4_000,
+          ),
+        ),
+      );
+      const rows = routers.map((n, i) => {
+        const r = polled[i]!;
+        const ifs = r.status === 'fulfilled' ? r.value : [];
+        return {
+          id: n._id.toHexString(),
+          name: n.name,
+          rxBps: ifs.reduce((a, x) => a + x.rxBps, 0),
+          txBps: ifs.reduce((a, x) => a + x.txBps, 0),
+          ok: r.status === 'fulfilled',
+        };
+      });
+      return {
+        at: new Date().toISOString(),
+        rxBps: rows.reduce((a, r) => a + r.rxBps, 0),
+        txBps: rows.reduce((a, r) => a + r.txBps, 0),
+        routers: rows,
+      };
+    })();
+    if (this.speedCache.size > 1000) this.speedCache.clear();
+    this.speedCache.set(key, { at: Date.now(), v });
+    v.catch(() => this.speedCache.delete(key));
+    return v;
   }
 
   async ping(ctx: AuthContext, id: ObjectId, address: string): Promise<z.output<typeof pingView>> {
@@ -368,6 +445,17 @@ type Id = { id: ObjectId };
 @Controller()
 export class RouterLiveController {
   constructor(@Inject(RouterLiveService) private readonly live: RouterLiveService) {}
+
+  @Get('network/live-speed')
+  @Endpoint({
+    summary: 'Live network speed: monitored router ports summed (poll every 2-3 s)',
+    tags: ['nas'],
+    permission: 'nas.read',
+    response: speedView,
+  })
+  speed(@Ctx() ctx: AuthContext) {
+    return this.live.speed(ctx);
+  }
 
   @Get('nas/:id/api')
   @Endpoint({

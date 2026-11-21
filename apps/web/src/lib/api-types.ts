@@ -1303,7 +1303,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Traffic today and per day for the last 14 days */
+    /** Traffic today and per day (download / upload) for the last 30 days */
     get: {
       parameters: {
         query?: {
@@ -1326,6 +1326,8 @@ export interface paths {
               days: {
                 day: string;
                 bytes: number;
+                downBytes: number;
+                upBytes: number;
               }[];
             };
           };
@@ -9936,6 +9938,69 @@ export interface paths {
               filesScanned: number;
               bytesScanned: number;
               truncated: boolean;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/network/live-speed': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live network speed: monitored router ports summed (poll every 2-3 s) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              at: string;
+              rxBps: number;
+              txBps: number;
+              routers: {
+                id: string;
+                name: string;
+                rxBps: number;
+                txBps: number;
+                ok: boolean;
+              }[];
             };
           };
         };

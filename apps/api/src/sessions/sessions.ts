@@ -105,8 +105,8 @@ const summaryView = z.object({
 const trafficView = z.object({
   /** Bytes up + down so far today (IST), from the 15-minute usage roll-up. */
   todayBytes: z.number(),
-  /** The last 14 IST days including today, oldest first; days without traffic are 0. */
-  days: z.array(z.object({ day: z.string(), bytes: z.number() })),
+  /** The last 30 IST days including today, oldest first; days without traffic are 0. Down = to subscribers. */
+  days: z.array(z.object({ day: z.string(), bytes: z.number(), downBytes: z.number(), upBytes: z.number() })),
 });
 
 const activityView = z.object({
@@ -372,33 +372,34 @@ export class SessionsService {
     };
   }
 
-  /** Traffic today and per day for 14 days (usage_daily, branch-scoped for resellers); cached 60 s. */
+  /** Traffic today and per day for 30 days (usage_daily, branch-scoped for resellers); cached 60 s. */
   async traffic(ctx: AuthContext, q: z.output<typeof tenantQuery>): Promise<z.output<typeof trafficView>> {
     const { mongoId, branch } = await this.scopeFor(ctx, q.tenantId);
     const key = branch ? `b:${branch.resellerId.toHexString()}` : `t:${mongoId.toHexString()}`;
     const hit = this.trafficCache.get(key);
     if (hit && Date.now() - hit.at < 60_000) return hit.v;
     const t = await this.pgTenant(mongoId);
-    const days: { day: string; bytes: number }[] = [];
-    let rows: { day: string; bytes: string }[] = [];
+    const days: { day: string; bytes: number; downBytes: number; upBytes: number }[] = [];
+    let rows: { day: string; down: string; up: string }[] = [];
     if (t && (!branch || branch.usernames.length)) {
       const params: unknown[] = [t.id];
       const mine = branch ? `AND username = ANY($${params.push(branch.usernames)}::text[])` : '';
       rows = (
-        await this.db().query<{ day: string; bytes: string }>(
-          `SELECT to_char(day, 'YYYY-MM-DD') AS day, sum(bytes_in + bytes_out) AS bytes
+        await this.db().query<{ day: string; down: string; up: string }>(
+          `SELECT to_char(day, 'YYYY-MM-DD') AS day, sum(bytes_out) AS down, sum(bytes_in) AS up
              FROM usage_daily
-            WHERE tenant_id = $1 AND day > (now() AT TIME ZONE 'Asia/Kolkata')::date - 14 ${mine}
+            WHERE tenant_id = $1 AND day > (now() AT TIME ZONE 'Asia/Kolkata')::date - 30 ${mine}
             GROUP BY day`,
           params,
         )
       ).rows;
     }
-    const byDay = new Map(rows.map((r) => [r.day, Number(r.bytes)]));
+    const byDay = new Map(rows.map((r) => [r.day, { down: Number(r.down), up: Number(r.up) }]));
     const ist = new Date(Date.now() + 330 * 60_000);
-    for (let i = 13; i >= 0; i--) {
+    for (let i = 29; i >= 0; i--) {
       const day = new Date(ist.getTime() - i * 86_400_000).toISOString().slice(0, 10);
-      days.push({ day, bytes: byDay.get(day) ?? 0 });
+      const d = byDay.get(day) ?? { down: 0, up: 0 };
+      days.push({ day, bytes: d.down + d.up, downBytes: d.down, upBytes: d.up });
     }
     const v = { todayBytes: days[days.length - 1]!.bytes, days };
     if (this.trafficCache.size > 1000) this.trafficCache.clear();
@@ -633,7 +634,7 @@ export class SessionsController {
 
   @Get('sessions/traffic')
   @Endpoint({
-    summary: 'Traffic today and per day for the last 14 days',
+    summary: 'Traffic today and per day (download / upload) for the last 30 days',
     tags: ['sessions'],
     permission: 'sessions.read',
     query: tenantQuery,

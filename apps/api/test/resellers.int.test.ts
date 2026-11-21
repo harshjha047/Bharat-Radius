@@ -230,6 +230,11 @@ describe('reseller routers', () => {
     expect((await rUser.req('PATCH', `${N}/${isp}`, { name: 'x' })).status).toBe(404);
     expect((await rUser.req('DELETE', `${N}/${isp}`)).status).toBe(404);
     expect((await rUser.req('GET', '/api/v1/radius/address-check?ip=198.51.100.22')).status).toBe(403);
+    // Live speed: only routers with API login and monitored ports are polled; none here.
+    const speed = await rUser.req('GET', '/api/v1/network/live-speed');
+    expect(speed.status).toBe(200);
+    expect(speed.body).toMatchObject({ rxBps: 0, txBps: 0, routers: [] });
+    expect((await admin.req('GET', '/api/v1/network/live-speed')).body.routers).toEqual([]);
   });
 });
 

@@ -164,8 +164,8 @@ describe('sessions and logs', () => {
     const t = await support.req('GET', '/api/v1/sessions/traffic');
     expect(t.status).toBe(200);
     expect(t.body.todayBytes).toBe(100);
-    expect(t.body.days).toHaveLength(14);
-    expect(t.body.days[13]).toEqual({ day: today, bytes: 100 });
+    expect(t.body.days).toHaveLength(30);
+    expect(t.body.days[29]).toEqual({ day: today, bytes: 100, downBytes: 90, upBytes: 10 });
     expect(t.body.days[0].bytes).toBe(0);
     expect((await other.req('GET', '/api/v1/sessions/traffic')).body.todayBytes).toBe(0);
   });

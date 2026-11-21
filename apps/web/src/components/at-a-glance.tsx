@@ -76,8 +76,8 @@ export function useGlanceCards(
   const staff = kind === 'staff';
   // Staff defaults follow the old panel's info-box: these three start switched off.
   const hiddenFor = (forStaff: boolean) => (staff ? forStaff : true);
-  const usageSpark = traffic.data?.days.some((d) => d.bytes > 0)
-    ? traffic.data.days.map((d) => d.bytes)
+  const usageSpark = traffic.data?.days.slice(-14).some((d) => d.bytes > 0)
+    ? traffic.data.days.slice(-14).map((d) => d.bytes)
     : undefined;
   const both = { isLoading: subs.isLoading || sessions.isLoading, isError: subs.isError || sessions.isError };
   const renew = (paise: number | undefined) =>

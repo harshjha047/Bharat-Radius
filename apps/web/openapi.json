@@ -2137,7 +2137,7 @@
     },
     "/api/v1/sessions/traffic": {
       "get": {
-        "summary": "Traffic today and per day for the last 14 days",
+        "summary": "Traffic today and per day (download / upload) for the last 30 days",
         "tags": ["sessions"],
         "security": [
           {
@@ -2178,9 +2178,15 @@
                           },
                           "bytes": {
                             "type": "number"
+                          },
+                          "downBytes": {
+                            "type": "number"
+                          },
+                          "upBytes": {
+                            "type": "number"
                           }
                         },
-                        "required": ["day", "bytes"],
+                        "required": ["day", "bytes", "downBytes", "upBytes"],
                         "additionalProperties": false
                       }
                     }
@@ -21811,6 +21817,99 @@
                     }
                   },
                   "required": ["configured", "hits", "filesScanned", "bytesScanned", "truncated"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": ["code", "message", "requestId"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object"
+                        },
+                        "requestId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/network/live-speed": {
+      "get": {
+        "summary": "Live network speed: monitored router ports summed (poll every 2-3 s)",
+        "tags": ["nas"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-permission": "nas.read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "at": {
+                      "type": "string"
+                    },
+                    "rxBps": {
+                      "type": "number"
+                    },
+                    "txBps": {
+                      "type": "number"
+                    },
+                    "routers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "rxBps": {
+                            "type": "number"
+                          },
+                          "txBps": {
+                            "type": "number"
+                          },
+                          "ok": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": ["id", "name", "rxBps", "txBps", "ok"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["at", "rxBps", "txBps", "routers"],
                   "additionalProperties": false
                 }
               }
