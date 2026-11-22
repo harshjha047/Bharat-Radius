@@ -1709,7 +1709,7 @@
                   "type": "object",
                   "properties": {
                     "dashboardHidden": {
-                      "maxItems": 50,
+                      "maxItems": 200,
                       "type": "array",
                       "items": {
                         "type": "string",
@@ -1717,7 +1717,7 @@
                       }
                     },
                     "dashboardOrder": {
-                      "maxItems": 50,
+                      "maxItems": 200,
                       "type": "array",
                       "items": {
                         "type": "string",
@@ -1780,7 +1780,7 @@
                 "type": "object",
                 "properties": {
                   "dashboardHidden": {
-                    "maxItems": 50,
+                    "maxItems": 200,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1788,7 +1788,7 @@
                     }
                   },
                   "dashboardOrder": {
-                    "maxItems": 50,
+                    "maxItems": 200,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1811,7 +1811,7 @@
                   "type": "object",
                   "properties": {
                     "dashboardHidden": {
-                      "maxItems": 50,
+                      "maxItems": 200,
                       "type": "array",
                       "items": {
                         "type": "string",
@@ -1819,7 +1819,7 @@
                       }
                     },
                     "dashboardOrder": {
-                      "maxItems": 50,
+                      "maxItems": 200,
                       "type": "array",
                       "items": {
                         "type": "string",
