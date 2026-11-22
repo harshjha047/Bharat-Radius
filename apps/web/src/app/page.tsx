@@ -907,7 +907,7 @@ export default function Landing() {
 
       <section id="integrations" className="mx-auto max-w-[1180px] scroll-mt-6 px-6 pt-[72px] text-center">
         <span className={cn(eyebrow, 'bg-[#E6EEFB] text-[#1F5FBF]')}>Integrations</span>
-        <h2 className={h2}>Works with MikroTik, Razorpay, Cashfree and SMS</h2>
+        <h2 className={h2}>Works with your routers, Razorpay, Cashfree and SMS</h2>
         <ul className="mt-10 grid grid-cols-[repeat(auto-fit,minmax(min(260px,100%),1fr))] gap-3 text-left">
           {INTEGRATIONS.map(([name, note]) => (
             <li key={name} className="rounded-2xl border border-[#ECEEF5] bg-[#F7F8FB] px-5 py-4">

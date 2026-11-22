@@ -105,7 +105,7 @@ step('ISP Admin must enrol 2FA, then lands on the dashboard', async () => {
   await page.fill('#code', totp(secret));
   await page.getByRole('button', { name: 'Turn on' }).click();
   await page.waitForURL(/\/admin$/);
-  await page.getByText(/Good (morning|afternoon|evening), E2E/).waitFor();
+  await page.getByText(/Good (Morning|Afternoon|Evening), E2E/).waitFor();
 });
 
 step('create a plan', async () => {

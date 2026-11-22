@@ -315,7 +315,7 @@ export default function Dashboard() {
         <div className="mr-auto flex flex-col gap-0.5">
           <span className="font-mono text-xs text-muted-foreground">{istStamp.format(new Date())}</span>
           <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">
-            {greeting()}, {me.data?.user.name.split(' ')[0]}
+            {greeting()}, {titleCase(me.data?.user.name.split(' ')[0] ?? '')}
           </h1>
         </div>
         {can('subscribers.read') ? (
@@ -445,13 +445,17 @@ export default function Dashboard() {
 const HEALTH_ORDER: Record<RouterHealth, number> = { silent: 0, up: 1, quiet: 2, disabled: 3 };
 const ROUTERS_SHOWN = 6;
 
+/** First letter of each word in capitals, the rest as typed ("fab five" → "Fab Five", "McKay" stays). */
+const titleCase = (s: string) =>
+  s.replace(/(^|\s)(\p{Ll})/gu, (_, sp: string, c: string) => sp + c.toUpperCase());
+
 const greeting = () => {
   const h = Number(
     new Intl.DateTimeFormat('en-IN', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Kolkata' }).format(
       new Date(),
     ),
   );
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  return h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
 };
 
 type RouterRow = { r: Nas; online: number; h: RouterHealth };
@@ -1050,7 +1054,7 @@ function ResellerHome({
             {wallet?.owner?.code ? `${wallet.owner.code} · ` : ''}
             {istStamp.format(new Date())}
           </span>
-          <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Namaste, {name}</h1>
+          <h1 className="text-[26px] font-extrabold tracking-[-0.03em]">Namaste, {titleCase(name)}</h1>
         </div>
         <NotificationBell notices={notices} />
         <DashboardConfig
