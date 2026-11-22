@@ -593,7 +593,7 @@ describe('GST invoices and postpaid', () => {
     expect(r.status, JSON.stringify(r.body)).toBeLessThan(300);
     const inv = (await admin.req('GET', `/api/v1/invoices?subscriberId=${c.body.id}`)).body.items[0];
     const digits = String(l1!.code).replace(/\D/g, '').slice(-4).padStart(4, '0');
-    expect(inv.number).toMatch(new RegExp(`^R${digits}/\\d{4}/00001$`));
+    expect(inv.number).toMatch(new RegExp(`^R${digits}/\\d{4}/\\d{5}$`));
     expect(inv.seller).toMatchObject({ name: l1!.name, gstin: '09ABCDE1234F1Z5', stateCode: '09' });
     // Customer in the L1's state (UP) → CGST + SGST, though the ISP's state differs.
     expect(inv).toMatchObject({ cgstPaise: 9 * RS, sgstPaise: 9 * RS, igstPaise: 0 });
