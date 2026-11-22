@@ -343,6 +343,14 @@ describe('preferences', () => {
       'trends',
       'kpi-plans',
     ]);
+    // Staff and reseller layouts share the lists: more than 50 ids must save.
+    const many = Array.from({ length: 120 }, (_, i) => `w-${i}`);
+    const big = await c.req('PUT', '/api/v1/auth/preferences', {
+      dashboardHidden: many,
+      dashboardOrder: many,
+    });
+    expect(big.status, JSON.stringify(big.body)).toBe(200);
+    expect(big.body.dashboardOrder).toHaveLength(120);
     expect((await c.req('PUT', '/api/v1/auth/preferences', { dashboardHidden: ['Bad Id'] })).status).toBe(
       400,
     );

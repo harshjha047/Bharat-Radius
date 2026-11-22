@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, dialogActions } from '@/components/ui/dialog';
 import { api, unwrap } from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
 export interface WidgetDef {
@@ -37,6 +38,40 @@ export function arrange<W extends { id: string }>(widgets: W[], order: readonly 
     .map((x) => x.w);
 }
 
+/** Ids that belong to the reseller dashboard; everything else is the staff dashboard's. */
+export const isResellerWidget = (id: string) => id.startsWith('r-');
+export const isStaffWidget = (id: string) => !isResellerWidget(id);
+
+/**
+ * Visibility for one dashboard. Staff and reseller layouts share one saved list, so a dashboard counts as
+ * arranged only once its own ids are in the saved order; until then `defaultHidden` widgets stay off.
+ */
+export function layoutFor(
+  widgets: readonly WidgetDef[],
+  order: readonly string[],
+  hidden: ReadonlySet<string>,
+) {
+  const ids = new Set(widgets.map((w) => w.id));
+  const arranged = order.some((id) => ids.has(id));
+  return {
+    arranged,
+    isShown: (w: WidgetDef) => !hidden.has(w.id) && (arranged || !w.defaultHidden),
+  };
+}
+
+/** What Save stores: this dashboard's choices, the other dashboard's ids untouched, this one's stale ids dropped. */
+export function nextLayout(
+  saved: { hidden: ReadonlySet<string>; order: readonly string[] },
+  draft: { hidden: ReadonlySet<string>; order: readonly string[] },
+  owns: (id: string) => boolean,
+): Required<DashboardLayout> {
+  const other = (id: string) => !owns(id);
+  return {
+    hidden: [...new Set([...[...saved.hidden].filter(other), ...draft.hidden])],
+    order: [...new Set([...draft.order, ...saved.order.filter(other)])],
+  };
+}
+
 /**
  * Which dashboard widgets this user hides, and the order they arranged them in
  * (saved on the server, so it follows them across devices).
@@ -66,22 +101,17 @@ export function useDashboardPrefs() {
       });
       return { prev };
     },
-    onError: (_e, _v, c) => qc.setQueryData(KEY, c?.prev),
+    onError: (e, _v, c) => {
+      qc.setQueryData(KEY, c?.prev);
+      toast.error(`Dashboard not saved. ${e instanceof Error ? e.message : 'Try again.'}`);
+    },
     onSettled: () => void qc.invalidateQueries({ queryKey: KEY }),
   });
-  /** True once the user arranged a dashboard: from then on `hidden` alone decides. */
-  const arranged = order.length > 0;
   const shown = useCallback((id: string) => !hidden.has(id), [hidden]);
-  const isShown = useCallback(
-    (w: WidgetDef) => !hidden.has(w.id) && (arranged || !w.defaultHidden),
-    [hidden, arranged],
-  );
   return {
     shown,
-    isShown,
     hidden,
     order,
-    arranged,
     loaded: q.isSuccess,
     save: save.mutate,
     saving: save.isPending,
@@ -90,7 +120,9 @@ export function useDashboardPrefs() {
 
 /**
  * The Customise dialog. With `sortable`, each widget can also be dragged (or moved with the arrow
- * buttons, for keyboard and touch) to change the order of the dashboard.
+ * buttons, for keyboard and touch) to change the order of the dashboard. Every save stores this
+ * dashboard's order too, so from then on the user's ticks alone decide (default-off widgets included).
+ * `owns` says which saved ids belong to this dashboard: those not in `widgets` any more are dropped.
  */
 export function DashboardConfig({
   widgets,
@@ -98,14 +130,16 @@ export function DashboardConfig({
   order = [],
   arranged = false,
   sortable = false,
+  owns,
   onSave,
   saving,
 }: {
   widgets: WidgetDef[];
-  hidden: Set<string>;
+  hidden: ReadonlySet<string>;
   order?: readonly string[];
   arranged?: boolean;
   sortable?: boolean;
+  owns: (id: string) => boolean;
   onSave: (layout: DashboardLayout) => void;
   saving: boolean;
 }) {
@@ -117,7 +151,7 @@ export function DashboardConfig({
 
   const defaults = () => new Set(widgets.filter((w) => w.defaultHidden).map((w) => w.id));
   const begin = () => {
-    const h = new Set(hidden);
+    const h = new Set([...hidden].filter((id) => byId.has(id)));
     if (!arranged) for (const id of defaults()) h.add(id);
     setDraftHidden(h);
     setDraftOrder(arrange(widgets, order).map((w) => w.id));
@@ -227,22 +261,16 @@ export function DashboardConfig({
               type="button"
               variant="ghost"
               onClick={() => {
-                setDraftHidden(sortable ? defaults() : new Set());
+                setDraftHidden(defaults());
                 setDraftOrder(widgets.map((w) => w.id));
               }}
             >
-              {sortable ? 'Reset' : 'Show all'}
+              Reset
             </Button>
             <Button
               loading={saving}
               onClick={() => {
-                // Ids of widgets this user cannot see (or of another dashboard) stay as they were.
-                const mine = new Set(widgets.map((w) => w.id));
-                const keepHidden = [...hidden].filter((id) => !mine.has(id));
-                onSave({
-                  hidden: [...keepHidden, ...draftHidden].filter((id, k, a) => a.indexOf(id) === k),
-                  ...(sortable ? { order: [...draftOrder, ...order.filter((id) => !mine.has(id))] } : {}),
-                });
+                onSave(nextLayout({ hidden, order }, { hidden: draftHidden, order: draftOrder }, owns));
                 setOpen(false);
               }}
             >
