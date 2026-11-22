@@ -6,14 +6,16 @@ import { Ctx, Endpoint } from '../http/endpoint.js';
 import type { AuthContext } from './context.js';
 
 const widgetId = z.string().regex(/^[a-z0-9-]{1,40}$/);
+/** Staff and reseller dashboards share these lists (an admin also arranges resellers' dashboards via view-as). */
+const MAX_IDS = 200;
 const prefsView = z.object({
   /** Dashboard sections and cards this user switched off (ids from the panel). */
-  dashboardHidden: z.array(widgetId).max(50),
+  dashboardHidden: z.array(widgetId).max(MAX_IDS),
   /** Dashboard sections in the order this user arranged them; empty = the panel's default order. */
-  dashboardOrder: z.array(widgetId).max(50),
+  dashboardOrder: z.array(widgetId).max(MAX_IDS),
 });
 /** Saving: leave `dashboardOrder` out to keep the saved order (older panels only send `dashboardHidden`). */
-const prefsBody = prefsView.extend({ dashboardOrder: z.array(widgetId).max(50).optional() });
+const prefsBody = prefsView.extend({ dashboardOrder: z.array(widgetId).max(MAX_IDS).optional() });
 type Prefs = z.output<typeof prefsView>;
 
 /** Per-user panel preferences (dashboard configuration). Personal: no permission beyond being signed in. */

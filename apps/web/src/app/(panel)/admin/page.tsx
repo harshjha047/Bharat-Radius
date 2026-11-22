@@ -17,7 +17,15 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
-import { arrange, DashboardConfig, useDashboardPrefs, type WidgetDef } from '@/components/dashboard-config';
+import {
+  arrange,
+  DashboardConfig,
+  isResellerWidget,
+  isStaffWidget,
+  layoutFor,
+  useDashboardPrefs,
+  type WidgetDef,
+} from '@/components/dashboard-config';
 import {
   ExpiringCard,
   LiveSpeedCard,
@@ -251,7 +259,8 @@ export default function Dashboard() {
     can('reports.view') && { id: 'trends', label: 'Revenue and plan trends' },
   ].filter((w): w is WidgetDef => !!w);
 
-  const glanceShown = glance.filter((g) => prefs.isShown(g));
+  const layout = layoutFor(widgets, prefs.order, prefs.hidden);
+  const glanceShown = glance.filter((g) => layout.isShown(g));
 
   const pills = [
     can('sessions.read') && shown('kpi-rejects') && (
@@ -331,7 +340,15 @@ export default function Dashboard() {
             </kbd>
           </form>
         ) : null}
-        <DashboardConfig widgets={widgets} hidden={prefs.hidden} onSave={prefs.save} saving={prefs.saving} />
+        <DashboardConfig
+          widgets={widgets}
+          hidden={prefs.hidden}
+          order={prefs.order}
+          arranged={layout.arranged}
+          owns={isStaffWidget}
+          onSave={prefs.save}
+          saving={prefs.saving}
+        />
       </header>
 
       {shown('attention') && attention.length ? (
@@ -798,7 +815,7 @@ function ResellerHome({
   const glance = useGlanceCards('reseller', { data: wallet, isLoading: loading, isError: false });
   // Users who arranged their dashboard before the cards existed get them on top, not at the end.
   const order =
-    prefs.order.length && !prefs.order.some(isGlanceId)
+    prefs.order.some(isResellerWidget) && !prefs.order.some((id) => id.startsWith('r-stat-'))
       ? [...glance.map((g) => g.id), ...prefs.order]
       : prefs.order;
   const ledgerHref = wallet ? `/admin/wallets/${wallet.id}` : '/admin/wallets';
@@ -1013,7 +1030,8 @@ function ResellerHome({
         </div>
       ) : null,
   };
-  const shownWidgets = prefs.loaded ? arrange(widgets, order).filter(prefs.isShown) : [];
+  const layout = layoutFor(widgets, order, prefs.hidden);
+  const shownWidgets = prefs.loaded ? arrange(widgets, order).filter(layout.isShown) : [];
   // Consecutive stat cards share one grid; every other widget is its own block.
   const blocks: { key: string; ids: string[]; grid: boolean }[] = [];
   for (const w of shownWidgets) {
@@ -1039,8 +1057,9 @@ function ResellerHome({
           widgets={widgets}
           hidden={prefs.hidden}
           order={order}
-          arranged={prefs.arranged}
+          arranged={layout.arranged}
           sortable
+          owns={isResellerWidget}
           onSave={prefs.save}
           saving={prefs.saving}
         />
