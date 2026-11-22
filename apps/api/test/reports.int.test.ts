@@ -283,6 +283,13 @@ describe('reports', () => {
       r.body.sheets.map((s: { name: string; rows: number }) => [s.name, s.rows]),
     );
     expect(rows).toMatchObject({ b2b: 1, b2cl: 0, b2cs: 2, docs: 1 });
+    // L1-issued documents are the L1's return, not the ISP's.
+    const byL1 = await admin.req(
+      'GET',
+      `/api/v1/reports/gstr1?month=2026-12&resellerId=${new ObjectId().toHexString()}`,
+    );
+    expect(byL1.status).toBe(200);
+    expect(byL1.body.summary.invoices).toBe(0);
     const x = await admin.req('GET', '/api/v1/reports/gstr1/download?month=2026-12');
     expect(x.headers['content-disposition']).toContain('GSTR1-2026-12.xlsx');
   });

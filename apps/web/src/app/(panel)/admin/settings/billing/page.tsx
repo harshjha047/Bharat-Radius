@@ -537,7 +537,13 @@ function SmsLog() {
                 </Badge>
               ),
             },
-            { key: 'err', header: 'Reason', cell: (n) => n.error ?? '', hideOnMobile: true },
+            {
+              key: 'err',
+              header: 'Reason',
+              cell: (n) => n.error ?? '',
+              hideOnMobile: true,
+              className: 'sm:min-w-56 sm:whitespace-normal',
+            },
           ]}
         />
       )}

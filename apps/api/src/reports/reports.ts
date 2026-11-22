@@ -42,7 +42,14 @@ const NAMES = Object.keys(REPORTS) as [ReportName, ...ReportName[]];
 
 const downloadQuery = rangeQuery.extend({ format: z.enum(['xlsx', 'pdf']).default('xlsx') });
 const nameParams = z.object({ name: z.enum(NAMES) });
-const monthQuery = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'must be YYYY-MM') });
+const monthQuery = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'must be YYYY-MM'),
+  /** An L1 reseller's own GSTR-1 (documents it issued); leave out for the ISP's. */
+  resellerId: z
+    .string()
+    .regex(/^[a-f0-9]{24}$/)
+    .optional(),
+});
 
 const cell = z.union([z.string(), z.number(), z.null()]);
 const tableView = z.object({
@@ -895,22 +902,26 @@ export class ReportsService {
     ];
   }
 
-  /** GSTR-1 for an IST month from the stored invoice and credit-note snapshots (ISP staff only). */
-  async gstr1(ctx: AuthContext, month: string) {
+  /**
+   * GSTR-1 for an IST month from the stored invoice and credit-note snapshots (ISP staff only): the ISP's own
+   * documents, or with `resellerId` those an L1 reseller issued under its GSTIN.
+   */
+  async gstr1(ctx: AuthContext, month: string, resellerId?: string) {
     assertStaff(ctx, 'export GST returns');
     const tenantId = requireTenant(ctx);
     const [y, m] = month.split('-').map(Number) as [number, number];
     const start = istStart(`${month}-01`);
     const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
     const end = istStart(next);
+    const bySeller = { sellerResellerId: resellerId ? new ObjectId(resellerId) : { $exists: false } };
     const [invs, cns] = await Promise.all([
       this.db
         .collection<InvoiceDoc>('invoices')
-        .find({ tenantId, issueDate: { $gte: start, $lt: end } })
+        .find({ tenantId, issueDate: { $gte: start, $lt: end }, ...bySeller })
         .toArray(),
       this.db
         .collection<CreditNoteDoc>('credit_notes')
-        .find({ tenantId, createdAt: { $gte: start, $lt: end } })
+        .find({ tenantId, createdAt: { $gte: start, $lt: end }, ...bySeller })
         .toArray(),
     ]);
     const parents = await this.db
@@ -927,8 +938,8 @@ export class ReportsService {
     );
   }
 
-  async gstr1Xlsx(ctx: AuthContext, month: string): Promise<Buffer> {
-    const r = await this.gstr1(ctx, month);
+  async gstr1Xlsx(ctx: AuthContext, month: string, resellerId?: string): Promise<Buffer> {
+    const r = await this.gstr1(ctx, month, resellerId);
     return writeXlsxFile(
       r.sheets.map((s) => ({
         sheet: s.name,
@@ -969,7 +980,7 @@ export class ReportsController {
     response: gstrView,
   })
   async gstr1(@Ctx() ctx: AuthContext, @Query() q: z.output<typeof monthQuery>) {
-    const r = await this.s.gstr1(ctx, q.month);
+    const r = await this.s.gstr1(ctx, q.month, q.resellerId);
     return {
       month: q.month,
       summary: r.summary,
@@ -990,10 +1001,13 @@ export class ReportsController {
     @Query() q: z.output<typeof monthQuery>,
     @Res() reply: FastifyReply,
   ) {
-    const data = await this.s.gstr1Xlsx(ctx, q.month);
+    const data = await this.s.gstr1Xlsx(ctx, q.month, q.resellerId);
     void reply
       .header('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-      .header('content-disposition', `attachment; filename="GSTR1-${q.month}.xlsx"`)
+      .header(
+        'content-disposition',
+        `attachment; filename="GSTR1-${q.month}${q.resellerId ? `-${q.resellerId.slice(-6)}` : ''}.xlsx"`,
+      )
       .header('cache-control', 'private, no-store')
       .send(data);
   }

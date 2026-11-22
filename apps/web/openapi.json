@@ -21441,6 +21441,15 @@
               "type": "string",
               "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
             }
+          },
+          {
+            "name": "resellerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$"
+            }
           }
         ],
         "responses": {
@@ -21565,6 +21574,15 @@
             "schema": {
               "type": "string",
               "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "resellerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$"
             }
           }
         ],

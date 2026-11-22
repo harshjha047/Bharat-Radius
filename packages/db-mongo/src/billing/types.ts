@@ -228,6 +228,8 @@ export interface InvoiceDoc extends GstTotals {
   issueDate: Date;
   dueDate: Date;
   seller: GstParty;
+  /** L1 reseller that issued it (its own name, GSTIN, state and number series); absent = issued by the ISP. */
+  sellerResellerId?: ObjectId;
   buyer: GstParty;
   placeOfSupply: string;
   lines: GstLine[];
@@ -251,6 +253,8 @@ export interface CreditNoteDoc extends GstTotals {
   financialYear: string;
   reason: string;
   seller: GstParty;
+  /** Same as the invoice it credits. */
+  sellerResellerId?: ObjectId;
   buyer: GstParty;
   placeOfSupply: string;
   lines: GstLine[];

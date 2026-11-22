@@ -164,7 +164,7 @@ export function StatCard(props: StatCardProps) {
     <Link
       href={href}
       aria-label={statAriaLabel({ label, value, today, todayLabel, trend, trendDir, period })}
-      className="relative isolate flex h-[132px] w-full min-w-[240px] flex-col justify-between overflow-hidden rounded-2xl border border-[#E7E5EA] bg-white px-4 py-3.5 text-inherit transition-[border-color,box-shadow] duration-[250ms] hover:border-[#DCD9E0] hover:text-inherit hover:shadow-[0_8px_24px_-14px_rgba(22,19,26,.22)] focus-visible:shadow-[0_0_0_2px_#3A3640] focus-visible:outline-none motion-reduce:transition-none"
+      className="@container relative isolate flex h-[132px] w-full min-w-0 flex-col justify-between overflow-hidden rounded-2xl border border-[#E7E5EA] bg-white px-4 py-3.5 text-inherit transition-[border-color,box-shadow] duration-[250ms] hover:border-[#DCD9E0] hover:text-inherit hover:shadow-[0_8px_24px_-14px_rgba(22,19,26,.22)] focus-visible:shadow-[0_0_0_2px_#3A3640] focus-visible:outline-none motion-reduce:transition-none"
     >
       <span
         aria-hidden
@@ -191,7 +191,9 @@ export function StatCard(props: StatCardProps) {
       ) : null}
 
       <span className="flex items-center gap-2.5">
-        <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-[#16131A]">{label}</span>
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-[#16131A] @min-[200px]:text-[13.5px]">
+          {label}
+        </span>
         {trend ? (
           <span
             className={cn(
@@ -217,17 +219,20 @@ export function StatCard(props: StatCardProps) {
         {period ? <span className="text-xs whitespace-nowrap text-[#8B8792]">{period}</span> : null}
       </span>
 
-      <span className="flex max-w-[64%] flex-col gap-1">
+      <span className="flex max-w-full flex-col gap-1 @min-[230px]:max-w-[64%]">
         <span
           className={cn(
-            'text-[34px] leading-none font-normal tracking-[-0.035em] whitespace-nowrap tabular-nums',
+            'text-[24px] leading-none font-normal tracking-[-0.035em] whitespace-nowrap tabular-nums @min-[190px]:text-[28px] @min-[230px]:text-[34px]',
             zero ? 'text-[#8B8792]' : 'text-[#1C1A21]',
           )}
         >
           {whole}
           {rest ? (
             <span
-              className={cn('text-[17px] tracking-[-0.01em]', zero ? 'text-[#8B8792]' : 'text-[#71717A]')}
+              className={cn(
+                'text-[13px] tracking-[-0.01em] @min-[230px]:text-[17px]',
+                zero ? 'text-[#8B8792]' : 'text-[#71717A]',
+              )}
             >
               {rest}
             </span>
@@ -246,4 +251,4 @@ export function StatCard(props: StatCardProps) {
   );
 }
 
-export const StatCardSkeleton = () => <Skeleton className="h-[132px] w-full min-w-[240px] rounded-2xl" />;
+export const StatCardSkeleton = () => <Skeleton className="h-[132px] w-full min-w-0 rounded-2xl" />;

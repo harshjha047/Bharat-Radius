@@ -174,6 +174,7 @@ export function PlanImport({ onImported, onClose }: { onImported: () => void; on
               {
                 key: 'detail',
                 header: 'Details',
+                className: 'sm:min-w-64 sm:whitespace-normal',
                 cell: (r) => {
                   const errs = shown.errors.filter((e) => e.row === r.row);
                   if (errs.length)

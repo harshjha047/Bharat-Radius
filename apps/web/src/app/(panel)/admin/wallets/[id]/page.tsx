@@ -545,6 +545,7 @@ function Ledger({ id, balancePaise, lowPaise }: { id: string; balancePaise: numb
               {
                 key: 'desc',
                 header: 'Description',
+                className: 'sm:min-w-64 sm:whitespace-normal',
                 cell: (t) => {
                   const Icon = TYPE_ICON[t.type];
                   return (
