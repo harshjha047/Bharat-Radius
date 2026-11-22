@@ -622,7 +622,12 @@ function AuthLog({ id }: { id: string }) {
           cell: (r) =>
             r.accepted ? <Badge tone="success">Accepted</Badge> : <Badge tone="danger">Rejected</Badge>,
         },
-        { key: 'reason', header: 'Reason', cell: (r) => r.reason ?? '—' },
+        {
+          key: 'reason',
+          header: 'Reason',
+          cell: (r) => r.reason ?? '—',
+          className: 'sm:min-w-56 sm:whitespace-normal',
+        },
         { key: 'nas', header: 'Router', cell: (r) => <span className="font-mono text-xs">{r.nasIp}</span> },
         { key: 'mac', header: 'MAC', cell: (r) => <span className="font-mono text-xs">{r.mac ?? '—'}</span> },
       ]}

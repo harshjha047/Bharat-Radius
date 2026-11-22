@@ -4,6 +4,7 @@ import {
   Activity,
   ArrowLeft,
   ArrowUpDown,
+  ArrowUpRight,
   BarChart3,
   Building2,
   ChevronsUpDown,
@@ -52,6 +53,8 @@ interface NavItem {
   any?: Permission[];
   /** Shown greyed out with a "Coming soon" tag; not a link yet. */
   soon?: true;
+  /** Opens another site in a new tab. */
+  external?: true;
 }
 interface NavGroup {
   label: string;
@@ -102,7 +105,13 @@ const STAFF_NAV: NavGroup[] = [
     items: [
       { href: '/admin/routers', label: 'Routers', icon: Router, any: ['nas.read'] },
       { href: '/admin/radius-log', label: 'RADIUS log', icon: Activity, any: ['sessions.read'] },
-      { href: '/admin/tr069', label: 'TR-069', icon: MonitorCog, any: ['nas.read'], soon: true },
+      {
+        href: 'https://tr069-api.thediv.in/',
+        label: 'TR-069',
+        icon: MonitorCog,
+        any: ['nas.read'],
+        external: true,
+      },
     ],
   },
   {
@@ -317,6 +326,15 @@ function NavLinks({
                       Coming soon
                     </span>
                   </span>
+                );
+              if (i.external)
+                return (
+                  <a key={i.href} href={i.href} target="_blank" rel="noopener noreferrer" className={ITEM}>
+                    <i.icon className="size-4 shrink-0" strokeWidth={1.8} aria-hidden />
+                    <span className="flex-1 truncate">{i.label}</span>
+                    <ArrowUpRight className="size-3.5 shrink-0 text-[#8B8792]" aria-hidden />
+                    <span className="sr-only">(opens in a new tab)</span>
+                  </a>
                 );
               const active = isActive(i.href, path);
               return (

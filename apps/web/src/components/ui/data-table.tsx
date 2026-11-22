@@ -103,7 +103,8 @@ export function DataTable<T>({
                         key={c.key}
                         data-label={typeof c.header === 'string' ? c.header : undefined}
                         className={cn(
-                          'h-[52px] px-3 py-2.5 align-middle text-foreground first:pl-5 last:pr-5',
+                          // Desktop rows stay on one line and the table scrolls sideways; free-text columns opt back in with sm:whitespace-normal.
+                          'h-[52px] px-3 py-2.5 align-middle text-foreground first:pl-5 last:pr-5 sm:whitespace-nowrap',
                           'max-sm:flex max-sm:h-auto max-sm:items-baseline max-sm:justify-between max-sm:gap-4 max-sm:px-0 max-sm:py-1 max-sm:first:pl-0 max-sm:last:pr-0',
                           i > 0 &&
                             'max-sm:before:text-xs max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]',

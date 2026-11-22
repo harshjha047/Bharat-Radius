@@ -345,11 +345,11 @@ export const glanceWidget = (g: GlanceCard): WidgetDef =>
 
 export const isGlanceId = (id: string) => id.startsWith('stat-') || id.startsWith('r-stat-');
 
-/** 4 per row when the content is ≥ 996px wide, 2 from 492px, else 1 (container-based, so the sidebar never squeezes cards under 240px). */
+/** 4 per row whenever the content is ≥ 640px wide, 2 on phones, 1 below 340px; cards scale their type to fit. */
 export function GlanceGrid({ children }: { children: ReactNode }) {
   return (
     <section aria-label="At a glance" className="@container">
-      <div className="grid grid-cols-1 gap-3 @min-[492px]:grid-cols-2 @min-[996px]:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2.5 @min-[340px]:grid-cols-2 @min-[640px]:grid-cols-4 @min-[640px]:gap-3">
         {children}
       </div>
     </section>

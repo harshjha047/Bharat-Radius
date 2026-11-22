@@ -563,6 +563,47 @@ describe('GST invoices and postpaid', () => {
     expect(pdf.raw.subarray(0, 5).toString()).toBe('%PDF-');
   });
 
+  it('a reseller customer is invoiced by its L1: L1 name, GSTIN, state and own number series', async () => {
+    const l1 = await h.db.collection('resellers').findOne({ _id: new ObjectId(id.l1!) });
+    await h.db.collection('resellers').updateOne(
+      { _id: l1!._id },
+      {
+        $set: {
+          gstin: '09ABCDE1234F1Z5',
+          address: { line1: 'Sector 62', city: 'Noida', state: 'Uttar Pradesh', pincode: '201301' },
+        },
+      },
+    );
+    const c = await admin.req(
+      'POST',
+      '/api/v1/subscribers',
+      customer('l1inv', {
+        resellerId: id.l2,
+        planId: id.plan,
+        address: { line1: 'x', city: 'Noida', state: 'Uttar Pradesh', stateCode: '09', pincode: '201301' },
+      }),
+    );
+    expect(c.status, JSON.stringify(c.body)).toBe(201);
+    const r = await admin.req(
+      'POST',
+      '/api/v1/recharges',
+      { subscriberId: c.body.id, payment: 'cash' },
+      key(),
+    );
+    expect(r.status, JSON.stringify(r.body)).toBeLessThan(300);
+    const inv = (await admin.req('GET', `/api/v1/invoices?subscriberId=${c.body.id}`)).body.items[0];
+    const digits = String(l1!.code).replace(/\D/g, '').slice(-4).padStart(4, '0');
+    expect(inv.number).toMatch(new RegExp(`^R${digits}/\\d{4}/\\d{5}$`));
+
+    // Customer in the L1's state (UP) → CGST + SGST, though the ISP's state differs.
+    expect(inv.igstPaise).toBe(0);
+    expect(inv.cgstPaise).toBeGreaterThan(0);
+    expect(inv.sgstPaise).toBe(inv.cgstPaise);
+    const doc = await h.db.collection('invoices').findOne({ _id: new ObjectId(inv.id) });
+    expect(doc!.sellerResellerId).toEqual(l1!._id);
+    expect(doc!.seller).toMatchObject({ name: l1!.name, gstin: '09ABCDE1234F1Z5', stateCode: '09' });
+  });
+
   it('postpaid: invoice on the 1st with the right split; overdue after grace → blocked; payment reactivates', async () => {
     const c = await admin.req(
       'POST',

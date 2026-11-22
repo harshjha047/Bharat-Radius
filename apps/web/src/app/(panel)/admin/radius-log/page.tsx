@@ -105,7 +105,12 @@ function AuthLog() {
         cell: (r) =>
           r.accepted ? <Badge tone="success">Accept</Badge> : <Badge tone="danger">Reject</Badge>,
       },
-      { key: 'reason', header: 'Reason', cell: (r) => r.reason ?? '—' },
+      {
+        key: 'reason',
+        header: 'Reason',
+        cell: (r) => r.reason ?? '—',
+        className: 'sm:min-w-56 sm:whitespace-normal',
+      },
       { key: 'nas', header: 'Router', cell: (r) => r.nasName ?? r.nasIp, hideOnMobile: true },
       {
         key: 'mac',

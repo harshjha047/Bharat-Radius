@@ -9671,6 +9671,7 @@ export interface paths {
       parameters: {
         query: {
           month: string;
+          resellerId?: string;
         };
         header?: never;
         path?: never;
@@ -9740,6 +9741,7 @@ export interface paths {
       parameters: {
         query: {
           month: string;
+          resellerId?: string;
         };
         header?: never;
         path?: never;

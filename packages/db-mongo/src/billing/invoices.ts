@@ -1,5 +1,6 @@
 import { ObjectId, type ClientSession, type Db } from 'mongodb';
-import type { PlanDoc, SubscriberDoc, TenantDoc } from '../types.js';
+import type { PlanDoc, ResellerDoc, SubscriberDoc, TenantDoc } from '../types.js';
+import { GST_STATES } from './gstr1.js';
 import {
   DEFAULT_BILLING,
   MoneyError,
@@ -37,6 +38,36 @@ export const sellerOf = (t: TenantDoc): GstParty => ({
   address: partyAddress(t.address),
 });
 
+const STATE_CODES = new Map(Object.entries(GST_STATES).map(([code, name]) => [name.toLowerCase(), code]));
+/** GST state code from a state name ("Uttar Pradesh" → "09") or a code typed as the state; null if unknown. */
+export const gstStateCode = (state: string | undefined): string | null => {
+  const s = state?.trim().toLowerCase();
+  if (!s) return null;
+  if (/^\d{2}$/.test(s) && GST_STATES[s]) return s;
+  return STATE_CODES.get(s) ?? null;
+};
+
+/** Top of the customer's reseller chain (level 1), or null for the ISP's own customers. */
+export const l1Of = (s: Pick<SubscriberDoc, 'resellerId' | 'ancestors'>): ObjectId | null =>
+  s.ancestors[0] ?? s.resellerId ?? null;
+
+/**
+ * Number prefixes of an L1's own series, 5 characters so numbers stay within GST's 16 (R0001/2627/00001):
+ * invoices R + last 4 digits of its code, credit notes C + the same digits.
+ */
+export const resellerSeries = (code: string) => {
+  const d = code.replace(/\D/g, '').slice(-4).padStart(4, '0');
+  return { invoice: `R${d}`, creditNote: `C${d}` };
+};
+
+/** The L1 as the GST seller; its state decides intra/inter-state (ISP state if the L1 has none recorded). */
+export const resellerSellerOf = (r: ResellerDoc, fallbackState: string): GstParty => ({
+  name: r.name,
+  ...(r.gstin ? { gstin: r.gstin } : {}),
+  stateCode: gstStateCode(r.address?.state) ?? fallbackState,
+  address: partyAddress(r.address ?? {}),
+});
+
 export const buyerOf = (s: SubscriberDoc, fallbackState: string): GstParty => ({
   name: s.name,
   ...(s.gstin ? { gstin: s.gstin } : {}),
@@ -65,14 +96,22 @@ export interface InvoiceInput {
 }
 
 /**
- * Issues one GST invoice (TRD §6.5): consecutive number per financial year per ISP from an atomic counter;
- * CGST+SGST when the customer's state is the ISP's GST state, otherwise IGST. Never edited after issue.
+ * Issues one GST invoice (TRD §6.5): consecutive number per financial year per seller from an atomic counter;
+ * CGST+SGST when the customer's state is the seller's GST state, otherwise IGST. Never edited after issue.
+ * Customers under a reseller are invoiced by their L1 reseller (its name, GSTIN, state and own series);
+ * the ISP's own customers by the ISP.
  */
 export async function issueInvoice(db: Db, session: ClientSession, i: InvoiceInput): Promise<InvoiceDoc> {
   const issueDate = i.issueDate ?? new Date();
   const fy = financialYear(issueDate);
   const b = billingOf(i.tenant);
-  const seller = sellerOf(i.tenant);
+  const l1Id = l1Of(i.subscriber);
+  const l1 = l1Id
+    ? await db
+        .collection<ResellerDoc>('resellers')
+        .findOne({ _id: l1Id, tenantId: i.tenant._id }, { session })
+    : null;
+  const seller = l1 ? resellerSellerOf(l1, i.tenant.stateCode) : sellerOf(i.tenant);
   const buyer = buyerOf(i.subscriber, i.tenant.stateCode);
   const lines: GstLine[] = [
     gstLine({
@@ -85,7 +124,13 @@ export async function issueInvoice(db: Db, session: ClientSession, i: InvoiceInp
     }),
   ];
   const totals = gstTotals(lines);
-  const seq = await nextSeq(db, `invoice:${i.tenant._id.toHexString()}:${fy}`, session);
+  const seq = await nextSeq(
+    db,
+    l1
+      ? `invoice:${i.tenant._id.toHexString()}:r:${l1._id.toHexString()}:${fy}`
+      : `invoice:${i.tenant._id.toHexString()}:${fy}`,
+    session,
+  );
   const paid = Math.min(i.paidPaise ?? 0, totals.totalPaise);
   const now = new Date();
   const doc: InvoiceDoc = {
@@ -93,7 +138,7 @@ export async function issueInvoice(db: Db, session: ClientSession, i: InvoiceInp
     tenantId: i.tenant._id,
     subscriberId: i.subscriber._id,
     ancestors: i.subscriber.ancestors,
-    number: documentNumber(b.invoicePrefix, fy, seq),
+    number: documentNumber(l1 ? resellerSeries(l1.code).invoice : b.invoicePrefix, fy, seq),
     financialYear: fy,
     type: i.type,
     ...(i.periodStart ? { periodStart: i.periodStart } : {}),
@@ -101,6 +146,7 @@ export async function issueInvoice(db: Db, session: ClientSession, i: InvoiceInp
     issueDate,
     dueDate: i.dueDate ?? issueDate,
     seller,
+    ...(l1 ? { sellerResellerId: l1._id } : {}),
     buyer,
     placeOfSupply: buyer.stateCode,
     lines,
@@ -157,17 +203,29 @@ export async function issueCreditNote(
   if (inv.creditedPaise > 0) throw new MoneyError(409, 'CONFLICT', 'This invoice already has a credit note');
   const now = new Date();
   const fy = financialYear(now);
-  const seq = await nextSeq(db, `creditnote:${input.tenant._id.toHexString()}:${fy}`, session);
+  const byL1 = inv.sellerResellerId
+    ? await db
+        .collection<ResellerDoc>('resellers')
+        .findOne({ _id: inv.sellerResellerId }, { session, projection: { code: 1 } })
+    : null;
+  const seq = await nextSeq(
+    db,
+    inv.sellerResellerId
+      ? `creditnote:${input.tenant._id.toHexString()}:r:${inv.sellerResellerId.toHexString()}:${fy}`
+      : `creditnote:${input.tenant._id.toHexString()}:${fy}`,
+    session,
+  );
   const doc: CreditNoteDoc = {
     _id: new ObjectId(),
     tenantId: inv.tenantId,
     invoiceId: inv._id,
     subscriberId: inv.subscriberId,
     ancestors: inv.ancestors,
-    number: documentNumber('CN', fy, seq),
+    number: documentNumber(byL1 ? resellerSeries(byL1.code).creditNote : 'CN', fy, seq),
     financialYear: fy,
     reason: input.reason,
     seller: inv.seller,
+    ...(inv.sellerResellerId ? { sellerResellerId: inv.sellerResellerId } : {}),
     buyer: inv.buyer,
     placeOfSupply: inv.placeOfSupply,
     lines: inv.lines.map((l) => ({
