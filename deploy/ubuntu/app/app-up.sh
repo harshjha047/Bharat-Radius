@@ -12,8 +12,7 @@
 #   PANEL_HOSTS: space-separated host names Caddy serves the panel on (default new.bharatradius.com); the first is
 #     the canonical address (links in SMS, invoices, pay page). Add an ISP's own domain only after its DNS points
 #     here, or Caddy keeps retrying its certificate. Remembered in settings.env like the two above.
-#   MONGO_IMAGE: default mongo:8.0. MongoDB 8.x hangs at start on kernels 6.19-7.0.12 (SERVER-121912): use
-#     mongo:7.0 there. Fixed per host once data exists (8.0 data cannot be opened by 7.0). Remembered.
+#   MONGO_IMAGE: default mongo:8.0. Fixed per host once data exists (8.0 data cannot be opened by 7.0). Remembered.
 #   CANONICAL_ORIGIN: official product site the landing page canonicalises to (default https://new.bharatradius.com).
 #   APP_SUBNET (Docker networks allowed into PostgreSQL, trusted proxies) and the PostgreSQL TLS name come from
 #   /etc/isp-radius/install.env (radius/scripts/install.sh).
@@ -69,10 +68,6 @@ esac
 CANONICAL_ORIGIN="${CANONICAL_ORIGIN:-https://new.bharatradius.com}"
 MONGO_IMAGE="${MONGO_IMAGE:-mongo:8.0}"
 [[ $MONGO_IMAGE =~ ^mongo:[0-9]+\.[0-9]+$ ]] || die "MONGO_IMAGE must look like mongo:8.0"
-KERNEL="$(uname -r | cut -d- -f1)"
-if [[ $MONGO_IMAGE == mongo:8.* ]] && dpkg --compare-versions "$KERNEL" ge 6.19 && dpkg --compare-versions "$KERNEL" lt 7.0.13; then
-  die "kernel $KERNEL: $MONGO_IMAGE hangs at start (SERVER-121912). New host: rerun with MONGO_IMAGE=mongo:7.0"
-fi
 [[ $CANONICAL_ORIGIN =~ ^https://[a-z0-9.-]+$ ]] || die "CANONICAL_ORIGIN must be https://<host>"
 export EDGE_NETWORK APP_SUBNET PG_HOST CANONICAL_ORIGIN MONGO_IMAGE PANEL_HOST="$PRIMARY_HOST"
 # Non-secret; read by docker compose itself, so hand-run commands (exec, logs, up) resolve the same values.
@@ -154,7 +149,17 @@ log "starting isp-mongo"
 "${COMPOSE[@]}" up -d --wait mongo
 ROOT_PW="$(cat "$ETC/mongo_root_pw")"
 msh() { docker exec -i isp-mongo mongosh --quiet -u root -p "$ROOT_PW" --authenticationDatabase admin "$@"; }
-msh --eval "try { rs.status().ok } catch (e) { rs.initiate({_id: '$REPLSET', members: [{_id: 0, host: 'isp-mongo:27017'}]}).ok }" >/dev/null
+rs_init="try { rs.status().ok } catch (e) { rs.initiate({_id: '$REPLSET', members: [{_id: 0, host: 'isp-mongo:27017'}]}).ok }"
+if ! msh --eval 1 >/dev/null 2>&1; then
+  # No users yet (fresh volume): localhost exception, inside the container only. rs.initiate first, then root.
+  log "isp-mongo: first start, creating root user"
+  nsh() { docker exec -i isp-mongo mongosh --quiet "$@"; }
+  nsh --eval "$rs_init" >/dev/null
+  for _ in $(seq 1 30); do [[ "$(nsh --eval 'db.hello().isWritablePrimary')" == true ]] && break; sleep 1; done
+  nsh --eval "db.getSiblingDB('admin').createUser({user: 'root', pwd: '$ROOT_PW', roles: ['root']}).ok" >/dev/null
+  msh --eval 1 >/dev/null || die "isp-mongo: root login failed after creating the user"
+fi
+msh --eval "$rs_init" >/dev/null
 for _ in $(seq 1 30); do
   [[ "$(msh --eval 'db.hello().isWritablePrimary')" == true ]] && break
   sleep 1
