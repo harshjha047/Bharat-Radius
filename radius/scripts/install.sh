@@ -64,7 +64,7 @@ for v in PG_SHARED_BUFFERS PG_EFFECTIVE_CACHE_SIZE; do [[ ${!v} =~ ^[0-9]+(MB|GB
 
 # PostgreSQL major: keep an existing cluster (never a silent major upgrade), else the release's default package.
 if [[ -z "${PG_VER:-}" ]]; then
-  PG_VER="$(find /etc/postgresql -mindepth 2 -maxdepth 2 -name main -printf '%h\n' 2>/dev/null | xargs -rn1 basename | sort -V | tail -1)"
+  PG_VER="$(for c in /etc/postgresql/*/main; do [[ -d $c ]] && basename "$(dirname "$c")"; done | sort -V | tail -1 || true)"
 fi
 if [[ -z "${PG_VER:-}" ]]; then
   apt-get update -qq
