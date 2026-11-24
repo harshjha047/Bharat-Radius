@@ -11,7 +11,7 @@ x-logging: &logging
 
 services:
   mongo:
-    image: mongo:8.0
+    image: ${MONGO_IMAGE:-mongo:8.0}
     container_name: isp-mongo
     logging: *logging
     command: ['--replSet', 'rs-isp', '--keyFile', '/etc/mongo/keyfile', '--bind_ip_all', '--wiredTigerCacheSizeGB', '1']

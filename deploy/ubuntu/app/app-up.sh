@@ -12,6 +12,8 @@
 #   PANEL_HOSTS: space-separated host names Caddy serves the panel on (default new.bharatradius.com); the first is
 #     the canonical address (links in SMS, invoices, pay page). Add an ISP's own domain only after its DNS points
 #     here, or Caddy keeps retrying its certificate. Remembered in settings.env like the two above.
+#   MONGO_IMAGE: default mongo:8.0. MongoDB 8.x hangs at start on kernels 6.19-7.0.12 (SERVER-121912): use
+#     mongo:7.0 there. Fixed per host once data exists (8.0 data cannot be opened by 7.0). Remembered.
 #   CANONICAL_ORIGIN: official product site the landing page canonicalises to (default https://new.bharatradius.com).
 #   APP_SUBNET (Docker networks allowed into PostgreSQL, trusted proxies) and the PostgreSQL TLS name come from
 #   /etc/isp-radius/install.env (radius/scripts/install.sh).
@@ -39,7 +41,7 @@ install -d -m 0755 /run/isp-guard
 SETTINGS="$ETC/settings.env"
 if [[ -r $SETTINGS ]]; then
   while IFS='=' read -r k v; do
-    case "$k" in RADIUS_INSTANCE|RADIUS_PUBLIC_HOST|PANEL_HOSTS|EDGE|CANONICAL_ORIGIN) [[ -v $k ]] || printf -v "$k" '%s' "$v" ;; esac
+    case "$k" in RADIUS_INSTANCE|RADIUS_PUBLIC_HOST|PANEL_HOSTS|EDGE|CANONICAL_ORIGIN|MONGO_IMAGE) [[ -v $k ]] || printf -v "$k" '%s' "$v" ;; esac
   done <"$SETTINGS"
 fi
 RADIUS_INSTANCE="${RADIUS_INSTANCE:-staging}"
@@ -65,12 +67,18 @@ case "$EDGE" in
   *) die "EDGE must be acs or own" ;;
 esac
 CANONICAL_ORIGIN="${CANONICAL_ORIGIN:-https://new.bharatradius.com}"
+MONGO_IMAGE="${MONGO_IMAGE:-mongo:8.0}"
+[[ $MONGO_IMAGE =~ ^mongo:[0-9]+\.[0-9]+$ ]] || die "MONGO_IMAGE must look like mongo:8.0"
+KERNEL="$(uname -r | cut -d- -f1)"
+if [[ $MONGO_IMAGE == mongo:8.* ]] && dpkg --compare-versions "$KERNEL" ge 6.19 && dpkg --compare-versions "$KERNEL" lt 7.0.13; then
+  die "kernel $KERNEL: $MONGO_IMAGE hangs at start (SERVER-121912). New host: rerun with MONGO_IMAGE=mongo:7.0"
+fi
 [[ $CANONICAL_ORIGIN =~ ^https://[a-z0-9.-]+$ ]] || die "CANONICAL_ORIGIN must be https://<host>"
-export EDGE_NETWORK APP_SUBNET PG_HOST CANONICAL_ORIGIN PANEL_HOST="$PRIMARY_HOST"
+export EDGE_NETWORK APP_SUBNET PG_HOST CANONICAL_ORIGIN MONGO_IMAGE PANEL_HOST="$PRIMARY_HOST"
 # Non-secret; read by docker compose itself, so hand-run commands (exec, logs, up) resolve the same values.
 for d in "$DIR" "$DIR/../monitoring"; do
   printf '%s=%s\n' EDGE_NETWORK "$EDGE_NETWORK" APP_SUBNET "$APP_SUBNET" PG_HOST "$PG_HOST" \
-    CANONICAL_ORIGIN "$CANONICAL_ORIGIN" PANEL_HOST "$PRIMARY_HOST" >"$d/.env"
+    CANONICAL_ORIGIN "$CANONICAL_ORIGIN" MONGO_IMAGE "$MONGO_IMAGE" PANEL_HOST "$PRIMARY_HOST" >"$d/.env"
 done
 RCONF=/etc/isp-radius/$RADIUS_INSTANCE.conf
 RAPP=/etc/isp-radius/$RADIUS_INSTANCE.app.env
@@ -124,7 +132,7 @@ umask 077
 mv "$ETC/app.env.new" "$ETC/app.env"
 rm -f "$ETC/staging.env"
 printf '%s=%s\n' RADIUS_INSTANCE "$RADIUS_INSTANCE" RADIUS_PUBLIC_HOST "$RADIUS_PUBLIC_HOST" PANEL_HOSTS "$PANEL_HOSTS" \
-  EDGE "$EDGE" CANONICAL_ORIGIN "$CANONICAL_ORIGIN" >"$SETTINGS"
+  EDGE "$EDGE" CANONICAL_ORIGIN "$CANONICAL_ORIGIN" MONGO_IMAGE "$MONGO_IMAGE" >"$SETTINGS"
 umask 022
 log "edge: $EDGE ($EDGE_NETWORK), PostgreSQL as $PG_HOST, app subnet $APP_SUBNET"
 log "panel → RADIUS $RADIUS_INSTANCE ($R_DB): routers use ${RADIUS_PUBLIC_HOST:-<host>} auth $R_AUTH / acct $R_ACCT, MongoDB $MONGO_DB"
