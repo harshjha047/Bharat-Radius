@@ -3,6 +3,8 @@
 # Usage: sudo INSTANCE=staging USERS=20000 PARALLEL=200 TARGET=2000 ./load.sh
 set -Euo pipefail
 INSTANCE="${INSTANCE:-staging}"; USERS="${USERS:-20000}"; PARALLEL="${PARALLEL:-200}"; TARGET="${TARGET:-2000}"
+# radclient (3.2) stops early above ~200 in flight with no reject/lost count (br-prod 25 Nov: 255 → 3,707 of 100,000).
+(( PARALLEL <= 200 )) || { echo "PARALLEL must be <= 200 (radclient limit, not the server's)" >&2; exit 2; }
 . "/etc/isp-radius/$INSTANCE.conf"
 set -a; . "/etc/isp-radius/$INSTANCE.env"; set +a
 MAINT="${MAINT:-/opt/isp-radius/scripts/maint.sh}"
@@ -42,6 +44,8 @@ rate=$(echo "$USERS / $secs" | bc)
 printf 'result: %d logins in %.2f s = %d/s; accepted=%s rejected=%s lost=%s (cores: %s)\n' \
   "$USERS" "$secs" "$rate" "${accepted:-?}" "${rejected:-?}" "${lost:-?}" "$(nproc)"
 q -c "SELECT '  reject reason: ' || coalesce(reason,'?') || ' x' || count(*) FROM radpostauth WHERE tenant_id=(SELECT id FROM tenants WHERE slug='e2e-load') AND reply='Access-Reject' GROUP BY reason"
-[[ "${accepted:-0}" == "$USERS" && "${rejected:-1}" == 0 && "${lost:-1}" == 0 ]] || { echo "FAIL: rejects or timeouts"; exit 1; }
+if [[ "${accepted:-0}" != "$USERS" || "${rejected:-1}" != 0 || "${lost:-1}" != 0 ]]; then
+  echo "FAIL: rejects or timeouts; radclient said:"; grep -v '^\s*$' "$WORK/out" | tail -15 | sed 's/^/  /'; exit 1
+fi
 (( rate >= TARGET )) || { echo "FAIL: below target $TARGET/s"; exit 2; }
 echo "PASS"
