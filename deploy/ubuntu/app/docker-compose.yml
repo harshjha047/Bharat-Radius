@@ -14,14 +14,14 @@ services:
     image: ${MONGO_IMAGE:-mongo:8.0}
     container_name: isp-mongo
     logging: *logging
+    # mongod directly as the image's mongodb user (999), not through docker-entrypoint.sh: its gosu step hangs under
+    # Ubuntu 26.04 AppArmor stacking (apparmor_restrict_unprivileged_unconfined). app-up.sh creates the root user.
+    user: '999:999'
+    entrypoint: ['mongod']
     command: ['--replSet', 'rs-isp', '--keyFile', '/etc/mongo/keyfile', '--bind_ip_all', '--wiredTigerCacheSizeGB', '1']
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD_FILE: /etc/mongo/root_pw
     volumes:
       - mongo-data:/data/db
       - /etc/isp-app/mongo.keyfile:/etc/mongo/keyfile:ro
-      - /etc/isp-app/mongo_root_pw:/etc/mongo/root_pw:ro
     ports:
       - '127.0.0.1:27018:27017'
     networks: [internal]
