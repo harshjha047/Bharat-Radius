@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Monitoring stack (Prometheus, Alertmanager -> Telegram, Grafana at https://new.bharatradius.com/grafana/, blackbox).
-# Needs: install-exporters.sh, app-up.sh (networks isp_internal, acs_default; Caddy /grafana route), and
+# Monitoring stack (Prometheus, Alertmanager -> Telegram, Grafana at https://<panel host>/grafana/, blackbox).
+# Needs: install-exporters.sh, app-up.sh (networks isp_internal + the edge network, .env here; Caddy /grafana route), and
 #        /etc/isp-app/telegram_token (root, 0400).
 # Usage: sudo TELEGRAM_CHAT_ID=123456789 bash deploy/ubuntu/monitoring/mon-up.sh [--test-alert]
 set -Eeuo pipefail
@@ -18,7 +18,11 @@ if [[ -z "${TELEGRAM_CHAT_ID:-}" && -f "$MON/alertmanager.yml" ]]; then
 fi
 [[ "${TELEGRAM_CHAT_ID:-}" =~ ^-?[0-9]+$ ]] || die "set TELEGRAM_CHAT_ID (number from getUpdates)"
 [[ -s /etc/isp-app/telegram_token ]] || die "/etc/isp-app/telegram_token missing"
-for n in isp_internal acs_default; do docker network inspect "$n" >/dev/null 2>&1 || die "network $n missing: run app-up.sh first"; done
+[[ -s $DIR/.env ]] || die "$DIR/.env missing: run deploy/ubuntu/app/app-up.sh first"
+set -a; . "$DIR/.env"; set +a
+PUBLIC_IP="$(sed -n 's/^RADIUS_PUBLIC_HOST=//p' /etc/isp-app/settings.env)"
+[[ -n $PUBLIC_IP ]] || die "RADIUS_PUBLIC_HOST not set in /etc/isp-app/settings.env: rerun app-up.sh with it"
+for n in isp_internal "$EDGE_NETWORK"; do docker network inspect "$n" >/dev/null 2>&1 || die "network $n missing: run app-up.sh first"; done
 node_metrics="$(curl -fsS http://127.0.0.1:9100/metrics)" || die "node exporter not answering: run install-exporters.sh first"
 grep -q '^isp_radius_up' <<<"$node_metrics" || die "node exporter without isp_radius_*: run install-exporters.sh first"
 
@@ -29,10 +33,16 @@ install -o 65534 -g 65534 -m 0400 /etc/isp-app/telegram_token "$MON/telegram_tok
 chown 472:0 "$MON/grafana_admin_pw"; chmod 0400 "$MON/grafana_admin_pw"
 sed "s/__TELEGRAM_CHAT_ID__/$TELEGRAM_CHAT_ID/" "$DIR/alertmanager/alertmanager.yml.tmpl" >"$MON/alertmanager.yml"
 chmod 0644 "$MON/alertmanager.yml"
+# The repo file carries acs-prod's values; this host's go in. Written in place: Prometheus has it bind-mounted.
+sed -e "s/host: acs-prod/host: $(hostname -s)/" -e "s/154\.49\.142\.251/$PUBLIC_IP/g" \
+  -e "s/new\.bharatradius\.com/$PANEL_HOST/g" "$DIR/prometheus/prometheus.yml" >"$MON/prometheus.yml.new"
+[[ -f $MON/prometheus.yml ]] || install -m 0644 /dev/null "$MON/prometheus.yml"
+cat "$MON/prometheus.yml.new" >"$MON/prometheus.yml"; rm -f "$MON/prometheus.yml.new"
 
 log "validating configs"
 "${COMPOSE[@]}" pull -q
-docker run --rm --entrypoint promtool -v "$DIR/prometheus:/etc/prometheus:ro" prom/prometheus:v2.55.1 \
+docker run --rm --entrypoint promtool -v "$MON/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+  -v "$DIR/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro" prom/prometheus:v2.55.1 \
   check config /etc/prometheus/prometheus.yml >/dev/null
 docker run --rm --entrypoint promtool -v "$DIR/prometheus:/p:ro" -w /p prom/prometheus:v2.55.1 test rules alerts.test.yml
 docker run --rm --entrypoint amtool -v "$MON:/etc/alertmanager:ro" prom/alertmanager:v0.28.1 check-config /etc/alertmanager/alertmanager.yml >/dev/null
@@ -54,4 +64,4 @@ if [[ "${1:-}" == --test-alert ]]; then
     --end="$(date -u -d '+5 minutes' +%Y-%m-%dT%H:%M:%SZ)" --alertmanager.url=http://127.0.0.1:9093
   log "test alert sent: expect a Telegram message within ~30 s"
 fi
-log "Grafana: https://new.bharatradius.com/grafana/  user admin, password: sudo cat $MON/grafana_admin_pw"
+log "Grafana: https://$PANEL_HOST/grafana/  user admin, password: sudo cat $MON/grafana_admin_pw"

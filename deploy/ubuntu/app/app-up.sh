@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Staging app stack on the RADIUS host: our MongoDB, the API, the walled-garden redirect, and one Caddy site in the
-# ACS stack. Idempotent. Never changes ACS containers or routes; adds only:
-#   /opt/acs/repo/infra/caddy/sites/isp.caddy  +  one "import /etc/caddy/sites/*.caddy" line in its Caddyfile.
+# App stack on the RADIUS host: our MongoDB, the API, the walled-garden redirect, and one Caddy site. Idempotent.
+#   EDGE=acs: site in the ACS stack's Caddy. Never changes ACS containers or routes; adds only
+#     /opt/acs/repo/infra/caddy/sites/isp.caddy  +  one "import /etc/caddy/sites/*.caddy" line in its Caddyfile.
+#   EDGE=own: our own Caddy (deploy/ubuntu/edge, network "edge"), site file in /etc/isp-edge/sites/isp.caddy.
+#   Default: acs if the ACS stack's network exists, else own. Remembered in settings.env.
 # Usage: sudo [RADIUS_INSTANCE=staging|production] [RADIUS_PUBLIC_HOST=<ip>] bash deploy/ubuntu/app/app-up.sh
 #   RADIUS_INSTANCE: which RADIUS database the panel writes routers and subscribers to (default staging). The panel
 #     shows it with the host and ports routers must use. Remembered in /etc/isp-app/settings.env, so a plain rerun
@@ -10,13 +12,17 @@
 #   PANEL_HOSTS: space-separated host names Caddy serves the panel on (default new.bharatradius.com); the first is
 #     the canonical address (links in SMS, invoices, pay page). Add an ISP's own domain only after its DNS points
 #     here, or Caddy keeps retrying its certificate. Remembered in settings.env like the two above.
+#   CANONICAL_ORIGIN: official product site the landing page canonicalises to (default https://new.bharatradius.com).
+#   APP_SUBNET (Docker networks allowed into PostgreSQL, trusted proxies) and the PostgreSQL TLS name come from
+#   /etc/isp-radius/install.env (radius/scripts/install.sh).
 set -Eeuo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ETC=/etc/isp-app
-ACS_CADDY_DIR="${ACS_CADDY_DIR:-/opt/acs/repo/infra/caddy}"
-ACS_CADDY_CONTAINER="${ACS_CADDY_CONTAINER:-acs-caddy-1}"
+RSET=/etc/isp-radius/install.env
+APP_SUBNET="${APP_SUBNET:-$(sed -n 's/^APP_SUBNET=//p' "$RSET" 2>/dev/null)}"
 APP_SUBNET="${APP_SUBNET:-172.16.0.0/12}"
+PG_HOST="$(sed -n 's/^PG_TLS_HOSTNAME=//p' "$RSET" 2>/dev/null)"; PG_HOST="${PG_HOST:-acs-prod}"
 COMPOSE=(docker compose -f "$DIR/docker-compose.yml")
 REPLSET=rs-isp
 
@@ -33,7 +39,7 @@ install -d -m 0755 /run/isp-guard
 SETTINGS="$ETC/settings.env"
 if [[ -r $SETTINGS ]]; then
   while IFS='=' read -r k v; do
-    case "$k" in RADIUS_INSTANCE|RADIUS_PUBLIC_HOST|PANEL_HOSTS) [[ -v $k ]] || printf -v "$k" '%s' "$v" ;; esac
+    case "$k" in RADIUS_INSTANCE|RADIUS_PUBLIC_HOST|PANEL_HOSTS|EDGE|CANONICAL_ORIGIN) [[ -v $k ]] || printf -v "$k" '%s' "$v" ;; esac
   done <"$SETTINGS"
 fi
 RADIUS_INSTANCE="${RADIUS_INSTANCE:-staging}"
@@ -49,13 +55,29 @@ case "$RADIUS_INSTANCE" in
 esac
 RADIUS_PUBLIC_HOST="${RADIUS_PUBLIC_HOST:-$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')}"
 command -v docker >/dev/null || die "docker not installed"
-docker network inspect acs_default >/dev/null 2>&1 || die "docker network acs_default not found (ACS stack down?)"
+if [[ -z ${EDGE:-} ]]; then EDGE=own; docker network inspect acs_default >/dev/null 2>&1 && EDGE=acs; fi
+case "$EDGE" in
+  acs) EDGE_NETWORK=acs_default
+       CADDY_DIR="${ACS_CADDY_DIR:-/opt/acs/repo/infra/caddy}"; CADDY_CF="$CADDY_DIR/Caddyfile"; CADDY_SITES="$CADDY_DIR/sites"
+       CADDY_CONTAINER="${ACS_CADDY_CONTAINER:-acs-caddy-1}"
+       docker network inspect acs_default >/dev/null 2>&1 || die "docker network acs_default not found (ACS stack down?)" ;;
+  own) EDGE_NETWORK=edge; CADDY_CF=""; CADDY_SITES=/etc/isp-edge/sites; CADDY_CONTAINER=edge-caddy ;;
+  *) die "EDGE must be acs or own" ;;
+esac
+CANONICAL_ORIGIN="${CANONICAL_ORIGIN:-https://new.bharatradius.com}"
+[[ $CANONICAL_ORIGIN =~ ^https://[a-z0-9.-]+$ ]] || die "CANONICAL_ORIGIN must be https://<host>"
+export EDGE_NETWORK APP_SUBNET PG_HOST CANONICAL_ORIGIN PANEL_HOST="$PRIMARY_HOST"
+# Non-secret; read by docker compose itself, so hand-run commands (exec, logs, up) resolve the same values.
+for d in "$DIR" "$DIR/../monitoring"; do
+  printf '%s=%s\n' EDGE_NETWORK "$EDGE_NETWORK" APP_SUBNET "$APP_SUBNET" PG_HOST "$PG_HOST" \
+    CANONICAL_ORIGIN "$CANONICAL_ORIGIN" PANEL_HOST "$PRIMARY_HOST" >"$d/.env"
+done
 RCONF=/etc/isp-radius/$RADIUS_INSTANCE.conf
 RAPP=/etc/isp-radius/$RADIUS_INSTANCE.app.env
 [[ -s $RCONF && -s $RAPP && -s /etc/isp-radius/tls/ca.crt ]] || die "run radius/scripts/install.sh $RADIUS_INSTANCE first"
 R_DB="$(sed -n 's/^DB=//p' "$RCONF")"; R_ROLE="$(sed -n 's/^APP_ROLE=//p' "$RCONF")"
 R_AUTH="$(sed -n 's/^AUTH_PORT=//p' "$RCONF")"; R_ACCT="$(sed -n 's/^ACCT_PORT=//p' "$RCONF")"
-grep -qE "^hostssl +$R_DB +$R_ROLE +$APP_SUBNET" /etc/postgresql/16/main/pg_hba.conf \
+grep -qE "^hostssl +$R_DB +$R_ROLE +$APP_SUBNET" "$(runuser -u postgres -- psql -XtAc 'SHOW hba_file')" \
   || die "PostgreSQL does not accept the app subnet yet: rerun install.sh with APP_SUBNET=$APP_SUBNET"
 
 # ------------------------------------------------------------------ secrets (generated once)
@@ -84,7 +106,7 @@ umask 077
 {
   echo "NODE_ENV=production"
   echo "MONGO_URL=mongodb://isp_app:${MONGO_APP_PW}@isp-mongo:27017/${MONGO_DB}?replicaSet=${REPLSET}&authSource=admin"
-  echo "RADIUS_DB_URL=postgres://${R_ROLE}:${APP_DB_PASSWORD}@acs-prod:5432/${R_DB}?sslmode=verify-full&sslrootcert=/etc/isp/radius-ca.crt"
+  echo "RADIUS_DB_URL=postgres://${R_ROLE}:${APP_DB_PASSWORD}@${PG_HOST}:5432/${R_DB}?sslmode=verify-full&sslrootcert=/etc/isp/radius-ca.crt"
   echo "RADIUS_DB_POOL_MAX=10"
   echo "RADIUS_PW_KEY=${RADIUS_PW_KEY}"
   echo "RADIUS_INSTANCE=${RADIUS_INSTANCE}"
@@ -101,13 +123,22 @@ umask 077
 } >"$ETC/app.env.new"
 mv "$ETC/app.env.new" "$ETC/app.env"
 rm -f "$ETC/staging.env"
-printf 'RADIUS_INSTANCE=%s\nRADIUS_PUBLIC_HOST=%s\nPANEL_HOSTS=%s\n' "$RADIUS_INSTANCE" "$RADIUS_PUBLIC_HOST" "$PANEL_HOSTS" >"$SETTINGS"
+printf '%s=%s\n' RADIUS_INSTANCE "$RADIUS_INSTANCE" RADIUS_PUBLIC_HOST "$RADIUS_PUBLIC_HOST" PANEL_HOSTS "$PANEL_HOSTS" \
+  EDGE "$EDGE" CANONICAL_ORIGIN "$CANONICAL_ORIGIN" >"$SETTINGS"
 umask 022
+log "edge: $EDGE ($EDGE_NETWORK), PostgreSQL as $PG_HOST, app subnet $APP_SUBNET"
 log "panel → RADIUS $RADIUS_INSTANCE ($R_DB): routers use ${RADIUS_PUBLIC_HOST:-<host>} auth $R_AUTH / acct $R_ACCT, MongoDB $MONGO_DB"
 
 # ------------------------------------------------------------------ PostgreSQL reachable from containers
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   ufw allow from "$APP_SUBNET" to any port 5432 proto tcp comment "isp-radius pg (app containers)" >/dev/null
+fi
+
+# ------------------------------------------------------------------ own edge Caddy
+if [[ $EDGE == own ]]; then
+  install -d -m 0755 /etc/isp-edge "$CADDY_SITES"
+  log "starting edge-caddy (80/443)"
+  docker compose -f "$DIR/../edge/docker-compose.yml" up -d --wait
 fi
 
 # ------------------------------------------------------------------ MongoDB
@@ -161,26 +192,31 @@ health="$(docker exec isp-api node -e "fetch('http://127.0.0.1:4100/healthz').th
 log "healthz: $health"
 grep -q '"status":"ok"' <<<"$health" || die "API not healthy"
 
-# ------------------------------------------------------------------ Caddy site in the ACS stack
-CF="$ACS_CADDY_DIR/Caddyfile"
-[[ -f $CF ]] || die "$CF not found"
-install -d -m 0755 "$ACS_CADDY_DIR/sites"
+# ------------------------------------------------------------------ Caddy site
+install -d -m 0755 "$CADDY_SITES"
 # The site block's first line lists every panel host (PANEL_HOSTS).
-sed "s|^new.bharatradius.com {|${HOSTS[*]} {|" "$DIR/caddy/isp.caddy" >"$ACS_CADDY_DIR/sites/isp.caddy.new"
-chmod 0644 "$ACS_CADDY_DIR/sites/isp.caddy.new"
+sed "s|^new.bharatradius.com {|${HOSTS[*]} {|" "$DIR/caddy/isp.caddy" >"$CADDY_SITES/isp.caddy.new"
+chmod 0644 "$CADDY_SITES/isp.caddy.new"
 install -d -m 0700 /var/backups/isp-app
-backup="/var/backups/isp-app/Caddyfile.$(date +%Y%m%d%H%M%S)"
-cp -p "$CF" "$backup"
-grep -qxF 'import /etc/caddy/sites/*.caddy' "$CF" || printf '\nimport /etc/caddy/sites/*.caddy\n' >>"$CF"
-mv "$ACS_CADDY_DIR/sites/isp.caddy.new" "$ACS_CADDY_DIR/sites/isp.caddy"
-if docker exec "$ACS_CADDY_CONTAINER" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/tmp/isp-caddy-validate.log 2>&1; then
-  docker exec "$ACS_CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
-  if cmp -s "$backup" "$CF"; then rm -f "$backup"; fi
-  log "Caddy reloaded with ${HOSTS[*]}"
+stamp="$(date +%Y%m%d%H%M%S)"
+backup_cf=""; backup_site=""
+if [[ -n $CADDY_CF ]]; then
+  [[ -f $CADDY_CF ]] || die "$CADDY_CF not found"
+  backup_cf="/var/backups/isp-app/Caddyfile.$stamp"; cp -p "$CADDY_CF" "$backup_cf"
+  grep -qxF 'import /etc/caddy/sites/*.caddy' "$CADDY_CF" || printf '\nimport /etc/caddy/sites/*.caddy\n' >>"$CADDY_CF"
+fi
+if [[ -f $CADDY_SITES/isp.caddy ]]; then backup_site="/var/backups/isp-app/isp.caddy.$stamp"; cp -p "$CADDY_SITES/isp.caddy" "$backup_site"; fi
+mv "$CADDY_SITES/isp.caddy.new" "$CADDY_SITES/isp.caddy"
+if docker exec "$CADDY_CONTAINER" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/tmp/isp-caddy-validate.log 2>&1; then
+  docker exec "$CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+  [[ -z $backup_cf ]] || ! cmp -s "$backup_cf" "$CADDY_CF" || rm -f "$backup_cf"
+  [[ -z $backup_site ]] || rm -f "$backup_site"
+  log "Caddy ($CADDY_CONTAINER) reloaded with ${HOSTS[*]}"
 else
-  cp -p "$backup" "$CF"; rm -f "$ACS_CADDY_DIR/sites/isp.caddy"
+  [[ -z $backup_cf ]] || cp -p "$backup_cf" "$CADDY_CF"
+  if [[ -n $backup_site ]]; then cp -p "$backup_site" "$CADDY_SITES/isp.caddy"; else rm -f "$CADDY_SITES/isp.caddy"; fi
   tail -20 /tmp/isp-caddy-validate.log >&2
-  die "Caddy config invalid; ACS Caddyfile restored, nothing reloaded"
+  die "Caddy config invalid; previous config restored, nothing reloaded"
 fi
 
 log "done. Containers: $(docker ps --filter name=isp- --format '{{.Names}}={{.Status}}' | tr '\n' ' ')"

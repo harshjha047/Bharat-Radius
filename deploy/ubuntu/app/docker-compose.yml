@@ -48,10 +48,10 @@ services:
       API_PORT: '4100'
       APP_VERSION: ${APP_VERSION:-dev}
       # Caddy reaches the API over Docker networks; only its X-Forwarded-For is trusted.
-      TRUST_PROXY: 172.16.0.0/12
+      TRUST_PROXY: ${APP_SUBNET:-172.16.0.0/12}
       NAT_ARCHIVE_DIR: /archive/nat
     extra_hosts:
-      - 'acs-prod:host-gateway'
+      - '${PG_HOST:-acs-prod}:host-gateway'
     volumes:
       - /etc/isp-radius/tls/ca.crt:/etc/isp/radius-ca.crt:ro
       # NAT log archive, read-only, for "who used this public IP:port" lookups (group isp-archive, gid 2470)
@@ -85,7 +85,7 @@ services:
       WORKERS_PORT: '4101'
       APP_VERSION: ${APP_VERSION:-dev}
     extra_hosts:
-      - 'acs-prod:host-gateway'
+      - '${PG_HOST:-acs-prod}:host-gateway'
     volumes:
       - /etc/isp-radius/tls/ca.crt:/etc/isp/radius-ca.crt:ro
       - /run/isp-guard:/run/isp-guard:ro
@@ -128,6 +128,8 @@ services:
     image: caddy:2-alpine
     container_name: isp-walled-garden
     logging: *logging
+    environment:
+      PANEL_HOST: ${PANEL_HOST:-new.bharatradius.com}
     volumes:
       - ./walled-garden/Caddyfile:/etc/caddy/Caddyfile:ro
     ports:
@@ -140,9 +142,10 @@ services:
 
 networks:
   internal: {}
+  # Public web entry: the ACS stack's Caddy (acs_default) or our own (edge); app-up.sh sets EDGE_NETWORK.
   acs:
     external: true
-    name: acs_default
+    name: ${EDGE_NETWORK:-acs_default}
 
 volumes:
   mongo-data: {}

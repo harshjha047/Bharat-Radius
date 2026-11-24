@@ -11,7 +11,8 @@ services:
       - --storage.tsdb.retention.time=15d
       - --web.enable-lifecycle
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Rendered by mon-up.sh from ./prometheus/prometheus.yml (this host's name, public IP, panel host).
+      - /etc/isp-app/mon/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
     extra_hosts:
@@ -54,7 +55,7 @@ services:
     image: grafana/grafana-oss:11.5.2
     container_name: isp-grafana
     environment:
-      GF_SERVER_ROOT_URL: https://new.bharatradius.com/grafana/
+      GF_SERVER_ROOT_URL: https://${PANEL_HOST:-new.bharatradius.com}/grafana/
       GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/isp/grafana_admin_pw
@@ -85,7 +86,7 @@ networks:
     name: isp_internal
   acs:
     external: true
-    name: acs_default
+    name: ${EDGE_NETWORK:-acs_default}
 
 volumes:
   prometheus-data: {}
