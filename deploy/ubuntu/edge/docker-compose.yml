@@ -1,0 +1,36 @@
+# Public web entry (80/443) for every service on a host without the ACS stack: one Caddy, automatic Let's Encrypt.
+# Each service drops one site file into /etc/isp-edge/sites (Bharat Radius: deploy/ubuntu/app/app-up.sh with EDGE=own)
+# and joins the "edge" network. Managed by app-up.sh.
+name: edge
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: edge-caddy
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /etc/isp-edge/sites:/etc/caddy/sites:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [edge]
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:2019/config/']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 256M }
+    restart: unless-stopped
+
+networks:
+  edge:
+    name: edge
+
+volumes:
+  caddy-data: {}
+  caddy-config: {}

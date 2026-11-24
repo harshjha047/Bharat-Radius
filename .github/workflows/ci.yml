@@ -120,6 +120,15 @@ jobs:
       - run: shellcheck -S warning radius/scripts/*.sh radius/tests/*.sh deploy/ubuntu/*.sh deploy/ubuntu/lab/*.sh deploy/ubuntu/backup/*.sh deploy/ubuntu/logs/*.sh deploy/ubuntu/disk/*.sh
       - name: Disk guard levels
         run: bash deploy/ubuntu/disk/test-guard.sh
+      - name: Caddy configs parse (edge, panel site, walled garden)
+        run: |
+          d=deploy/ubuntu
+          mkdir -p /tmp/sites && sed 's|^new.bharatradius.com {|bharatradius.com www.bharatradius.com {|' $d/app/caddy/isp.caddy >/tmp/sites/isp.caddy
+          v() { docker run --rm -e PANEL_HOST=bharatradius.com -v "$PWD/$1:/etc/caddy/Caddyfile:ro" -v /tmp/sites:/etc/caddy/sites:ro \
+            caddy:2.10-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; }
+          v $d/edge/Caddyfile
+          v $d/app/walled-garden/Caddyfile
+          docker compose -f $d/edge/docker-compose.yml config -q
       - name: rsyslog archive config parses (WP 4.6)
         run: |
           sudo apt-get install -y -qq rsyslog >/dev/null
@@ -132,15 +141,32 @@ jobs:
   radius:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # 16: acs-prod (Ubuntu 24.04). 18: br-prod (Ubuntu 26.04 ships it; here from apt.postgresql.org).
+        pg: [16, 18]
     steps:
       - uses: actions/checkout@v5
       - name: Free ports used by runner images
         run: sudo systemctl stop postgresql || true
+      - name: PostgreSQL ${{ matrix.pg }} only (drop the runner's own cluster)
+        if: matrix.pg != 16
+        run: |
+          for c in /etc/postgresql/*/main; do [ -d "$c" ] && sudo pg_dropcluster --stop "$(basename "$(dirname "$c")")" main; done
+          sudo apt-get purge -y -qq $(dpkg-query -W -f '${Package}\n' 'postgresql-1*' 'postgresql-client-1*' 2>/dev/null) >/dev/null
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-pycryptodome bc
       - name: Install RADIUS (production + staging)
-        run: sudo PG_TLS_HOSTNAME=localhost bash radius/scripts/install.sh all
-      - name: Installer is idempotent
-        run: sudo PG_TLS_HOSTNAME=localhost bash radius/scripts/install.sh all
+        run: sudo PG_VER=${{ matrix.pg }} PG_TLS_HOSTNAME=localhost bash radius/scripts/install.sh all
+      - name: Installer is idempotent (settings remembered)
+        run: |
+          sudo PG_TLS_HOSTNAME=localhost bash radius/scripts/install.sh all
+          sudo grep -qx 'PG_VER=${{ matrix.pg }}' /etc/isp-radius/install.env
+          [ "$(sudo -u postgres psql -XtAc 'SHOW server_version_num' | cut -c1-2)" = ${{ matrix.pg }} ]
       - name: E2E staging
         run: sudo INSTANCE=staging bash radius/tests/e2e.sh
       - name: E2E production incl. database outage

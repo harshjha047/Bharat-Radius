@@ -1,4 +1,4 @@
-# Imported by the ACS Caddy (/etc/caddy/Caddyfile: import /etc/caddy/sites/*.caddy). Managed by isp-platform app-up.sh.
+# Imported by the ACS Caddy or our edge Caddy (import /etc/caddy/sites/*.caddy). Managed by isp-platform app-up.sh.
 new.bharatradius.com {
 	encode zstd gzip
 	header {

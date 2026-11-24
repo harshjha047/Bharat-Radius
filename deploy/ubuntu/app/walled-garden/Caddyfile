@@ -13,6 +13,6 @@
 		header_up Host {upstream_hostport}
 	}
 	handle_errors {
-		redir https://new.bharatradius.com/pay 302
+		redir https://{$PANEL_HOST}/pay 302
 	}
 }

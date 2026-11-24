@@ -2,8 +2,9 @@
 # Host-side metrics for the monitoring stack (deploy/ubuntu/monitoring), scraped from Docker networks only.
 #   node exporter :9100  (+ systemd units, + textfile: isp_radius_* from radius-status.sh every 15 s)
 #   postgres exporter :9187  (+ isp_* queries: auth results, online users, login SQL time, partitions)
-# Usage: sudo [SCRAPE_FROM=172.16.0.0/12] bash deploy/ubuntu/install-exporters.sh
+# Usage: sudo [SCRAPE_FROM=<cidr>] bash deploy/ubuntu/install-exporters.sh   (default: APP_SUBNET from install.sh)
 set -Eeuo pipefail
+SCRAPE_FROM="${SCRAPE_FROM:-$(sed -n 's/^APP_SUBNET=//p' /etc/isp-radius/install.env 2>/dev/null)}"
 SCRAPE_FROM="${SCRAPE_FROM:-172.16.0.0/12}"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEXTFILE_DIR=/var/lib/prometheus/node-exporter
@@ -61,6 +62,7 @@ END $$;
 GRANT pg_monitor TO prometheus;
 SQL
 for db in radius radius_staging; do
+  runuser -u postgres -- psql -XtAc "SELECT 1 FROM pg_database WHERE datname = '$db'" | grep -q 1 || continue
   runuser -u postgres -- psql -Xq -v ON_ERROR_STOP=1 -d "$db" <<SQL
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 GRANT CONNECT ON DATABASE $db TO prometheus;
@@ -70,7 +72,7 @@ GRANT SELECT ON pg_stat_statements, pg_stat_statements_info TO pg_read_all_stats
 GRANT EXECUTE ON FUNCTION pg_stat_statements(boolean), pg_stat_statements_info() TO pg_read_all_stats;
 SQL
 done
-HBA=/etc/postgresql/16/main/pg_hba.conf
+HBA="$(runuser -u postgres -- psql -XtAc 'SHOW hba_file')"
 grep -q '^local[[:space:]]\+all[[:space:]]\+prometheus' "$HBA" \
   || sed -i '/^# END isp-radius/i local   all             prometheus                              peer' "$HBA"
 runuser -u postgres -- psql -Xqc "SELECT pg_reload_conf()" >/dev/null

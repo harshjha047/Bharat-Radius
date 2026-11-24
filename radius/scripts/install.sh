@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# Idempotent installer for the RADIUS hot path (FreeRADIUS 3.2 + PostgreSQL 16) on Ubuntu 24.04.
+# Idempotent installer for the RADIUS hot path (FreeRADIUS 3.2 + PostgreSQL 16 or 18) on Ubuntu 24.04 / 26.04.
 # Usage: sudo PG_TLS_HOSTNAME=radius.example.net [APP_SUBNET=172.16.0.0/12] [WINDOWS_IP=203.0.113.10] ./install.sh [production|staging|all]
 #   APP_SUBNET: Docker networks of the app stack on this host (deploy/ubuntu/app); app roles may connect from there over TLS.
+#     Must not contain any address of this host (e.g. a provider private network in 172.16.0.0/12): set Docker's
+#     default-address-pools to a free range first and pass that range here.
+#   PG_VER: PostgreSQL major. Default: the existing cluster, else the Ubuntu release's own (24.04: 16, 26.04: 18).
+#   PG_SHARED_BUFFERS / PG_EFFECTIVE_CACHE_SIZE: default 1GB / 3GB (sized for the shared 8 GB VPS).
 #   WINDOWS_IP: remote app host (Windows plan); app roles + replication may connect from there over TLS.
 # Never touches GenieACS; never enables a firewall (adds rules only if ufw is already active).
 set -Eeuo pipefail
@@ -13,7 +17,8 @@ SETTINGS=/etc/isp-radius/install.env
 if [[ -r $SETTINGS ]]; then
   while IFS='=' read -r k v; do
     case "$k" in
-      WINDOWS_IP|APP_SUBNET|PG_TLS_HOSTNAME|PG_TLS_IP) [[ -v $k ]] || printf -v "$k" '%s' "$v" ;;
+      WINDOWS_IP|APP_SUBNET|PG_TLS_HOSTNAME|PG_TLS_IP|PG_VER|PG_SHARED_BUFFERS|PG_EFFECTIVE_CACHE_SIZE)
+        [[ -v $k ]] || printf -v "$k" '%s' "$v" ;;
     esac
   done <"$SETTINGS"
 fi
@@ -21,7 +26,8 @@ WINDOWS_IP="${WINDOWS_IP:-}"
 APP_SUBNET="${APP_SUBNET:-}"
 PG_TLS_HOSTNAME="${PG_TLS_HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}"
 PG_TLS_IP="${PG_TLS_IP:-}"
-PG_VER=16
+PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-1GB}"
+PG_EFFECTIVE_CACHE_SIZE="${PG_EFFECTIVE_CACHE_SIZE:-3GB}"
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OPT_DIR=/opt/isp-radius
 ETC_DIR=/etc/isp-radius
@@ -47,7 +53,24 @@ if [[ -n "$WINDOWS_IP" ]]; then
 fi
 if [[ -n "$APP_SUBNET" ]]; then
   [[ "$APP_SUBNET" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}$ ]] || die "APP_SUBNET must be an IPv4 CIDR"
+  # A host address inside APP_SUBNET would let that network reach PostgreSQL and the exporters (pg_hba + ufw trust it).
+  clash="$(ip -4 -o addr show | awk '$2 != "lo" && $2 != "docker0" && $2 !~ /^(br-|veth)/ {print $4}' | python3 -c '
+import ipaddress, sys
+net = ipaddress.ip_network(sys.argv[1], strict=False)
+print(" ".join(a for a in sys.stdin.read().split() if ipaddress.ip_interface(a).ip in net))' "$APP_SUBNET")"
+  [[ -z $clash ]] || die "APP_SUBNET $APP_SUBNET contains this host's address $clash: use Docker's own range (/etc/docker/daemon.json default-address-pools)"
 fi
+for v in PG_SHARED_BUFFERS PG_EFFECTIVE_CACHE_SIZE; do [[ ${!v} =~ ^[0-9]+(MB|GB)$ ]] || die "$v must look like 512MB or 4GB"; done
+
+# PostgreSQL major: keep an existing cluster (never a silent major upgrade), else the release's default package.
+if [[ -z "${PG_VER:-}" ]]; then
+  PG_VER="$(find /etc/postgresql -mindepth 2 -maxdepth 2 -name main -printf '%h\n' 2>/dev/null | xargs -rn1 basename | sort -V | tail -1)"
+fi
+if [[ -z "${PG_VER:-}" ]]; then
+  apt-get update -qq
+  PG_VER="$(apt-cache policy postgresql | sed -n 's/^ *Candidate: *\([0-9]\+\)+.*/\1/p')"
+fi
+[[ "$PG_VER" =~ ^1[6-9]$ ]] || die "PostgreSQL 16-19 required; set PG_VER (found '${PG_VER:-none}')"
 
 instance_vars() {
   case "$1" in
@@ -64,7 +87,7 @@ psql_su() { runuser -u postgres -- psql -X -v ON_ERROR_STOP=1 -q "$@"; }
 # ---------------------------------------------------------------- packages
 log "installing packages"
 export DEBIAN_FRONTEND=noninteractive
-PKGS=("postgresql-$PG_VER" postgresql-contrib freeradius freeradius-postgresql freeradius-utils openssl iproute2)
+PKGS=("postgresql-$PG_VER" freeradius freeradius-postgresql freeradius-utils openssl iproute2)
 missing=(); for p in "${PKGS[@]}"; do dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p"); done
 if ((${#missing[@]})); then apt-get update -qq; apt-get install -y -qq "${missing[@]}"; fi
 FR_VER="$(freeradius -v | sed -n 's/.*Version \([0-9.]*\).*/\1/p' | head -1)"
@@ -144,11 +167,12 @@ PGCONF=/etc/postgresql/$PG_VER/main
 log "writing PostgreSQL tuning and pg_hba"
 LISTEN="localhost"; [[ -n "$WINDOWS_IP$APP_SUBNET" ]] && LISTEN="*"
 cat >"$PGCONF/conf.d/isp-radius.conf" <<EOF
-# Managed by isp-platform install.sh. Budget: < 3 GB RAM total (shared VPS with GenieACS).
+# Managed by isp-platform install.sh. PostgreSQL $PG_VER.
 listen_addresses = '$LISTEN'
+port = 5432
 max_connections = 200
-shared_buffers = 1GB
-effective_cache_size = 3GB
+shared_buffers = $PG_SHARED_BUFFERS
+effective_cache_size = $PG_EFFECTIVE_CACHE_SIZE
 work_mem = 8MB
 maintenance_work_mem = 256MB
 random_page_cost = 1.1
@@ -365,8 +389,8 @@ if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
 fi
 
 # $ETC_DIR was created 0755 above so PostgreSQL can reach tls/; never re-mode it here.
-printf 'WINDOWS_IP=%s\nAPP_SUBNET=%s\nPG_TLS_HOSTNAME=%s\nPG_TLS_IP=%s\n' \
-  "$WINDOWS_IP" "$APP_SUBNET" "$PG_TLS_HOSTNAME" "$PG_TLS_IP" >"$SETTINGS"
+printf '%s=%s\n' WINDOWS_IP "$WINDOWS_IP" APP_SUBNET "$APP_SUBNET" PG_TLS_HOSTNAME "$PG_TLS_HOSTNAME" PG_TLS_IP "$PG_TLS_IP" \
+  PG_VER "$PG_VER" PG_SHARED_BUFFERS "$PG_SHARED_BUFFERS" PG_EFFECTIVE_CACHE_SIZE "$PG_EFFECTIVE_CACHE_SIZE" >"$SETTINGS"
 chmod 0600 "$SETTINGS"; chown root:root "$SETTINGS"
-log "settings saved to $SETTINGS (APP_SUBNET=${APP_SUBNET:-none}, TLS name $PG_TLS_HOSTNAME${PG_TLS_IP:+, $PG_TLS_IP})"
+log "settings saved to $SETTINGS (PostgreSQL $PG_VER, APP_SUBNET=${APP_SUBNET:-none}, TLS name $PG_TLS_HOSTNAME${PG_TLS_IP:+, $PG_TLS_IP})"
 log "done. App credentials: $ETC_DIR/<instance>.app.env; CA: $TLS_DIR/ca.crt (never email or paste them)."

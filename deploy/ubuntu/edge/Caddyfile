@@ -1,0 +1,6 @@
+# Edge Caddy (deploy/ubuntu/edge). Sites live in /etc/isp-edge/sites/*.caddy, one file per service.
+{
+	admin 127.0.0.1:2019
+}
+
+import /etc/caddy/sites/*.caddy

@@ -239,8 +239,9 @@ check "  re-running the ingester does not count lines twice" \
 
 if [[ "${DB_OUTAGE_TEST:-0}" == 1 ]]; then
   echo "[database outage] (stops PostgreSQL briefly; CI/lab only)"
-  if [[ -d /run/systemd/system ]]; then pgstop() { systemctl stop postgresql@16-main; }; pgstart() { systemctl start postgresql@16-main; }
-  else pgstop() { pg_ctlcluster 16 main stop; }; pgstart() { pg_ctlcluster 16 main start; }; fi
+  PGV="$(sed -n 's/^PG_VER=//p' /etc/isp-radius/install.env)"; PGV="${PGV:-16}"
+  if [[ -d /run/systemd/system ]]; then pgstop() { systemctl stop "postgresql@$PGV-main"; }; pgstart() { systemctl start "postgresql@$PGV-main"; }
+  else pgstop() { pg_ctlcluster "$PGV" main stop; }; pgstart() { pg_ctlcluster "$PGV" main start; }; fi
   pgstop
   r="$(auth "$NAS_A" "$SECRET_A" 'User-Name=e2e-user,User-Password=Pa55-user')"
   pgstart; sleep 3
