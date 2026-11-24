@@ -23,6 +23,16 @@ and the old `APP_SUBNET=172.16.0.0/12`. A Docker network on 172.18.0.0/16 cuts t
 {"bip":"10.199.0.1/24","default-address-pools":[{"base":"10.200.0.0/16","size":24}],"log-driver":"local"}
 ```
 
+AppArmor (Ubuntu 26.04 default `kernel.apparmor_restrict_unprivileged_unconfined=1` stacks every container's
+`docker-default` profile with `unconfined`: `gosu` hangs, `next build` fails with `kill EACCES`). Same behaviour as
+24.04; `apparmor_restrict_unprivileged_userns=1` stays on:
+
+```
+echo 'kernel.apparmor_restrict_unprivileged_unconfined = 0' | sudo tee /etc/sysctl.d/60-docker-apparmor.conf
+sudo sysctl --system
+sudo apt -y install docker-buildx
+```
+
 ufw: deny in, allow out, `56767/tcp`. SSH: `PasswordAuthentication no`, `PermitRootLogin no`. Read-only deploy
 key `~/.ssh/github_deploy`, checkout `~/isp-platform`.
 
@@ -63,7 +73,7 @@ sudo EDGE=own RADIUS_INSTANCE=production RADIUS_PUBLIC_HOST=151.158.118.179 \
 ```
 
 `isp-mongo` runs `mongod` directly as uid 999: the image's entrypoint (`gosu`) hangs under Ubuntu 26.04's AppArmor
-stacking (`kernel.apparmor_restrict_unprivileged_unconfined=1`); `app-up.sh` creates the root user itself.
+stacking (`kernel.apparmor_restrict_unprivileged_unconfined=1`, step 0); `app-up.sh` creates the root user itself.
 
 `RADIUS_PUBLIC_HOST` must be given: behind NAT the host's own address is the private one. All five values are
 remembered in `/etc/isp-app/settings.env`; later deploys are `git pull && sudo bash deploy/ubuntu/app/app-up.sh`.
