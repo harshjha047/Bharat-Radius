@@ -58,9 +58,13 @@ sudo bash radius/scripts/install.sh production     # again: enables the syntheti
 
 ```
 sudo EDGE=own RADIUS_INSTANCE=production RADIUS_PUBLIC_HOST=151.158.118.179 \
-  PANEL_HOSTS=bharatradius.com CANONICAL_ORIGIN=https://bharatradius.com \
+  PANEL_HOSTS=bharatradius.com CANONICAL_ORIGIN=https://bharatradius.com MONGO_IMAGE=mongo:7.0 \
   bash deploy/ubuntu/app/app-up.sh
 ```
+
+`MONGO_IMAGE=mongo:7.0`: kernel 7.0.0-44 is in the range where MongoDB 8.x hangs at start (SERVER-121912,
+6.19–7.0.12; `isp-mongo` stays "running" but never listens). Move to 8.x only with a fixed kernel or MongoDB
+release, and then only forward (7.0 → 8.0 with `setFeatureCompatibilityVersion`), never back.
 
 `RADIUS_PUBLIC_HOST` must be given: behind NAT the host's own address is the private one. All five values are
 remembered in `/etc/isp-app/settings.env`; later deploys are `git pull && sudo bash deploy/ubuntu/app/app-up.sh`.
