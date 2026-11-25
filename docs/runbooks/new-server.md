@@ -85,7 +85,9 @@ Tenant and first ISP Admin: `docs/runbooks/app-ubuntu.md` (create-tenant, create
 ## 5. Monitoring, logs, disk guard, backups
 
 ```
-sudo install -m 0400 /dev/stdin /etc/isp-app/telegram_token     # paste the bot token, Ctrl-D
+read -rsp 'Telegram bot token: ' T; echo                         # alone: a pasted block would feed the next line in
+printf '%s' "$T" | sudo tee /etc/isp-app/telegram_token >/dev/null; unset T
+sudo chmod 0400 /etc/isp-app/telegram_token
 sudo TELEGRAM_CHAT_ID=<id> bash deploy/ubuntu/monitoring/mon-up.sh --test-alert
 sudo bash deploy/ubuntu/logs/logs-setup.sh
 sudo bash deploy/ubuntu/disk/disk-setup.sh
