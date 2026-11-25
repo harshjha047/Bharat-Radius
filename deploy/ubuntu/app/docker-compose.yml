@@ -22,6 +22,8 @@ services:
     volumes:
       - mongo-data:/data/db
       - /etc/isp-app/mongo.keyfile:/etc/mongo/keyfile:ro
+      # Read by backup.sh and restore-test.sh (docker exec) for mongodump/mongorestore.
+      - /etc/isp-app/mongo_root_pw:/etc/mongo/root_pw:ro
     ports:
       - '127.0.0.1:27018:27017'
     networks: [internal]
