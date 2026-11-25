@@ -68,3 +68,17 @@ reconciliation "all match" → continue with step 4.
   refused; delete or rename one of them and run again.
 - Each run is recorded in `legacy_runs`; every created or changed record is in the audit log as `*.legacy_import`
   / `subscriber.legacy_update` (actor "old BharatRadius importer").
+
+## Undo an import (before go-live)
+
+`deploy/ubuntu/migration/purge-legacy.sh --tenant <slug>` removes everything the importer created for that ISP
+(resellers and their wallets, plans, routers, subscribers, RADIUS rows, the import map), so the next run starts
+clean. It refuses when the ISP has anything beyond the import (invoices, payments, recharges, tickets, KYC, top-ups,
+rates, reseller logins, hand-made subscribers/routers/resellers, wallet movements by anyone else). Audit logs stay.
+
+```bash
+sudo bash deploy/ubuntu/migration/purge-legacy.sh --tenant bharat            # dry run: counts and refusals
+sudo bash deploy/ubuntu/migration/purge-legacy.sh --tenant bharat --apply    # backup first, then delete
+```
+
+Then import only what should exist now, e.g. `--sites 7`, dry run first.
