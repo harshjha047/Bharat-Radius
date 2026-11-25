@@ -75,7 +75,7 @@ server key cannot destroy the history at once.
 Restores the newest backup into throw-away databases (`restore_*`) next to the live ones, compares record counts, drops them. Live data is not touched.
 
 ```bash
-scp isp-backup.key deploy@154.49.142.251:/tmp/age.key          # from your computer
+scp isp-backup.key deploy@154.49.142.251:/tmp/age.key          # from your computer (br-prod: -P 56767 admin@172.18.33.179, VPN on)
 sudo install -m 0600 -o root /tmp/age.key /root/age.key && shred -u /tmp/age.key
 sudo AGE_IDENTITY=/root/age.key bash /opt/isp-backup/restore-test.sh
 sudo shred -u /root/age.key

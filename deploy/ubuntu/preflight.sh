@@ -46,6 +46,10 @@ for c in isp-api isp-workers isp-web isp-mongo isp-walled-garden; do
 done
 host="${HOSTS%% *}"
 hdr="$(curl -fsSI --max-time 10 "https://$host/login" 2>/dev/null || true)"
+# Behind a provider NAT without hairpin (br-prod) the public address is unreachable from the host itself: ask the
+# local Caddy for the same name instead (certificate still verified). External reachability: check from outside.
+[[ -n $hdr ]] || { hdr="$(curl -fsSI --max-time 10 --resolve "$host:443:127.0.0.1" "https://$host/login" 2>/dev/null || true)"
+  [[ -z $hdr ]] || warn "https://$host checked via 127.0.0.1 (no NAT hairpin here); confirm from outside"; }
 if [[ -n $hdr ]]; then
   pass "https://$host answers (valid certificate)"
   csp="$(grep -i '^content-security-policy:' <<<"$hdr" | tr -d '\r')"
