@@ -10985,53 +10985,6 @@
         }
       }
     },
-    "/api/v1/plans/export": {
-      "get": {
-        "summary": "Export all plans (active and archived) to Excel, in the import columns",
-        "tags": ["plans"],
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "x-permission": "plans.read",
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "required": ["code", "message", "requestId"],
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object"
-                        },
-                        "requestId": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/invoices": {
       "get": {
         "summary": "GST invoices (a reseller sees its branch)",

@@ -23,7 +23,7 @@ interface Column {
   help: string;
 }
 
-/** The template, the import parser and the export all use this one list. */
+/** The template and the import parser both use this one list. */
 export const PLAN_COLUMNS: readonly Column[] = [
   {
     key: 'name',
@@ -120,10 +120,6 @@ function text(v: unknown): string {
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   return String(v).trim();
 }
-
-const mbpsOf = (kbps: number | undefined) => (kbps === undefined ? null : kbps / 1000);
-const attrsText = (a: PlanDoc['extraAttributes']) =>
-  a.map((x) => `${x.attribute} ${x.op} ${x.value}`).join('; ') || null;
 
 /** The fields an import compares and may change; same shape for an existing plan and a file row. */
 function comparable(p: CreateInput | PlanDoc) {
@@ -514,55 +510,7 @@ export class PlanExcel {
     noteChange({ after: { fileName, counts: res.counts } });
     return res;
   }
-
-  async export(ctx: AuthContext): Promise<Buffer> {
-    const plans = (await this.existing(ctx)).sort(
-      (a, b) => a.status.localeCompare(b.status) || a.name.localeCompare(b.name),
-    );
-    const bold = (v: string) => ({ value: v, fontWeight: 'bold' as const });
-    const rows = plans.map((p) => {
-      const v: Record<string, string | number | null> = {
-        name: p.name,
-        download_mbps: mbpsOf(p.downloadKbps),
-        upload_mbps: mbpsOf(p.uploadKbps),
-        price: p.pricePaise / 100,
-        gst_percent: p.gstRatePercent,
-        hsn_sac: p.hsnSac,
-        validity_days: p.validityDays,
-        billing_types: p.billingTypes.join(', '),
-        data_cap_gb: p.dataCapBytes ? p.dataCapBytes / 1e9 : null,
-        fup_download_mbps: mbpsOf(p.fup?.downloadKbps),
-        fup_upload_mbps: mbpsOf(p.fup?.uploadKbps),
-        fup_cycle: p.fup ? (p.fupCycle ?? 'billing_cycle') : null,
-        burst_download_mbps: mbpsOf(p.burst?.downloadKbps),
-        burst_upload_mbps: mbpsOf(p.burst?.uploadKbps),
-        burst_threshold_download_mbps: mbpsOf(p.burst?.thresholdDownloadKbps),
-        burst_threshold_upload_mbps: mbpsOf(p.burst?.thresholdUploadKbps),
-        burst_seconds: p.burst?.timeSecs ?? null,
-        ip_pool: p.ipPool ?? null,
-        sim_use: p.simUse,
-        extra_attributes: attrsText(p.extraAttributes),
-        description: p.description ?? null,
-        status: p.status,
-      };
-      return PLAN_COLUMNS.map((c) => v[c.key] ?? null);
-    });
-    noteChange({ after: { rows: plans.length } });
-    return writeXlsxFile([PLAN_COLUMNS.map((c) => bold(c.key)), ...rows] as SheetData, {
-      sheet: 'Plans',
-      stickyRowsCount: 1,
-      columns: PLAN_COLUMNS.map(() => ({ width: 16 })),
-    }).toBuffer();
-  }
 }
-
-const istDay = () =>
-  new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Kolkata',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
 
 /** Headers only once the file exists, so a 400 on the way is still sent as JSON. */
 const attach = (reply: FastifyReply, name: string) =>
@@ -608,18 +556,5 @@ export class PlanExcelController {
     const raw = req.headers['x-file-name'];
     const fileName = (typeof raw === 'string' ? decodeURIComponent(raw) : 'plans.xlsx').slice(0, 120);
     return this.excel.import(ctx, req.body, fileName, q);
-  }
-
-  @Get('export')
-  @Endpoint({
-    summary: 'Export all plans (active and archived) to Excel, in the import columns',
-    tags: ['plans'],
-    audit: 'plan.export',
-    permission: 'plans.read',
-  })
-  async export(@Ctx() ctx: AuthContext, @Res({ passthrough: true }) reply: FastifyReply) {
-    const file = await this.excel.export(ctx);
-    attach(reply, `plans-${istDay()}.xlsx`);
-    return file;
   }
 }
