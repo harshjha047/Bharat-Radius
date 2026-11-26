@@ -123,7 +123,7 @@ provision_disk() {
   [[ -f $LIB/configured ]] && return 0
   local secret
   read -rsp "RADIUS secret of router $CHR_IP (from the panel, Routers → Show RADIUS secret): " secret; echo
-  [[ $secret =~ ^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$ ]] || die "that does not look like a panel RADIUS secret"
+  [[ $secret =~ ^[A-Za-z0-9!#%+,.:=@_^~-]{8,64}$ ]] || die "that does not look like a panel RADIUS secret"
   [[ -f $REPO/mikrotik/setup.rsc ]] || die "mikrotik/setup.rsc not found (run from the repository)"
   (umask 077; openssl rand -hex 12 >"$LIB/admin_pw")
 

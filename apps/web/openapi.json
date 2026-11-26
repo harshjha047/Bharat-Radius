@@ -3285,7 +3285,7 @@
                   },
                   "radiusSecret": {
                     "type": "string",
-                    "pattern": "^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$"
+                    "pattern": "^[A-Za-z0-9!#%+,.:=@_^~-]{8,64}$"
                   },
                   "coaPort": {
                     "default": 3799,
@@ -3787,7 +3787,7 @@
                   },
                   "radiusSecret": {
                     "type": "string",
-                    "pattern": "^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$"
+                    "pattern": "^[A-Za-z0-9!#%+,.:=@_^~-]{8,64}$"
                   },
                   "rotateSecret": {
                     "type": "boolean",
