@@ -8,6 +8,7 @@ import { Checkbox, Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { applyServerErrors, changedOnly } from '@/lib/forms';
 import type { Reseller } from '@/lib/queries';
+import { usePincodeAutofill } from '@/lib/pincode';
 
 const optional = (re: RegExp, msg: string) => z.union([z.literal(''), z.string().trim().regex(re, msg)]);
 const schema = z.object({
@@ -80,11 +81,19 @@ export function ResellerForm({
   const editing = !!reseller;
   const {
     register,
+    control,
+    getValues,
+    setValue,
     handleSubmit,
     setError,
     formState: { errors },
   } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: defaults(reseller) });
   const err = (k: keyof Values) => errors[k]?.message;
+  const pinHint = usePincodeAutofill(control, getValues, setValue, {
+    pincode: 'pincode',
+    city: 'city',
+    state: 'state',
+  });
   const submit = handleSubmit(async (v) => {
     const body = editing ? changedOnly(toBody(v, true), toBody(defaults(reseller), true)) : toBody(v, false);
     if (!staff) delete body.creditLimitPaise;
@@ -130,15 +139,15 @@ export function ResellerForm({
         <Field label="Address" htmlFor="r-line1" error={err('line1')} className="sm:col-span-2">
           <Input id="r-line1" {...register('line1')} />
         </Field>
-        <Field label="City" htmlFor="r-city" error={err('city')}>
-          <Input id="r-city" {...register('city')} />
+        <Field label="PIN code" htmlFor="r-pin" error={err('pincode')} hint={pinHint}>
+          <Input id="r-pin" inputMode="numeric" maxLength={6} {...register('pincode')} />
         </Field>
         <div className="grid grid-cols-2 gap-4">
+          <Field label="City" htmlFor="r-city" error={err('city')}>
+            <Input id="r-city" {...register('city')} />
+          </Field>
           <Field label="State" htmlFor="r-state" error={err('state')}>
             <Input id="r-state" {...register('state')} />
-          </Field>
-          <Field label="PIN code" htmlFor="r-pin" error={err('pincode')}>
-            <Input id="r-pin" inputMode="numeric" maxLength={6} {...register('pincode')} />
           </Field>
         </div>
         <label className="flex items-center gap-2 text-sm sm:col-span-2">

@@ -153,6 +153,13 @@ step('create a subscriber with a generated password', async () => {
   await page.getByRole('heading', { name: /Ramesh E2E/ }).waitFor();
 });
 
+step('a PIN code fills district and state', async () => {
+  await page.goto(`${BASE}/admin/subscribers/new`);
+  await page.fill('#pincode', '201301');
+  await page.waitForFunction(() => document.querySelector('#state')?.value === 'Uttar Pradesh');
+  if (!(await page.inputValue('#district'))) throw new Error('district not filled from PIN');
+});
+
 step('server validation shows on the field', async () => {
   await page.goto(`${BASE}/admin/subscribers/new`);
   await page.fill('#username', 'e2e.ramesh');

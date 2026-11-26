@@ -106,8 +106,15 @@ describe('route table', () => {
   const routes = listRoutes(API_PREFIX);
 
   it('every protected route declares a permission, except self-service auth routes', () => {
+    /** Public reference data any signed-in user may read (no customer or ISP data). */
+    const signedInOnly = new Set(['/api/v1/pincodes/:pincode']);
     for (const r of routes) {
-      if (r.opts.auth === 'public' || r.opts.auth === 'portal' || r.path.startsWith('/api/v1/auth/'))
+      if (
+        r.opts.auth === 'public' ||
+        r.opts.auth === 'portal' ||
+        r.path.startsWith('/api/v1/auth/') ||
+        (r.method === 'GET' && signedInOnly.has(r.path))
+      )
         continue;
       expect(r.opts.permission, `${r.method} ${r.path}`).toBeDefined();
     }

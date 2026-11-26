@@ -2,7 +2,7 @@ import { ObjectId } from 'mongodb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { NasDeviceDoc, OutboxDoc } from '@isp/db-mongo';
 import { fakeRouterOs } from './fake-routeros.js';
-import { roleId, seedTenant, seedUser, signIn, startHarness, type Client, type Harness } from './harness.js';
+import { Client, roleId, seedTenant, seedUser, signIn, startHarness, type Harness } from './harness.js';
 
 let h: Harness;
 let tenantA: ObjectId;
@@ -116,6 +116,16 @@ describe('routers (NAS)', () => {
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ instance: expect.stringMatching(/^(production|staging)$/) });
     expect(r.body.authPort).toBeGreaterThan(0);
+  });
+
+  it('looks up a PIN code for signed-in staff only', async () => {
+    const r = await admin.req('GET', '/api/v1/pincodes/201301');
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ pincode: '201301', state: 'Uttar Pradesh', stateCode: '09' });
+    expect(r.headers['cache-control']).toBe('private, max-age=86400');
+    expect((await admin.req('GET', '/api/v1/pincodes/000000')).status).toBe(404);
+    expect((await admin.req('GET', '/api/v1/pincodes/12345')).status).toBe(400);
+    expect((await new Client(h).req('GET', '/api/v1/pincodes/201301')).status).toBe(401);
   });
 
   it('rotates the secret and queues each change', async () => {

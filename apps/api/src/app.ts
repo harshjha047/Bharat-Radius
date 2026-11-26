@@ -27,6 +27,7 @@ import { createLogger, NestPinoLogger } from './logger.js';
 import { NasController, NasService } from './network/nas.js';
 import { PLANS_IMPORT_PATH, PlanExcel, PlanExcelController } from './network/plans-excel.js';
 import { PlansController, PlansService } from './network/plans.js';
+import { PincodesController } from './pincodes/pincodes.js';
 import { ResellersController, ResellersService } from './resellers/resellers.js';
 import { InvoicesController, InvoicesService } from './billing/invoices.js';
 import { PaymentsController, PaymentsService, WebhooksService } from './billing/payments.js';
@@ -93,6 +94,7 @@ class AppModule {
         NasController,
         PlanExcelController,
         PlansController,
+        PincodesController,
         ResellersController,
         WalletsController,
         TopupRequestsController,
