@@ -237,7 +237,7 @@ step('resellers: tree, drill-down and a customer added from a reseller', async (
 
 step('ISP switches bulk import on and off for a top-level reseller', async () => {
   await page.goto(`${BASE}/admin/resellers`);
-  await page.getByRole('link', { name: 'E2E Noida Net' }).click();
+  await page.getByRole('link', { name: 'E2E Noida Net', exact: true }).click();
   await page.waitForURL(/\/admin\/resellers\/[0-9a-f]{24}$/);
   await page.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Allow bulk import' }).click();
