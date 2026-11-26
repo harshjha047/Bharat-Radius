@@ -70,12 +70,31 @@ describe('plan Excel import/export', () => {
     expect(sheets[0]!.data[0]![0]).toBe('name*');
   });
 
-  it('export → import round-trips with nothing to change', async () => {
+  it('a row matching an existing plan is unchanged', async () => {
     const { excel, calls } = setup();
-    const exported = await excel.export(ctx);
-    const [sheet] = await readXlsxFile(exported);
-    expect(sheet!.data[1]).toContain('Idle-Timeout := 900');
-    const r = await excel.import(ctx, exported, 'p.xlsx', q({ updateExisting: true }));
+    const same = row({
+      name: 'Home 50',
+      download_mbps: 50,
+      upload_mbps: 20,
+      price: 499.5,
+      gst_percent: 18,
+      hsn_sac: '998422',
+      validity_days: 30,
+      billing_types: 'prepaid, postpaid',
+      data_cap_gb: 500,
+      fup_download_mbps: 5,
+      fup_upload_mbps: 2,
+      fup_cycle: 'billing_cycle',
+      burst_download_mbps: 60,
+      burst_upload_mbps: 25,
+      burst_threshold_download_mbps: 40,
+      burst_threshold_upload_mbps: 15,
+      burst_seconds: 16,
+      sim_use: 1,
+      extra_attributes: 'Idle-Timeout := 900',
+      status: 'active',
+    });
+    const r = await excel.import(ctx, await file([same]), 'p.xlsx', q({ updateExisting: true }));
     expect(r.errors).toEqual([]);
     expect(r.rows.map((x) => x.action)).toEqual(['unchanged']);
     expect(calls).toEqual([]);

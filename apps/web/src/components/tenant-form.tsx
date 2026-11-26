@@ -9,6 +9,7 @@ import { Input, Select } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { type ApiData } from '@/lib/api';
 import { applyServerErrors, changedOnly } from '@/lib/forms';
+import { usePincodeAutofill } from '@/lib/pincode';
 
 export type Tenant = ApiData<'/api/v1/tenant'>;
 
@@ -110,12 +111,20 @@ export function TenantForm({
   const {
     register,
     control,
+    getValues,
+    setValue,
     handleSubmit,
     setError,
     reset,
     formState: { errors, isDirty },
   } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: defaults(tenant) });
   const err = (k: keyof Values) => errors[k]?.message;
+  const pinHint = usePincodeAutofill(control, getValues, setValue, {
+    pincode: 'pincode',
+    city: 'city',
+    state: 'state',
+    stateCode: 'stateCode',
+  });
   const expiredMode = useWatch({ control, name: 'expiredMode' });
   const submit = handleSubmit(async (v) => {
     const b =
@@ -174,14 +183,14 @@ export function TenantForm({
           <Field label="Address line 2" htmlFor="t-l2" error={err('line2')} className="sm:col-span-2">
             <Input id="t-l2" {...register('line2')} />
           </Field>
+          <Field label="PIN code" htmlFor="t-pin" error={err('pincode')} hint={pinHint}>
+            <Input id="t-pin" inputMode="numeric" maxLength={6} {...register('pincode')} />
+          </Field>
           <Field label="City" htmlFor="t-city" error={err('city')}>
             <Input id="t-city" {...register('city')} />
           </Field>
           <Field label="State" htmlFor="t-state" error={err('state')}>
             <Input id="t-state" {...register('state')} />
-          </Field>
-          <Field label="PIN code" htmlFor="t-pin" error={err('pincode')}>
-            <Input id="t-pin" inputMode="numeric" maxLength={6} {...register('pincode')} />
           </Field>
           <Field label="Support phone" htmlFor="t-phone" error={err('phone')}>
             <Input id="t-phone" type="tel" {...register('phone')} />

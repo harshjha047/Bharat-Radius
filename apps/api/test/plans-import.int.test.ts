@@ -45,15 +45,14 @@ beforeAll(async () => {
 afterAll(() => h?.close());
 
 describe('plan import/export over HTTP', () => {
-  it('serves the template and an export in the same columns', async () => {
+  it('serves the template; plans cannot be exported', async () => {
     const t = await admin.req('GET', '/api/v1/plans/import/template');
     expect(t.status).toBe(200);
     expect(t.headers['content-type']).toBe(XLSX_MIME);
-    const e = await support.req('GET', '/api/v1/plans/export');
-    expect(e.status).toBe(200);
-    const [sheet] = await readXlsxFile(e.raw);
-    expect(sheet!.data[0]).toEqual(PLAN_COLUMNS.map((c) => c.key));
-    expect(sheet!.data[1]!.slice(0, 4)).toEqual(['Home 50', 50, 20, 499]);
+    const [sheet] = await readXlsxFile(t.raw);
+    expect(sheet!.data[0]!.map((c) => String(c).replace(/\*$/, ''))).toEqual(PLAN_COLUMNS.map((c) => c.key));
+    expect((await support.req('GET', '/api/v1/plans/export')).status).not.toBe(200);
+    expect((await admin.req('GET', '/api/v1/plans/export')).status).not.toBe(200);
   });
 
   it('checks, then creates new plans and updates existing ones through the outbox', async () => {

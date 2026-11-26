@@ -13,6 +13,7 @@ import { CONNECTION_LABEL, CONNECTION_TYPES, type ConnectionType } from '@/lib/c
 import { useCan } from '@/lib/auth';
 import { applyServerErrors, endOfDayIst, istDateInput } from '@/lib/forms';
 import { usePlans, type Subscriber } from '@/lib/queries';
+import { usePincodeAutofill } from '@/lib/pincode';
 
 const opt = z.string().trim();
 const CONNECTION_UI: Record<
@@ -238,6 +239,12 @@ export function SubscriberForm({
     formState: { errors, dirtyFields, isDirty },
   } = form;
   const ui = CONNECTION_UI[useWatch({ control, name: 'connectionType' })];
+  const pinHint = usePincodeAutofill(control, form.getValues, form.setValue, {
+    pincode: 'pincode',
+    city: 'city',
+    district: 'district',
+    state: 'state',
+  });
   const err = (k: keyof SubscriberFormValues) => errors[k]?.message;
   const serverPath = (p: string) => {
     const [head, tail] = p.split('.');
@@ -452,6 +459,9 @@ export function SubscriberForm({
           <Field label="Address line 2" htmlFor="line2" error={err('line2')} className="sm:col-span-2">
             <Input id="line2" {...register('line2')} />
           </Field>
+          <Field label="PIN code" htmlFor="pincode" error={err('pincode')} hint={pinHint}>
+            <Input id="pincode" inputMode="numeric" maxLength={6} {...register('pincode')} />
+          </Field>
           <Field label="City" htmlFor="city" error={err('city')}>
             <Input id="city" {...register('city')} />
           </Field>
@@ -460,9 +470,6 @@ export function SubscriberForm({
           </Field>
           <Field label="State" htmlFor="state" error={err('state')}>
             <Input id="state" {...register('state')} />
-          </Field>
-          <Field label="PIN code" htmlFor="pincode" error={err('pincode')}>
-            <Input id="pincode" inputMode="numeric" maxLength={6} {...register('pincode')} />
           </Field>
           <Field label="Tags" htmlFor="tags" error={err('tags')} hint="Comma-separated.">
             <Input id="tags" {...register('tags')} />

@@ -4966,19 +4966,21 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/v1/plans/export': {
+  '/api/v1/pincodes/{pincode}': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** Export all plans (active and archived) to Excel, in the import columns */
+    /** District and state for an Indian PIN code (India Post directory) */
     get: {
       parameters: {
         query?: never;
         header?: never;
-        path?: never;
+        path: {
+          pincode: string;
+        };
         cookie?: never;
       };
       requestBody?: never;
@@ -4988,7 +4990,14 @@ export interface paths {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': {
+              pincode: string;
+              district: string;
+              state: string;
+              stateCode: string;
+            };
+          };
         };
         /** @description Error */
         default: {

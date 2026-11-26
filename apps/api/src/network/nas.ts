@@ -22,7 +22,7 @@ const routerOsVersion = z.preprocess(
   z.enum(['6', '7']),
 );
 /** No quotes, spaces or backslashes: the secret is pasted into RouterOS scripts. */
-const secret = z.string().regex(/^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$/, '16-64 characters, no spaces or quotes');
+const secret = z.string().regex(/^[A-Za-z0-9!#%+,.:=@_^~-]{8,64}$/, '8-64 characters, no spaces or quotes');
 const ip = z
   .string()
   .trim()

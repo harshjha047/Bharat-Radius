@@ -3285,7 +3285,7 @@
                   },
                   "radiusSecret": {
                     "type": "string",
-                    "pattern": "^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$"
+                    "pattern": "^[A-Za-z0-9!#%+,.:=@_^~-]{8,64}$"
                   },
                   "coaPort": {
                     "default": 3799,
@@ -3787,7 +3787,7 @@
                   },
                   "radiusSecret": {
                     "type": "string",
-                    "pattern": "^[A-Za-z0-9!#%+,.:=@_^~-]{16,64}$"
+                    "pattern": "^[A-Za-z0-9!#%+,.:=@_^~-]{8,64}$"
                   },
                   "rotateSecret": {
                     "type": "boolean",
@@ -11082,19 +11082,53 @@
         }
       }
     },
-    "/api/v1/plans/export": {
+    "/api/v1/pincodes/{pincode}": {
       "get": {
-        "summary": "Export all plans (active and archived) to Excel, in the import columns",
-        "tags": ["plans"],
+        "summary": "District and state for an Indian PIN code (India Post directory)",
+        "tags": ["reference"],
         "security": [
           {
             "session": []
           }
         ],
-        "x-permission": "plans.read",
+        "parameters": [
+          {
+            "name": "pincode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "pincode": {
+                      "type": "string"
+                    },
+                    "district": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
+                    },
+                    "stateCode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["pincode", "district", "state", "stateCode"],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
