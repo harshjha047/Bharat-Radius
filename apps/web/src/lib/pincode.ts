@@ -1,6 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   useWatch,
   type Control,
@@ -17,8 +17,8 @@ type Fields<T extends FieldValues> = { pincode: Path<T> } & Partial<Record<Targe
 
 /**
  * Looks up a 6-digit PIN and fills city/district/state (and GST state code) from the India Post directory.
- * Only fills a field that is empty or still holds the previous auto-filled value, so typed values are kept.
- * Returns a hint for the PIN field.
+ * A PIN the user types overwrites those fields (including stale browser autofill). The PIN a form opens with
+ * only fills empty fields, so a saved address is not changed by opening it. Returns a hint for the PIN field.
  */
 export function usePincodeAutofill<T extends FieldValues>(
   control: Control<T>,
@@ -35,12 +35,15 @@ export function usePincodeAutofill<T extends FieldValues>(
     staleTime: Infinity,
     retry: false,
   });
-  const filled = useRef<Partial<Record<Target, string>>>({});
+  const [initialPin] = useState(pin);
+  const appliedFor = useRef<string | null>(null);
   const { city, district, state, stateCode } = fields;
 
   useEffect(() => {
     const d = q.data;
-    if (!d) return;
+    if (!d || appliedFor.current === d.pincode) return;
+    appliedFor.current = d.pincode;
+    const force = d.pincode !== initialPin;
     const next: Record<Target, string> = {
       city: d.district,
       district: d.district,
@@ -51,12 +54,10 @@ export function usePincodeAutofill<T extends FieldValues>(
     for (const t of Object.keys(next) as Target[]) {
       const name = names[t];
       if (!name) continue;
-      const cur = String(getValues(name) ?? '').trim();
-      if (cur && cur !== filled.current[t]) continue;
+      if (!force && String(getValues(name) ?? '').trim()) continue;
       setValue(name, next[t] as PathValue<T, Path<T>>, { shouldDirty: true, shouldValidate: true });
-      filled.current[t] = next[t];
     }
-  }, [q.data, getValues, setValue, city, district, state, stateCode]);
+  }, [q.data, initialPin, getValues, setValue, city, district, state, stateCode]);
 
   if (!valid) return undefined;
   if (q.data) return `${q.data.district}, ${q.data.state}`;
