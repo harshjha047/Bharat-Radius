@@ -74,10 +74,36 @@ describe('ScopedCollection', () => {
     });
   });
 
-  it('reseller scope is denied on router config and read-only on plans', () => {
+  it('reseller scope is denied on router config; plans are read-only without a top-level root', () => {
     expect(() => col('nas_devices', branch).c.findOne()).toThrow(ScopeViolation);
     expect(() => col('plans', branch).c.findOne()).not.toThrow();
     expect(() => col('plans', branch).c.updateOne({}, { $set: { name: 'x' } })).toThrow(ScopeViolation);
+  });
+
+  it('plans: a branch reads ISP plans and its top-level reseller’s; only that reseller writes its own', async () => {
+    const R2 = new ObjectId();
+    const top: Scope = { kind: 'branch', tenantId: T1, resellerId: R1, rootId: R1 };
+    const sub: Scope = { kind: 'branch', tenantId: T1, resellerId: R2, rootId: R1 };
+    const shared = { resellerId: { $exists: false } };
+    for (const s of [top, sub]) {
+      const { c, calls } = col('plans', s);
+      await c.findOne();
+      expect(calls[0]!.args[0]).toEqual({ $and: [{ tenantId: T1 }, { $or: [shared, { resellerId: R1 }] }] });
+    }
+    const { c: noRoot, calls: nr } = col('plans', branch);
+    await noRoot.findOne();
+    expect(nr[0]!.args[0]).toEqual({ $and: [{ tenantId: T1 }, shared] });
+
+    const own = col('plans', top);
+    await own.c.updateOne({}, { $set: { name: 'x' } });
+    expect(own.calls[0]!.args[0]).toEqual({ $and: [{ tenantId: T1 }, { resellerId: R1 }] });
+    await own.c.insertOne({ resellerId: R1, name: 'p' });
+    expect(() => own.c.insertOne({ name: 'ISP plan' })).toThrow(/outside/);
+    expect(() => col('plans', sub).c.updateOne({}, { $set: { name: 'x' } })).toThrow(ScopeViolation);
+    expect(() => col('plans', sub).c.insertOne({ resellerId: R2 })).toThrow(ScopeViolation);
+    const isp = col('plans', tenant);
+    await isp.c.findOne();
+    expect(isp.calls[0]!.args[0]).toEqual({ tenantId: T1 });
   });
 
   it('stamps the tenant on insert and refuses foreign tenants or branches', async () => {

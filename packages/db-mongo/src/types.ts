@@ -145,6 +145,11 @@ export interface NasDeviceDoc extends Standard {
 export interface PlanDoc extends Standard {
   _id: ObjectId;
   tenantId: ObjectId;
+  /**
+   * A top-level reseller's own plan (made while the ISP allows it bulk import): sold only in that reseller's
+   * branch, and recharges on it debit nothing from that reseller's wallet. Absent = ISP plan.
+   */
+  resellerId?: ObjectId;
   name: string;
   description?: string;
   downloadKbps: number;

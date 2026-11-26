@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { ScopedDb, type MongoHandle, type PlanDoc } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
-import { AppError } from '../errors.js';
+import { AppError, forbidden } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import { MONGO } from '../infra/infra.module.js';
 import { XLSX_MIME } from '../subscribers/excel.js';
@@ -179,9 +179,13 @@ export class PlanExcel {
     @Inject(PlansService) private readonly plans: PlansService,
   ) {}
 
+  /** ISP staff, or a top-level reseller importing its own plans (plans.write comes from the ISP's switch). */
   private tenantOnly(ctx: AuthContext) {
-    if (!ctx.tenantId || ctx.scope.kind !== 'tenant') {
+    if (!ctx.tenantId || (ctx.scope.kind !== 'tenant' && ctx.scope.kind !== 'branch')) {
       throw new AppError(400, 'VALIDATION_FAILED', 'Plans are imported by an ISP’s staff');
+    }
+    if (ctx.scope.kind === 'branch' && !ctx.scope.rootId?.equals(ctx.scope.resellerId)) {
+      throw forbidden('Only a reseller directly under the ISP can import plans');
     }
   }
 
@@ -447,6 +451,12 @@ export class PlanExcel {
         entry.action = 'create';
         res.counts.create++;
         work.push({ idx: res.rows.length - 1, kind: 'create', input: p.input, patch: {}, status: p.status });
+        continue;
+      }
+      if (ctx.scope.kind === 'branch' && !ex.resellerId?.equals(ctx.scope.resellerId)) {
+        entry.action = 'invalid';
+        res.errors.push({ row, column: 'name', message: 'Your ISP already has a plan with this name' });
+        res.counts.invalid++;
         continue;
       }
       const patch = diff(comparable(ex), comparable(p.input));

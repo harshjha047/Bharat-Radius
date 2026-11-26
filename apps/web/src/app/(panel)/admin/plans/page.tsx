@@ -12,7 +12,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/input';
 import { ErrorState, PageHeader } from '@/components/ui/misc';
 import { api, unwrap } from '@/lib/api';
-import { useCan } from '@/lib/auth';
+import { useCan, useMe } from '@/lib/auth';
 import { usePlans, type Plan } from '@/lib/queries';
 import { fmtBytes, fmtKbps, fmtRupees, plural } from '@/lib/utils';
 
@@ -24,6 +24,10 @@ export default function PlansPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [importing, setImporting] = useState(false);
   const write = can('plans.write');
+  const me = useMe().data?.user;
+  const reseller = me?.type === 'reseller';
+  /** A reseller edits only its own plans; ISP staff edit every plan. */
+  const editable = (p: Plan) => write && (!reseller || p.reseller?.id === me?.resellerId);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['plans'] });
   const save = useMutation({
@@ -66,7 +70,11 @@ export default function PlansPage() {
     <>
       <PageHeader
         title="Plans"
-        description="Speeds are what MikroTik enforces; editing a speed updates online customers at once."
+        description={
+          reseller && write
+            ? 'Your own plans are sold only in your branch, with nothing charged to your wallet. ISP plans are read-only.'
+            : 'Speeds are what MikroTik enforces; editing a speed updates online customers at once.'
+        }
         actions={
           <>
             {write ? (
@@ -93,7 +101,7 @@ export default function PlansPage() {
           loading={plans.isLoading}
           rows={rows}
           rowKey={(p) => p.id}
-          onRowClick={write ? (p) => setEditing(p) : undefined}
+          onRowClick={write ? (p) => editable(p) && setEditing(p) : undefined}
           empty="No plans yet. Create one before adding subscribers."
           columns={[
             {
@@ -102,6 +110,11 @@ export default function PlansPage() {
               cell: (p) => (
                 <span className="flex items-center gap-2">
                   {p.name} {p.status === 'archived' ? <Badge>Archived</Badge> : null}
+                  {p.reseller ? (
+                    <Badge title={`Sold only in ${p.reseller.name}’s branch`}>
+                      {reseller ? 'Yours' : `${p.reseller.name} · ${p.reseller.code}`}
+                    </Badge>
+                  ) : null}
                 </span>
               ),
             },
@@ -147,26 +160,27 @@ export default function PlansPage() {
                     key: 'actions',
                     header: '',
                     className: 'text-right whitespace-nowrap',
-                    cell: (p: Plan) => (
-                      <span className="inline-flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Edit ${p.name}`}
-                          onClick={() => setEditing(p)}
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={p.status === 'active' ? `Archive ${p.name}` : `Restore ${p.name}`}
-                          onClick={() => archive.mutate(p)}
-                        >
-                          {p.status === 'active' ? <Archive /> : <RotateCcw />}
-                        </Button>
-                      </span>
-                    ),
+                    cell: (p: Plan) =>
+                      !editable(p) ? null : (
+                        <span className="inline-flex gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Edit ${p.name}`}
+                            onClick={() => setEditing(p)}
+                          >
+                            <Pencil />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={p.status === 'active' ? `Archive ${p.name}` : `Restore ${p.name}`}
+                            onClick={() => archive.mutate(p)}
+                          >
+                            {p.status === 'active' ? <Archive /> : <RotateCcw />}
+                          </Button>
+                        </span>
+                      ),
                   },
                 ]
               : []),

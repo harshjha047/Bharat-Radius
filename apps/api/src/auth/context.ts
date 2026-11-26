@@ -18,12 +18,15 @@ export interface AuthContext {
   viewAs?: { resellerId: ObjectId; code: string; name: string; byName: string };
 }
 
-export function scopeFor(u: { tenantId: ObjectId | null; type: UserType; resellerId?: ObjectId }): Scope {
+export function scopeFor(
+  u: { tenantId: ObjectId | null; type: UserType; resellerId?: ObjectId },
+  rootId?: ObjectId,
+): Scope {
   if (u.type === 'superadmin') return { kind: 'platform' };
   if (!u.tenantId) throw new Error('non-superadmin user without tenant');
   if (u.type === 'reseller') {
     if (!u.resellerId) throw new Error('reseller user without resellerId');
-    return { kind: 'branch', tenantId: u.tenantId, resellerId: u.resellerId };
+    return { kind: 'branch', tenantId: u.tenantId, resellerId: u.resellerId, ...(rootId ? { rootId } : {}) };
   }
   return { kind: 'tenant', tenantId: u.tenantId };
 }

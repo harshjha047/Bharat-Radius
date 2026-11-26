@@ -62,7 +62,7 @@ export class AuthGuard implements CanActivate {
       name: `${ctx.name} (as ${r.code})`,
       resellerId: r._id,
       permissions: new Set([...ctx.permissions].filter((p) => RESELLER_SET.has(p))),
-      scope: { kind: 'branch', tenantId: s.tenantId, resellerId: r._id },
+      scope: { kind: 'branch', tenantId: s.tenantId, resellerId: r._id, rootId: r.ancestors[0] ?? r._id },
       viewAs: { resellerId: r._id, code: r.code, name: r.name, byName: ctx.name },
     };
   }
@@ -134,7 +134,7 @@ export class AuthGuard implements CanActivate {
       permissions: su.permissions,
       familyId: claims.sid,
       mfa: claims.mfa,
-      scope: scopeFor(u),
+      scope: scopeFor(u, su.branchRoot),
     };
     const viewAs = req.headers[VIEW_AS_HEADER];
     if (typeof viewAs === 'string' && viewAs) {

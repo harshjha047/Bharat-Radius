@@ -26,13 +26,19 @@ import type {
 export type Scope =
   | { kind: 'platform' }
   | { kind: 'tenant'; tenantId: ObjectId }
-  | { kind: 'branch'; tenantId: ObjectId; resellerId: ObjectId };
+  /** rootId: the top-level (level 1) reseller of the branch; it owns the reseller plans the branch may sell. */
+  | { kind: 'branch'; tenantId: ObjectId; resellerId: ObjectId; rootId?: ObjectId };
 
 type BranchRule =
   /** Reseller sees rows it owns or that sit anywhere below it. */
   | { ownerField: string; ancestorsField?: string }
   /** Reseller may read every row of its tenant (e.g. plans), never write. */
   | 'tenant-read'
+  /**
+   * Tenant rows without `ownerField` (ISP-wide) plus rows owned by the branch's top-level reseller. Only that
+   * top-level reseller writes, and only its own rows (reseller plans).
+   */
+  | { rootOwnedField: string }
   | 'deny';
 
 export interface CollectionPolicy {
@@ -47,7 +53,7 @@ export const POLICIES: Record<string, CollectionPolicy> = {
   users: { tenantField: 'tenantId', branch: { ownerField: 'resellerId' } },
   roles: { tenantField: 'tenantId', sharedGlobal: true, branch: 'tenant-read' },
   nas_devices: { tenantField: 'tenantId', branch: 'deny' },
-  plans: { tenantField: 'tenantId', branch: 'tenant-read' },
+  plans: { tenantField: 'tenantId', branch: { rootOwnedField: 'resellerId' } },
   subscribers: { tenantField: 'tenantId', branch: { ownerField: 'resellerId', ancestorsField: 'ancestors' } },
   resellers: { tenantField: 'tenantId', branch: { ownerField: '_id', ancestorsField: 'ancestors' } },
   outbox: { tenantField: 'tenantId', branch: 'deny' },
@@ -115,7 +121,10 @@ export class ScopedCollection<T extends Document> {
     readonly scope: Scope,
   ) {}
 
-  private branchFilter(rule: Exclude<BranchRule, 'tenant-read' | 'deny'>, resellerId: ObjectId): Document {
+  private branchFilter(
+    rule: Exclude<BranchRule, 'tenant-read' | 'deny' | { rootOwnedField: string }>,
+    resellerId: ObjectId,
+  ): Document {
     const own = { [rule.ownerField]: resellerId };
     return rule.ancestorsField ? { $or: [own, { [rule.ancestorsField]: resellerId }] } : own;
   }
@@ -131,7 +140,21 @@ export class ScopedCollection<T extends Document> {
     if (s.kind === 'tenant') return tenant as Filter<T>;
     if (branch === 'deny') throw new ScopeViolation(`${this.raw.collectionName} is not visible to resellers`);
     if (branch === 'tenant-read') return tenant as Filter<T>;
+    if ('rootOwnedField' in branch) {
+      const f = branch.rootOwnedField;
+      const shared = { [f]: { $exists: false } };
+      return { $and: [tenant, s.rootId ? { $or: [shared, { [f]: s.rootId }] } : shared] } as Filter<T>;
+    }
     return { $and: [tenant, this.branchFilter(branch, s.resellerId)] } as Filter<T>;
+  }
+
+  /** Top-level reseller writing its own rows under a `rootOwnedField` policy; otherwise a violation. */
+  private rootOwner(field: string): Document {
+    const s = this.scope as Extract<Scope, { kind: 'branch' }>;
+    if (!s.rootId?.equals(s.resellerId)) {
+      throw new ScopeViolation(`${this.raw.collectionName} is read-only below the top-level reseller`);
+    }
+    return { [field]: s.resellerId };
   }
 
   /** Filter every write gets: never shared global rows, never tenant-wide rows for a reseller. */
@@ -144,6 +167,8 @@ export class ScopedCollection<T extends Document> {
     if (branch === 'deny' || branch === 'tenant-read') {
       throw new ScopeViolation(`${this.raw.collectionName} is read-only for resellers`);
     }
+    if ('rootOwnedField' in branch)
+      return { $and: [tenant, this.rootOwner(branch.rootOwnedField)] } as Filter<T>;
     return { $and: [tenant, this.branchFilter(branch, s.resellerId)] } as Filter<T>;
   }
 
@@ -158,6 +183,12 @@ export class ScopedCollection<T extends Document> {
     if (s.kind === 'branch') {
       if (branch === 'deny' || branch === 'tenant-read') {
         throw new ScopeViolation(`${this.raw.collectionName} is read-only for resellers`);
+      }
+      if ('rootOwnedField' in branch) {
+        const want = this.rootOwner(branch.rootOwnedField)[branch.rootOwnedField] as ObjectId;
+        const given = doc[branch.rootOwnedField] as ObjectId | undefined;
+        if (!given?.equals(want)) throw new ScopeViolation('insert outside the reseller branch');
+        return { ...doc, [tenantField]: s.tenantId };
       }
       const owner = doc[branch.ownerField] as ObjectId | undefined;
       const anc = branch.ancestorsField ? (doc[branch.ancestorsField] as ObjectId[] | undefined) : undefined;
