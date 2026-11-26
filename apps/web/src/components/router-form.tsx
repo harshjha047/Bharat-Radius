@@ -20,7 +20,7 @@ const schema = z.object({
   description: z.string().max(500),
   radiusSecret: z
     .string()
-    .regex(/^([A-Za-z0-9!#%+,.:=@_^~-]{16,64})?$/, '16–64 characters, no spaces or quotes'),
+    .regex(/^([A-Za-z0-9!#%+,.:=@_^~-]{8,64})?$/, '8–64 characters, no spaces or quotes'),
 });
 type Values = z.infer<typeof schema>;
 
@@ -125,7 +125,7 @@ export function RouterForm({
             label="Radius secret"
             htmlFor="n-secret"
             error={err('radiusSecret')}
-            hint="Leave empty to generate a strong one (recommended)."
+            hint="Leave empty to generate a strong one (recommended). If you type your own, use 16+ characters."
             className="sm:col-span-2"
           >
             <Input id="n-secret" autoComplete="off" spellCheck={false} {...register('radiusSecret')} />

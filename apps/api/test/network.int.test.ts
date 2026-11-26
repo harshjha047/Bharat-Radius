@@ -72,6 +72,21 @@ describe('routers (NAS)', () => {
       ).status,
     ).toBe(400);
     expect((await admin.req('POST', '/api/v1/nas', { name: 'dup', ip: '203.0.113.10' })).status).toBe(409);
+    expect(
+      (await admin.req('POST', '/api/v1/nas', { name: 'short', ip: '203.0.113.12', radiusSecret: 'bh@2026' }))
+        .status,
+    ).toBe(400);
+  });
+
+  it('accepts an 8-character secret typed by staff', async () => {
+    const r = await admin.req('POST', '/api/v1/nas', {
+      name: 'Eight',
+      ip: '203.0.113.13',
+      radiusSecret: 'bharat@@',
+    });
+    expect(r.status).toBe(201);
+    expect(r.body.radiusSecret).toBeUndefined();
+    expect((await admin.req('GET', `/api/v1/nas/${r.body.id}/secret`)).body.radiusSecret).toBe('bharat@@');
   });
 
   it('accepts RouterOS versions as written in the field ("v6", "6.49.20") and stores the major', async () => {
