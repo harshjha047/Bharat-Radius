@@ -32,6 +32,7 @@ import {
   type TenantDoc,
   type WalletDoc,
   type WalletTxnDoc,
+  sellablePlans,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
@@ -514,7 +515,10 @@ export class WalletsService {
     const [plans, rows] = await Promise.all([
       this.db
         .collection<PlanDoc>('plans')
-        .find({ tenantId: r.tenantId, status: 'active' }, { sort: { name: 1 } })
+        .find(
+          { tenantId: r.tenantId, status: 'active', ...sellablePlans([...r.ancestors, r._id]) },
+          { sort: { name: 1 } },
+        )
         .toArray(),
       rates(this.db).find({ buyerId: r._id }).toArray(),
     ]);

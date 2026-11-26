@@ -136,7 +136,8 @@ export async function performRecharge(
   const id = new ObjectId();
   const walletTotal = (r.wallet?.amountPaise ?? 0) * qty;
   let walletTxnId: ObjectId | null = null;
-  if (r.wallet) {
+  // Zero for a reseller's own plan: the recharge is still recorded against the wallet, with no ledger entry.
+  if (r.wallet && walletTotal > 0) {
     const txn = await move(db, session, {
       tenantId: s.tenantId,
       walletId: r.wallet.doc._id,
@@ -267,17 +268,18 @@ export async function reverseRecharge(
   if (!rc) throw new MoneyError(404, 'NOT_FOUND', 'Recharge not found');
   if (rc.status !== 'SUCCESS') throw new MoneyError(409, 'CONFLICT', 'This recharge is already reversed');
 
-  const refund = rc.walletId
-    ? await move(db, session, {
-        tenantId: rc.tenantId,
-        walletId: rc.walletId,
-        deltaPaise: rc.amountPaise,
-        type: 'REFUND',
-        referenceId: rc._id,
-        description: `Refund of recharge — ${input.reason}`,
-        actor: input.actor,
-      })
-    : null;
+  const refund =
+    rc.walletId && rc.amountPaise > 0
+      ? await move(db, session, {
+          tenantId: rc.tenantId,
+          walletId: rc.walletId,
+          deltaPaise: rc.amountPaise,
+          type: 'REFUND',
+          referenceId: rc._id,
+          description: `Refund of recharge — ${input.reason}`,
+          actor: input.actor,
+        })
+      : null;
 
   const sub = await db
     .collection<SubscriberDoc>('subscribers')

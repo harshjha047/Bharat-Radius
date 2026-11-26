@@ -25,6 +25,7 @@ import {
   type PaymentDoc,
   type PlanDoc,
   type SubscriberDoc,
+  sellablePlans,
 } from '@isp/db-mongo';
 import { clientMeta } from '../auth/auth.controller.js';
 import type { AuthContext } from '../auth/context.js';
@@ -238,6 +239,7 @@ export class PortalService {
         {
           tenantId: s.tenantId,
           $or: [{ status: 'active', billingTypes: s.billingType }, ...(s.planId ? [{ _id: s.planId }] : [])],
+          ...sellablePlans(s.ancestors),
         },
         { sort: { pricePaise: 1, name: 1 }, limit: 100 },
       )

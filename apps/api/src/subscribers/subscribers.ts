@@ -31,6 +31,8 @@ import {
   type ResellerDoc,
   type SubscriberDoc,
   type TenantDoc,
+  NOT_SELLABLE,
+  planSellableIn,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import { ResellersService } from '../resellers/resellers.js';
@@ -399,11 +401,17 @@ export class SubscribersService {
     return s;
   }
 
-  private async assertPlan(ctx: AuthContext, planId: ObjectId, billingType: SubscriberDoc['billingType']) {
+  private async assertPlan(
+    ctx: AuthContext,
+    planId: ObjectId,
+    billingType: SubscriberDoc['billingType'],
+    ancestors: readonly ObjectId[],
+  ) {
     const p = await new ScopedDb(this.mongo.db, ctx.scope)
       .collection<PlanDoc>('plans')
       .findOne({ _id: planId });
     if (!p) throw new AppError(400, 'VALIDATION_FAILED', 'Unknown plan');
+    if (!planSellableIn(p, ancestors)) throw new AppError(400, 'VALIDATION_FAILED', NOT_SELLABLE);
     if (p.status !== 'active') throw new AppError(400, 'VALIDATION_FAILED', 'This plan is archived');
     if (!p.billingTypes.includes(billingType)) {
       throw new AppError(400, 'VALIDATION_FAILED', `This plan is not offered for ${billingType} customers`);
@@ -630,8 +638,8 @@ export class SubscribersService {
   async create(ctx: AuthContext, b: z.output<typeof createBody>) {
     if (!ctx.tenantId)
       throw new AppError(400, 'VALIDATION_FAILED', 'Subscribers belong to an ISP; sign in as its staff');
-    if (b.planId) await this.assertPlan(ctx, b.planId, b.billingType);
     const owner = await this.owner(ctx, b.resellerId);
+    if (b.planId) await this.assertPlan(ctx, b.planId, b.billingType, owner.ancestors);
     const tenant = await this.mongo.db
       .collection<TenantDoc>('tenants')
       .findOne({ _id: ctx.tenantId }, { projection: { stateCode: 1 } });
@@ -689,7 +697,10 @@ export class SubscribersService {
     const cur = await this.find(ctx, id);
     const billingType = b.billingType ?? cur.billingType;
     const planId = b.planId === null ? undefined : (b.planId ?? cur.planId);
-    if (planId && (b.planId || b.billingType)) await this.assertPlan(ctx, planId, billingType);
+    const moving = b.resellerId !== undefined && String(b.resellerId) !== String(cur.resellerId);
+    const newOwner = moving ? await this.owner(ctx, b.resellerId) : null;
+    if (planId && (b.planId || b.billingType || moving))
+      await this.assertPlan(ctx, planId, billingType, newOwner?.ancestors ?? cur.ancestors);
 
     const set: Record<string, unknown> = {};
     const unset: Record<string, ''> = {};
@@ -725,11 +736,11 @@ export class SubscribersService {
     });
     if (problem) throw new AppError(400, 'VALIDATION_FAILED', problem);
     if (b.pppoePassword) set.pppoePassword = this.crypto.encrypt(b.pppoePassword, pwAad(id));
-    if (b.resellerId !== undefined && String(b.resellerId) !== String(cur.resellerId)) {
+    if (moving) {
       if (b.resellerId === null && ctx.scope.kind === 'branch') {
         throw forbidden('A reseller cannot make a direct ISP customer');
       }
-      Object.assign(set, await this.owner(ctx, b.resellerId));
+      Object.assign(set, newOwner);
     }
     if (b.name || b.phone || b.altPhone !== undefined) {
       set.search = searchTokens({

@@ -11,6 +11,8 @@ export interface SessionUser {
   requireMfa: boolean;
   /** Tenant active and, for a reseller user, its reseller and every reseller above it active. */
   active: boolean;
+  /** Reseller users: the top-level reseller of their branch (owner of the reseller plans they may sell). */
+  branchRoot?: ObjectId;
 }
 
 const MAX_ENTRIES = 10_000;
@@ -65,7 +67,7 @@ export class SessionUsers {
       db.collection<TenantDoc>('tenants').findOne({ _id: user.tenantId }, { projection: { status: 1 } }),
       user.type === 'reseller'
         ? this.branch(user.tenantId, user.resellerId)
-        : Promise.resolve({ active: true, canImport: false }),
+        : Promise.resolve({ active: true, canImport: false, root: undefined }),
     ]);
     const wantScope = user.type === 'reseller' ? 'reseller' : 'tenant';
     const permissions = new Set<Permission>();
@@ -75,17 +77,26 @@ export class SessionUsers {
       requireMfa ||= r.requireMfa;
       for (const p of r.permissions) if (isPermission(p)) permissions.add(p);
     }
-    // Bulk import is not a role permission: the ISP switches it on per top-level reseller (for migrations).
-    if (branch.canImport && permissions.has('subscribers.write')) permissions.add('imports.run');
-    return { user, permissions, requireMfa, active: tenant?.status === 'active' && branch.active };
+    // Not role permissions: the ISP switches bulk import (customers and own plans) on per top-level reseller.
+    if (branch.canImport && permissions.has('subscribers.write')) {
+      permissions.add('imports.run');
+      permissions.add('plans.write');
+    }
+    return {
+      user,
+      permissions,
+      requireMfa,
+      active: tenant?.status === 'active' && branch.active,
+      ...(branch.root ? { branchRoot: branch.root } : {}),
+    };
   }
 
   /** Whether the reseller and every reseller above it are active; whether the ISP lets it import customers. */
   private async branch(
     tenantId: ObjectId,
     resellerId: ObjectId | undefined,
-  ): Promise<{ active: boolean; canImport: boolean }> {
-    const no = { active: false, canImport: false };
+  ): Promise<{ active: boolean; canImport: boolean; root: ObjectId | undefined }> {
+    const no = { active: false, canImport: false, root: undefined };
     if (!resellerId) return no;
     const resellers = this.mongo.db.collection<ResellerDoc>('resellers');
     const r = await resellers.findOne(
@@ -94,11 +105,12 @@ export class SessionUsers {
     );
     if (r?.status !== 'active') return no;
     const canImport = r.level === 1 && r.importEnabled === true;
-    if (!r.ancestors.length) return { active: true, canImport };
+    const root = r.ancestors[0] ?? r._id;
+    if (!r.ancestors.length) return { active: true, canImport, root };
     const blocked = await resellers.findOne(
       { _id: { $in: r.ancestors }, tenantId, status: { $ne: 'active' } },
       { projection: { _id: 1 } },
     );
-    return blocked ? no : { active: true, canImport };
+    return blocked ? no : { active: true, canImport, root };
   }
 }

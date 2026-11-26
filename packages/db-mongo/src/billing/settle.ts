@@ -5,6 +5,7 @@ import { move, wallets } from './ledger.js';
 import { MoneyError, istDate, rupees } from './money.js';
 import { notify } from './notify.js';
 import { performRecharge, updateSubscriber } from './recharge.js';
+import { NOT_SELLABLE, planSellableIn } from '../plans.js';
 import type { PaymentDoc, ResellerRateDoc } from './types.js';
 
 export const payments = (db: Db) => db.collection<PaymentDoc>('payments');
@@ -35,6 +36,8 @@ export async function walletTerms(
   plan: PlanDoc,
   session?: ClientSession,
 ): Promise<WalletTerms> {
+  // A reseller's own plan: the ISP takes nothing, so its wallet is not debited.
+  if (plan.resellerId?.equals(resellerId)) return { amountPaise: 0, walletModel: 'prepaid' };
   const opt = session ? { session } : {};
   const [r, seller] = await Promise.all([
     rates(db).findOne({ buyerId: resellerId, planId: plan._id }, opt),
@@ -189,6 +192,7 @@ async function settleOnce(
         .collection<PlanDoc>('plans')
         .findOne({ _id: p.purpose.planId!, tenantId: p.tenantId }, { session });
       if (!plan) throw new MoneyError(404, 'NOT_FOUND', 'Plan not found');
+      if (!planSellableIn(plan, sub.ancestors)) throw new MoneyError(400, 'VALIDATION_FAILED', NOT_SELLABLE);
       let wallet;
       if (sub.resellerId) {
         const w = await wallets(db).findOne({ ownerId: sub.resellerId, tenantId: p.tenantId }, { session });

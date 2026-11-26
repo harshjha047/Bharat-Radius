@@ -4446,6 +4446,11 @@ export interface paths {
             'application/json': {
               items: {
                 id: string;
+                reseller: {
+                  id: string;
+                  code: string;
+                  name: string;
+                } | null;
                 name: string;
                 description: string | null;
                 downloadKbps: number;
@@ -4572,6 +4577,11 @@ export interface paths {
           content: {
             'application/json': {
               id: string;
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
               name: string;
               description: string | null;
               downloadKbps: number;
@@ -4661,6 +4671,11 @@ export interface paths {
           content: {
             'application/json': {
               id: string;
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
               name: string;
               description: string | null;
               downloadKbps: number;
@@ -4782,6 +4797,11 @@ export interface paths {
           content: {
             'application/json': {
               id: string;
+              reseller: {
+                id: string;
+                code: string;
+                name: string;
+              } | null;
               name: string;
               description: string | null;
               downloadKbps: number;

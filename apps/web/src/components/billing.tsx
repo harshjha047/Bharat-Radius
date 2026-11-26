@@ -26,6 +26,7 @@ import {
   type Subscriber,
   type TopupRequest,
   type Wallet,
+  planFitsOwner,
 } from '@/lib/queries';
 import { fmtDate, fmtDateTime, fmtRupees } from '@/lib/utils';
 
@@ -315,7 +316,7 @@ export function RechargeDialog({
   open,
   onOpenChange,
 }: {
-  subscriber: Pick<Subscriber, 'id' | 'name' | 'planId'>;
+  subscriber: Pick<Subscriber, 'id' | 'name' | 'planId' | 'reseller'>;
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
@@ -393,7 +394,12 @@ export function RechargeDialog({
     setUntil(null);
     setReason('');
   };
-  const prepaidPlans = plans.filter((p) => p.status === 'active' && p.billingTypes.includes('prepaid'));
+  const prepaidPlans = plans.filter(
+    (p) =>
+      p.status === 'active' &&
+      p.billingTypes.includes('prepaid') &&
+      (!staff || planFitsOwner(p, subscriber.reseller?.id ?? null)),
+  );
   return (
     <Dialog
       open={open}
@@ -595,12 +601,13 @@ export function PaymentLinkDialog({
   open,
   onOpenChange,
 }: {
-  subscriber: Pick<Subscriber, 'id' | 'name' | 'planId' | 'billingType'>;
+  subscriber: Pick<Subscriber, 'id' | 'name' | 'planId' | 'billingType' | 'reseller'>;
   invoice?: Pick<Invoice, 'id' | 'number' | 'balancePaise'>;
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
   const { plans } = usePlans();
+  const staff = useMe().data?.user.type !== 'reseller';
   const [gateway, setGateway] = useState<'razorpay' | 'cashfree'>('razorpay');
   const [planId, setPlanId] = useState(subscriber.planId ?? '');
   const m = useMutation({
@@ -664,7 +671,12 @@ export function PaymentLinkDialog({
                 <Select id="pl-plan" value={planId} onChange={(e) => setPlanId(e.target.value)}>
                   <option value="">Choose a plan</option>
                   {plans
-                    .filter((p) => p.status === 'active' && p.billingTypes.includes('prepaid'))
+                    .filter(
+                      (p) =>
+                        p.status === 'active' &&
+                        p.billingTypes.includes('prepaid') &&
+                        (!staff || planFitsOwner(p, subscriber.reseller?.id ?? null)),
+                    )
                     .map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}

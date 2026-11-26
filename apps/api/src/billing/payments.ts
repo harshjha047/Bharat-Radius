@@ -21,6 +21,7 @@ import {
   type PaymentDoc,
   type PlanDoc,
   type SubscriberDoc,
+  planSellableIn,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
@@ -228,7 +229,8 @@ export class PaymentsService {
       const plan = await this.db
         .collection<PlanDoc>('plans')
         .findOne({ _id: b.planId, tenantId, status: 'active' });
-      if (!plan || !plan.billingTypes.includes('prepaid')) throw notFound('Plan');
+      if (!plan || !plan.billingTypes.includes('prepaid') || !planSellableIn(plan, s.ancestors))
+        throw notFound('Plan');
       // Settlement debits the owner's wallet at its rate; refuse now rather than after the customer has paid.
       if (
         s.resellerId &&

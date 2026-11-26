@@ -9503,6 +9503,29 @@
                           "id": {
                             "type": "string"
                           },
+                          "reseller": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["id", "code", "name"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "name": {
                             "type": "string"
                           },
@@ -9661,6 +9684,7 @@
                         },
                         "required": [
                           "id",
+                          "reseller",
                           "name",
                           "description",
                           "downloadKbps",
@@ -9930,6 +9954,29 @@
                     "id": {
                       "type": "string"
                     },
+                    "reseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "name": {
                       "type": "string"
                     },
@@ -10088,6 +10135,7 @@
                   },
                   "required": [
                     "id",
+                    "reseller",
                     "name",
                     "description",
                     "downloadKbps",
@@ -10181,6 +10229,29 @@
                     "id": {
                       "type": "string"
                     },
+                    "reseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "name": {
                       "type": "string"
                     },
@@ -10339,6 +10410,7 @@
                   },
                   "required": [
                     "id",
+                    "reseller",
                     "name",
                     "description",
                     "downloadKbps",
@@ -10650,6 +10722,29 @@
                     "id": {
                       "type": "string"
                     },
+                    "reseller": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["id", "code", "name"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "name": {
                       "type": "string"
                     },
@@ -10808,6 +10903,7 @@
                   },
                   "required": [
                     "id",
+                    "reseller",
                     "name",
                     "description",
                     "downloadKbps",
