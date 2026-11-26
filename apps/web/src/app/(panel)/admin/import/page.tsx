@@ -10,7 +10,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { Checkbox, Select } from '@/components/ui/input';
 import { ErrorState, Field, PageHeader } from '@/components/ui/misc';
 import { api, authFetch, download, toApiError, unwrap, XLSX_MIME, type ApiData } from '@/lib/api';
-import { useCan } from '@/lib/auth';
+import { useCan, useMe } from '@/lib/auth';
 import { usePlans } from '@/lib/queries';
 import { fmtDateTime, fmtNum } from '@/lib/utils';
 
@@ -104,7 +104,7 @@ function BatchResult({ b }: { b: Batch }) {
   );
 }
 
-function ImportCard() {
+function ImportCard({ reseller }: { reseller: boolean }) {
   const qc = useQueryClient();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -161,6 +161,9 @@ function ImportCard() {
         <CardDescription>
           Fill in the template (up to 50,000 rows). Every row is checked first; nothing is created until you
           confirm.
+          {reseller
+            ? ' They become your customers with the plan and expiry in the file; nothing is charged to your wallet.'
+            : ''}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -301,11 +304,12 @@ function ExportCard() {
 
 export default function ImportPage() {
   const can = useCan();
+  const reseller = useMe().data?.user.type === 'reseller';
   return (
     <>
-      <PageHeader title="Import & export" />
+      <PageHeader title={can('subscribers.export') ? 'Import & export' : 'Import customers'} />
       <div className="space-y-6">
-        {can('imports.run') ? <ImportCard /> : null}
+        {can('imports.run') ? <ImportCard reseller={reseller} /> : null}
         {can('subscribers.export') ? <ExportCard /> : null}
         {can('imports.run') ? <Recent /> : null}
       </div>

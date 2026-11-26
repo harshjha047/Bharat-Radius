@@ -98,6 +98,8 @@ const updateBody = z
     address: address.nullable().optional(),
     creditLimitPaise: fields.creditLimitPaise.optional(),
     canCreateSubResellers: z.boolean().optional(),
+    /** ISP staff only, top-level resellers only: allow Excel bulk import of customers (no wallet charge). */
+    importEnabled: z.boolean().optional(),
   })
   .refine((b) => Object.keys(b).length > 0, 'nothing to change');
 const moveBody = z.object({ parentId: objectId.nullable() });
@@ -123,6 +125,7 @@ const resellerView = z.object({
   level: z.number(),
   creditLimitPaise: z.number(),
   canCreateSubResellers: z.boolean(),
+  importEnabled: z.boolean(),
   status: z.enum(['active', 'suspended', 'deleted']),
   suspendReason: z.string().nullable(),
   /** Set when a reseller above this one is suspended: the branch is blocked even though this one is active. */
@@ -159,6 +162,7 @@ const toView = (r: ResellerDoc, counts: Counts, blockedBy: Ref | null): z.output
   level: r.level,
   creditLimitPaise: r.creditLimitPaise,
   canCreateSubResellers: r.canCreateSubResellers,
+  importEnabled: r.level === 1 && r.importEnabled === true,
   status: r.status,
   suspendReason: r.suspendReason ?? null,
   blockedBy,
@@ -401,6 +405,16 @@ export class ResellersService {
     if (b.creditLimitPaise !== undefined && b.creditLimitPaise !== cur.creditLimitPaise) {
       this.assertStaffOnly(ctx, 'credit limits');
     }
+    if (b.importEnabled !== undefined) {
+      this.assertStaffOnly(ctx, 'bulk import');
+      if (b.importEnabled && cur.level !== 1) {
+        throw new AppError(
+          400,
+          'VALIDATION_FAILED',
+          'Bulk import is only for resellers directly under the ISP',
+        );
+      }
+    }
     const set: Record<string, unknown> = { updatedAt: new Date(), updatedBy: ctx.userId.toHexString() };
     const unset: Record<string, ''> = {};
     for (const [k, v] of Object.entries(b)) {
@@ -420,6 +434,8 @@ export class ResellersService {
       );
     }
     noteChange({ before: cur, after: u, entityId: id });
+    // Its users gain or lose the import permission at once (on this replica; others within the session TTL).
+    if (b.importEnabled !== undefined) await this.invalidateBranchSessions(ctx, id);
     return this.detail(ctx, u);
   }
 

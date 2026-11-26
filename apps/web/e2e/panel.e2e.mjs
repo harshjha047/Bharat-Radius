@@ -235,6 +235,19 @@ step('resellers: tree, drill-down and a customer added from a reseller', async (
   await page.getByRole('heading', { name: /E2E Sector 62/ }).waitFor();
 });
 
+step('ISP switches bulk import on and off for a top-level reseller', async () => {
+  await page.goto(`${BASE}/admin/resellers`);
+  await page.getByRole('link', { name: 'E2E Noida Net' }).click();
+  await page.waitForURL(/\/admin\/resellers\/[0-9a-f]{24}$/);
+  await page.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Allow bulk import' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Allow bulk import' }).click();
+  await page.getByText(/Bulk import is on:/).waitFor();
+  await page.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Stop bulk import' }).click();
+  await page.getByText(/Bulk import is on:/).waitFor({ state: 'detached' });
+});
+
 step('billing: top up a reseller, cash recharge, GST invoice', async () => {
   await (await sidebarLink('Wallets')).click();
   await page

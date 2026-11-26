@@ -4270,6 +4270,9 @@
                           "canCreateSubResellers": {
                             "type": "boolean"
                           },
+                          "importEnabled": {
+                            "type": "boolean"
+                          },
                           "status": {
                             "type": "string",
                             "enum": ["active", "suspended", "deleted"]
@@ -4333,6 +4336,7 @@
                           "level",
                           "creditLimitPaise",
                           "canCreateSubResellers",
+                          "importEnabled",
                           "status",
                           "suspendReason",
                           "blockedBy",
@@ -4581,6 +4585,9 @@
                     "canCreateSubResellers": {
                       "type": "boolean"
                     },
+                    "importEnabled": {
+                      "type": "boolean"
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "deleted"]
@@ -4738,6 +4745,7 @@
                     "level",
                     "creditLimitPaise",
                     "canCreateSubResellers",
+                    "importEnabled",
                     "status",
                     "suspendReason",
                     "blockedBy",
@@ -4884,6 +4892,9 @@
                     "canCreateSubResellers": {
                       "type": "boolean"
                     },
+                    "importEnabled": {
+                      "type": "boolean"
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "deleted"]
@@ -4969,6 +4980,7 @@
                     "level",
                     "creditLimitPaise",
                     "canCreateSubResellers",
+                    "importEnabled",
                     "status",
                     "suspendReason",
                     "blockedBy",
@@ -5121,6 +5133,9 @@
                   },
                   "canCreateSubResellers": {
                     "type": "boolean"
+                  },
+                  "importEnabled": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -5203,6 +5218,9 @@
                       "type": "number"
                     },
                     "canCreateSubResellers": {
+                      "type": "boolean"
+                    },
+                    "importEnabled": {
                       "type": "boolean"
                     },
                     "status": {
@@ -5290,6 +5308,7 @@
                     "level",
                     "creditLimitPaise",
                     "canCreateSubResellers",
+                    "importEnabled",
                     "status",
                     "suspendReason",
                     "blockedBy",
@@ -5525,6 +5544,9 @@
                     "canCreateSubResellers": {
                       "type": "boolean"
                     },
+                    "importEnabled": {
+                      "type": "boolean"
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "deleted"]
@@ -5610,6 +5632,7 @@
                     "level",
                     "creditLimitPaise",
                     "canCreateSubResellers",
+                    "importEnabled",
                     "status",
                     "suspendReason",
                     "blockedBy",
@@ -5755,6 +5778,9 @@
                     "canCreateSubResellers": {
                       "type": "boolean"
                     },
+                    "importEnabled": {
+                      "type": "boolean"
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "deleted"]
@@ -5840,6 +5866,7 @@
                     "level",
                     "creditLimitPaise",
                     "canCreateSubResellers",
+                    "importEnabled",
                     "status",
                     "suspendReason",
                     "blockedBy",
@@ -6010,6 +6037,9 @@
                     "canCreateSubResellers": {
                       "type": "boolean"
                     },
+                    "importEnabled": {
+                      "type": "boolean"
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "deleted"]
@@ -6095,6 +6125,7 @@
                     "level",
                     "creditLimitPaise",
                     "canCreateSubResellers",
+                    "importEnabled",
                     "status",
                     "suspendReason",
                     "blockedBy",

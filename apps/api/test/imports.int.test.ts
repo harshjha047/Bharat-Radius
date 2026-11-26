@@ -147,3 +147,81 @@ describe('Excel import / export', () => {
     expect((await c.req('GET', '/api/v1/subscribers/imports')).body).toEqual([]);
   });
 });
+
+describe('reseller bulk import (switched on by the ISP, top level only)', () => {
+  let l1: string;
+  let l2: string;
+  let r1: Client;
+  let r2: Client;
+  const R = '/api/v1/resellers';
+  const can = async (c: Client) =>
+    ((await c.req('GET', '/api/v1/auth/me')).body.permissions as string[]).includes('imports.run');
+  const resellerUser = async (email: string, resellerId: string) => {
+    const tenantId = (await h.db.collection('resellers').findOne({ _id: new ObjectId(resellerId) }))!
+      .tenantId;
+    const u = await seedUser(h, {
+      tenantId,
+      email,
+      type: 'reseller',
+      roles: [await roleId(h.db, 'Reseller Owner')],
+    });
+    await h.db
+      .collection('users')
+      .updateOne({ _id: u._id }, { $set: { resellerId: new ObjectId(resellerId) } });
+    return signIn(h, u);
+  };
+
+  beforeAll(async () => {
+    l1 = (await admin.req('POST', R, { name: 'Xtreme Fiber', ownerName: 'Tana' })).body.id;
+    l2 = (await admin.req('POST', R, { parentId: l1, name: 'Seppa POP', ownerName: 'Nima' })).body.id;
+    r1 = await resellerUser('owner@l1.imp', l1);
+    r2 = await resellerUser('owner@l2.imp', l2);
+  });
+
+  it('is off by default: no permission, uploads refused', async () => {
+    expect((await admin.req('GET', `${R}/${l1}`)).body.importEnabled).toBe(false);
+    expect(await can(r1)).toBe(false);
+    expect((await upload(r1, await xlsx([row({ ...base, username: 'r1.a' })]))).status).toBe(403);
+  });
+
+  it('only ISP staff switch it, and only for resellers directly under the ISP', async () => {
+    expect((await r1.req('PATCH', `${R}/${l2}`, { importEnabled: true })).status).toBe(403);
+    expect((await admin.req('PATCH', `${R}/${l2}`, { importEnabled: true })).status).toBe(400);
+    const on = await admin.req('PATCH', `${R}/${l1}`, { importEnabled: true });
+    expect(on.status).toBe(200);
+    expect(on.body.importEnabled).toBe(true);
+  });
+
+  it('the reseller imports its own customers; sub-resellers cannot', async () => {
+    expect(await can(r1)).toBe(true);
+    expect(await can(r2)).toBe(false);
+    expect((await upload(r2, await xlsx([row({ ...base, username: 'r2.a' })]))).status).toBe(403);
+
+    const t = await r1.req('GET', '/api/v1/subscribers/import/template');
+    expect(t.status).toBe(200);
+    const r = await upload(r1, await xlsx([row({ ...base, username: 'r1.a', plan: 'Home 50' })]));
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.status).toBe('queued');
+    const batch = await h.db
+      .collection<ImportBatchDoc>('import_batches')
+      .findOne({ _id: new ObjectId(r.body.id) });
+    expect(String(batch!.resellerId)).toBe(l1);
+
+    const mine = (await r1.req('GET', '/api/v1/subscribers/imports')).body as { id: string }[];
+    expect(mine.map((b) => b.id)).toEqual([r.body.id]);
+    expect(
+      (await admin.req('GET', '/api/v1/subscribers/imports')).body.map((b: { id: string }) => b.id),
+    ).toContain(r.body.id);
+    const isp = await h.db
+      .collection<ImportBatchDoc>('import_batches')
+      .findOne({ resellerId: { $exists: false } });
+    expect((await r1.req('GET', `/api/v1/subscribers/imports/${isp!._id.toHexString()}`)).status).toBe(404);
+    expect((await r1.req('GET', '/api/v1/subscribers/export')).status).toBe(403);
+  });
+
+  it('switching it off takes the permission away at once', async () => {
+    expect((await admin.req('PATCH', `${R}/${l1}`, { importEnabled: false })).body.importEnabled).toBe(false);
+    expect(await can(r1)).toBe(false);
+    expect((await upload(r1, await xlsx([row({ ...base, username: 'r1.b' })]))).status).toBe(403);
+  });
+});
