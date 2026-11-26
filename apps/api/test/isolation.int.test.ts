@@ -102,6 +102,8 @@ const NOT_RECORD_ROUTES = new Set([
   '/api/v1/portal/tickets/:id/close',
   '/api/v1/reports/:name',
   '/api/v1/reports/:name/download',
+  // Shared reference data (India Post PIN directory), not a tenant record.
+  '/api/v1/pincodes/:pincode',
   // Public logo image (shown on login and portal pages; not personal data). Changing it is tested above.
   '/api/v1/branding/:id/logo',
 ]);
