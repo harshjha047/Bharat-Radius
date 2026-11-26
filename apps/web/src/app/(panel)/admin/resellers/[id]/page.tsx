@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   Ban,
   ChevronRight,
+  FileUp,
   LogIn,
   MoreHorizontal,
   MoveRight,
@@ -38,11 +39,12 @@ import { useCan, useMe } from '@/lib/auth';
 import type { ResellerDetail, Subscriber } from '@/lib/queries';
 import { fmtDate, fmtDateTime, fmtNum, fmtRupees, relTime } from '@/lib/utils';
 
-type Action = 'edit' | 'add' | 'suspend' | 'activate' | 'move' | 'delete' | null;
+type Action = 'edit' | 'add' | 'suspend' | 'activate' | 'move' | 'delete' | 'import' | null;
 
 export default function ResellerPage() {
   const { id } = useParams<{ id: string }>();
   const can = useCan();
+  const me = useMe();
   const r = useQuery({
     queryKey: ['reseller', id],
     queryFn: () => unwrap(api.GET('/api/v1/resellers/{id}', { params: { path: { id } } })),
@@ -80,6 +82,15 @@ export default function ResellerPage() {
         }
         actions={can('resellers.write') ? <Actions d={d} /> : null}
       />
+      {d.importEnabled && me.data?.user.type !== 'reseller' ? (
+        <p
+          role="status"
+          className="mb-4 rounded-xl border border-[#f5d9a8] bg-warning-bg text-warning-text font-semibold px-3 py-2 text-sm"
+        >
+          Bulk import is on: this reseller can import customers from Excel without wallet charges. Switch it
+          off (More actions → Stop bulk import) once its customers are moved in.
+        </p>
+      ) : null}
       {d.blockedBy ? (
         <p
           role="status"
@@ -191,6 +202,12 @@ function Actions({ d }: { d: ResellerDetail }) {
       ),
     onSuccess: (n) => done('Moved with everything below it.')(n),
   });
+  const setImport = useMutation({
+    mutationFn: (on: boolean) =>
+      unwrap(api.PATCH('/api/v1/resellers/{id}', { ...path, body: { importEnabled: on } })),
+    onSuccess: (n) =>
+      done(n.importEnabled ? 'Bulk import is on for this reseller.' : 'Bulk import is off.')(n),
+  });
   const remove = useMutation({
     mutationFn: () => unwrap(api.DELETE('/api/v1/resellers/{id}', path)),
     onSuccess: () => {
@@ -249,6 +266,17 @@ function Actions({ d }: { d: ResellerDetail }) {
               <PlayCircle /> Activate
             </MenuItem>
           )}
+          {staff && d.level === 1 ? (
+            d.importEnabled ? (
+              <MenuItem onSelect={() => setImport.mutate(false)}>
+                <FileUp /> Stop bulk import
+              </MenuItem>
+            ) : (
+              <MenuItem onSelect={() => setOpen('import')}>
+                <FileUp /> Allow bulk import
+              </MenuItem>
+            )
+          ) : null}
           <MenuSeparator />
           <MenuItem destructive disabled={!empty} onSelect={() => setOpen('delete')}>
             <Trash2 /> Delete{empty ? '' : ' (empty it first)'}
@@ -297,6 +325,15 @@ function Actions({ d }: { d: ResellerDetail }) {
         confirmLabel="Activate"
         loading={activate.isPending}
         onConfirm={() => activate.mutate()}
+      />
+      <ConfirmDialog
+        open={open === 'import'}
+        onOpenChange={(o) => setOpen(o ? 'import' : null)}
+        title={`Allow ${d.name} to bulk import customers?`}
+        description="Its users with customer access get Import in their panel and can upload an Excel file of customers. Imported customers become its customers with the plan and expiry in the file, and nothing is charged to its wallet. Use it to move an existing customer base in, then switch it off."
+        confirmLabel="Allow bulk import"
+        loading={setImport.isPending}
+        onConfirm={() => setImport.mutate(true)}
       />
       <ConfirmDialog
         open={open === 'delete'}

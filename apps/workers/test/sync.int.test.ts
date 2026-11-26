@@ -542,6 +542,54 @@ describe('outbox → RADIUS', () => {
     expect((await job.run()).batches).toBe(0);
   });
 
+  it('a reseller’s import makes the rows that reseller’s customers', async () => {
+    const t = await tenant();
+    const resellerId = new ObjectId();
+    const batchId = new ObjectId();
+    await db.collection<ImportBatchDoc>('import_batches').insertOne({
+      _id: batchId,
+      tenantId: t,
+      resellerId,
+      source: 'excel',
+      fileName: 'r.xlsx',
+      status: 'queued',
+      counts: { read: 1, valid: 1, created: 0, failed: 0 },
+      errors: [],
+      createdBy: 'reseller-user',
+      createdAt: now(),
+    });
+    const _id = new ObjectId();
+    await db.collection<ImportRowDoc>('import_rows').insertOne({
+      _id,
+      batchId,
+      tenantId: t,
+      row: 2,
+      input: {
+        username: 'res-imp-a',
+        name: 'Imported',
+        phone: '+919800000001',
+        address: {
+          line1: 'x',
+          city: 'Seppa',
+          state: 'Arunachal Pradesh',
+          stateCode: '12',
+          pincode: '790102',
+        },
+        billingType: 'prepaid',
+        network: {},
+        tags: [],
+        pppoePassword: crypto.encrypt('pw-res', `import_rows:${_id.toHexString()}`),
+      },
+      status: 'pending',
+      createdAt: now(),
+    });
+    expect(await new ImportJob(client, db, crypto, log).run()).toMatchObject({ batches: 1, created: 1 });
+    const s = await db
+      .collection<SubscriberDoc>('subscribers')
+      .findOne({ tenantId: t, username: 'res-imp-a' });
+    expect(s).toMatchObject({ resellerId, ancestors: [resellerId], importBatchId: batchId });
+  });
+
   it('only one worker leads', async () => {
     expect(await worker.holdLease()).toBe(true);
     const other = new OutboxWorker(db, new RadiusSync(pool, db, crypto, PW_KEY), log);

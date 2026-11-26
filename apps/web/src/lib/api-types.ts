@@ -2266,6 +2266,7 @@ export interface paths {
                 level: number;
                 creditLimitPaise: number;
                 canCreateSubResellers: boolean;
+                importEnabled: boolean;
                 /** @enum {string} */
                 status: 'active' | 'suspended' | 'deleted';
                 suspendReason: string | null;
@@ -2369,6 +2370,7 @@ export interface paths {
               level: number;
               creditLimitPaise: number;
               canCreateSubResellers: boolean;
+              importEnabled: boolean;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'deleted';
               suspendReason: string | null;
@@ -2477,6 +2479,7 @@ export interface paths {
               level: number;
               creditLimitPaise: number;
               canCreateSubResellers: boolean;
+              importEnabled: boolean;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'deleted';
               suspendReason: string | null;
@@ -2591,6 +2594,7 @@ export interface paths {
             } | null;
             creditLimitPaise?: number;
             canCreateSubResellers?: boolean;
+            importEnabled?: boolean;
           };
         };
       };
@@ -2620,6 +2624,7 @@ export interface paths {
               level: number;
               creditLimitPaise: number;
               canCreateSubResellers: boolean;
+              importEnabled: boolean;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'deleted';
               suspendReason: string | null;
@@ -2715,6 +2720,7 @@ export interface paths {
               level: number;
               creditLimitPaise: number;
               canCreateSubResellers: boolean;
+              importEnabled: boolean;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'deleted';
               suspendReason: string | null;
@@ -2808,6 +2814,7 @@ export interface paths {
               level: number;
               creditLimitPaise: number;
               canCreateSubResellers: boolean;
+              importEnabled: boolean;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'deleted';
               suspendReason: string | null;
@@ -2907,6 +2914,7 @@ export interface paths {
               level: number;
               creditLimitPaise: number;
               canCreateSubResellers: boolean;
+              importEnabled: boolean;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'deleted';
               suspendReason: string | null;

@@ -226,6 +226,11 @@ export interface ResellerDoc extends Standard {
   walletModel?: 'prepaid' | 'revenue_share';
   /** Basis points debited under revenue share (4000 = 40 %). */
   shareBp?: number;
+  /**
+   * Level 1 only, set by ISP staff: its users may bulk-import customers from Excel (no wallet charge). Meant for
+   * moving an existing customer base in; switched off again once the migration is done.
+   */
+  importEnabled?: boolean;
   /** F-8: name and logo shown in this reseller's panel and to its customers (inherited by sub-resellers). */
   branding?: { name?: string; logo?: { key: string; mimeType: string; sha256: string } };
   /** Suspended blocks the reseller's panel and new recharges in its whole branch; customers stay online. */
@@ -408,6 +413,8 @@ export interface CoaLogDoc {
 export interface ImportBatchDoc {
   _id: ObjectId;
   tenantId: ObjectId;
+  /** Set when a reseller imported: every row becomes its customer. Absent = ISP-level customers. */
+  resellerId?: ObjectId;
   source: 'excel';
   fileName: string;
   status: 'queued' | 'running' | 'done' | 'failed';

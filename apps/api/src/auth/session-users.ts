@@ -55,7 +55,7 @@ export class SessionUsers {
     if (user.type === 'superadmin') return { user, permissions: ALL, requireMfa: true, active: true };
     if (!user.tenantId) return null;
 
-    const [roles, tenant, branchActive] = await Promise.all([
+    const [roles, tenant, branch] = await Promise.all([
       user.roleIds.length
         ? db
             .collection<RoleDoc>('roles')
@@ -63,7 +63,9 @@ export class SessionUsers {
             .toArray()
         : Promise.resolve([]),
       db.collection<TenantDoc>('tenants').findOne({ _id: user.tenantId }, { projection: { status: 1 } }),
-      user.type === 'reseller' ? this.branchActive(user.tenantId, user.resellerId) : Promise.resolve(true),
+      user.type === 'reseller'
+        ? this.branch(user.tenantId, user.resellerId)
+        : Promise.resolve({ active: true, canImport: false }),
     ]);
     const wantScope = user.type === 'reseller' ? 'reseller' : 'tenant';
     const permissions = new Set<Permission>();
@@ -73,21 +75,30 @@ export class SessionUsers {
       requireMfa ||= r.requireMfa;
       for (const p of r.permissions) if (isPermission(p)) permissions.add(p);
     }
-    return { user, permissions, requireMfa, active: tenant?.status === 'active' && branchActive };
+    // Bulk import is not a role permission: the ISP switches it on per top-level reseller (for migrations).
+    if (branch.canImport && permissions.has('subscribers.write')) permissions.add('imports.run');
+    return { user, permissions, requireMfa, active: tenant?.status === 'active' && branch.active };
   }
 
-  private async branchActive(tenantId: ObjectId, resellerId: ObjectId | undefined): Promise<boolean> {
-    if (!resellerId) return false;
+  /** Whether the reseller and every reseller above it are active; whether the ISP lets it import customers. */
+  private async branch(
+    tenantId: ObjectId,
+    resellerId: ObjectId | undefined,
+  ): Promise<{ active: boolean; canImport: boolean }> {
+    const no = { active: false, canImport: false };
+    if (!resellerId) return no;
     const resellers = this.mongo.db.collection<ResellerDoc>('resellers');
     const r = await resellers.findOne(
       { _id: resellerId, tenantId },
-      { projection: { status: 1, ancestors: 1 } },
+      { projection: { status: 1, ancestors: 1, level: 1, importEnabled: 1 } },
     );
-    if (r?.status !== 'active') return false;
-    if (!r.ancestors.length) return true;
-    return !(await resellers.findOne(
+    if (r?.status !== 'active') return no;
+    const canImport = r.level === 1 && r.importEnabled === true;
+    if (!r.ancestors.length) return { active: true, canImport };
+    const blocked = await resellers.findOne(
       { _id: { $in: r.ancestors }, tenantId, status: { $ne: 'active' } },
       { projection: { _id: 1 } },
-    ));
+    );
+    return blocked ? no : { active: true, canImport };
   }
 }

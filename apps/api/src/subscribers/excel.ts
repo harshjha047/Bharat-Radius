@@ -12,13 +12,14 @@ import {
   type ImportRowDoc,
   type MongoHandle,
   type PlanDoc,
+  type ResellerDoc,
   type SubscriberDoc,
   type TenantDoc,
   USERNAME_COLLATION,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
-import { AppError, notFound } from '../errors.js';
+import { AppError, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import { hexId, idParams } from '../http/schemas.js';
 import { MONGO } from '../infra/infra.module.js';
@@ -197,11 +198,21 @@ export class SubscriberExcel {
     @Inject(FieldCrypto) private readonly crypto: FieldCrypto,
   ) {}
 
-  private tenant(ctx: AuthContext): ObjectId {
-    if (!ctx.tenantId || ctx.scope.kind !== 'tenant') {
-      throw new AppError(400, 'VALIDATION_FAILED', 'Imports are done by an ISP’s staff');
+  /**
+   * ISP staff import ISP-level customers. A reseller user imports only when its reseller is directly under the
+   * ISP and the ISP has switched import on for it; every row then becomes that reseller's customer.
+   */
+  private async importer(ctx: AuthContext): Promise<{ tenantId: ObjectId; reseller: ResellerDoc | null }> {
+    if (!ctx.tenantId) throw new AppError(400, 'VALIDATION_FAILED', 'Imports are done by an ISP’s staff');
+    if (ctx.scope.kind === 'tenant') return { tenantId: ctx.tenantId, reseller: null };
+    if (ctx.scope.kind !== 'branch') throw forbidden('Imports are done by an ISP or its resellers');
+    const r = await this.mongo.db
+      .collection<ResellerDoc>('resellers')
+      .findOne({ _id: ctx.scope.resellerId, tenantId: ctx.tenantId });
+    if (!r || r.status !== 'active' || r.level !== 1 || !r.importEnabled) {
+      throw forbidden('Bulk import is not switched on for your account; ask your ISP');
     }
-    return ctx.tenantId;
+    return { tenantId: ctx.tenantId, reseller: r };
   }
 
   private async plans(tenantId: ObjectId) {
@@ -224,7 +235,9 @@ export class SubscriberExcel {
   }
 
   async template(ctx: AuthContext): Promise<Buffer> {
-    const plans = (await this.plans(this.tenant(ctx))).filter((p) => p.status === 'active');
+    const plans = (await this.plans((await this.importer(ctx)).tenantId)).filter(
+      (p) => p.status === 'active',
+    );
     const header = COLUMNS.map((c) => ({
       value: c.required ? `${c.key}*` : c.key,
       fontWeight: 'bold' as const,
@@ -273,7 +286,7 @@ export class SubscriberExcel {
     ctx: AuthContext,
     file: Buffer,
   ): Promise<{ read: number; valid: ValidRow[]; issues: RowIssue[] }> {
-    const tenantId = this.tenant(ctx);
+    const { tenantId } = await this.importer(ctx);
     let data: unknown[][];
     try {
       const sheets = await readXlsxFile(file);
@@ -432,7 +445,7 @@ export class SubscriberExcel {
   }
 
   async import(ctx: AuthContext, file: Buffer, fileName: string, q: z.output<typeof importQuery>) {
-    const tenantId = this.tenant(ctx);
+    const { tenantId, reseller } = await this.importer(ctx);
     const { read, valid, issues } = await this.validate(ctx, file);
     const tenant = await this.mongo.db
       .collection<TenantDoc>('tenants')
@@ -459,6 +472,7 @@ export class SubscriberExcel {
     const batch: ImportBatchDoc = {
       _id: new ObjectId(),
       tenantId,
+      ...(reseller ? { resellerId: reseller._id } : {}),
       source: 'excel',
       fileName,
       status: 'queued',
@@ -468,7 +482,15 @@ export class SubscriberExcel {
       createdAt: now,
     };
     await this.mongo.db.collection<ImportBatchDoc>('import_batches').insertOne(batch);
-    noteChange({ after: { fileName, counts, skippedInvalid: issues.length }, entityId: batch._id });
+    noteChange({
+      after: {
+        fileName,
+        counts,
+        skippedInvalid: issues.length,
+        ...(reseller ? { resellerId: reseller._id } : {}),
+      },
+      entityId: batch._id,
+    });
     const rows = this.mongo.db.collection<ImportRowDoc>('import_rows');
     for (let i = 0; i < valid.length; i += 1000) {
       await rows.insertMany(
