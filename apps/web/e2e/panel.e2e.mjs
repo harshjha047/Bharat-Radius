@@ -206,7 +206,11 @@ step('resellers: tree, drill-down and a customer added from a reseller', async (
   await page.getByRole('button', { name: 'Sub-reseller' }).click();
   await page.fill('#r-name', 'E2E Sector 62');
   await page.fill('#r-owner', 'Bina');
+  await page.getByLabel("Create the owner's login now").check();
+  await page.fill('#r-login-email', 'bina@e2e.test');
+  await page.getByRole('button', { name: 'Generate' }).click();
   await page.getByRole('button', { name: 'Add reseller' }).click();
+  await page.getByText('Owner signs in as bina@e2e.test').waitFor();
   await page.getByRole('heading', { name: /E2E Sector 62/ }).waitFor();
   await page
     .getByRole('navigation', { name: 'Reseller path' })

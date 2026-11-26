@@ -2,7 +2,7 @@ import { ObjectId } from 'mongodb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { ResellerDoc, SubscriberDoc } from '@isp/db-mongo';
 import { MAX_LEVEL } from '../src/resellers/resellers.js';
-import { roleId, seedTenant, seedUser, signIn, startHarness, type Client, type Harness } from './harness.js';
+import { Client, roleId, seedTenant, seedUser, signIn, startHarness, type Harness } from './harness.js';
 
 let h: Harness;
 let tenant: ObjectId;
@@ -295,5 +295,109 @@ describe('move, suspend and delete', () => {
     expect((await admin.req('DELETE', `${R}/${id.shop}`)).status).toBe(200);
     expect((await shop.req('GET', R)).status).toBe(401);
     expect((await h.db.collection('users').findOne({ _id: shopUser._id }))!.status).toBe('disabled');
+  });
+});
+
+describe('owner sign-in created with the reseller', () => {
+  const ownerPw = 'Seppa-Fibre-2026';
+  const login = async (email: string) => {
+    const c = new Client(h);
+    const r = await c.req('POST', '/api/v1/auth/login', { login: email, password: ownerPw });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    return c;
+  };
+
+  it('creates the reseller and a "Reseller Owner" sign-in in one go', async () => {
+    const r = await admin.req('POST', R, {
+      name: 'Xtreme Fiber',
+      ownerName: 'Tana',
+      owner: { email: 'tana@xtreme.in', password: ownerPw },
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    id.xtreme = r.body.id;
+    expect(r.body.owner).toMatchObject({
+      type: 'reseller',
+      resellerId: id.xtreme,
+      name: 'Tana',
+      email: 'tana@xtreme.in',
+      roleIds: [String(await roleId(h.db, 'Reseller Owner'))],
+    });
+    const u = await h.db.collection('users').findOne({ email: 'tana@xtreme.in' });
+    expect(String(u!.tenantId)).toBe(String(tenant));
+    expect(JSON.stringify(r.body)).not.toContain(ownerPw);
+
+    const owner = await login('tana@xtreme.in');
+    const mine = await owner.req('GET', `${R}?limit=200`);
+    expect(mine.body.items.map((x: { id: string }) => x.id)).toEqual([id.xtreme]);
+  });
+
+  it('without an owner the response says so', async () => {
+    const r = await admin.req('POST', R, { name: 'No Login Net', ownerName: 'Om' });
+    expect(r.status).toBe(201);
+    expect(r.body.owner).toBeNull();
+  });
+
+  it('a duplicate login creates neither the reseller nor the sign-in', async () => {
+    const walletsBefore = await h.db.collection('wallets').countDocuments();
+    const r = await admin.req('POST', R, {
+      name: 'Dup Net',
+      ownerName: 'Tana 2',
+      owner: { email: 'tana@xtreme.in', password: ownerPw },
+    });
+    expect(r.status).toBe(409);
+    expect(await h.db.collection('resellers').countDocuments({ name: 'Dup Net' })).toBe(0);
+    expect(await h.db.collection('wallets').countDocuments()).toBe(walletsBefore);
+  });
+
+  it('validates the owner and needs users.write', async () => {
+    const bad = (owner: object) => admin.req('POST', R, { name: 'Bad', ownerName: 'B', owner });
+    expect((await bad({ password: ownerPw })).status).toBe(400);
+    expect((await bad({ email: 'b@bad.in', password: 'short' })).status).toBe(400);
+    expect(
+      (await bad({ email: 'b@bad.in', password: ownerPw, roleId: String(await roleId(h.db, 'ISP Admin')) }))
+        .status,
+    ).toBe(400);
+
+    const role = await admin.req('POST', '/api/v1/roles', {
+      name: 'Reseller desk',
+      scope: 'tenant',
+      permissions: ['resellers.read', 'resellers.write'],
+    });
+    expect(role.status).toBe(201);
+    const desk = await signIn(
+      h,
+      await seedUser(h, {
+        tenantId: tenant,
+        email: 'desk@r.in',
+        roles: [new ObjectId(role.body.id as string)],
+      }),
+    );
+    expect(
+      (
+        await desk.req('POST', R, {
+          name: 'Desk Net',
+          ownerName: 'D',
+          owner: { email: 'd@desk.in', password: ownerPw },
+        })
+      ).status,
+    ).toBe(403);
+    expect(await h.db.collection('resellers').countDocuments({ name: 'Desk Net' })).toBe(0);
+    expect((await desk.req('POST', R, { name: 'Desk Net', ownerName: 'D' })).status).toBe(201);
+    expect(await h.db.collection('resellers').countDocuments({ name: 'Bad' })).toBe(0);
+  });
+
+  it('a reseller owner adds a sub-reseller with its own owner sign-in', async () => {
+    const owner = await login('tana@xtreme.in');
+    const r = await owner.req('POST', R, {
+      name: 'Seppa POP',
+      ownerName: 'Nima',
+      owner: { phone: '9862000001', password: ownerPw },
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body).toMatchObject({ parentId: id.xtreme, level: 2 });
+    expect(r.body.owner).toMatchObject({
+      resellerId: r.body.id,
+      phone: expect.stringContaining('9862000001'),
+    });
   });
 });

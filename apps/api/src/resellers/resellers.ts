@@ -24,6 +24,7 @@ import {
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
+import { passwordSchema } from '../auth/passwords.js';
 import { SessionUsers } from '../auth/session-users.js';
 import { AppError, conflict, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
@@ -43,6 +44,8 @@ import {
 } from '../http/schemas.js';
 import { MONGO } from '../infra/infra.module.js';
 import { Outbox } from '../sync/outbox.js';
+import { UsersService } from '../users/users.service.js';
+import { userView } from '../users/views.js';
 
 /** Deep enough for any real distribution chain; stops runaway trees and keeps `ancestors` small. */
 export const MAX_LEVEL = 10;
@@ -73,6 +76,17 @@ const createBody = z.object({
   address: address.optional(),
   creditLimitPaise: fields.creditLimitPaise.default(0),
   canCreateSubResellers: z.boolean().default(true),
+  /** Optional sign-in for the owner (named ownerName), created with the reseller or not at all. */
+  owner: z
+    .object({
+      email: email.optional(),
+      phone: phone.optional(),
+      password: passwordSchema,
+      /** A reseller role; default "Reseller Owner". */
+      roleId: objectId.optional(),
+    })
+    .refine((o) => o.email || o.phone, { message: 'Give an email or a phone number', path: ['email'] })
+    .optional(),
 });
 const updateBody = z
   .object({
@@ -121,6 +135,7 @@ const detailView = resellerView.extend({
   path: z.array(ref),
   walletId: z.string().nullable(),
 });
+const createdView = detailView.extend({ owner: userView.nullable() });
 
 type Counts = z.output<typeof resellerView>['counts'];
 type Ref = z.output<typeof ref>;
@@ -157,6 +172,7 @@ export class ResellersService {
     @Inject(MONGO) private readonly mongo: MongoHandle,
     @Inject(Outbox) private readonly outbox: Outbox,
     @Inject(SessionUsers) private readonly sessions: SessionUsers,
+    @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
   private db(ctx: AuthContext) {
@@ -320,9 +336,11 @@ export class ResellersService {
       if (!self.canCreateSubResellers) throw forbidden('Your account cannot add sub-resellers');
     }
     const parentId = b.parentId ?? branch?.resellerId ?? null;
+    if (b.owner && ctx.type !== 'superadmin' && !ctx.permissions.has('users.write'))
+      throw forbidden('You cannot add sign-ins');
     const now = new Date();
     const actor = ctx.userId.toHexString();
-    const doc = await this.outbox.tx(async (session) => {
+    const { doc, owner } = await this.outbox.tx(async (session) => {
       const parent = parentId ? await this.assertOpenParent(ctx, parentId, session) : null;
       const ancestors = parent ? chainOf(parent) : [];
       if (ancestors.length + 1 > MAX_LEVEL) throw tooDeep();
@@ -357,10 +375,24 @@ export class ResellersService {
       };
       await this.col(ctx).insertOne(d, { session });
       await createResellerWallet(this.mongo.db, d, session);
-      return d;
+      const owner = b.owner
+        ? await this.users.createResellerOwner(
+            ctx,
+            d,
+            {
+              name: b.ownerName,
+              email: b.owner.email,
+              phone: b.owner.phone,
+              password: b.owner.password,
+              roleIds: b.owner.roleId ? [b.owner.roleId] : undefined,
+            },
+            session,
+          )
+        : null;
+      return { doc: d, owner };
     });
-    noteChange({ after: doc, entityId: doc._id });
-    return this.detail(ctx, doc);
+    noteChange({ after: { ...doc, ...(owner ? { ownerUserId: owner.id } : {}) }, entityId: doc._id });
+    return { ...(await this.detail(ctx, doc)), owner };
   }
 
   async update(ctx: AuthContext, id: ObjectId, b: z.output<typeof updateBody>) {
@@ -575,12 +607,12 @@ export class ResellersController {
 
   @Post()
   @Endpoint({
-    summary: 'Add a reseller (top level, or under a reseller)',
+    summary: 'Add a reseller (top level, or under a reseller), optionally with its owner sign-in',
     tags: ['resellers'],
     audit: 'reseller.create',
     permission: 'resellers.write',
     body: createBody,
-    response: detailView,
+    response: createdView,
   })
   create(@Ctx() ctx: AuthContext, @Body() b: z.output<typeof createBody>) {
     return this.resellers.create(ctx, b);
