@@ -76,7 +76,9 @@ function ResellersList() {
       void qc.invalidateQueries({ queryKey: ['resellers'] });
       if (parent) void qc.invalidateQueries({ queryKey: ['reseller', parent] });
       setAdding(false);
-      toast.success(`${r.name} added as ${r.code}.`);
+      toast.success(
+        `${r.name} added as ${r.code}.${r.owner ? ` Owner signs in as ${r.owner.email ?? r.owner.phone}.` : ''}`,
+      );
     },
   });
 

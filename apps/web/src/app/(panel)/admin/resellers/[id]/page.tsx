@@ -164,7 +164,9 @@ function Actions({ d }: { d: ResellerDetail }) {
     mutationFn: (body: Record<string, unknown>) =>
       unwrap(api.POST('/api/v1/resellers', { body: { ...body, parentId: d.id } as never })),
     onSuccess: (n) => {
-      done(`${n.name} added as ${n.code}.`)();
+      done(
+        `${n.name} added as ${n.code}.${n.owner ? ` Owner signs in as ${n.owner.email ?? n.owner.phone}.` : ''}`,
+      )();
       router.push(`/admin/resellers/${n.id}`);
     },
   });

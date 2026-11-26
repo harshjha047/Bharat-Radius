@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ObjectId, type Filter } from 'mongodb';
+import { ObjectId, type ClientSession, type Filter } from 'mongodb';
 import { RESELLER_PERMISSIONS, isPermission, type Permission } from '@isp/shared';
 import { ScopedDb, type MongoHandle, type ResellerDoc, type RoleDoc, type UserDoc } from '@isp/db-mongo';
 import { AuthService } from '../auth/auth.service.js';
@@ -121,8 +121,6 @@ export class UsersService {
   async create(ctx: AuthContext, input: CreateUserInput) {
     const tenantId = ctx.type === 'superadmin' ? input.tenantId : ctx.tenantId;
     if (!tenantId) throw new AppError(400, 'VALIDATION_FAILED', 'tenantId is required');
-    if (!input.email && !input.phone)
-      throw new AppError(400, 'VALIDATION_FAILED', 'Give an email or a phone number');
     const self = ctx.scope.kind === 'branch' ? ctx.scope.resellerId : null;
     const resellerId = input.resellerId ?? self ?? undefined;
     if (resellerId) {
@@ -134,6 +132,56 @@ export class UsersService {
         throw forbidden('You can add sign-ins for yourself and resellers directly below you');
       }
     }
+    const doc = await this.newUserDoc(ctx, tenantId, resellerId, input);
+    // A parent reseller adding a sign-in for a direct child writes outside its own user scope (checked above).
+    if (self && resellerId && !resellerId.equals(self))
+      await this.mongo.db.collection<UserDoc>('users').insertOne(doc);
+    else await this.db(ctx).collection<UserDoc>('users').insertOne(doc);
+    noteChange({ after: toUserView(doc), entityId: doc._id });
+    return toUserView(doc);
+  }
+
+  /**
+   * Owner sign-in for a reseller created in the same transaction. The caller (ResellersService) has already
+   * checked that the reseller may be created; roles default to the system "Reseller Owner" role.
+   */
+  async createResellerOwner(
+    ctx: AuthContext,
+    reseller: Pick<ResellerDoc, '_id' | 'tenantId'>,
+    input: Omit<CreateUserInput, 'tenantId' | 'resellerId' | 'roleIds'> & {
+      roleIds?: ObjectId[] | undefined;
+    },
+    session: ClientSession,
+  ) {
+    if (ctx.type !== 'superadmin' && !ctx.permissions.has('users.write'))
+      throw forbidden('You cannot add sign-ins');
+    const roleIds = input.roleIds?.length ? input.roleIds : [await this.resellerOwnerRole(session)];
+    const doc = await this.newUserDoc(ctx, reseller.tenantId, reseller._id, { ...input, roleIds });
+    // The reseller is new (not yet in the caller's scope); tenant and reseller ids are set explicitly above.
+    await this.mongo.db.collection<UserDoc>('users').insertOne(doc, { session });
+    return toUserView(doc);
+  }
+
+  private async resellerOwnerRole(session: ClientSession): Promise<ObjectId> {
+    const r = await this.mongo.db
+      .collection<RoleDoc>('roles')
+      .findOne(
+        { tenantId: null, name: 'Reseller Owner', scope: 'reseller' },
+        { projection: { _id: 1 }, session },
+      );
+    if (!r) throw new AppError(400, 'VALIDATION_FAILED', 'Give the sign-in a reseller role');
+    return r._id;
+  }
+
+  /** Validates contact details and roles (no privilege escalation) and builds the user document. */
+  private async newUserDoc(
+    ctx: AuthContext,
+    tenantId: ObjectId,
+    resellerId: ObjectId | undefined,
+    input: Omit<CreateUserInput, 'tenantId' | 'resellerId'>,
+  ): Promise<UserDoc> {
+    if (!input.email && !input.phone)
+      throw new AppError(400, 'VALIDATION_FAILED', 'Give an email or a phone number');
     const roles = await this.loadRoles(ctx, input.roleIds, tenantId, resellerId ? 'reseller' : 'tenant');
     if (resellerId && !roles.length)
       throw new AppError(400, 'VALIDATION_FAILED', 'Give the sign-in a reseller role');
@@ -141,10 +189,9 @@ export class UsersService {
       ctx,
       roles.flatMap((r) => r.permissions),
     );
-
     const now = new Date();
     const actor = ctx.userId.toHexString();
-    const doc: UserDoc = {
+    return {
       _id: new ObjectId(),
       tenantId,
       type: resellerId ? 'reseller' : 'staff',
@@ -162,12 +209,6 @@ export class UsersService {
       createdBy: actor,
       updatedBy: actor,
     };
-    // A parent reseller adding a sign-in for a direct child writes outside its own user scope (checked above).
-    if (self && resellerId && !resellerId.equals(self))
-      await this.mongo.db.collection<UserDoc>('users').insertOne(doc);
-    else await this.db(ctx).collection<UserDoc>('users').insertOne(doc);
-    noteChange({ after: toUserView(doc), entityId: doc._id });
-    return toUserView(doc);
   }
 
   async update(ctx: AuthContext, id: ObjectId, input: UpdateUserInput) {

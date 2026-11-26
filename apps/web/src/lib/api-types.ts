@@ -2304,7 +2304,7 @@ export interface paths {
       };
     };
     put?: never;
-    /** Add a reseller (top level, or under a reseller) */
+    /** Add a reseller (top level, or under a reseller), optionally with its owner sign-in */
     post: {
       parameters: {
         query?: never;
@@ -2333,6 +2333,13 @@ export interface paths {
             creditLimitPaise?: number;
             /** @default true */
             canCreateSubResellers?: boolean;
+            owner?: {
+              /** Format: email */
+              email?: string;
+              phone?: string;
+              password: string;
+              roleId?: string;
+            };
           };
         };
       };
@@ -2382,6 +2389,23 @@ export interface paths {
                 name: string;
               }[];
               walletId: string | null;
+              owner: {
+                id: string;
+                tenantId: string | null;
+                /** @enum {string} */
+                type: 'superadmin' | 'staff' | 'reseller' | 'customer';
+                resellerId: string | null;
+                name: string;
+                email: string | null;
+                phone: string | null;
+                roleIds: string[];
+                /** @enum {string} */
+                status: 'active' | 'locked' | 'disabled';
+                mfaEnabled: boolean;
+                lockedUntil: string | null;
+                lastLoginAt: string | null;
+                createdAt: string;
+              } | null;
             };
           };
         };

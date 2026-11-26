@@ -4385,7 +4385,7 @@
         }
       },
       "post": {
-        "summary": "Add a reseller (top level, or under a reseller)",
+        "summary": "Add a reseller (top level, or under a reseller), optionally with its owner sign-in",
         "tags": ["resellers"],
         "security": [
           {
@@ -4472,6 +4472,30 @@
                   "canCreateSubResellers": {
                     "default": true,
                     "type": "boolean"
+                  },
+                  "owner": {
+                    "type": "object",
+                    "properties": {
+                      "email": {
+                        "type": "string",
+                        "maxLength": 254,
+                        "format": "email",
+                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                      },
+                      "phone": {
+                        "type": "string"
+                      },
+                      "password": {
+                        "type": "string",
+                        "minLength": 10,
+                        "maxLength": 128
+                      },
+                      "roleId": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{24}$"
+                      }
+                    },
+                    "required": ["password"]
                   }
                 },
                 "required": ["name", "ownerName"]
@@ -4627,6 +4651,78 @@
                     },
                     "walletId": {
                       "type": ["string", "null"]
+                    },
+                    "owner": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "tenantId": {
+                              "type": ["string", "null"]
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": ["superadmin", "staff", "reseller", "customer"]
+                            },
+                            "resellerId": {
+                              "type": ["string", "null"]
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": ["string", "null"]
+                            },
+                            "phone": {
+                              "type": ["string", "null"]
+                            },
+                            "roleIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": ["active", "locked", "disabled"]
+                            },
+                            "mfaEnabled": {
+                              "type": "boolean"
+                            },
+                            "lockedUntil": {
+                              "type": ["string", "null"]
+                            },
+                            "lastLoginAt": {
+                              "type": ["string", "null"]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "tenantId",
+                            "type",
+                            "resellerId",
+                            "name",
+                            "email",
+                            "phone",
+                            "roleIds",
+                            "status",
+                            "mfaEnabled",
+                            "lockedUntil",
+                            "lastLoginAt",
+                            "createdAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -4648,7 +4744,8 @@
                     "counts",
                     "updatedAt",
                     "path",
-                    "walletId"
+                    "walletId",
+                    "owner"
                   ],
                   "additionalProperties": false
                 }
