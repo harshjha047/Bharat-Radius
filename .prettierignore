@@ -6,3 +6,4 @@ mikrotik
 deploy
 docs
 apps/web/next-env.d.ts
+apps/api/src/pincodes/data.ts

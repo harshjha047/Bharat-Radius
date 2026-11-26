@@ -4942,6 +4942,65 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/pincodes/{pincode}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** District and state for an Indian PIN code (India Post directory) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          pincode: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              pincode: string;
+              district: string;
+              state: string;
+              stateCode: string;
+            };
+          };
+        };
+        /** @description Error */
+        default: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              error?: {
+                code: string;
+                message: string;
+                details?: Record<string, never>;
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/invoices': {
     parameters: {
       query?: never;
