@@ -10,9 +10,9 @@ import { Input, Select, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/misc';
 import { ApiError } from '@/lib/api';
 import { CONNECTION_LABEL, CONNECTION_TYPES, type ConnectionType } from '@/lib/connection';
-import { useCan } from '@/lib/auth';
+import { useCan, useMe } from '@/lib/auth';
 import { applyServerErrors, endOfDayIst, istDateInput } from '@/lib/forms';
-import { usePlans, type Subscriber } from '@/lib/queries';
+import { planFitsOwner, usePlans, type Subscriber } from '@/lib/queries';
 import { usePincodeAutofill } from '@/lib/pincode';
 
 const opt = z.string().trim();
@@ -222,6 +222,7 @@ export function SubscriberForm({
   const editing = !!subscriber;
   const can = useCan();
   const { plans } = usePlans();
+  const staffUser = useMe().data?.user.type !== 'reseller';
   const [original] = useState<ResellerRef | null>(() => subscriber?.reseller ?? null);
   const [reseller, setReseller] = useState<ResellerRef | null>(original ?? initialReseller ?? null);
   const [resellerTouched, setResellerTouched] = useState(false);
@@ -375,7 +376,11 @@ export function SubscriberForm({
             <Select id="planId" {...register('planId')}>
               <option value="">No plan</option>
               {plans
-                .filter((p) => p.status === 'active' || p.id === subscriber?.planId)
+                .filter(
+                  (p) =>
+                    p.id === subscriber?.planId ||
+                    (p.status === 'active' && (!staffUser || planFitsOwner(p, reseller?.id ?? null))),
+                )
                 .map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}

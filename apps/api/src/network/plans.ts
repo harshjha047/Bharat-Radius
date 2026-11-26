@@ -2,10 +2,10 @@ import { Body, Controller, Get, Inject, Injectable, Param, Patch, Post, Query } 
 import { ObjectId, type Filter } from 'mongodb';
 import { z } from 'zod';
 import { burstProblem, mikrotikRateLimit } from '@isp/shared';
-import { ScopedDb, type MongoHandle, type PlanDoc } from '@isp/db-mongo';
+import { ScopedDb, type MongoHandle, type PlanDoc, type ResellerDoc } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
-import { AppError, notFound } from '../errors.js';
+import { AppError, forbidden, notFound } from '../errors.js';
 import { Ctx, Endpoint } from '../http/endpoint.js';
 import { idParams, page, pageOf, pageQuery } from '../http/schemas.js';
 import { MONGO } from '../infra/infra.module.js';
@@ -104,8 +104,11 @@ const listQuery = pageQuery.extend({
   q: z.string().trim().max(64).optional(),
 });
 
+const ownerRef = z.object({ id: z.string(), code: z.string(), name: z.string() });
 const planView = z.object({
   id: z.string(),
+  /** A top-level reseller's own plan (sold only in its branch); null = ISP plan. */
+  reseller: ownerRef.nullable(),
   name: z.string(),
   description: z.string().nullable(),
   downloadKbps: z.number(),
@@ -129,8 +132,12 @@ const planView = z.object({
   updatedAt: z.string(),
 });
 
-const toView = (p: PlanDoc): z.output<typeof planView> => ({
+type OwnerRef = z.output<typeof ownerRef>;
+const toView = (p: PlanDoc, owners: Map<string, OwnerRef> = new Map()): z.output<typeof planView> => ({
   id: p._id.toHexString(),
+  reseller: p.resellerId
+    ? (owners.get(p.resellerId.toHexString()) ?? { id: p.resellerId.toHexString(), code: '', name: '' })
+    : null,
   name: p.name,
   description: p.description ?? null,
   downloadKbps: p.downloadKbps,
@@ -190,6 +197,30 @@ export class PlansService {
     return new ScopedDb(this.mongo.db, ctx.scope).collection<PlanDoc>('plans');
   }
 
+  /** Owning resellers of reseller plans, one query for the whole page. */
+  private async owners(docs: PlanDoc[]): Promise<Map<string, OwnerRef>> {
+    const ids = [...new Set(docs.flatMap((d) => (d.resellerId ? [d.resellerId.toHexString()] : [])))];
+    if (!ids.length) return new Map();
+    const rs = await this.mongo.db
+      .collection<ResellerDoc>('resellers')
+      .find({ _id: { $in: ids.map((i) => new ObjectId(i)) } }, { projection: { code: 1, name: 1 } })
+      .toArray();
+    return new Map(
+      rs.map((r) => [r._id.toHexString(), { id: r._id.toHexString(), code: r.code, name: r.name }]),
+    );
+  }
+
+  async view(p: PlanDoc) {
+    return toView(p, await this.owners([p]));
+  }
+
+  /** A reseller may change only its own plans (ISP plans are read-only to it). */
+  private assertCanEdit(ctx: AuthContext, p: PlanDoc) {
+    if (ctx.scope.kind === 'branch' && !p.resellerId?.equals(ctx.scope.resellerId)) {
+      throw forbidden('You can change only your own plans');
+    }
+  }
+
   async list(ctx: AuthContext, q: z.output<typeof listQuery>) {
     const f: Filter<PlanDoc> = {};
     if (q.status) f.status = q.status;
@@ -198,7 +229,8 @@ export class PlansService {
     const docs = await this.col(ctx)
       .find(f, { sort: { _id: -1 }, limit: q.limit + 1 })
       .toArray();
-    return pageOf(docs, q.limit, toView);
+    const owners = await this.owners(docs);
+    return pageOf(docs, q.limit, (d) => toView(d, owners));
   }
 
   async get(ctx: AuthContext, id: ObjectId) {
@@ -215,6 +247,8 @@ export class PlansService {
     const doc: PlanDoc = {
       _id: new ObjectId(),
       tenantId: ctx.tenantId,
+      // A reseller (only a top-level one with bulk import on reaches here) creates its own plan.
+      ...(ctx.scope.kind === 'branch' ? { resellerId: ctx.scope.resellerId } : {}),
       name: b.name,
       ...(b.description ? { description: b.description } : {}),
       downloadKbps: b.downloadKbps,
@@ -243,11 +277,12 @@ export class PlansService {
       await this.outbox.enqueue(session, ctx.tenantId!, 'plan', doc._id);
     });
     noteChange({ after: doc, entityId: doc._id });
-    return toView(doc);
+    return this.view(doc);
   }
 
   async update(ctx: AuthContext, id: ObjectId, b: z.output<typeof updateBody>) {
     const cur = await this.get(ctx, id);
+    this.assertCanEdit(ctx, cur);
     const pick = <K extends 'burst' | 'dataCapBytes' | 'fup'>(k: K) =>
       b[k] === null ? undefined : (b[k] ?? cur[k]);
     const merged: PlanShape = {
@@ -292,7 +327,7 @@ export class PlansService {
       );
       return u;
     });
-    return toView(updated);
+    return this.view(updated);
   }
 }
 
@@ -334,7 +369,7 @@ export class PlansController {
     response: planView,
   })
   async get(@Ctx() ctx: AuthContext, @Param() p: { id: ObjectId }) {
-    return toView(await this.plans.get(ctx, p.id));
+    return this.plans.view(await this.plans.get(ctx, p.id));
   }
 
   @Patch(':id')

@@ -7,3 +7,4 @@ export { MIGRATIONS } from './migrations.js';
 export * from './subscriber-write.js';
 export * from './coa-policy.js';
 export * from './billing/index.js';
+export * from './plans.js';

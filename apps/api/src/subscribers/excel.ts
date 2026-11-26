@@ -13,6 +13,7 @@ import {
   type MongoHandle,
   type PlanDoc,
   type ResellerDoc,
+  sellablePlans,
   type SubscriberDoc,
   type TenantDoc,
   USERNAME_COLLATION,
@@ -215,11 +216,12 @@ export class SubscriberExcel {
     return { tenantId: ctx.tenantId, reseller: r };
   }
 
-  private async plans(tenantId: ObjectId) {
+  /** Plans the importer may put its customers on: ISP plans, plus its own when a reseller imports. */
+  private async plans(tenantId: ObjectId, reseller: ResellerDoc | null) {
     return this.mongo.db
       .collection<PlanDoc>('plans')
       .find(
-        { tenantId },
+        { tenantId, ...sellablePlans(reseller ? [reseller._id] : []) },
         {
           projection: {
             name: 1,
@@ -235,9 +237,8 @@ export class SubscriberExcel {
   }
 
   async template(ctx: AuthContext): Promise<Buffer> {
-    const plans = (await this.plans((await this.importer(ctx)).tenantId)).filter(
-      (p) => p.status === 'active',
-    );
+    const { tenantId, reseller } = await this.importer(ctx);
+    const plans = (await this.plans(tenantId, reseller)).filter((p) => p.status === 'active');
     const header = COLUMNS.map((c) => ({
       value: c.required ? `${c.key}*` : c.key,
       fontWeight: 'bold' as const,
@@ -286,7 +287,7 @@ export class SubscriberExcel {
     ctx: AuthContext,
     file: Buffer,
   ): Promise<{ read: number; valid: ValidRow[]; issues: RowIssue[] }> {
-    const { tenantId } = await this.importer(ctx);
+    const { tenantId, reseller } = await this.importer(ctx);
     let data: unknown[][];
     try {
       const sheets = await readXlsxFile(file);
@@ -315,7 +316,7 @@ export class SubscriberExcel {
     if (rows.length > MAX_ROWS)
       throw new AppError(400, 'VALIDATION_FAILED', `At most ${MAX_ROWS} rows per file`);
 
-    const plans = await this.plans(tenantId);
+    const plans = await this.plans(tenantId, reseller);
     const planByName = new Map(plans.map((p) => [p.name.toLowerCase(), p]));
     const issues: RowIssue[] = [];
     const valid: ValidRow[] = [];

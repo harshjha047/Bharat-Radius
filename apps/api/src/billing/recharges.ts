@@ -22,6 +22,8 @@ import {
   type PlanDoc,
   type RechargeDoc,
   type SubscriberDoc,
+  NOT_SELLABLE,
+  planSellableIn,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
@@ -267,6 +269,7 @@ export class RechargesService {
     if (!id) throw new AppError(400, 'VALIDATION_FAILED', 'Choose a plan: this customer has none');
     const p = await this.db.collection<PlanDoc>('plans').findOne({ _id: id, tenantId: s.tenantId });
     if (!p) throw notFound('Plan');
+    if (!planSellableIn(p, s.ancestors)) throw new AppError(400, 'VALIDATION_FAILED', NOT_SELLABLE);
     return p;
   }
 

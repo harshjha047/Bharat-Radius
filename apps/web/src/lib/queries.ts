@@ -18,6 +18,13 @@ export type TopupRequest = Item<'/api/v1/wallets/topup-requests'>;
 export type Invoice = Item<'/api/v1/invoices'>;
 export type Payment = Item<'/api/v1/payments'>;
 
+/**
+ * Whether ISP staff may put a customer owned by `ownerId` (null = ISP customer) on `p`: ISP plans always, a
+ * reseller's own plan only for that reseller's customers. Reseller users get only sellable plans from the API.
+ */
+export const planFitsOwner = (p: Plan, ownerId: string | null | undefined) =>
+  !p.reseller || p.reseller.id === ownerId;
+
 /** All plans once (an ISP has tens, not thousands); shared by lists, forms and filters. */
 export function usePlans() {
   const can = useCan();
