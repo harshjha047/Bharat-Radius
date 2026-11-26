@@ -104,8 +104,8 @@ export function PlanImport({ onImported, onClose }: { onImported: () => void; on
   return (
     <div className="space-y-4 text-sm">
       <p className="text-muted-foreground">
-        One row per plan. Rows are checked first; nothing changes until you confirm. Export gives the same
-        columns, so you can export, edit and import again.
+        One row per plan, in the template's columns. Rows are checked first; nothing changes until you
+        confirm.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
