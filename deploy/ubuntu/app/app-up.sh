@@ -96,15 +96,17 @@ gen() { openssl rand -hex "${1:-24}"; }
 [[ -s $ETC/mongo.keyfile ]] || openssl rand -base64 756 | tr -d '\n' >"$ETC/mongo.keyfile"
 [[ -s $ETC/mongo_root_pw ]] || gen >"$ETC/mongo_root_pw"
 [[ -s $ETC/mongo_app_pw ]] || gen >"$ETC/mongo_app_pw"
+[[ -s $ETC/mongo_migrate_pw ]] || gen >"$ETC/mongo_migrate_pw"
 [[ -s $ETC/app_keys.env ]] || printf 'JWT_SIGNING_KEY=%s\nREFRESH_TOKEN_PEPPER=%s\nFIELD_ENCRYPTION_KEY=%s\n' \
   "$(gen 32)" "$(gen 32)" "$(openssl rand -base64 32)" >"$ETC/app_keys.env"
 # mongod in the container runs as uid 999 and refuses a keyfile readable by others.
 chown 999:999 "$ETC/mongo.keyfile" "$ETC/mongo_root_pw"; chmod 0400 "$ETC/mongo.keyfile" "$ETC/mongo_root_pw"
-chmod 0600 "$ETC/mongo_app_pw" "$ETC/app_keys.env"
+chmod 0600 "$ETC/mongo_app_pw" "$ETC/mongo_migrate_pw" "$ETC/app_keys.env"
 
 APP_DB_PASSWORD="$(sed -n 's/^APP_DB_PASSWORD=//p' "$RAPP")"
 RADIUS_PW_KEY="$(sed -n 's/^RADIUS_PW_KEY=//p' "$RAPP")"
 MONGO_APP_PW="$(cat "$ETC/mongo_app_pw")"
+MONGO_MIGRATE_PW="$(cat "$ETC/mongo_migrate_pw")"
 umask 077
 {
   echo "NODE_ENV=production"
@@ -170,7 +172,11 @@ user_js="const a = db.getSiblingDB('admin');
 const r = [{ role: 'readWrite', db: 'isp' }, { role: 'readWrite', db: 'isp_staging' }];
 if (a.getUser('isp_app')) a.updateUser('isp_app', { pwd: '$MONGO_APP_PW', roles: r });
 else a.createUser({ user: 'isp_app', pwd: '$MONGO_APP_PW', roles: r });
-print(a.getUser('isp_app') ? 'isp_app ok' : 'isp_app missing');"
+// Migrations change validators (collMod) and indexes: dbAdmin, used only by the migrate step below.
+const m = [...r, { role: 'dbAdmin', db: 'isp' }, { role: 'dbAdmin', db: 'isp_staging' }];
+if (a.getUser('isp_migrate')) a.updateUser('isp_migrate', { pwd: '$MONGO_MIGRATE_PW', roles: m });
+else a.createUser({ user: 'isp_migrate', pwd: '$MONGO_MIGRATE_PW', roles: m });
+print(a.getUser('isp_app') && a.getUser('isp_migrate') ? 'isp_app ok' : 'isp_app missing');"
 [[ "$(msh --eval "$user_js")" == "isp_app ok" ]] || die "could not create MongoDB user isp_app"
 log "isp-mongo: $(msh --eval 'rs.status().members[0].stateStr')"
 
@@ -196,8 +202,13 @@ if gc.get("enabled") is not True or "defaultKeepStorage" not in gc:
     os.replace(tmp, p)
     print("daemon.json: builder.gc enabled (applies at the next Docker restart)")
 PY
-# Migrations run before the new API starts; the API refuses to start with pending migrations.
-log "MongoDB migrations: $("${COMPOSE[@]}" run --rm --no-deps api node dist/cli.js migrate | tail -1)"
+# Migrations run before the new API starts; the API refuses to start with pending migrations. A failure stops here,
+# so the running containers keep serving the previous version.
+migrate_url="mongodb://isp_migrate:${MONGO_MIGRATE_PW}@isp-mongo:27017/${MONGO_DB}?replicaSet=${REPLSET}&authSource=admin"
+if ! out="$(MONGO_URL="$migrate_url" "${COMPOSE[@]}" run --rm --no-deps -e MONGO_URL api node dist/cli.js migrate)"; then
+  die "MongoDB migrations failed; isp-api and isp-workers were not restarted"
+fi
+log "MongoDB migrations: $(tail -1 <<<"$out")"
 log "starting isp-api, isp-workers, isp-web, isp-walled-garden"
 "${COMPOSE[@]}" up -d --wait api workers web walled-garden
 
