@@ -2,7 +2,7 @@ import { Body, Controller, Get, Inject, Injectable, Param, Patch, Post, Query } 
 import { ObjectId, type Filter } from 'mongodb';
 import { z } from 'zod';
 import { burstProblem, mikrotikRateLimit } from '@isp/shared';
-import { ScopedDb, type MongoHandle, type PlanDoc, type ResellerDoc } from '@isp/db-mongo';
+import { ScopedDb, type MongoHandle, type PlanDoc, type ResellerDoc, unassignedPlanIds } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, forbidden, notFound } from '../errors.js';
@@ -221,10 +221,21 @@ export class PlansService {
     }
   }
 
+  /** A reseller sees only the plans assigned to its chain (its parent or the ISP can switch plans off). */
+  private async unassigned(ctx: AuthContext): Promise<ObjectId[]> {
+    if (ctx.scope.kind !== 'branch') return [];
+    const r = await this.mongo.db
+      .collection<ResellerDoc>('resellers')
+      .findOne({ _id: ctx.scope.resellerId, tenantId: ctx.scope.tenantId }, { projection: { ancestors: 1 } });
+    return r ? unassignedPlanIds(this.mongo.db, [...r.ancestors, r._id]) : [];
+  }
+
   async list(ctx: AuthContext, q: z.output<typeof listQuery>) {
     const f: Filter<PlanDoc> = {};
+    const off = await this.unassigned(ctx);
+    if (off.length) f._id = { $nin: off };
     if (q.status) f.status = q.status;
-    if (q.cursor) f._id = { $lt: new ObjectId(q.cursor) };
+    if (q.cursor) f._id = { ...(off.length ? { $nin: off } : {}), $lt: new ObjectId(q.cursor) };
     if (q.q) f.name = { $regex: `^${q.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, $options: 'i' };
     const docs = await this.col(ctx)
       .find(f, { sort: { _id: -1 }, limit: q.limit + 1 })

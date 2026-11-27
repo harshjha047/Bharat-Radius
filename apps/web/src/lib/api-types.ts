@@ -3016,6 +3016,7 @@ export interface paths {
                 connectionType: 'pppoe' | 'hotspot' | 'static';
                 planId: string | null;
                 expiresAt: string | null;
+                activatedAt: string | null;
                 /** @enum {string} */
                 status: 'active' | 'suspended' | 'disabled';
                 suspendReason: string | null;
@@ -3150,6 +3151,7 @@ export interface paths {
               connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
+              activatedAt: string | null;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'disabled';
               suspendReason: string | null;
@@ -3330,6 +3332,7 @@ export interface paths {
                 connectionType: 'pppoe' | 'hotspot' | 'static';
                 planId: string | null;
                 expiresAt: string | null;
+                activatedAt: string | null;
                 /** @enum {string} */
                 status: 'active' | 'suspended' | 'disabled';
                 suspendReason: string | null;
@@ -3433,6 +3436,7 @@ export interface paths {
               connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
+              activatedAt: string | null;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'disabled';
               suspendReason: string | null;
@@ -3603,6 +3607,7 @@ export interface paths {
               connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
+              activatedAt: string | null;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'disabled';
               suspendReason: string | null;
@@ -3707,6 +3712,7 @@ export interface paths {
               connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
+              activatedAt: string | null;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'disabled';
               suspendReason: string | null;
@@ -3809,6 +3815,7 @@ export interface paths {
               connectionType: 'pppoe' | 'hotspot' | 'static';
               planId: string | null;
               expiresAt: string | null;
+              activatedAt: string | null;
               /** @enum {string} */
               status: 'active' | 'suspended' | 'disabled';
               suspendReason: string | null;
