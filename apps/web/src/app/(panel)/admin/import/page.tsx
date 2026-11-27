@@ -162,8 +162,8 @@ function ImportCard({ reseller }: { reseller: boolean }) {
           Fill in the template (up to 50,000 rows). Every row is checked first; nothing is created until you
           confirm.
           {reseller
-            ? ' They become your customers with the plan and expiry in the file; nothing is charged to your wallet.'
-            : ''}
+            ? ' They become your customers, or a sub-reseller’s when its code is in reseller_code, with the plan and expiry in the file; nothing is charged to your wallet.'
+            : ' Put a reseller’s code in reseller_code to make the row its customer; empty = direct ISP customer.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

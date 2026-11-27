@@ -418,7 +418,7 @@ export interface CoaLogDoc {
 export interface ImportBatchDoc {
   _id: ObjectId;
   tenantId: ObjectId;
-  /** Set when a reseller imported: every row becomes its customer. Absent = ISP-level customers. */
+  /** Set when a reseller imported (its batches are visible in its branch). Each row carries its own owner. */
   resellerId?: ObjectId;
   source: 'excel';
   fileName: string;
@@ -438,6 +438,10 @@ export interface ImportRowDoc {
   batchId: ObjectId;
   tenantId: ObjectId;
   row: number;
+  /** Owner from the row's reseller_code (or the importing reseller). Absent = the batch's owner (older rows). */
+  resellerId?: ObjectId;
+  /** Root → owner, owner included. */
+  ancestors?: ObjectId[];
   /** Validated input; the PPPoE password is field-encrypted while it waits. */
   input: Omit<import('./subscriber-write.js').NewSubscriber, 'pppoePassword'> & {
     pppoePassword: EncryptedField;

@@ -124,8 +124,12 @@ export class ImportJob {
           tenantId: batch.tenantId,
           actor: batch.createdBy,
           importBatchId: batch._id,
-          // A reseller's import (level 1 only): its customers, with the reseller as their only ancestor.
-          ...(batch.resellerId ? { resellerId: batch.resellerId, ancestors: [batch.resellerId] } : {}),
+          // Owner chosen per row (reseller_code); rows queued before that fall back to the importing reseller.
+          ...(row.resellerId
+            ? { resellerId: row.resellerId, ancestors: row.ancestors ?? [row.resellerId] }
+            : batch.resellerId
+              ? { resellerId: batch.resellerId, ancestors: [batch.resellerId] }
+              : {}),
         },
         { ...row.input, pppoePassword: password },
       );

@@ -110,6 +110,12 @@ export const COLUMNS: readonly Column[] = [
   { key: 'sim_use', example: '', help: 'Logins at once; empty = plan default', path: 'network.simUse' },
   { key: 'tags', example: 'fiber, noida-sec62', help: 'Comma separated', path: 'tags' },
   { key: 'notes', example: '', help: 'Optional', path: 'notes' },
+  {
+    key: 'reseller_code',
+    example: '',
+    help: 'Owner reseller code (e.g. R-0007), yours or one under you; empty = yours (ISP staff: direct ISP customer)',
+    path: 'reseller',
+  },
 ];
 const COLUMN_BY_PATH = new Map(COLUMNS.map((c) => [c.path, c.key]));
 
@@ -153,7 +159,14 @@ export interface RowIssue {
   message: string;
 }
 
-type ValidRow = { row: number; input: z.output<typeof createBody> };
+/** Owning reseller of an imported row; null = direct ISP customer. */
+type Owner = { resellerId: ObjectId; ancestors: ObjectId[] } | null;
+type ValidRow = { row: number; input: z.output<typeof createBody>; owner: Owner };
+
+const ownerOf = (r: Pick<ResellerDoc, '_id' | 'ancestors'>): NonNullable<Owner> => ({
+  resellerId: r._id,
+  ancestors: [...r.ancestors, r._id],
+});
 
 const importQuery = z.object({
   dryRun: z
@@ -200,8 +213,9 @@ export class SubscriberExcel {
   ) {}
 
   /**
-   * ISP staff import ISP-level customers. A reseller user imports only when its reseller is directly under the
-   * ISP and the ISP has switched import on for it; every row then becomes that reseller's customer.
+   * ISP staff and, when the ISP has switched import on for it, a reseller directly under the ISP. Each row's
+   * reseller_code picks its owner (any reseller for staff; the reseller itself or one under it otherwise); empty =
+   * direct ISP customer for staff, the importing reseller's own customer otherwise.
    */
   private async importer(ctx: AuthContext): Promise<{ tenantId: ObjectId; reseller: ResellerDoc | null }> {
     if (!ctx.tenantId) throw new AppError(400, 'VALIDATION_FAILED', 'Imports are done by an ISP’s staff');
@@ -216,14 +230,15 @@ export class SubscriberExcel {
     return { tenantId: ctx.tenantId, reseller: r };
   }
 
-  /** Plans the importer may put its customers on: ISP plans, plus its own when a reseller imports. */
-  private async plans(tenantId: ObjectId, reseller: ResellerDoc | null) {
+  /** ISP plans plus the plans of these resellers (the owner chains of the rows). */
+  private async plans(tenantId: ObjectId, resellerIds: readonly ObjectId[]) {
     return this.mongo.db
       .collection<PlanDoc>('plans')
       .find(
-        { tenantId, ...sellablePlans(reseller ? [reseller._id] : []) },
+        { tenantId, ...sellablePlans(resellerIds) },
         {
           projection: {
+            resellerId: 1,
             name: 1,
             status: 1,
             billingTypes: 1,
@@ -236,9 +251,55 @@ export class SubscriberExcel {
       .toArray();
   }
 
+  /**
+   * reseller_code → owner, or the reason it cannot be used. Looked up through the caller's scope, so a reseller only
+   * finds itself and its own sub-resellers; every reseller on the chain must be active.
+   */
+  private async owners(ctx: AuthContext, codes: string[]): Promise<Map<string, NonNullable<Owner> | string>> {
+    const out = new Map<string, NonNullable<Owner> | string>();
+    if (!codes.length) return out;
+    const resellers = new ScopedDb(this.mongo.db, ctx.scope).collection<ResellerDoc>('resellers');
+    const found = await resellers
+      .find(
+        { code: { $in: codes }, status: { $ne: 'deleted' } },
+        { projection: { code: 1, ancestors: 1, status: 1, name: 1 } },
+      )
+      .toArray();
+    const chainIds = [
+      ...new Map(found.flatMap((r) => r.ancestors).map((a) => [a.toHexString(), a])).values(),
+    ];
+    const blocked = new Map(
+      [
+        ...found.filter((r) => r.status !== 'active'),
+        ...(chainIds.length
+          ? await this.mongo.db
+              .collection<ResellerDoc>('resellers')
+              .find(
+                { _id: { $in: chainIds }, tenantId: ctx.tenantId!, status: { $ne: 'active' } },
+                { projection: { code: 1, name: 1 } },
+              )
+              .toArray()
+          : []),
+      ].map((r) => [r._id.toHexString(), r]),
+    );
+    const byCode = new Map(found.map((r) => [r.code.toUpperCase(), r]));
+    for (const code of codes) {
+      const r = byCode.get(code);
+      if (!r) {
+        out.set(code, `No reseller with code ${code} under you`);
+        continue;
+      }
+      const b = [...r.ancestors, r._id].map((id) => blocked.get(id.toHexString())).find(Boolean);
+      out.set(code, b ? `${b.name} (${b.code}) is suspended` : ownerOf(r));
+    }
+    return out;
+  }
+
   async template(ctx: AuthContext): Promise<Buffer> {
     const { tenantId, reseller } = await this.importer(ctx);
-    const plans = (await this.plans(tenantId, reseller)).filter((p) => p.status === 'active');
+    const plans = (await this.plans(tenantId, reseller ? [reseller._id] : [])).filter(
+      (p) => p.status === 'active',
+    );
     const header = COLUMNS.map((c) => ({
       value: c.required ? `${c.key}*` : c.key,
       fontWeight: 'bold' as const,
@@ -316,8 +377,29 @@ export class SubscriberExcel {
     if (rows.length > MAX_ROWS)
       throw new AppError(400, 'VALIDATION_FAILED', `At most ${MAX_ROWS} rows per file`);
 
-    const plans = await this.plans(tenantId, reseller);
-    const planByName = new Map(plans.map((p) => [p.name.toLowerCase(), p]));
+    const codeAt = idx.get('reseller_code')!;
+    const codeOf = (cells: unknown[]) => (codeAt < 0 ? '' : text(cells[codeAt]).toUpperCase());
+    const owners = await this.owners(ctx, [...new Set(rows.map((r) => codeOf(r.cells)).filter(Boolean))]);
+    const defaultOwner: Owner = reseller ? ownerOf(reseller) : null;
+    const chainIds = new Map<string, ObjectId>();
+    for (const o of [defaultOwner, ...owners.values()]) {
+      if (o && typeof o !== 'string') for (const a of o.ancestors) chainIds.set(a.toHexString(), a);
+    }
+    const plans = await this.plans(tenantId, [...chainIds.values()]);
+    const plansByName = new Map<string, typeof plans>();
+    for (const p of plans) {
+      const k = p.name.toLowerCase();
+      plansByName.set(k, [...(plansByName.get(k) ?? []), p]);
+    }
+    /** The plan of that name this owner may sell; the nearest reseller's own plan wins over the ISP's. */
+    const planFor = (name: string, owner: Owner) => {
+      const chain = (owner?.ancestors ?? []).map((a) => a.toHexString());
+      const depth = (p: (typeof plans)[number]) =>
+        p.resellerId ? chain.indexOf(p.resellerId.toHexString()) : -1;
+      const all = plansByName.get(name.toLowerCase()) ?? [];
+      const ok = all.filter((p) => !p.resellerId || depth(p) >= 0).sort((a, b) => depth(b) - depth(a));
+      return { plan: ok[0], elsewhere: all.length > 0 };
+    };
     const issues: RowIssue[] = [];
     const valid: ValidRow[] = [];
     const seenUser = new Map<string, number>();
@@ -330,13 +412,24 @@ export class SubscriberExcel {
       };
       const opt = (key: string) => get(key) || undefined;
       const rowIssues: RowIssue[] = [];
+      const code = codeOf(cells);
+      const resolved = code ? owners.get(code)! : defaultOwner;
+      if (typeof resolved === 'string') rowIssues.push({ row, column: 'reseller_code', message: resolved });
+      const owner: Owner = typeof resolved === 'string' ? defaultOwner : resolved;
       let planId: ObjectId | undefined;
       const planName = get('plan');
       const billingType = (get('billing_type').toLowerCase() || 'prepaid') as 'prepaid' | 'postpaid';
       if (planName) {
-        const p = planByName.get(planName.toLowerCase());
-        if (!p) rowIssues.push({ row, column: 'plan', message: `No plan named "${planName}"` });
-        else if (p.status !== 'active')
+        const { plan: p, elsewhere } = planFor(planName, owner);
+        if (!p) {
+          rowIssues.push({
+            row,
+            column: 'plan',
+            message: elsewhere
+              ? `Plan "${planName}" is not sold by this customer's reseller`
+              : `No plan named "${planName}"`,
+          });
+        } else if (p.status !== 'active')
           rowIssues.push({ row, column: 'plan', message: 'This plan is archived' });
         else if (!p.billingTypes.includes(billingType)) {
           rowIssues.push({
@@ -404,7 +497,7 @@ export class SubscriberExcel {
       if (ip) seenIp.set(ip, seenIp.get(ip) ?? row);
 
       if (rowIssues.length || !parsed.success) issues.push(...rowIssues);
-      else valid.push({ row, input: { ...parsed.data, ...(planId ? { planId } : {}) } });
+      else valid.push({ row, input: { ...parsed.data, ...(planId ? { planId } : {}) }, owner });
     }
 
     // Already taken in this ISP (checked in chunks so a 50k-row file stays a few queries).
@@ -503,6 +596,7 @@ export class SubscriberExcel {
             batchId: batch._id,
             tenantId,
             row: r.row,
+            ...(r.owner ? { resellerId: r.owner.resellerId, ancestors: r.owner.ancestors } : {}),
             input: {
               ...input,
               pppoePassword: this.crypto.encrypt(input.pppoePassword, `import_rows:${_id.toHexString()}`),
@@ -558,6 +652,14 @@ export class SubscriberExcel {
           .toArray()
       ).map((p) => [p._id.toHexString(), p.name]),
     );
+    const codes = new Map(
+      (
+        await scoped
+          .collection<ResellerDoc>('resellers')
+          .find({}, { projection: { code: 1 } })
+          .toArray()
+      ).map((r) => [r._id.toHexString(), r.code]),
+    );
     const cols = COLUMNS.filter((c) => c.key !== 'pppoe_password');
     const extra = ['customer_no', 'status', 'sync_status', 'created_on'];
     const data: SheetData = [
@@ -593,6 +695,7 @@ export class SubscriberExcel {
         sim_use: s.network.simUse ?? null,
         tags: s.tags.join(', ') || null,
         notes: s.notes ?? null,
+        reseller_code: s.resellerId ? (codes.get(s.resellerId.toHexString()) ?? null) : null,
       };
       data.push([
         ...cols.map((c) => v[c.key] ?? null),
