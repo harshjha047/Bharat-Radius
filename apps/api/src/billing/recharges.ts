@@ -22,6 +22,8 @@ import {
   type PlanDoc,
   type RechargeDoc,
   type SubscriberDoc,
+  isPlanAssigned,
+  NOT_ASSIGNED,
   NOT_SELLABLE,
   planSellableIn,
 } from '@isp/db-mongo';
@@ -270,6 +272,8 @@ export class RechargesService {
     const p = await this.db.collection<PlanDoc>('plans').findOne({ _id: id, tenantId: s.tenantId });
     if (!p) throw notFound('Plan');
     if (!planSellableIn(p, s.ancestors)) throw new AppError(400, 'VALIDATION_FAILED', NOT_SELLABLE);
+    if (!(await isPlanAssigned(this.db, p, s.ancestors)))
+      throw new AppError(400, 'VALIDATION_FAILED', NOT_ASSIGNED);
     return p;
   }
 

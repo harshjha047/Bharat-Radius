@@ -241,14 +241,15 @@ export function ResellerRates({ resellerId }: { resellerId: string }) {
         {share
           ? ` (${q.data?.sharePercent}% of the plan price under revenue share)`
           : ' (set by the level above; defaults to the plan price)'}
-        . Customer price: what this reseller charges, before GST.
+        . Customer price: what this reseller charges, before GST. Only plans ticked under Assigned are shown
+        to this reseller and its customers; new plans start unticked.
       </p>
       <DataTable
         caption="Plan prices"
         loading={q.isLoading}
         rows={rows}
         rowKey={(r) => r.planId}
-        empty="No active plans."
+        empty="No plans to assign: the level above has none assigned."
         columns={[
           {
             key: 'plan',
@@ -304,11 +305,11 @@ export function ResellerRates({ resellerId }: { resellerId: string }) {
           },
           {
             key: 'sell',
-            header: 'May sell',
+            header: 'Assigned',
             cell: (r) =>
               q.data?.canSetWalletPrices ? (
                 <Checkbox
-                  aria-label={`May sell ${r.planName}`}
+                  aria-label={`Assign ${r.planName}`}
                   checked={value(r.planId).active}
                   onChange={(e) => set(r.planId, { active: e.target.checked })}
                 />

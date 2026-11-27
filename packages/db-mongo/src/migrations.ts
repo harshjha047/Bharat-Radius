@@ -1,3 +1,4 @@
+import type { ObjectId } from 'mongodb';
 import { ensureCollection, ensureIndexes, USERNAME_COLLATION, type Migration } from './helpers.js';
 
 const oid = { bsonType: 'objectId' };
@@ -1126,6 +1127,77 @@ const connectionTypes: Migration = {
   },
 };
 
+/**
+ * Plans become opt-in per reseller (an active rate row = selected by the level above). Wallet price may be absent
+ * (follows the plan price). Backfill: every reseller keeps every active plan it could sell before (no row, or an
+ * active one), so nobody loses a plan when this ships.
+ */
+const planSelection: Migration = {
+  id: '020_plan_selection',
+  async up(db) {
+    await ensureCollection(db, 'reseller_rates', {
+      bsonType: 'object',
+      required: ['tenantId', 'buyerId', 'setById', 'planId', 'active', ...standardRequired],
+      properties: {
+        tenantId: oid,
+        buyerId: oid,
+        setById: oid,
+        planId: oid,
+        walletPricePaise: { ...money, minimum: 0 },
+        customerPricePaise: { ...money, minimum: 0 },
+        active: { bsonType: 'bool' },
+        ...standard,
+      },
+    });
+    type R = { _id: ObjectId; tenantId: ObjectId; parentId?: ObjectId | null; ancestors: ObjectId[] };
+    type P = { _id: ObjectId; resellerId?: ObjectId };
+    const now = new Date();
+    const plansOf = new Map<string, P[]>();
+    const resellers = db
+      .collection<R>('resellers')
+      .find({ status: { $ne: 'deleted' } }, { projection: { tenantId: 1, parentId: 1, ancestors: 1 } });
+    for await (const r of resellers) {
+      const t = r.tenantId.toHexString();
+      if (!plansOf.has(t)) {
+        plansOf.set(
+          t,
+          await db
+            .collection<P>('plans')
+            .find({ tenantId: r.tenantId, status: 'active' }, { projection: { resellerId: 1 } })
+            .toArray(),
+        );
+      }
+      const chain = r.ancestors.map((a) => a.toHexString());
+      const offered = plansOf
+        .get(t)!
+        .filter((p) => !p.resellerId || chain.includes(p.resellerId.toHexString()));
+      if (!offered.length) continue;
+      await db.collection('reseller_rates').bulkWrite(
+        offered.map((p) => ({
+          updateOne: {
+            filter: { buyerId: r._id, planId: p._id },
+            update: {
+              $setOnInsert: {
+                tenantId: r.tenantId,
+                buyerId: r._id,
+                setById: r.parentId ?? r.tenantId,
+                planId: p._id,
+                active: true,
+                createdAt: now,
+                updatedAt: now,
+                createdBy: 'migration:020',
+                updatedBy: 'migration:020',
+              },
+            },
+            upsert: true,
+          },
+        })),
+        { ordered: false },
+      );
+    }
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   identity,
   config,
@@ -1146,4 +1218,5 @@ export const MIGRATIONS: readonly Migration[] = [
   kycDocuments,
   resellerRouters,
   connectionTypes,
+  planSelection,
 ];

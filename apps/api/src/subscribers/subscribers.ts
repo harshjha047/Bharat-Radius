@@ -31,6 +31,8 @@ import {
   type ResellerDoc,
   type SubscriberDoc,
   type TenantDoc,
+  isPlanAssigned,
+  NOT_ASSIGNED,
   NOT_SELLABLE,
   planSellableIn,
 } from '@isp/db-mongo';
@@ -408,12 +410,15 @@ export class SubscribersService {
     planId: ObjectId,
     billingType: SubscriberDoc['billingType'],
     ancestors: readonly ObjectId[],
+    checkAssigned = true,
   ) {
     const p = await new ScopedDb(this.mongo.db, ctx.scope)
       .collection<PlanDoc>('plans')
       .findOne({ _id: planId });
     if (!p) throw new AppError(400, 'VALIDATION_FAILED', 'Unknown plan');
     if (!planSellableIn(p, ancestors)) throw new AppError(400, 'VALIDATION_FAILED', NOT_SELLABLE);
+    if (checkAssigned && !(await isPlanAssigned(this.mongo.db, p, ancestors)))
+      throw new AppError(400, 'VALIDATION_FAILED', NOT_ASSIGNED);
     if (p.status !== 'active') throw new AppError(400, 'VALIDATION_FAILED', 'This plan is archived');
     if (!p.billingTypes.includes(billingType)) {
       throw new AppError(400, 'VALIDATION_FAILED', `This plan is not offered for ${billingType} customers`);
@@ -702,7 +707,13 @@ export class SubscribersService {
     const moving = b.resellerId !== undefined && String(b.resellerId) !== String(cur.resellerId);
     const newOwner = moving ? await this.owner(ctx, b.resellerId) : null;
     if (planId && (b.planId || b.billingType || moving))
-      await this.assertPlan(ctx, planId, billingType, newOwner?.ancestors ?? cur.ancestors);
+      await this.assertPlan(
+        ctx,
+        planId,
+        billingType,
+        newOwner?.ancestors ?? cur.ancestors,
+        moving || String(planId) !== String(cur.planId),
+      );
 
     const set: Record<string, unknown> = {};
     const unset: Record<string, ''> = {};

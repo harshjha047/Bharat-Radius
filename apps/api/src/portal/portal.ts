@@ -25,6 +25,8 @@ import {
   type PaymentDoc,
   type PlanDoc,
   type SubscriberDoc,
+  planAssignedIn,
+  planSelections,
   sellablePlans,
 } from '@isp/db-mongo';
 import { clientMeta } from '../auth/auth.controller.js';
@@ -244,7 +246,13 @@ export class PortalService {
         { sort: { pricePaise: 1, name: 1 }, limit: 100 },
       )
       .toArray();
-    return { items: await this.priced(s, plans) };
+    const sel = await planSelections(this.db, s.ancestors);
+    return {
+      items: await this.priced(
+        s,
+        plans.filter((p) => planAssignedIn(p, s.ancestors, sel)),
+      ),
+    };
   }
 
   usage(ctx: AuthContext) {

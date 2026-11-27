@@ -16,7 +16,8 @@ import {
   sellablePlans,
   type SubscriberDoc,
   type TenantDoc,
-  unassignedPlanIds,
+  planAssignedIn,
+  planSelections,
   USERNAME_COLLATION,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
@@ -326,12 +327,8 @@ export class SubscriberExcel {
   async template(ctx: AuthContext): Promise<Buffer> {
     const { tenantId, reseller } = await this.importer(ctx);
     const chain = reseller ? [...reseller.ancestors, reseller._id] : [];
-    const [all, off] = await Promise.all([
-      this.plans(tenantId, chain),
-      unassignedPlanIds(this.mongo.db, chain),
-    ]);
-    const blocked = new Set(off.map((id) => id.toHexString()));
-    const plans = all.filter((p) => p.status === 'active' && !blocked.has(p._id.toHexString()));
+    const [all, sel] = await Promise.all([this.plans(tenantId, chain), planSelections(this.mongo.db, chain)]);
+    const plans = all.filter((p) => p.status === 'active' && planAssignedIn(p, chain, sel));
     const header = COLUMNS.map((c) => ({
       value: c.required ? `${c.key}*` : c.key,
       fontWeight: 'bold' as const,
@@ -417,28 +414,13 @@ export class SubscriberExcel {
     for (const o of [defaultOwner, ...owners.values()]) {
       if (o && typeof o !== 'string') for (const a of o.ancestors) chainIds.set(a.toHexString(), a);
     }
-    const [plans, off] = await Promise.all([
-      this.plans(tenantId, [...chainIds.values()]),
-      chainIds.size
-        ? this.mongo.db
-            .collection<{ buyerId: ObjectId; planId: ObjectId }>('reseller_rates')
-            .find(
-              { tenantId, buyerId: { $in: [...chainIds.values()] }, active: false },
-              { projection: { _id: 0, buyerId: 1, planId: 1 } },
-            )
-            .toArray()
-        : Promise.resolve([]),
+    const chain = [...chainIds.values()];
+    const [plans, sel] = await Promise.all([
+      this.plans(tenantId, chain),
+      planSelections(this.mongo.db, chain),
     ]);
-    /** planId → resellers that may not sell it. */
-    const offFor = new Map<string, Set<string>>();
-    for (const r of off) {
-      const k = r.planId.toHexString();
-      offFor.set(k, (offFor.get(k) ?? new Set()).add(r.buyerId.toHexString()));
-    }
-    const assigned = (p: (typeof plans)[number], owner: Owner) => {
-      const o = offFor.get(p._id.toHexString());
-      return !o || !(owner?.ancestors ?? []).some((a) => o.has(a.toHexString()));
-    };
+    const assigned = (p: (typeof plans)[number], owner: Owner) =>
+      planAssignedIn(p, owner?.ancestors ?? [], sel);
     const plansByName = new Map<string, typeof plans>();
     for (const p of plans) {
       const k = p.name.toLowerCase();

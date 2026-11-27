@@ -32,6 +32,8 @@ import {
   type TenantDoc,
   type WalletDoc,
   type WalletTxnDoc,
+  planAssignedIn,
+  planSelections,
   sellablePlans,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
@@ -512,16 +514,19 @@ export class WalletsService {
 
   async getRates(ctx: AuthContext, id: ObjectId) {
     const { r, canSetWalletPrices, canSetCustomerPrices } = await this.resellerFor(ctx, id);
-    const [plans, rows] = await Promise.all([
+    const [all, rows, parentSel] = await Promise.all([
       this.db
         .collection<PlanDoc>('plans')
         .find(
-          { tenantId: r.tenantId, status: 'active', ...sellablePlans([...r.ancestors, r._id]) },
+          { tenantId: r.tenantId, status: 'active', ...sellablePlans(r.ancestors) },
           { sort: { name: 1 } },
         )
         .toArray(),
       rates(this.db).find({ buyerId: r._id }).toArray(),
+      planSelections(this.db, r.ancestors),
     ]);
+    // Only what the level above may sell itself can be passed down; the reseller's own plans need no selection.
+    const plans = all.filter((p) => planAssignedIn(p, r.ancestors, parentSel));
     const byPlan = new Map(rows.map((x) => [x.planId.toHexString(), x]));
     const share = r.walletModel === 'revenue_share' && r.shareBp !== undefined ? r.shareBp : null;
     return {
@@ -539,8 +544,8 @@ export class WalletsService {
           walletPricePaise:
             share !== null ? sharePaise(p.pricePaise, share) : (x?.walletPricePaise ?? p.pricePaise),
           customerPricePaise: x?.customerPricePaise ?? p.pricePaise,
-          active: x?.active ?? true,
-          custom: !!x,
+          active: x?.active ?? false,
+          custom: x?.walletPricePaise !== undefined || x?.customerPricePaise !== undefined,
         };
       }),
     };
@@ -590,6 +595,15 @@ export class WalletsService {
     );
     if (plans.size !== new Set(b.rates.map((x) => x.planId)).size)
       throw new AppError(400, 'VALIDATION_FAILED', 'Unknown plan');
+    const parentSel = await planSelections(this.db, r.ancestors);
+    for (const x of b.rates) {
+      if (x.active && !planAssignedIn(plans.get(x.planId)!, r.ancestors, parentSel))
+        throw new AppError(
+          400,
+          'VALIDATION_FAILED',
+          `${plans.get(x.planId)!.name} is not assigned to the level above`,
+        );
+    }
     const now = new Date();
     const actor = ctx.userId.toHexString();
     const before = await rates(this.db)
@@ -613,8 +627,8 @@ export class WalletsService {
                 setById: r.parentId ?? r.tenantId,
                 createdAt: now,
                 createdBy: actor,
-                ...(x.walletPricePaise === undefined ? { walletPricePaise: plan.pricePaise } : {}),
-                ...(x.active === undefined ? { active: true } : {}),
+                // A row created only for a customer price is not a selection.
+                ...(x.active === undefined ? { active: false } : {}),
               },
             },
             upsert: true,

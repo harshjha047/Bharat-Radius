@@ -99,7 +99,8 @@ export interface ResellerRateDoc {
   /** Parent reseller, or the tenant for a top-level reseller. */
   setById: ObjectId;
   planId: ObjectId;
-  walletPricePaise: number;
+  /** Absent = follows the plan price. */
+  walletPricePaise?: number;
   customerPricePaise?: number;
   active: boolean;
   createdAt: Date;
@@ -306,7 +307,12 @@ export interface PaymentDoc {
 }
 
 export type TemplateKey =
-  'expiry_reminder' | 'expired' | 'payment_receipt' | 'invoice_issued' | 'overdue_suspended' | 'otp';
+  | 'expiry_reminder'
+  | 'expired'
+  | 'payment_receipt'
+  | 'invoice_issued'
+  | 'overdue_suspended'
+  | 'otp';
 
 export interface MessageTemplateDoc {
   _id: ObjectId;
