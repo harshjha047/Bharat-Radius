@@ -2,7 +2,7 @@ import { Body, Controller, Get, Inject, Injectable, Param, Patch, Post, Query } 
 import { ObjectId, type Filter } from 'mongodb';
 import { z } from 'zod';
 import { burstProblem, mikrotikRateLimit } from '@isp/shared';
-import { ScopedDb, type MongoHandle, type PlanDoc, type ResellerDoc, unassignedPlanIds } from '@isp/db-mongo';
+import { assignedPlanIds, ScopedDb, type MongoHandle, type PlanDoc, type ResellerDoc } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
 import type { AuthContext } from '../auth/context.js';
 import { AppError, forbidden, notFound } from '../errors.js';
@@ -221,21 +221,21 @@ export class PlansService {
     }
   }
 
-  /** A reseller sees only the plans assigned to its chain (its parent or the ISP can switch plans off). */
-  private async unassigned(ctx: AuthContext): Promise<ObjectId[]> {
-    if (ctx.scope.kind !== 'branch') return [];
+  /** A reseller sees its own plans and the plans selected for it by the level above; null = no restriction. */
+  private async assigned(ctx: AuthContext): Promise<ObjectId[] | null> {
+    if (ctx.scope.kind !== 'branch') return null;
     const r = await this.mongo.db
       .collection<ResellerDoc>('resellers')
       .findOne({ _id: ctx.scope.resellerId, tenantId: ctx.scope.tenantId }, { projection: { ancestors: 1 } });
-    return r ? unassignedPlanIds(this.mongo.db, [...r.ancestors, r._id]) : [];
+    return r ? assignedPlanIds(this.mongo.db, ctx.scope.tenantId, [...r.ancestors, r._id]) : [];
   }
 
   async list(ctx: AuthContext, q: z.output<typeof listQuery>) {
     const f: Filter<PlanDoc> = {};
-    const off = await this.unassigned(ctx);
-    if (off.length) f._id = { $nin: off };
+    const ids = await this.assigned(ctx);
+    if (ids) f._id = { $in: ids };
     if (q.status) f.status = q.status;
-    if (q.cursor) f._id = { ...(off.length ? { $nin: off } : {}), $lt: new ObjectId(q.cursor) };
+    if (q.cursor) f._id = { ...(ids ? { $in: ids } : {}), $lt: new ObjectId(q.cursor) };
     if (q.q) f.name = { $regex: `^${q.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, $options: 'i' };
     const docs = await this.col(ctx)
       .find(f, { sort: { _id: -1 }, limit: q.limit + 1 })

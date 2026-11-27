@@ -4,7 +4,16 @@ import { ObjectId } from 'mongodb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { ImportBatchDoc, ImportRowDoc } from '@isp/db-mongo';
 import { COLUMNS, XLSX_MIME } from '../src/subscribers/excel.js';
-import { roleId, seedTenant, seedUser, signIn, startHarness, type Client, type Harness } from './harness.js';
+import {
+  roleId,
+  seedTenant,
+  seedUser,
+  selectPlans,
+  signIn,
+  startHarness,
+  type Client,
+  type Harness,
+} from './harness.js';
 
 let h: Harness;
 let admin: Client;
@@ -218,6 +227,7 @@ describe('reseller bulk import (switched on by the ISP, top level only)', () => 
     l2 = (await admin.req('POST', R, { parentId: l1, name: 'Seppa POP', ownerName: 'Nima' })).body.id;
     r1 = await resellerUser('owner@l1.imp', l1);
     r2 = await resellerUser('owner@l2.imp', l2);
+    await selectPlans(h.db, [l1, l2], ['Home 50']);
   });
 
   it('is off by default: no permission, uploads refused', async () => {
@@ -300,20 +310,9 @@ describe('reseller bulk import (switched on by the ISP, top level only)', () => 
 
   it('only plans assigned to the reseller are listed and accepted', async () => {
     const plan = await h.db.collection('plans').findOne({ name: 'Home 50' });
-    const tenantId = plan!.tenantId;
-    const now = new Date();
-    await h.db.collection('reseller_rates').insertOne({
-      tenantId,
-      buyerId: new ObjectId(l1),
-      setById: tenantId,
-      planId: plan!._id,
-      walletPricePaise: 0,
-      active: false,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: 'test',
-      updatedBy: 'test',
-    });
+    await h.db
+      .collection('reseller_rates')
+      .updateOne({ buyerId: new ObjectId(l1), planId: plan!._id }, { $set: { active: false } });
     try {
       const sheets = await readXlsxFile((await r1.req('GET', '/api/v1/subscribers/import/template')).raw);
       expect(sheets[1]!.data.slice(1).map((x) => x[0])).not.toContain('Home 50');
@@ -342,8 +341,46 @@ describe('reseller bulk import (switched on by the ISP, top level only)', () => 
       );
       expect(isp.body.errors).toEqual([]);
     } finally {
-      await h.db.collection('reseller_rates').deleteMany({ buyerId: new ObjectId(l1) });
+      await selectPlans(h.db, [l1], ['Home 50']);
     }
+  });
+
+  it('plans are opt-in: a new plan is hidden until the level above assigns it', async () => {
+    const id = (
+      await admin.req('POST', '/api/v1/plans', {
+        name: 'Opt In 200',
+        downloadKbps: 200_000,
+        uploadKbps: 50_000,
+        pricePaise: 1,
+      })
+    ).body.id as string;
+    const names = async (c: Client) =>
+      (await c.req('GET', '/api/v1/plans')).body.items.map((p: { name: string }) => p.name) as string[];
+    const assigned = async (c: Client, rid: string) =>
+      (await c.req('GET', `${R}/${rid}/rates`)).body.items.find(
+        (x: { planId: string }) => x.planId === id,
+      ) as { active: boolean } | undefined;
+    expect(await names(r1)).not.toContain('Opt In 200');
+    expect((await assigned(admin, l1))?.active).toBe(false);
+    // The parent cannot pass down a plan it does not have.
+    expect(await assigned(r1, l2)).toBeUndefined();
+    expect((await r1.req('PUT', `${R}/${l2}/rates`, { rates: [{ planId: id, active: true }] })).status).toBe(
+      400,
+    );
+
+    const put = await admin.req('PUT', `${R}/${l1}/rates`, { rates: [{ planId: id, active: true }] });
+    expect(put.status, JSON.stringify(put.body)).toBe(200);
+    expect(await names(r1)).toContain('Opt In 200');
+    expect(await names(r2)).not.toContain('Opt In 200');
+    expect((await r1.req('PUT', `${R}/${l2}/rates`, { rates: [{ planId: id, active: true }] })).status).toBe(
+      200,
+    );
+    expect(await names(r2)).toContain('Opt In 200');
+    // Ticking a plan does not pin its wallet price.
+    const row = await h.db
+      .collection('reseller_rates')
+      .findOne({ buyerId: new ObjectId(l1), planId: new ObjectId(id) });
+    expect(row!.walletPricePaise).toBeUndefined();
   });
 
   it('ISP staff may use any reseller’s code; empty = direct ISP customer', async () => {

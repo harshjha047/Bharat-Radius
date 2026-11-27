@@ -4,7 +4,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PlanDoc, WalletDoc } from '@isp/db-mongo';
 import { PLAN_COLUMNS } from '../src/network/plans-excel.js';
 import { XLSX_MIME } from '../src/subscribers/excel.js';
-import { roleId, seedTenant, seedUser, signIn, startHarness, type Client, type Harness } from './harness.js';
+import {
+  roleId,
+  seedTenant,
+  seedUser,
+  selectPlans,
+  signIn,
+  startHarness,
+  type Client,
+  type Harness,
+} from './harness.js';
 
 let h: Harness;
 let tenant: ObjectId;
@@ -60,6 +69,7 @@ beforeAll(async () => {
   r1 = await resellerUser('owner@l1.rp', id.l1!);
   r2 = await resellerUser('owner@l2.rp', id.l2!);
   rb = await resellerUser('owner@lb.rp', id.lb!);
+  await selectPlans(h.db, [id.l1!, id.l2!, id.lb!], ['ISP 50']);
 });
 afterAll(() => h?.close());
 
@@ -76,8 +86,11 @@ describe('reseller plans', () => {
     expect(String(doc!.resellerId)).toBe(id.l1);
   });
 
-  it('own plans are seen by the reseller, its sub-resellers and the ISP only', async () => {
+  it('own plans are seen by the reseller, its sub-resellers (once assigned) and the ISP only', async () => {
     expect(await names(r1)).toEqual(['ISP 50', 'Xtreme 40']);
+    expect(await names(r2)).toEqual(['ISP 50']);
+    const put = await r1.req('PUT', `${R}/${id.l2}/rates`, { rates: [{ planId: id.own, active: true }] });
+    expect(put.status, JSON.stringify(put.body)).toBe(200);
     expect(await names(r2)).toEqual(['ISP 50', 'Xtreme 40']);
     expect(await names(rb)).toEqual(['ISP 50']);
     expect((await rb.req('GET', `${P}/${id.own}`)).status).toBe(404);

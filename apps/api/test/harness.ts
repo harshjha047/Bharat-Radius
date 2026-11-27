@@ -274,3 +274,46 @@ export async function seedSubscriber(h: Harness, tenantId: ObjectId, username: s
   });
   return _id;
 }
+
+/**
+ * Plans are opt-in per reseller: select `plans` for `resellers` (by name or id; every active tenant plan when
+ * omitted), as the level above would in the Prices tab.
+ */
+const isHexId = (p: string | ObjectId) => typeof p !== 'string' || /^[0-9a-f]{24}$/i.test(p);
+
+export async function selectPlans(db: Db, resellers: (string | ObjectId)[], plans?: (string | ObjectId)[]) {
+  const now = new Date();
+  for (const id of resellers) {
+    const r = await db.collection('resellers').findOne({ _id: new ObjectId(id) });
+    if (!r) throw new Error(`no reseller ${String(id)}`);
+    const docs = await db
+      .collection('plans')
+      .find({
+        tenantId: r.tenantId,
+        ...(plans
+          ? {
+              $or: [
+                { name: { $in: plans.filter((p) => !isHexId(p)).map(String) } },
+                { _id: { $in: plans.filter(isHexId).map((p) => new ObjectId(p)) } },
+              ],
+            }
+          : { status: 'active' }),
+      })
+      .toArray();
+    for (const p of docs) {
+      await db.collection('reseller_rates').updateOne(
+        { buyerId: r._id, planId: p._id },
+        {
+          $set: { active: true, updatedAt: now, updatedBy: 'test' },
+          $setOnInsert: {
+            tenantId: r.tenantId,
+            setById: r.parentId ?? r.tenantId,
+            createdAt: now,
+            createdBy: 'test',
+          },
+        },
+        { upsert: true },
+      );
+    }
+  }
+}

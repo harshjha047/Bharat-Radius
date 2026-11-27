@@ -10,7 +10,6 @@ import {
   gatewayFor,
   grossPrice,
   payments,
-  rates,
   settlePayment,
   verifyCashfree,
   verifyRazorpay,
@@ -21,6 +20,7 @@ import {
   type PaymentDoc,
   type PlanDoc,
   type SubscriberDoc,
+  isPlanAssigned,
   planSellableIn,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
@@ -232,10 +232,7 @@ export class PaymentsService {
       if (!plan || !plan.billingTypes.includes('prepaid') || !planSellableIn(plan, s.ancestors))
         throw notFound('Plan');
       // Settlement debits the owner's wallet at its rate; refuse now rather than after the customer has paid.
-      if (
-        s.resellerId &&
-        (await rates(this.db).findOne({ buyerId: s.resellerId, planId: plan._id }))?.active === false
-      ) {
+      if (s.resellerId && !(await isPlanAssigned(this.db, plan, s.ancestors))) {
         throw new AppError(403, 'FORBIDDEN', 'This plan is not sold to this customer');
       }
       amount = grossPrice(await customerPrice(this.db, s.resellerId, plan), plan.gstRatePercent);
