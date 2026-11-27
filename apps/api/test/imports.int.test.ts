@@ -126,6 +126,7 @@ describe('Excel import / export', () => {
     const [sheet] = await readXlsxFile(r.raw);
     expect(sheet!.data[0]).toContain('customer_no');
     expect(sheet!.data[0]).not.toContain('pppoe_password');
+    expect(sheet!.data[0]).toContain('reseller_code');
     expect(sheet!.data.slice(1).map((x) => x[0])).toEqual(['existing']);
     expect((await support.req('GET', '/api/v1/subscribers/export')).status).toBe(403);
   });
@@ -217,6 +218,63 @@ describe('reseller bulk import (switched on by the ISP, top level only)', () => 
       .findOne({ resellerId: { $exists: false } });
     expect((await r1.req('GET', `/api/v1/subscribers/imports/${isp!._id.toHexString()}`)).status).toBe(404);
     expect((await r1.req('GET', '/api/v1/subscribers/export')).status).toBe(403);
+  });
+
+  it('reseller_code puts rows under the reseller’s own sub-resellers; any other code is refused', async () => {
+    const code = async (id: string) => (await admin.req('GET', `${R}/${id}`)).body.code as string;
+    const other = (await admin.req('POST', R, { name: 'Other Partner', ownerName: 'Om' })).body.id;
+    const paused = (await admin.req('POST', R, { parentId: l1, name: 'Paused POP', ownerName: 'Pa' })).body
+      .id;
+    await h.db
+      .collection('resellers')
+      .updateOne({ _id: new ObjectId(paused) }, { $set: { status: 'suspended' } });
+    const [c1, c2, cOther, cPaused] = await Promise.all([l1, l2, other, paused].map(code));
+    const file = await xlsx([
+      row({ ...base, username: 'r1.sub', plan: 'Home 50', reseller_code: c2!.toLowerCase() }),
+      row({ ...base, username: 'r1.self', reseller_code: c1! }),
+      row({ ...base, username: 'r1.empty' }),
+      row({ ...base, username: 'r1.other', reseller_code: cOther! }),
+      row({ ...base, username: 'r1.paused', reseller_code: cPaused! }),
+      row({ ...base, username: 'r1.nope', reseller_code: 'R-9999' }),
+    ]);
+    const dry = await upload(r1, file, '?dryRun=true');
+    expect(dry.body.counts).toEqual({ read: 6, valid: 3, created: 0, failed: 0 });
+    expect(dry.body.errors).toEqual([
+      { row: 5, column: 'reseller_code', message: `No reseller with code ${cOther} under you` },
+      { row: 6, column: 'reseller_code', message: `Paused POP (${cPaused}) is suspended` },
+      { row: 7, column: 'reseller_code', message: 'No reseller with code R-9999 under you' },
+    ]);
+    const r = await upload(r1, file, '?skipInvalid=true');
+    expect(r.body.status, JSON.stringify(r.body)).toBe('queued');
+    const rows = await h.db
+      .collection<ImportRowDoc>('import_rows')
+      .find({ batchId: new ObjectId(r.body.id) }, { sort: { row: 1 } })
+      .toArray();
+    expect(rows.map((x) => [x.input.username, String(x.resellerId), x.ancestors?.map(String)])).toEqual([
+      ['r1.sub', l2, [l1, l2]],
+      ['r1.self', l1, [l1]],
+      ['r1.empty', l1, [l1]],
+    ]);
+  });
+
+  it('ISP staff may use any reseller’s code; empty = direct ISP customer', async () => {
+    const c2 = (await admin.req('GET', `${R}/${l2}`)).body.code as string;
+    const r = await upload(
+      admin,
+      await xlsx([
+        row({ ...base, username: 'isp.sub', reseller_code: c2 }),
+        row({ ...base, username: 'isp.direct' }),
+      ]),
+    );
+    expect(r.body.status, JSON.stringify(r.body)).toBe('queued');
+    const rows = await h.db
+      .collection<ImportRowDoc>('import_rows')
+      .find({ batchId: new ObjectId(r.body.id) }, { sort: { row: 1 } })
+      .toArray();
+    expect(rows.map((x) => [x.input.username, x.resellerId ? String(x.resellerId) : null])).toEqual([
+      ['isp.sub', l2],
+      ['isp.direct', null],
+    ]);
   });
 
   it('switching it off takes the permission away at once', async () => {
