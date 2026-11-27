@@ -99,7 +99,8 @@ export interface ResellerRateDoc {
   /** Parent reseller, or the tenant for a top-level reseller. */
   setById: ObjectId;
   planId: ObjectId;
-  walletPricePaise: number;
+  /** Absent = follows the plan price. */
+  walletPricePaise?: number;
   customerPricePaise?: number;
   active: boolean;
   createdAt: Date;

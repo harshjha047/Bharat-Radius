@@ -16,7 +16,16 @@ import {
   type WalletDoc,
   type WalletTxnDoc,
 } from '@isp/db-mongo';
-import { roleId, seedTenant, seedUser, signIn, startHarness, type Client, type Harness } from './harness.js';
+import {
+  roleId,
+  seedTenant,
+  seedUser,
+  selectPlans,
+  signIn,
+  startHarness,
+  type Client,
+  type Harness,
+} from './harness.js';
 
 let h: Harness;
 let tenant: ObjectId;
@@ -130,6 +139,7 @@ beforeAll(async () => {
   ).body.id;
   l1User = await resellerUser('l1@m.in', id.l1);
   l2User = await resellerUser('l2@m.in', id.l2);
+  await selectPlans(h.db, [id.l1!, id.l2!]);
 });
 afterAll(async () => {
   await h?.close();
@@ -243,6 +253,7 @@ describe('accounts team worked example (exact numbers)', () => {
 describe('balance rules', () => {
   beforeAll(async () => {
     id.l3 = (await l2User.req('POST', '/api/v1/resellers', { name: 'L3 Shop', ownerName: 'C' })).body.id;
+    await selectPlans(h.db, [id.l3!]);
     const l3w = await wallet(id.l3!);
     await l2User.req(
       'POST',
