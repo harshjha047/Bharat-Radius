@@ -286,6 +286,8 @@ export interface SubscriberDoc extends Standard {
   billingType: 'prepaid' | 'postpaid';
   planId?: ObjectId;
   expiresAt?: Date;
+  /** First day of service (set by import for migrated customers). */
+  activatedAt?: Date;
   status: SubscriberStatus;
   suspendReason?: string;
   /** Absent = `pppoe` (see connectionTypeOf). */

@@ -1,4 +1,5 @@
-import type { Filter, ObjectId } from 'mongodb';
+import type { Db, Filter, ObjectId } from 'mongodb';
+import type { ResellerRateDoc } from './billing/types.js';
 import type { PlanDoc } from './types.js';
 
 /**
@@ -15,3 +16,14 @@ export const sellablePlans = (ancestors: readonly ObjectId[]): Filter<PlanDoc> =
     : { resellerId: { $exists: false } };
 
 export const NOT_SELLABLE = 'This plan belongs to another reseller and cannot be used for this customer';
+
+/**
+ * Plans a reseller chain may not sell: a parent (or the ISP) switched them off for any reseller on the chain.
+ * Plans with no rate row stay assigned (default on).
+ */
+export const unassignedPlanIds = async (db: Db, chain: readonly ObjectId[]): Promise<ObjectId[]> =>
+  chain.length
+    ? db
+        .collection<ResellerRateDoc>('reseller_rates')
+        .distinct('planId', { buyerId: { $in: [...chain] }, active: false })
+    : [];

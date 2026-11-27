@@ -16,6 +16,7 @@ import {
   sellablePlans,
   type SubscriberDoc,
   type TenantDoc,
+  unassignedPlanIds,
   USERNAME_COLLATION,
 } from '@isp/db-mongo';
 import { noteChange } from '../audit/audit.js';
@@ -105,6 +106,24 @@ export const COLUMNS: readonly Column[] = [
     help: 'DD-MM-YYYY (day first) or YYYY-MM-DD; service ends at 23:59:59 IST that day',
     path: 'expiresAt',
   },
+  {
+    key: 'status',
+    example: 'active',
+    help: 'active (default), suspended or disabled',
+    path: 'status',
+  },
+  {
+    key: 'created_on',
+    example: '',
+    help: 'Customer since: DD-MM-YYYY or YYYY-MM-DD, not in the future; empty = today',
+    path: 'createdAt',
+  },
+  {
+    key: 'activated_on',
+    example: '',
+    help: 'First day of service: DD-MM-YYYY or YYYY-MM-DD, not before created_on or in the future',
+    path: 'activatedAt',
+  },
   { key: 'static_ip', example: '', help: 'Optional IPv4', path: 'network.staticIp' },
   { key: 'mac_lock', example: '', help: 'Optional, AA:BB:CC:DD:EE:FF', path: 'network.macLock' },
   { key: 'sim_use', example: '', help: 'Logins at once; empty = plan default', path: 'network.simUse' },
@@ -161,7 +180,16 @@ export interface RowIssue {
 
 /** Owning reseller of an imported row; null = direct ISP customer. */
 type Owner = { resellerId: ObjectId; ancestors: ObjectId[] } | null;
-type ValidRow = { row: number; input: z.output<typeof createBody>; owner: Owner };
+/** Import-only fields, kept out of the API create body so the panel cannot backdate customers. */
+interface Migrated {
+  status: 'active' | 'suspended' | 'disabled';
+  createdAt?: Date;
+  activatedAt?: Date;
+}
+type ValidRow = { row: number; input: z.output<typeof createBody>; owner: Owner; migrated: Migrated };
+const STATUSES = new Set<Migrated['status']>(['active', 'suspended', 'disabled']);
+/** YYYY-MM-DD → that day, 00:00 IST. */
+const istStart = (day: string) => new Date(`${day}T00:00:00+05:30`);
 
 const ownerOf = (r: Pick<ResellerDoc, '_id' | 'ancestors'>): NonNullable<Owner> => ({
   resellerId: r._id,
@@ -297,9 +325,13 @@ export class SubscriberExcel {
 
   async template(ctx: AuthContext): Promise<Buffer> {
     const { tenantId, reseller } = await this.importer(ctx);
-    const plans = (await this.plans(tenantId, reseller ? [reseller._id] : [])).filter(
-      (p) => p.status === 'active',
-    );
+    const chain = reseller ? [...reseller.ancestors, reseller._id] : [];
+    const [all, off] = await Promise.all([
+      this.plans(tenantId, chain),
+      unassignedPlanIds(this.mongo.db, chain),
+    ]);
+    const blocked = new Set(off.map((id) => id.toHexString()));
+    const plans = all.filter((p) => p.status === 'active' && !blocked.has(p._id.toHexString()));
     const header = COLUMNS.map((c) => ({
       value: c.required ? `${c.key}*` : c.key,
       fontWeight: 'bold' as const,
@@ -385,7 +417,28 @@ export class SubscriberExcel {
     for (const o of [defaultOwner, ...owners.values()]) {
       if (o && typeof o !== 'string') for (const a of o.ancestors) chainIds.set(a.toHexString(), a);
     }
-    const plans = await this.plans(tenantId, [...chainIds.values()]);
+    const [plans, off] = await Promise.all([
+      this.plans(tenantId, [...chainIds.values()]),
+      chainIds.size
+        ? this.mongo.db
+            .collection<{ buyerId: ObjectId; planId: ObjectId }>('reseller_rates')
+            .find(
+              { tenantId, buyerId: { $in: [...chainIds.values()] }, active: false },
+              { projection: { _id: 0, buyerId: 1, planId: 1 } },
+            )
+            .toArray()
+        : Promise.resolve([]),
+    ]);
+    /** planId → resellers that may not sell it. */
+    const offFor = new Map<string, Set<string>>();
+    for (const r of off) {
+      const k = r.planId.toHexString();
+      offFor.set(k, (offFor.get(k) ?? new Set()).add(r.buyerId.toHexString()));
+    }
+    const assigned = (p: (typeof plans)[number], owner: Owner) => {
+      const o = offFor.get(p._id.toHexString());
+      return !o || !(owner?.ancestors ?? []).some((a) => o.has(a.toHexString()));
+    };
     const plansByName = new Map<string, typeof plans>();
     for (const p of plans) {
       const k = p.name.toLowerCase();
@@ -397,8 +450,9 @@ export class SubscriberExcel {
       const depth = (p: (typeof plans)[number]) =>
         p.resellerId ? chain.indexOf(p.resellerId.toHexString()) : -1;
       const all = plansByName.get(name.toLowerCase()) ?? [];
-      const ok = all.filter((p) => !p.resellerId || depth(p) >= 0).sort((a, b) => depth(b) - depth(a));
-      return { plan: ok[0], elsewhere: all.length > 0 };
+      const sellable = all.filter((p) => !p.resellerId || depth(p) >= 0);
+      const ok = sellable.filter((p) => assigned(p, owner)).sort((a, b) => depth(b) - depth(a));
+      return { plan: ok[0], elsewhere: all.length > 0, unassigned: sellable.length > 0 && !ok.length };
     };
     const issues: RowIssue[] = [];
     const valid: ValidRow[] = [];
@@ -420,14 +474,16 @@ export class SubscriberExcel {
       const planName = get('plan');
       const billingType = (get('billing_type').toLowerCase() || 'prepaid') as 'prepaid' | 'postpaid';
       if (planName) {
-        const { plan: p, elsewhere } = planFor(planName, owner);
+        const { plan: p, elsewhere, unassigned } = planFor(planName, owner);
         if (!p) {
           rowIssues.push({
             row,
             column: 'plan',
-            message: elsewhere
-              ? `Plan "${planName}" is not sold by this customer's reseller`
-              : `No plan named "${planName}"`,
+            message: unassigned
+              ? `Plan "${planName}" is not assigned to this customer's reseller`
+              : elsewhere
+                ? `Plan "${planName}" is not sold by this customer's reseller`
+                : `No plan named "${planName}"`,
           });
         } else if (p.status !== 'active')
           rowIssues.push({ row, column: 'plan', message: 'This plan is archived' });
@@ -444,6 +500,29 @@ export class SubscriberExcel {
       if (expiresRaw && !expires) {
         rowIssues.push({ row, column: 'expires_on', message: 'Use DD-MM-YYYY (or YYYY-MM-DD)' });
       }
+      const statusRaw = get('status').toLowerCase();
+      const status = (statusRaw || 'active') as Migrated['status'];
+      if (!STATUSES.has(status))
+        rowIssues.push({ row, column: 'status', message: 'Use active, suspended or disabled' });
+      const today = istDay(new Date());
+      const dayOf = (key: 'created_on' | 'activated_on') => {
+        const v = get(key);
+        if (!v) return undefined;
+        const d = parseDayFirst(v);
+        if (!d) rowIssues.push({ row, column: key, message: 'Use DD-MM-YYYY (or YYYY-MM-DD)' });
+        else if (d > today) rowIssues.push({ row, column: key, message: 'Cannot be in the future' });
+        else return d;
+        return undefined;
+      };
+      const createdOn = dayOf('created_on');
+      const activatedOn = dayOf('activated_on');
+      if (createdOn && activatedOn && activatedOn < createdOn)
+        rowIssues.push({ row, column: 'activated_on', message: 'Cannot be before created_on' });
+      const migrated: Migrated = {
+        status,
+        ...(createdOn ? { createdAt: istStart(createdOn) } : {}),
+        ...(activatedOn ? { activatedAt: istStart(activatedOn) } : {}),
+      };
       const simUse = get('sim_use');
       const raw = {
         username: get('username'),
@@ -497,7 +576,7 @@ export class SubscriberExcel {
       if (ip) seenIp.set(ip, seenIp.get(ip) ?? row);
 
       if (rowIssues.length || !parsed.success) issues.push(...rowIssues);
-      else valid.push({ row, input: { ...parsed.data, ...(planId ? { planId } : {}) }, owner });
+      else valid.push({ row, input: { ...parsed.data, ...(planId ? { planId } : {}) }, owner, migrated });
     }
 
     // Already taken in this ISP (checked in chunks so a 50k-row file stays a few queries).
@@ -590,7 +669,10 @@ export class SubscriberExcel {
       await rows.insertMany(
         valid.slice(i, i + 1000).map((r) => {
           const _id = new ObjectId();
-          const input = toNewSubscriber(r.input, r.input.pppoePassword ?? newPassword(), tenant?.stateCode);
+          const input = {
+            ...toNewSubscriber(r.input, r.input.pppoePassword ?? newPassword(), tenant?.stateCode),
+            ...r.migrated,
+          };
           return {
             _id,
             batchId: batch._id,
@@ -661,7 +743,7 @@ export class SubscriberExcel {
       ).map((r) => [r._id.toHexString(), r.code]),
     );
     const cols = COLUMNS.filter((c) => c.key !== 'pppoe_password');
-    const extra = ['customer_no', 'status', 'sync_status', 'created_on'];
+    const extra = ['customer_no', 'sync_status'];
     const data: SheetData = [
       [...cols.map((c) => c.key), ...extra].map((v) => ({ value: v, fontWeight: 'bold' as const })),
     ];
@@ -690,6 +772,9 @@ export class SubscriberExcel {
         connection_type: connectionTypeOf(s),
         plan: s.planId ? (plans.get(s.planId.toHexString()) ?? null) : null,
         expires_on: s.expiresAt ? istDay(s.expiresAt) : null,
+        status: s.status === 'deleted' ? 'disabled' : s.status,
+        created_on: istDay(s.createdAt),
+        activated_on: s.activatedAt ? istDay(s.activatedAt) : null,
         static_ip: s.network.staticIp ?? null,
         mac_lock: s.network.macLock ?? null,
         sim_use: s.network.simUse ?? null,
@@ -697,13 +782,7 @@ export class SubscriberExcel {
         notes: s.notes ?? null,
         reseller_code: s.resellerId ? (codes.get(s.resellerId.toHexString()) ?? null) : null,
       };
-      data.push([
-        ...cols.map((c) => v[c.key] ?? null),
-        s.customerNo,
-        s.status,
-        s.syncStatus,
-        istDay(s.createdAt),
-      ]);
+      data.push([...cols.map((c) => v[c.key] ?? null), s.customerNo, s.syncStatus]);
     }
     noteChange({ after: { rows: n, filter: q } });
     return writeXlsxFile(data, { sheet: 'Subscribers', stickyRowsCount: 1 }).toBuffer();

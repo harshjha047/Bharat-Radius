@@ -182,6 +182,7 @@ function Hero({ s }: { s: Subscriber }) {
     },
     { k: 'Billing', v: s.billingType === 'prepaid' ? 'Prepaid' : 'Postpaid' },
     { k: 'Customer since', v: fmtDate(s.createdAt) },
+    ...(s.activatedAt ? [{ k: 'Activated on', v: fmtDate(s.activatedAt) }] : []),
     {
       k: 'Reseller',
       v: s.reseller ? (
@@ -519,6 +520,7 @@ function Overview({ s }: { s: Subscriber }) {
                   : null,
               ],
               ['Created', fmtDateTime(s.createdAt)],
+              ['Activated on', s.activatedAt ? fmtDate(s.activatedAt) : null],
             ]}
           />
           {s.notes ? (

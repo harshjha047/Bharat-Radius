@@ -6353,6 +6353,9 @@
                           "expiresAt": {
                             "type": ["string", "null"]
                           },
+                          "activatedAt": {
+                            "type": ["string", "null"]
+                          },
                           "status": {
                             "type": "string",
                             "enum": ["active", "suspended", "disabled"]
@@ -6472,6 +6475,7 @@
                           "connectionType",
                           "planId",
                           "expiresAt",
+                          "activatedAt",
                           "status",
                           "suspendReason",
                           "radiusState",
@@ -6757,6 +6761,9 @@
                     "expiresAt": {
                       "type": ["string", "null"]
                     },
+                    "activatedAt": {
+                      "type": ["string", "null"]
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "disabled"]
@@ -6876,6 +6883,7 @@
                     "connectionType",
                     "planId",
                     "expiresAt",
+                    "activatedAt",
                     "status",
                     "suspendReason",
                     "radiusState",
@@ -7177,6 +7185,9 @@
                           "expiresAt": {
                             "type": ["string", "null"]
                           },
+                          "activatedAt": {
+                            "type": ["string", "null"]
+                          },
                           "status": {
                             "type": "string",
                             "enum": ["active", "suspended", "disabled"]
@@ -7296,6 +7307,7 @@
                           "connectionType",
                           "planId",
                           "expiresAt",
+                          "activatedAt",
                           "status",
                           "suspendReason",
                           "radiusState",
@@ -7427,6 +7439,9 @@
                     "expiresAt": {
                       "type": ["string", "null"]
                     },
+                    "activatedAt": {
+                      "type": ["string", "null"]
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "disabled"]
@@ -7546,6 +7561,7 @@
                     "connectionType",
                     "planId",
                     "expiresAt",
+                    "activatedAt",
                     "status",
                     "suspendReason",
                     "radiusState",
@@ -7861,6 +7877,9 @@
                     "expiresAt": {
                       "type": ["string", "null"]
                     },
+                    "activatedAt": {
+                      "type": ["string", "null"]
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "disabled"]
@@ -7980,6 +7999,7 @@
                     "connectionType",
                     "planId",
                     "expiresAt",
+                    "activatedAt",
                     "status",
                     "suspendReason",
                     "radiusState",
@@ -8196,6 +8216,9 @@
                     "expiresAt": {
                       "type": ["string", "null"]
                     },
+                    "activatedAt": {
+                      "type": ["string", "null"]
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "disabled"]
@@ -8315,6 +8338,7 @@
                     "connectionType",
                     "planId",
                     "expiresAt",
+                    "activatedAt",
                     "status",
                     "suspendReason",
                     "radiusState",
@@ -8441,6 +8465,9 @@
                     "expiresAt": {
                       "type": ["string", "null"]
                     },
+                    "activatedAt": {
+                      "type": ["string", "null"]
+                    },
                     "status": {
                       "type": "string",
                       "enum": ["active", "suspended", "disabled"]
@@ -8560,6 +8587,7 @@
                     "connectionType",
                     "planId",
                     "expiresAt",
+                    "activatedAt",
                     "status",
                     "suspendReason",
                     "radiusState",

@@ -131,6 +131,47 @@ describe('Excel import / export', () => {
     expect((await support.req('GET', '/api/v1/subscribers/export')).status).toBe(403);
   });
 
+  it('status, created_on and activated_on are validated and carried to the queued rows', async () => {
+    const bad = await xlsx([
+      row({ ...base, username: 'mig.bad1', status: 'paused' }),
+      row({ ...base, username: 'mig.bad2', created_on: '31-02-2024' }),
+      row({ ...base, username: 'mig.bad3', created_on: '01-01-2099' }),
+      row({ ...base, username: 'mig.bad4', created_on: '10-05-2024', activated_on: '09-05-2024' }),
+    ]);
+    expect((await upload(admin, bad, '?dryRun=true')).body.errors).toEqual([
+      { row: 2, column: 'status', message: 'Use active, suspended or disabled' },
+      { row: 3, column: 'created_on', message: 'Use DD-MM-YYYY (or YYYY-MM-DD)' },
+      { row: 4, column: 'created_on', message: 'Cannot be in the future' },
+      { row: 5, column: 'activated_on', message: 'Cannot be before created_on' },
+    ]);
+    const r = await upload(
+      admin,
+      await xlsx([
+        row({
+          ...base,
+          username: 'mig.ok',
+          status: 'Suspended',
+          created_on: '10-05-2024',
+          activated_on: '2024-05-12',
+        }),
+        row({ ...base, username: 'mig.plain' }),
+      ]),
+    );
+    expect(r.body.status, JSON.stringify(r.body)).toBe('queued');
+    const rows = await h.db
+      .collection<ImportRowDoc>('import_rows')
+      .find({ batchId: new ObjectId(r.body.id) }, { sort: { row: 1 } })
+      .toArray();
+    expect(rows[0]!.input).toMatchObject({
+      status: 'suspended',
+      createdAt: new Date('2024-05-09T18:30:00Z'),
+      activatedAt: new Date('2024-05-11T18:30:00Z'),
+    });
+    expect(rows[1]!.input).toMatchObject({ status: 'active' });
+    expect(rows[1]!.input.createdAt).toBeUndefined();
+    expect(rows[1]!.input.activatedAt).toBeUndefined();
+  });
+
   it('batches are per ISP', async () => {
     const b = await h.db.collection<ImportBatchDoc>('import_batches').findOne({});
     const other = await seedTenant(h.db, 'imp2');
@@ -255,6 +296,54 @@ describe('reseller bulk import (switched on by the ISP, top level only)', () => 
       ['r1.self', l1, [l1]],
       ['r1.empty', l1, [l1]],
     ]);
+  });
+
+  it('only plans assigned to the reseller are listed and accepted', async () => {
+    const plan = await h.db.collection('plans').findOne({ name: 'Home 50' });
+    const tenantId = plan!.tenantId;
+    const now = new Date();
+    await h.db.collection('reseller_rates').insertOne({
+      tenantId,
+      buyerId: new ObjectId(l1),
+      setById: tenantId,
+      planId: plan!._id,
+      walletPricePaise: 0,
+      active: false,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: 'test',
+      updatedBy: 'test',
+    });
+    try {
+      const sheets = await readXlsxFile((await r1.req('GET', '/api/v1/subscribers/import/template')).raw);
+      expect(sheets[1]!.data.slice(1).map((x) => x[0])).not.toContain('Home 50');
+      const names = (await r1.req('GET', '/api/v1/plans')).body.items.map((p: { name: string }) => p.name);
+      expect(names).not.toContain('Home 50');
+      expect(
+        (await admin.req('GET', '/api/v1/plans')).body.items.map((p: { name: string }) => p.name),
+      ).toContain('Home 50');
+      const c2 = (await admin.req('GET', `${R}/${l2}`)).body.code as string;
+      const dry = await upload(
+        r1,
+        await xlsx([
+          row({ ...base, username: 'r1.unassigned', plan: 'Home 50' }),
+          row({ ...base, username: 'r1.sub.unassigned', plan: 'Home 50', reseller_code: c2 }),
+        ]),
+        '?dryRun=true',
+      );
+      expect(dry.body.errors).toEqual([
+        { row: 2, column: 'plan', message: 'Plan "Home 50" is not assigned to this customer\'s reseller' },
+        { row: 3, column: 'plan', message: 'Plan "Home 50" is not assigned to this customer\'s reseller' },
+      ]);
+      const isp = await upload(
+        admin,
+        await xlsx([row({ ...base, username: 'isp.home', plan: 'Home 50' })]),
+        '?dryRun=true',
+      );
+      expect(isp.body.errors).toEqual([]);
+    } finally {
+      await h.db.collection('reseller_rates').deleteMany({ buyerId: new ObjectId(l1) });
+    }
   });
 
   it('ISP staff may use any reseller’s code; empty = direct ISP customer', async () => {

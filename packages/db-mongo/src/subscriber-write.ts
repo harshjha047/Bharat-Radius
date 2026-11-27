@@ -41,6 +41,10 @@ export interface NewSubscriber {
   network: SubscriberDoc['network'];
   tags: string[];
   notes?: string | undefined;
+  /** Import only (migrated customers); the API always creates active subscribers dated now. */
+  status?: Exclude<SubscriberDoc['status'], 'deleted'> | undefined;
+  createdAt?: Date | undefined;
+  activatedAt?: Date | undefined;
 }
 
 export interface InsertContext {
@@ -77,7 +81,9 @@ export function buildSubscriberDoc(
     billingType: input.billingType,
     ...(input.planId ? { planId: input.planId } : {}),
     ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
-    status: 'active',
+    ...(input.activatedAt ? { activatedAt: input.activatedAt } : {}),
+    status: input.status ?? 'active',
+    ...(input.status === 'suspended' ? { suspendReason: 'manual' } : {}),
     connectionType: input.connectionType ?? 'pppoe',
     network: input.network,
     kyc: { status: 'pending' },
@@ -87,7 +93,7 @@ export function buildSubscriberDoc(
     syncStatus: 'pending',
     ...(ctx.importBatchId ? { importBatchId: ctx.importBatchId } : {}),
     version: 0,
-    createdAt: now,
+    createdAt: input.createdAt ?? now,
     updatedAt: now,
     createdBy: ctx.actor,
     updatedBy: ctx.actor,
