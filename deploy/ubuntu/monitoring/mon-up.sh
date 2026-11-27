@@ -22,6 +22,13 @@ fi
 set -a; . "$DIR/.env"; set +a
 PUBLIC_IP="$(sed -n 's/^RADIUS_PUBLIC_HOST=//p' /etc/isp-app/settings.env)"
 [[ -n $PUBLIC_IP ]] || die "RADIUS_PUBLIC_HOST not set in /etc/isp-app/settings.env: rerun app-up.sh with it"
+# Behind a provider NAT without hairpin the public address is unreachable from this host: probe through the host instead
+# (external reachability then needs an outside check).
+PROBE_IP=$PUBLIC_IP; export PANEL_PROBE_ADDR=$PUBLIC_IP
+if ! curl -s -o /dev/null -m 3 "http://$PUBLIC_IP:8089/"; then
+  PROBE_IP=host.docker.internal; PANEL_PROBE_ADDR=host-gateway
+  log "no NAT hairpin to $PUBLIC_IP: blackbox probes via the host"
+fi
 for n in isp_internal "$EDGE_NETWORK"; do docker network inspect "$n" >/dev/null 2>&1 || die "network $n missing: run app-up.sh first"; done
 node_metrics="$(curl -fsS http://127.0.0.1:9100/metrics)" || die "node exporter not answering: run install-exporters.sh first"
 grep -q '^isp_radius_up' <<<"$node_metrics" || die "node exporter without isp_radius_*: run install-exporters.sh first"
@@ -34,7 +41,7 @@ chown 472:0 "$MON/grafana_admin_pw"; chmod 0400 "$MON/grafana_admin_pw"
 sed "s/__TELEGRAM_CHAT_ID__/$TELEGRAM_CHAT_ID/" "$DIR/alertmanager/alertmanager.yml.tmpl" >"$MON/alertmanager.yml"
 chmod 0644 "$MON/alertmanager.yml"
 # The repo file carries acs-prod's values; this host's go in. Written in place: Prometheus has it bind-mounted.
-sed -e "s/host: acs-prod/host: $(hostname -s)/" -e "s/154\.49\.142\.251/$PUBLIC_IP/g" \
+sed -e "s/host: acs-prod/host: $(hostname -s)/" -e "s/154\.49\.142\.251/$PROBE_IP/g" \
   -e "s/new\.bharatradius\.com/$PANEL_HOST/g" "$DIR/prometheus/prometheus.yml" >"$MON/prometheus.yml.new"
 [[ -f $MON/prometheus.yml ]] || install -m 0644 /dev/null "$MON/prometheus.yml"
 cat "$MON/prometheus.yml.new" >"$MON/prometheus.yml"; rm -f "$MON/prometheus.yml.new"

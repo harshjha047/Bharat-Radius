@@ -45,6 +45,10 @@ services:
     command: ['--config.file=/etc/blackbox/blackbox.yml']
     volumes:
       - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    # No NAT hairpin (br-prod): mon-up.sh sets PANEL_PROBE_ADDR=host-gateway so the panel is probed through the host.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+      - '${PANEL_HOST:-new.bharatradius.com}:${PANEL_PROBE_ADDR:-host-gateway}'
     networks: [mon, isp]
     deploy:
       resources:
